@@ -66,7 +66,7 @@ The value of a separate tester is catching things the implementer assumed:
 ## Testing Pyramid
 
 | Layer | What to Test | How |
-|-------|-------------|-----|
+| --- | --- | --- |
 | Unit | Individual public methods | Mock dependencies, test behavior |
 | Integration | Components working together | Real dependencies where feasible |
 | E2E | User workflows from plan | Full stack if infrastructure exists |
@@ -122,12 +122,33 @@ Run all tests. Report:
 - Failed: N (with details)
 - Coverage of plan requirements: which success criteria are verified
 
-## Step 6: Summarize for Reviewer
+## Step 6: Persist Results to Plan
 
-Create a brief test summary:
-- What was tested
-- What was NOT tested (and why)
-- Any concerns about testability
+Write the test summary to the plan file's `## Test Results` section:
+
+```markdown
+## Test Results
+
+Run: YYYY-MM-DD
+Total: N | Passed: N | Failed: N | Skipped: N
+
+### Coverage of Success Criteria
+
+| Criteria | Tested? | Result |
+| --- | --- | --- |
+| [from plan] | Yes/No | PASS/FAIL |
+
+### Failed Tests
+
+- `TestName` — [reason for failure]
+
+### Not Tested
+
+- [What was skipped and why]
+- [Testability concerns]
+```
+
+This persists results across sessions — the verifier reads this section to confirm quality.
 </process>
 
 <anti_patterns>

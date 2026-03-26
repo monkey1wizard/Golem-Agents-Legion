@@ -11,7 +11,7 @@ This guide covers essential PDF processing operations using Python libraries and
 
 A convenience script `scripts/read_pdf.py` (pypdf-based) is bundled for quick text extraction with page markers:
 ```powershell
-python "c:\Users\leetz\.copilot\skills\pdf\scripts\read_pdf.py" "path/to/input.pdf" --outdir "C:\Temp"
+python "<GAL_SKILLS>/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "<TEMP_DIR>"
 ```
 
 ## Quick Start
@@ -300,7 +300,7 @@ with open("encrypted.pdf", "wb") as output:
 ## Quick Reference
 
 | Task | Best Tool | Command/Code |
-|------|-----------|--------------|
+| --- | --- | --- |
 | Merge PDFs | pypdf | `writer.add_page(page)` |
 | Split PDFs | pypdf | One page per file |
 | Extract text | pdfplumber | `page.extract_text()` |

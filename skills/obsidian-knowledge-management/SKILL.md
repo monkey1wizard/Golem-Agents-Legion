@@ -26,7 +26,7 @@ obsidian vault="Obsidian Vault" tags total
 **Before ANY vault operation** (reading, writing, creating, or answering questions from the vault), you MUST invoke the `local-first-search` skill and execute Phase 0 — Semantic Search using `obsidian-note-taking-assistant`:
 
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
+cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
@@ -122,7 +122,7 @@ Clips_Text / Clips_Media
 ### By Directory
 
 | Directory | Format | Example |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | `21_Literature` | `YYYYMMDD_Author_Short_Title.md` | `20251208_Lailari_China_Strategy.md` |
 | `22_Permanent` | `Type_Keyword.md` | `Concept_拒止戰略_Strategy_of_Denial.md` |
 | `23_Maps` | `Topic_Name.md` | `人工智慧.md` |
@@ -130,7 +130,7 @@ Clips_Text / Clips_Media
 ### Permanent Note Type Prefixes
 
 | Type | Purpose |
-| :--- | :--- |
+| --- | --- |
 | `Concept` | "What" — definitions, principles, phenomena |
 | `Strategy` | "How" — action plans, methodologies |
 | `Model` | "Mechanism" — causal, input→output structures |

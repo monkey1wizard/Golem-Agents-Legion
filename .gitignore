@@ -14,3 +14,6 @@ Desktop.ini
 *.key
 *.pem
 openclaw.json
+
+# Local overrides (fork and customize)
+model-roles.local.md

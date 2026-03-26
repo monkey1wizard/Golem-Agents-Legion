@@ -1,5 +1,8 @@
 # Plan: Bootstrap Golem Agents Legion — Portable Development System
 
+> **Status: ABSORBED** — All design decisions have been extracted to implementation files.
+> Delete this file after confirming Phase 4 commit.
+>
 > 此計畫撰寫於 2026-03-24，最後更新 2026-03-26。
 > **此文件是 GAL 的 bootstrap plan**——從零拉起整個系統的設計決策與實作步驟。
 > **終態**：當所有設計決策已萃取到對應檔案（`workflows/`、`agents.md`、`model-roles.md`、`conventions/` 等），此文件將標記為 ABSORBED 並刪除。
@@ -254,51 +257,51 @@ golem-agents-legion/
 - [x] 建立 `conventions/token-budget.md`（Token 使用規則）
 - [x] 建立 `templates/agent.md`（Golem 建立模板）
 
-### Phase 4: Design Sync（bootstrap 設計決策 → 實作檔案）
+### Phase 4: Design Sync（bootstrap 設計決策 → 實作檔案）— ✅ ABSORBED
 
 此階段將 bootstrap 中的設計決策萃取到各實作檔案。完成後 bootstrap 標記 ABSORBED。
 
 #### 4A: Workflow 遷移
 
-- [ ] 建立 `workflows/` 目錄
-- [ ] 建立 `workflows/coding.md`：從 `workflow.md` 遷移 + 擴充（Tier T0/T1/T2 分級、9-state machine、Scope Fence、review pack、architect-lite/full、analyst 條件式啟用）
-- [ ] 刪除 `workflow.md`（被 `workflows/coding.md` 取代）
+- [x] 建立 `workflows/` 目錄
+- [x] 建立 `workflows/coding.md`：從 `workflow.md` 遷移 + 擴充（Tier T0/T1/T2 分級、9-state machine、Scope Fence、review pack、architect-lite/full、analyst 條件式啟用）
+- [x] 刪除 `workflow.md`（被 `workflows/coding.md` 取代）
 
 #### 4B: Agent 與 Model 更新
 
-- [ ] 更新 `agent/agents.md`：移除 dual review 預設，改為 review pack + direct-call 原則 + golem 三類分類
-- [ ] 更新 `agent/implementer.agent.md`：state tracking → plan `## Status` + Scope Fence 禁止清單
-- [ ] 更新 `agent/verifier.agent.md`：擴充 plan lifecycle ending（verify goal → confirm docs updated → ABSORBED → 刪除 plan）
-- [ ] 更新 `agent/tester.agent.md`：output 寫入 plan `## Test Results`
-- [ ] 更新 `agent/reviewer.agent.md`：output 寫入 plan `## Review Results`
-- [ ] 更新 `agent/debugger.agent.md`：debug state 歸屬（有 plan → plan Debug Log / 無 plan → state.md Debug Session）
-- [ ] 更新 `agent/scribe.agent.md`：frontmatter 補 `edit` tool
-- [ ] 更新 `model-roles.md`：補 tier 分級（Frontier/Standard/Low-cost）+ architect-lite/full + reviewer pack 規則
+- [x] 更新 `agent/agents.md`：移除 dual review 預設，改為 review pack + direct-call 原則 + golem 三類分類
+- [x] 更新 `agent/implementer.agent.md`：state tracking → plan `## Status` + Scope Fence 禁止清單
+- [x] 更新 `agent/verifier.agent.md`：擴充 plan lifecycle ending（verify goal → confirm docs updated → ABSORBED → 刪除 plan）
+- [x] 更新 `agent/tester.agent.md`：output 寫入 plan `## Test Results`
+- [x] 更新 `agent/reviewer.agent.md`：output 寫入 plan `## Review Results`
+- [x] 更新 `agent/debugger.agent.md`：debug state 歸屬（有 plan → plan Debug Log / 無 plan → state.md Debug Session）
+- [x] 更新 `agent/scribe.agent.md`：frontmatter 補 `edit` tool
+- [x] 更新 `model-roles.md`：補 tier 分級（Frontier/Standard/Low-cost）+ architect-lite/full + reviewer pack 規則
 
 #### 4C: Template 更新
 
-- [ ] 更新 `templates/plan.md`：追加 Status / Review Results / Test Results / Debug Log / Handoff Notes + Success Criteria
-- [ ] 更新 `templates/state.md`：重新定義為 global index + session continuity，移除 per-task state
-- [ ] 更新 `templates/project.md`：補 Source Documents / Verified Facts / Suspected Drift / Documentation Gaps
-- [ ] 更新 `templates/templates.md`：移除 3 個不存在的 prompt template 引用
-- [ ] 對齊 `templates/diary.md` 與 `agent/scribe.agent.md` 格式
+- [x] 更新 `templates/plan.md`：追加 Status / Review Results / Test Results / Debug Log / Handoff Notes + Success Criteria
+- [x] 更新 `templates/state.md`：重新定義為 global index + session continuity，移除 per-task state
+- [x] 更新 `templates/project.md`：補 Source Documents / Verified Facts / Suspected Drift / Documentation Gaps
+- [x] 更新 `templates/templates.md`：移除 3 個不存在的 prompt template 引用
+- [x] 對齊 `templates/diary.md` 與 `agent/scribe.agent.md` 格式
 
 #### 4D: README + ROADMAP
 
-- [ ] 全面重寫 `README.md`：對齊多 Workflow 架構 + 三層架構 + 跨機器架構 + repo naming
-- [ ] 從 bootstrap 抽出 `ROADMAP.md`：Phase 1~5 概要 + 里程碑進度
+- [x] 全面重寫 `README.md`：對齊多 Workflow 架構 + 三層架構 + 跨機器架構 + repo naming
+- [x] 從 bootstrap 抽出 `ROADMAP.md`：Phase 1~5 概要 + 里程碑進度
 
 #### 4E: Script 更新
 
-- [ ] 更新 `scripts/gal.ps1`：補 `pause` 命令 + 修正 plan filename 格式（`{type}-{slug}` 非 `plan-{slug}`）
-- [ ] 更新 `scripts/gal.sh`：同步 Windows 版更新
-- [ ] 更新 `scripts/Init-Repo.ps1`：補 adopt-existing 模式（先 ingest README + docs/ + 設定檔，再生成 .dev/project.md）
-- [ ] 更新 `scripts/init-repo.sh`：同步 Windows 版更新
+- [x] 更新 `scripts/gal.ps1`：補 `pause` 命令 + 修正 plan filename 格式（`{type}-{slug}` 非 `plan-{slug}`）
+- [x] 更新 `scripts/gal.sh`：同步 Windows 版更新
+- [x] 更新 `scripts/Init-Repo.ps1`：補 adopt-existing 模式（先 ingest README + docs/ + 設定檔，再生成 .dev/project.md）
+- [x] 更新 `scripts/init-repo.sh`：同步 Windows 版更新
 
 #### 4F: Bootstrap 終態
 
-- [ ] 確認所有設計決策已萃取到對應檔案
-- [ ] 此文件標記為 ABSORBED
+- [x] 確認所有設計決策已萃取到對應檔案
+- [x] 此文件標記為 ABSORBED
 - [ ] 刪除此文件
 
 ### Phase 5: Per-Repo Integration（order-parser-app 為首例）
@@ -411,7 +414,7 @@ GAL 不使用單一狀態機，而是依工作性質提供多個獨立 workflow�
 **分割原則：依 guardrails 需求，而非表面性質**
 
 | 工作 | 表面分類 | 真正分界線 |
-|------|---------|------------|
+| --- | --- | --- |
 | 讀一篇論文，寫摘要 | research | 無 state machine，utility 直接做 |
 | 研究 3 個方案，產出 ADR | research | 需要 review gate（architect verify 結論品質） |
 | 修一個 typo | coding → T0 | 無 state machine |
@@ -569,7 +572,7 @@ Next step: Add order parsing logic
 ### Deviations
 
 | Step | Plan Said | Actually Did | Why |
-|------|-----------|-------------|-----|
+| --- | --- | --- | --- |
 
 ### Handoff Notes
 
@@ -667,7 +670,7 @@ Review findings 和 test results 不能只活在 chat session 裡——切 sessi
 當前它同時承擔四個角色：
 
 | 角色 | 正常歸屬 | 萃取後終態 |
-|------|---------|----------|
+| --- | --- | --- |
 | 設計決策 (ADR) | `workflows/`、`agents.md`、`model-roles.md`、`conventions/` | 分散到各檔案 |
 | Roadmap | `ROADMAP.md` | 抽出為獨立檔案 |
 | 系統架構 | `README.md` | 濃縮版放入 README |

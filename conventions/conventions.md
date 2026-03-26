@@ -5,7 +5,7 @@ Portable rules that ALL Golem agents follow, regardless of which tool is being u
 ## Active Conventions
 
 | File | Content |
-|------|---------|
+| --- | --- |
 | [universal.md](universal.md) | Cross-language rules: git commits, structured logging, result pattern, markdown formatting |
 | [csharp.md](csharp.md) | C# / .NET 10 / C# 14: naming, modern syntax, Clean Architecture, Blazor |
 | [go.md](go.md) | Go: error handling, naming, project structure, table-driven tests |

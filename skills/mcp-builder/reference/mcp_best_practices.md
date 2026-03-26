@@ -141,7 +141,7 @@ Example pagination response:
 ### Transport Selection
 
 | Criterion | stdio | Streamable HTTP |
-|-----------|-------|-----------------|
+| --- | --- | --- |
 | **Deployment** | Local | Remote |
 | **Clients** | Single | Multiple |
 | **Complexity** | Low | Medium |
@@ -192,7 +192,7 @@ For streamable HTTP servers running locally:
 Provide annotations to help clients understand tool behavior:
 
 | Annotation | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `readOnlyHint` | boolean | false | Tool does not modify its environment |
 | `destructiveHint` | boolean | true | Tool may perform destructive updates |
 | `idempotentHint` | boolean | false | Repeated calls with same args have no additional effect |

@@ -59,7 +59,7 @@ When stuck, return to foundational truths:
 ## Cognitive Biases to Avoid
 
 | Bias | Trap | Antidote |
-|------|------|----------|
+| --- | --- | --- |
 | Confirmation | Only seeking evidence for your hypothesis | Actively seek disconfirming evidence |
 | Anchoring | First explanation becomes your anchor | Generate 3+ hypotheses before investigating any |
 | Availability | Recent bugs → assume similar cause | Treat each bug as novel until evidence says otherwise |
@@ -137,13 +137,36 @@ When a hypothesis is confirmed:
 3. Run related tests to ensure no regression
 4. Commit: `fix(<scope>): <description>`
 
-## Step 6: Update State
+## Step 6: Persist Debug State
 
-Record in `.dev/state.md`:
-- What was debugged
-- Root cause found
-- Fix applied
-- Lessons learned (to avoid recurrence)
+Debug state location depends on context:
+
+**If there is an active plan** (bug found during a planned task):
+- Write debug session to the plan's `## Debug Log` section
+- Include: hypotheses tested, root cause, fix applied, lessons learned
+
+**If there is no plan** (ad-hoc bug investigation):
+- Write debug session to `.dev/state.md` under an optional `## Debug Session` section
+- Clean up the section after the session concludes
+- Preserve conclusions in state.md's Decisions or the relevant `docs/` file
+
+```markdown
+## Debug Log
+
+### Session: YYYY-MM-DD — [Bug Title]
+
+**Symptoms**: [what was observed]
+**Root Cause**: [what was wrong and why]
+**Fix**: [what was changed]
+**Lessons**: [what to avoid in the future]
+
+#### Hypotheses Tested
+
+| # | Hypothesis | Result |
+| --- | --- | --- |
+| 1 | [H1] | ELIMINATED — [evidence] |
+| 2 | [H2] | CONFIRMED — [evidence] |
+```
 </process>
 
 <when_to_restart>

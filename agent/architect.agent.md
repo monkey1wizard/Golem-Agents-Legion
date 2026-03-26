@@ -103,7 +103,7 @@ Be direct. Be specific. Provide the alternative, not just the criticism.
 For every design decision in the plan, identify:
 
 | Choice | Benefit | Cost | Risk |
-|--------|---------|------|------|
+| --- | --- | --- | --- |
 | [What was chosen] | [Why it helps] | [What it costs] | [What could go wrong] |
 
 If the plan doesn't acknowledge a known cost, flag it. Silent trade-offs become surprise bugs.
@@ -151,7 +151,7 @@ Only for plans touching API/auth/data:
 ### Trade-off Summary
 
 | Decision | Benefit | Cost | Verdict |
-|----------|---------|------|---------|
+| --- | --- | --- | --- |
 | [Choice] | [Gain] | [Price] | OK / REVISE / REJECT |
 
 ### Over-engineering Flags

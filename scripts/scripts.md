@@ -3,7 +3,7 @@
 Machine setup and adapter sync scripts.
 
 | Script | Platform | Purpose |
-|--------|----------|---------|
+| --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/` |
@@ -19,11 +19,12 @@ The portable shell entrypoint is `gal <subcommand>`.
 AI-specific slash commands should map onto the same subcommands.
 
 | Command | Purpose |
-|--------|---------|
-| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` |
-| `/gal plan <name>` | Create a draft plan scaffold |
+| --- | --- |
+| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` (adopt-existing by default) |
+| `/gal plan [-Type <type>] <name>` | Create a draft plan scaffold (type defaults to `feat`) |
 | `/gal status` | Read current workflow state |
 | `/gal next` | Show the next recorded step |
+| `/gal pause` | Commit `.dev/` and `docs/plans/` for worktree context handoff |
 | `/gal sync` | Generate tool-specific adapter files |
 | `/gal ask <agent>` | Direct consult with a golem without changing workflow state |
 | `/gal run <agent>` | Invoke utility-style golems |
@@ -33,21 +34,36 @@ Shell usage examples:
 ```powershell
 .\scripts\gal.ps1 init
 .\scripts\gal.ps1 plan "refactor order pipeline"
+.\scripts\gal.ps1 plan -Type fix "null ref in parser"
 .\scripts\gal.ps1 status
+.\scripts\gal.ps1 pause
 ```
 
 ```bash
 ./scripts/gal.sh init
 ./scripts/gal.sh plan "refactor order pipeline"
+./scripts/gal.sh plan -t fix "null ref in parser"
 ./scripts/gal.sh status
+./scripts/gal.sh pause
 ```
+
+### Init-Repo: Adopt-Existing Mode
+
+By default, `gal init` scans the target repo for existing documentation:
+
+1. Finds README variants, `docs/` files, ADR directories
+2. Detects tech stack from config files (`.csproj`, `package.json`, `go.mod`, etc.)
+3. Pre-populates `.dev/project.md` Source Documents table and Tech Stack field
+4. User/AI completes the summary by reviewing discovered docs
+
+Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank template.
 
 ## Setup-Machine Symlinks
 
 The setup script creates these symlinks:
 
 | Source (repo) | Target (runtime) |
-|--------------|------------------|
+| --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/` |
 | `skills/*/` | `~/.copilot/skills/` |
 

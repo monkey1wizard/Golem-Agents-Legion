@@ -14,7 +14,7 @@ Template for `<repo>/.dev/project.md` — portable project context.
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+| --- | --- |
 | Language | [e.g., C# 14 / .NET 10] |
 | Framework | [e.g., .NET MAUI] |
 | Database | [e.g., SQLite + Cloud Firestore] |
@@ -28,7 +28,7 @@ Template for `<repo>/.dev/project.md` — portable project context.
 ### Layer Map
 
 | Layer | Namespace | Depends On |
-|-------|-----------|-----------|
+| --- | --- | --- |
 | Domain | Project.Domain | Nothing |
 | Application | Project.Application | Domain |
 | Infrastructure | Project.Infrastructure | Application, Domain |
@@ -55,8 +55,37 @@ Sync-DevContext reads this field to inline skill content into adapters.]
 ## Key Decisions
 
 | Decision | Rationale | Date |
-|----------|-----------|------|
+| --- | --- | --- |
 | [Choice] | [Why] | YYYY-MM-DD |
+
+## Source Documents
+
+[Index of canonical docs in this repo. Agents read project.md first; only follow these links when the summary is insufficient.]
+
+| Document | Path | Last Verified |
+| --- | --- | --- |
+| [README] | [README.md] | [YYYY-MM-DD] |
+| [Architecture] | [docs/architecture.md] | [YYYY-MM-DD] |
+
+## Verified Facts
+
+[Facts confirmed by code inspection — not just what docs claim.]
+
+- [Tech stack: confirmed by inspecting .csproj / package.json]
+- [Test framework: confirmed by running `dotnet test`]
+
+## Suspected Drift
+
+[Places where docs and code may disagree. Record rather than silently assume correct.]
+
+- [docs/api.md says endpoint X exists, but not found in codebase]
+
+## Documentation Gaps
+
+[Known areas with no documentation. Prioritize creating these.]
+
+- [No ADR for database choice]
+- [No docs on deployment process]
 ```
 
 ## Usage Rules
@@ -66,3 +95,5 @@ Sync-DevContext reads this field to inline skill content into adapters.]
 3. **Concise** — context window is precious, don't bloat
 4. **Active Skills** — used by Sync-DevContext to generate adapters
 5. **Update on architecture changes** — not after every commit
+6. **Summary + index, not duplication** — point to canonical docs, don't copy their content
+7. **Record drift and gaps** — better to document uncertainty than ignore it

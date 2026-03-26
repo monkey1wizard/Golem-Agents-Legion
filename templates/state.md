@@ -1,68 +1,42 @@
 # State Template
 
-Template for `<repo>/.dev/state.md` — cross-session memory for per-repo work.
+Template for `<repo>/.dev/state.md` — global index and session continuity.
+
+Per-task state (workflow step, deviations, test/review results) lives in the **plan file's `## Status`** section, not here. This file tracks repo-level concerns only.
 
 ## File Template
 
 ```markdown
 # Project State
 
-## Current Position
+## Active Plans
 
-Workflow: [IDLE | PLAN | DISCUSS | APPROVE | IMPLEMENT | TEST | CROSS_REVIEW | VERIFY | DONE]
-Plan: [path to current plan file, or "None"]
-Step: [N of M in current plan]
-Last activity: [YYYY-MM-DD] — [what happened]
+| Plan | Branch | Tier | Workflow State | Last Activity |
+| --- | --- | --- | --- | --- |
+| [plan path] | [branch] | [T0/T1/T2] | [PLAN/IMPLEMENT/TEST/...] | [YYYY-MM-DD] |
 
-## Active Context
+## Global Decisions
 
-### Current Plan Summary
-
-[One-liner: what we're building right now]
-
-### Decisions Made
-
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| YYYY-MM-DD | [Choice] | [Why] |
-
-### Deviations from Plan
-
-| Step | Plan Said | Actually Did | Why |
-|------|-----------|-------------|-----|
-
-## Review Status
-
-### Test Results
-
-Last run: [YYYY-MM-DD]
-Passed: [N] / Failed: [N] / Skipped: [N]
-
-### Review Findings
-
-Blocking: [N] / Warning: [N] / Info: [N]
-Unresolved: [list of blocking issue IDs]
-
-### Verification
-
-Verdict: [NOT_STARTED | GAPS_FOUND | VERIFIED]
-Gaps: [list if any]
+| Date | Decision | Rationale | Scope |
+| --- | --- | --- | --- |
+| YYYY-MM-DD | [Choice] | [Why] | [repo-wide / cross-plan] |
 
 ## Blockers
 
-[Issues preventing progress — empty when unblocked]
+[Repo-level issues preventing progress — empty when unblocked]
 
 ## Session Continuity
 
-Last session: [YYYY-MM-DD HH:MM]
+Last session: YYYY-MM-DD HH:MM
 Stopped at: [description of last completed action]
 Next step: [what to do when resuming]
+Context: [which plan was active, key state to restore]
 ```
 
 ## Usage Rules
 
-1. **Only one active plan** — state.md tracks the current focus
-2. **Update after every state transition** — PLAN→IMPLEMENT, IMPLEMENT→TEST, etc.
-3. **Keep it current** — stale state is worse than no state
-4. **Don't duplicate the plan** — link to it, don't copy content here
-5. **Record deviations immediately** — before you forget why
+1. **Global index, not per-task tracker** — plan files carry their own state via `## Status`
+2. **Active Plans table** — add a row when a plan is created, remove when plan is ABSORBED and deleted
+3. **Session Continuity** — update at the end of every session or on `gal pause`
+4. **Global Decisions** — only for decisions that span multiple plans or affect the entire repo
+5. **Keep it minimal** — stale state is worse than no state; don't duplicate what's in plan files

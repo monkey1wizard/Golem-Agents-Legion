@@ -13,42 +13,56 @@ repos:
   - "{{repo-name}}"
 tags:
   - work-diary
-  - "{{repo-tag}}"
 ---
 ```
 
 ## Body Structure
 
 ```markdown
-# {{YYYY-MM-DD}} ({{ddd}}) Work Diary
+# Work Journal {{YYYY-MM-DD}}（{{Weekday}}）
 
-## 📋 Summary
-<!-- 3-5 sentence overview of the day -->
+## Summary
 
-## 💻 Development
+One or two sentences summarizing today's progress.
+
+## Development
+
 ### {{repo-name}}
-- **Branch**: `{{branch}}`
-- **Commits**:
-  - `abc1234` — commit message
-  - `def5678` — commit message
-- **Changes Summary**: What was accomplished in this repo
 
-## 📝 Notes & Research
+- <type>: <description> (commit: <short-hash>)
+- <type>: <description> (commit: <short-hash>)
+
+> Current status: <from .dev/state.md>
+
+## Notes & Research
+
 - Items from scratch log that aren't commit-linked
 
-## 🔀 Decisions
-- Key decisions made and their reasoning
+## Decisions
 
-## 📦 Other
+- **<decision>**: <rationale>
+
+## Other
+
 - Meetings, reading, non-dev activities
+- or (None)
 
-## 📌 Tomorrow
-- [ ] Carry-forward tasks
+## Tomorrow
+
+- [ ] Carry-forward tasks from state.md
 - [ ] Planned next steps
 
-> [!tip] 可原子化
-> If any section contains reusable knowledge, extract it to a permanent note in `20_Concepts/` or `21_Literature/`.
+> [!tip] Atomizable
+> If any section contains reusable knowledge, extract it to a permanent note in `22_Permanent/`.
 ```
+
+## Diary Rules
+
+- **Language**: Traditional Chinese for structure headings; content follows source language (commit messages stay as-is)
+- **Punctuation**: Full-width for CJK text `，`、`。`、`：`; half-width for English/code
+- **No emoji** in content — only in the shutdown confirmation banner
+- **Commit hashes**: Include short hash for traceability
+- **Empty sections**: Write `（無）` instead of omitting the heading — consistent structure for search
 
 ## Storage
 

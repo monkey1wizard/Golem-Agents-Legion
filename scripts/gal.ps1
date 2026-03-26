@@ -13,9 +13,10 @@ function Show-Usage {
     Write-Host ""
     Write-Host "Commands:"
     Write-Host "  init [targetPath] [projectName]   Initialize .dev/ and docs/plans/"
-    Write-Host "  plan <name>                       Create a draft plan file from template"
+    Write-Host "  plan [-Type <type>] <name>        Create a draft plan file from template"
     Write-Host "  status                            Show current workflow status from .dev/state.md"
     Write-Host "  next                              Show the next step from .dev/state.md"
+    Write-Host "  pause                             Commit .dev/ context for worktree handoff"
     Write-Host "  sync                              Run Sync-DevContext if available"
     Write-Host "  ask <agent>                       Describe adapter-level direct consult command"
     Write-Host "  run <agent>                       Describe adapter-level utility invocation"
@@ -55,15 +56,27 @@ switch ($Command) {
         break
     }
     "plan" {
-        if (-not $Arguments -or $Arguments.Count -eq 0) {
-            throw "Usage: gal plan <name>"
+        $planType = "feat"
+        $nameArgs = @()
+
+        for ($i = 0; $i -lt $Arguments.Count; $i++) {
+            if ($Arguments[$i] -eq "-Type" -and ($i + 1) -lt $Arguments.Count) {
+                $planType = $Arguments[$i + 1]
+                $i++
+            } else {
+                $nameArgs += $Arguments[$i]
+            }
         }
 
-        $planName = ($Arguments -join " ").Trim()
+        if ($nameArgs.Count -eq 0) {
+            throw "Usage: gal plan [-Type <type>] <name>"
+        }
+
+        $planName = ($nameArgs -join " ").Trim()
         $slug = ConvertTo-Slug $planName
         $plansDir = Join-Path (Get-Location).Path "docs\plans"
         $planTemplatePath = Join-Path $repoRoot "templates\plan.md"
-        $planTargetPath = Join-Path $plansDir ("plan-{0}.prompt.md" -f $slug)
+        $planTargetPath = Join-Path $plansDir ("{0}-{1}.prompt.md" -f $planType, $slug)
 
         if (-not (Test-Path $planTemplatePath)) {
             throw "Missing template: $planTemplatePath"
@@ -103,6 +116,35 @@ switch ($Command) {
         }
 
         Write-Host $nextLine
+        break
+    }
+    "pause" {
+        $statePath = Require-StateFile
+        $devDir = Join-Path (Get-Location).Path ".dev"
+        $plansDir = Join-Path (Get-Location).Path "docs\plans"
+
+        Write-Host "=== gal pause: Context Handoff ==="
+        Write-Host ""
+        Write-Host "Before running this command, ask your AI session to:"
+        Write-Host "  1. Write key context to plan's ## Status > ### Handoff Notes"
+        Write-Host "  2. Update .dev/state.md Session Continuity"
+        Write-Host ""
+
+        $hasChanges = $false
+        $gitStatus = git status --porcelain -- $devDir $plansDir 2>$null
+        if ($gitStatus) {
+            $hasChanges = $true
+        }
+
+        if (-not $hasChanges) {
+            Write-Host "No uncommitted changes in .dev/ or docs/plans/. Nothing to commit."
+            break
+        }
+
+        git add $devDir $plansDir
+        git commit -m "chore: gal pause — context handoff"
+        Write-Host ""
+        Write-Host "Committed .dev/ and docs/plans/ changes. Safe to switch worktree."
         break
     }
     "sync" {

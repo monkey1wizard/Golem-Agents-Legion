@@ -6,7 +6,7 @@ When you switch AI tools, update the mapping table — everything else stays the
 ## Roles
 
 | Role | Purpose | Key Trait |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | PLANNER | Analyze requirements, produce plan files | Broad reasoning, architecture awareness |
 | ARCHITECT | Adversarial plan review — trade-offs, over-engineering, bugs | Critical thinking, minimalism, direct communication |
 | ANALYST | Business logic review — ROI, domain correctness, user impact | Commercial awareness, domain expertise |
@@ -16,6 +16,23 @@ When you switch AI tools, update the mapping table — everything else stays the
 | SCRIBE | End-of-day diary, shutdown enforcement | Summarization, Obsidian integration |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
+## Model Tiers
+
+Models are classified by capability tier. This drives activation rules.
+
+| Tier | Label | Roles | When to Use |
+| --- | --- | --- | --- |
+| 1 | **Frontier** | PLANNER, ARCHITECT, ANALYST | Strong reasoning required — planning, trade-off analysis, business logic |
+| 2 | **Standard** | CODER, TESTER, REVIEWER | Execution tasks — implementation, testing, code review |
+| 3 | **Low-cost** | SCRIBE, LOCAL | Low-stakes tasks — diary writing, quick notes, offline |
+
+### Tier Rules
+
+- **Reviewer model tier ≥ implementer (CODER) model tier** — the reviewer must be at least as capable as the code it reviews.
+- **Architect-full requires Tier 1** — trade-off analysis needs frontier reasoning.
+- **Architect-lite can use Tier 2** — structural checks don't need full reasoning power.
+- **Within the same tier, prefer model diversity** — different models catch different blind spots.
+
 ## Routing Rules
 
 1. **CODER and TESTER must be different models** — independent verification
@@ -23,72 +40,40 @@ When you switch AI tools, update the mapping table — everything else stays the
 3. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
 4. When switching tools, update the **Current Mapping** table below only
 
-## Machines
+## Architect Activation by Tier
 
-| Machine | OS | LLM Resources |
-| :--- | :--- | :--- |
-| Windows PC | Windows 11 | Copilot (Sonnet 4.6 / GPT 4.1), Gemini CLI, Ollama (3060 Ti 12GB) |
-| Mac Mini | macOS | OpenClaw (Gemini), Copilot, Gemini CLI, Ollama (Apple Silicon) |
+| Coding Flow Tier | Architect Mode | Model Tier Required |
+| --- | --- | --- |
+| T0 (Trivial) | Off (consult OK) | — |
+| T1 (Standard) | Lite (default on) | Tier 2+ |
+| T2 (Strategic) | Full (mandatory) | Tier 1 |
 
-## Current Mapping (2026-03)
+## Review Pack Rules (T2)
 
-| Role | Windows PC | Mac Mini |
-| :--- | :--- | :--- |
-| PLANNER | Copilot (Claude Sonnet 4.6) — interactive | OpenClaw Plan Agent — async via Telegram |
-| CODER | Copilot Agent Mode (Claude Sonnet 4.6) | VS Code Copilot (for iOS/Swift work) |
-| TESTER | Gemini CLI (Gemini 2.5 Pro) | Gemini CLI |
-| REVIEWER | Copilot (GPT 4.1) or Gemini CLI | OpenClaw (Gemini) |
-| LOCAL | Ollama: Breeze2-8B, TAIDE-LX-8B | Ollama: larger models on Apple Silicon |
+The T2 review pack is composed per task, not fixed:
 
-## Ollama Models Available
+| Reviewer | When Included | Verdict Required? |
+| --- | --- | --- |
+| **Architect-full** | Always | Yes — APPROVE required |
+| **Analyst** | Business rules, pricing, permissions, customer-visible changes | Yes — when included |
+| **Reviewer** | Large implementation, security-sensitive code | Yes — when included |
+| **Debugger** | Complex integration, known fragile areas | Advisory only |
 
-### Windows PC (RTX 3060 Ti, 12GB VRAM)
-
-| Model | Best For |
-| :--- | :--- |
-| `willqiu/Llama-Breeze2-8B-Instruct` | Traditional Chinese tasks |
-| `TAIDE-LX-8B` | Traditional Chinese, Taiwan-specific |
-| `gemma3:latest` | General, multilingual |
-| `mistral:latest` | Fast general purpose |
-| `TwinkleAI/Llama-3.2-3B-F1-Reasoning` | Quick reasoning |
-| `cwchang/llama-3-taiwan-8b-instruct` | Taiwan-specific |
-
-### Mac Mini (Apple Silicon — TBD)
-
-Models to be configured after Mac Mini arrives. Apple Silicon unified memory
-allows running larger models (e.g., 70B quantized) that don't fit in 12GB VRAM.
+Entry to IMPLEMENT: **all required reviewers APPROVE**. If analyst is not in pack, analyst approval not needed.
 
 ## Typical Workflow (Single Developer)
 
 ```text
-1. PLAN    → Copilot (Sonnet 4.6) in VS Code
-             OR Mac Mini Plan Agent via Telegram (async, on the go)
-
-2. IMPLEMENT → Copilot Agent Mode (Sonnet 4.6) in VS Code
-               Follow the approved plan, check off items
-
-3. TEST    → Open a second terminal, use Gemini CLI
-             Feed it: plan file + public interfaces only
-             It writes tests without seeing implementation
-
-4. REVIEW  → Switch Copilot to GPT 4.1 (different model)
-             OR use Gemini CLI with cross-review template
-             Check: bugs, security, architecture violations
-
-5. VERIFY  → Run full test suite: `dotnet test` / `cargo test` / `npm test`
-             Confirm all plan items implemented
-             Update .dev/state.md
+1. PLAN    → Use a frontier-tier model (interactive or async)
+2. IMPLEMENT → Use a standard-tier coding agent — follow the approved plan
+3. TEST    → Use a DIFFERENT model — feed it plan + public interfaces only
+4. REVIEW  → Use a DIFFERENT model again — bugs, security, architecture
+5. VERIFY  → Run full test suite, confirm all plan items implemented
 ```
 
-## Migration Examples
+---
 
-When you switch to a new tool, update this table:
+## Your Setup
 
-| Scenario | What Changes |
-| :--- | :--- |
-| Adopt Claude Code | CODER → Claude Code; run `Sync-DevContext` to generate CLAUDE.md |
-| Adopt OmO/OpenCode | All roles → OmO discipline agents; AGENTS.md already generated |
-| Adopt Antigravity | Update table; add adapter in sync script |
-| Better local model | LOCAL → Ollama (new model); no other changes |
-| Drop Copilot entirely | Remove copilot-skills/ symlinks; conventions/ still works everywhere |
-| New machine | Clone dotdev; run setup script; update Machines table |
+Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
+with your own machines, models, and tools. The local file is git-ignored.

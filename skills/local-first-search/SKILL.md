@@ -14,7 +14,7 @@ description: Search the existing Obsidian Vault for knowledge, prioritizing the 
 The **`obsidian-note-taking-assistant`** provides a DuckDB + BGE-M3 vector search engine over the entire Vault. Use this **before** any file-based search.
 
 ### Tool Location
-- **Project**: `C:\Users\leetz\obsidian-note-taking-assistant`
+- **Project**: `<LOCAL_SEARCH_PROJECT>`  ← path to your obsidian-note-taking-assistant clone
 - **Script**: `scripts/query.py`
 - **Run via**: `uv run python scripts/query.py <command> <args>`
 
@@ -36,8 +36,8 @@ Slugs are auto-generated from file paths. Pattern: lowercase path with `/` → `
 
 ### Re-indexing (run when Vault has new notes)
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
-uv run python scripts/ingest.py "C:\Users\leetz\OneDrive\Obsidian Vault" --model "BAAI/bge-m3"
+cd <LOCAL_SEARCH_PROJECT>
+uv run python scripts/ingest.py "<OBSIDIAN_VAULT>" --model "BAAI/bge-m3"
 ```
 > Note: First run downloads BGE-M3 model (~1GB). Subsequent runs use cache and take ~35 minutes.
 
@@ -45,7 +45,7 @@ uv run python scripts/ingest.py "C:\Users\leetz\OneDrive\Obsidian Vault" --model
 
 ## Target Vault Path
 
-- **Vault Path**: `c:\Users\leetz\OneDrive\Obsidian Vault`
+- **Vault Path**: `<OBSIDIAN_VAULT>`  ← absolute path to your Obsidian vault
 
 ## Search Priorities
 
@@ -96,7 +96,7 @@ When you need to retrieve information to answer a user's question:
 Run the vector search tool before any file-based operation:
 
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
+cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 

@@ -135,7 +135,7 @@ Only for features touching data, payments, or user-facing policies:
 ### Business Value Assessment
 
 | Aspect | Finding | Impact |
-|--------|---------|--------|
+| --- | --- | --- |
 | User Need | [Identified / Assumed / Unknown] | [High / Medium / Low] |
 | Revenue Impact | [Positive / Neutral / Negative risk] | [Estimated scope] |
 | Build vs. Skip Cost | [What happens if we don't build this] | [Consequence] |
@@ -172,7 +172,7 @@ Only for features touching data, payments, or user-facing policies:
 ## Business Anti-patterns to Flag
 
 | Anti-pattern | Signal | Question to Ask |
-|---|---|---|
+| --- | --- | --- |
 | Solution Looking for a Problem | No identified user need | "Which user asked for this?" |
 | Gold Plating | Features beyond what's needed | "Would v1 without this still solve the problem?" |
 | Wrong Metric | Optimizing vanity metrics | "Does this metric tie to revenue or retention?" |

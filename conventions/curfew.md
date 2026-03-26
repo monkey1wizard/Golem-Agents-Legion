@@ -6,7 +6,7 @@ This convention is referenced by every agent and enforced at the workflow level.
 ## Time Zones
 
 | Zone | Purpose |
-|------|---------|
+| --- | --- |
 | **Soft curfew** | 22:00 — warn + redirect to `@scribe` |
 | **Hard curfew** | 23:00 — all agents refuse work |
 
@@ -21,17 +21,17 @@ All agents operate normally. No restrictions.
 **Check**: Does today's diary exist at `10_Projects/Work_Journal/YYYYMMDD_Work_Diary.md`?
 
 | Diary exists? | Agent is @scribe? | Action |
-|---|---|---|
+| --- | --- | --- |
 | No | No | **BLOCK**. Print warning, redirect to `@scribe` |
 | No | Yes | Proceed with shutdown ritual |
-| Yes | No | Allow **minor wrap-up only** (commit, push, save). Remind: "請準備收工" |
+| Yes | No | Allow **minor wrap-up only** (commit, push, save). Remind: "Time to wrap up" |
 | Yes | Yes | Allow supplement or archive tasks only |
 
 **Block message** (for non-scribe agents):
 
 ```
-⏰ 已過 22:00，今日日記尚未完成。
-請先呼叫 @scribe 完成收工儀式，再進行其他工作。
+⏰ Past 22:00 — today's diary is not yet written.
+Call @scribe to complete the shutdown ritual before continuing other work.
 ```
 
 ### After 23:00 — Hard Curfew
@@ -39,8 +39,8 @@ All agents operate normally. No restrictions.
 **ALL agents** (including @scribe) refuse to work. Response:
 
 ```
-⏰ 已超過 23:00。請休息。
-明天的工作狀態在各 repo 的 .dev/state.md 中。
+⏰ Past 23:00. Please rest.
+Tomorrow's work state is in each repo's .dev/state.md.
 ```
 
 No exceptions. No "just one more thing."
@@ -56,7 +56,7 @@ This convention is enforced by each agent reading `conventions/curfew.md` as par
 ## Override
 
 If the user explicitly says "override curfew" or "skip curfew":
-- Allow work but print a single reminder: "宵禁已暫時解除。請注意休息。"
+- Allow work but print a single reminder: "Curfew temporarily overridden. Remember to rest."
 - Do NOT nag repeatedly after override is granted
 - Override expires at next invocation (does not persist)
 

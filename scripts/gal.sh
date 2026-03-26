@@ -8,9 +8,10 @@ Usage: gal <command> [args]
 
 Commands:
   init [targetPath] [projectName]   Initialize .dev/ and docs/plans/
-  plan <name>                       Create a draft plan file from template
+  plan [-t <type>] <name>           Create a draft plan file from template
   status                            Show current workflow status from .dev/state.md
   next                              Show the next step from .dev/state.md
+  pause                             Commit .dev/ context for worktree handoff
   sync                              Run sync-dev-context.sh if available
   ask <agent>                       Describe adapter-level direct consult command
   run <agent>                       Describe adapter-level utility invocation
@@ -45,15 +46,29 @@ case "$command" in
     "$script_dir/init-repo.sh" "$@"
     ;;
   plan)
-    if [[ $# -eq 0 ]]; then
-      echo "Usage: gal plan <name>" >&2
+    plan_type="feat"
+    name_args=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -t)
+          plan_type="$2"
+          shift 2
+          ;;
+        *)
+          name_args+=("$1")
+          shift
+          ;;
+      esac
+    done
+    if [[ ${#name_args[@]} -eq 0 ]]; then
+      echo "Usage: gal plan [-t <type>] <name>" >&2
       exit 1
     fi
-    plan_name="$*"
+    plan_name="${name_args[*]}"
     slug="$(to_slug "$plan_name")"
     mkdir -p docs/plans
     template="$repo_root/templates/plan.md"
-    target="docs/plans/plan-$slug.prompt.md"
+    target="docs/plans/${plan_type}-${slug}.prompt.md"
     if [[ -f "$target" ]]; then
       echo "Plan already exists: $target" >&2
       exit 1
@@ -70,6 +85,23 @@ case "$command" in
   next)
     require_state
     grep -E '^Next step:' .dev/state.md | head -n 1
+    ;;
+  pause)
+    require_state
+    echo "=== gal pause: Context Handoff ==="
+    echo ""
+    echo "Before running this command, ask your AI session to:"
+    echo "  1. Write key context to plan's ## Status > ### Handoff Notes"
+    echo "  2. Update .dev/state.md Session Continuity"
+    echo ""
+    if git status --porcelain -- .dev/ docs/plans/ 2>/dev/null | grep -q .; then
+      git add .dev/ docs/plans/
+      git commit -m "chore: gal pause — context handoff"
+      echo ""
+      echo "Committed .dev/ and docs/plans/ changes. Safe to switch worktree."
+    else
+      echo "No uncommitted changes in .dev/ or docs/plans/. Nothing to commit."
+    fi
     ;;
   sync)
     if [[ ! -x "$script_dir/sync-dev-context.sh" ]]; then

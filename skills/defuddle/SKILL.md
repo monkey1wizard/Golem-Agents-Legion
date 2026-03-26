@@ -34,7 +34,7 @@ defuddle parse <url> -p domain
 ## Output formats
 
 | Flag | Format |
-|------|--------|
+| --- | --- |
 | `--md` | Markdown (default choice) |
 | `--json` | JSON with both HTML and markdown |
 | (none) | HTML |

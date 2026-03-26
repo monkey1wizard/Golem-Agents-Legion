@@ -9,9 +9,9 @@ Use the `obsidian` CLI to interact with a running Obsidian instance. **Requires 
 
 ## Environment
 
-- **Vault name**: `Obsidian Vault`
-- **Vault path**: `C:\Users\leetz\OneDrive\Obsidian Vault`
-- Always prefix commands with `vault="Obsidian Vault"` when targeting this vault explicitly.
+- **Vault name**: `<OBSIDIAN_VAULT_NAME>`  ← your Obsidian vault name
+- **Vault path**: `<OBSIDIAN_VAULT>`  ← absolute path to your vault
+- Always prefix commands with `vault="<OBSIDIAN_VAULT_NAME>"` when targeting this vault explicitly.
 
 ## Availability Check
 

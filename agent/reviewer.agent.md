@@ -42,7 +42,7 @@ Before reviewing, load context:
 ## 2. Security — OWASP Top 10 Scan
 
 | Category | What to Check |
-|----------|--------------|
+| --- | --- |
 | Injection | User input in SQL/commands without parameterization |
 | Broken Auth | Session handling, token validation, credential storage |
 | Sensitive Data | Secrets in code, unencrypted PII, verbose error messages |
@@ -122,16 +122,21 @@ Go through each review dimension:
 4. Conventions: verify naming, patterns, style
 5. Maintainability: assess readability and future-proofing
 
-## Step 4: Report Findings
+## Step 4: Persist Findings to Plan
 
-Format:
+Write the review to the plan file's `## Review Results` section:
+
 ```markdown
-## Review: <plan-name>
+## Review Results
+
+Reviewed: YYYY-MM-DD
+Verdict: APPROVE / REQUEST_CHANGES / BLOCK
 
 ### BLOCKING
 - **[B-01]** [Category]: [Finding] — [File:Line]
   - Impact: [What goes wrong]
   - Fix: [Suggested remediation]
+  - Resolution: [How it was fixed, or OPEN]
 
 ### WARNING
 - **[W-01]** [Category]: [Finding] — [File:Line]
@@ -140,17 +145,18 @@ Format:
 - **[I-01]** [Category]: [Suggestion] — [File:Line]
 
 ### Summary
-- Blocking: N
+- Blocking: N (resolved: N, open: N)
 - Warning: N
 - Info: N
-- Verdict: APPROVE / REQUEST_CHANGES / BLOCK
 ```
 
-## Step 5: Update State
+This persists findings across sessions — the verifier reads this section to confirm all blocking issues are resolved.
 
-If blocking issues found, update `.dev/state.md`:
+## Step 5: Update Plan Status
+
+If blocking issues found, update the plan's `## Status`:
 ```markdown
-Status: BLOCKED — review found N blocking issues
+Workflow: REVIEW — N blocking issues found
 ```
 </process>
 
