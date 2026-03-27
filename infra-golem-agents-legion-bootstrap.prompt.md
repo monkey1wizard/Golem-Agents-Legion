@@ -324,22 +324,22 @@ golem-agents-legion/
 ### Phase 4G: Gemini 支援 + 文件對齊
 
 **Setup-Machine Gemini 支援：**
-- [ ] 擴充 `Setup-Machine.ps1`：新增 `~/.gemini/skills/` symlinks（與 Copilot 同一 source）
-- [ ] 擴充 `Setup-Machine.ps1`：生成 `~/.gemini/gal-context.md`（含所有 skills 的 `@file` imports）
-- [ ] 擴充 `Setup-Machine.ps1 -Uninstall`：同時移除 `~/.gemini/` 下的 GAL symlinks + `gal-context.md`
-- [ ] 同步 `setup-machine.sh`：macOS 版 Gemini 支援
-- [ ] 在 Windows PC 跑一次驗證 `~/.gemini/skills/` symlinks + `gal-context.md` 正常
+- [x] 擴充 `Setup-Machine.ps1`：新增 `~/.gemini/skills/` symlinks（與 Copilot 同一 source）
+- [x] 擴充 `Setup-Machine.ps1`：生成 `~/.gemini/gal-context.md`（含所有 skills 的 `@file` imports）
+- [x] 擴充 `Setup-Machine.ps1 -Uninstall`：同時移除 `~/.gemini/` 下的 GAL symlinks + `gal-context.md`
+- [x] 同步 `setup-machine.sh`：macOS 版 Gemini 支援
+- [x] 在 Windows PC 跑一次驗證 `~/.gemini/skills/` symlinks + `gal-context.md` 正常
 - [ ] 驗證 Gemini CLI 可透過 `@~/.gemini/gal-context.md` 載入 GAL skills
 
 **文件對齊（adapter scope 2→Copilot+Gemini, agent count 9→10）：**
-- [ ] `README.md`：移除 CLAUDE.md / AGENTS.md / .cursorrules adapter 引用（lines 19, 42）
-- [ ] `README.md`：symlink 描述加入 `~/.gemini/`（line 88）
-- [ ] `README.md`：`agent/scribe.agent.md` → `agent/golem-scribe.agent.md`（line 117）
-- [ ] `README.md`：「9 golem agent」→「10 golem agent」（line 131）
-- [ ] `README.md`：skills 描述加入 Gemini symlink（line 134）
-- [ ] `README.zh-Hant.md`：同上 5 項對應修正（lines 88, 116, 131, 134 + adapter scope）
-- [ ] `ROADMAP.md`：新增 Phase 4G 列、「9 agent」→「10 agent」、Phase 4F 狀態修正為實際值
-- [ ] `scripts/scripts.md`：symlinks 表格加入 Gemini targets + Sync-DevContext flow 從 5 adapters 縮為 2
+- [x] `README.md`：移除 CLAUDE.md / AGENTS.md / .cursorrules adapter 引用（lines 19, 42）
+- [x] `README.md`：symlink 描述加入 `~/.gemini/`（line 88）
+- [x] `README.md`：`agent/scribe.agent.md` → `agent/golem-scribe.agent.md`（line 117）
+- [x] `README.md`：「9 golem agent」→「10 golem agent」（line 131）
+- [x] `README.md`：skills 描述加入 Gemini symlink（line 134）
+- [x] `README.zh-Hant.md`：同上 5 項對應修正（lines 88, 116, 131, 134 + adapter scope）
+- [x] `ROADMAP.md`：新增 Phase 4G 列、「9 agent」→「10 agent」、Phase 4F 狀態修正為實際值
+- [x] `scripts/scripts.md`：symlinks 表格加入 Gemini targets + Sync-DevContext flow 從 5 adapters 縮為 2
 
 ### Phase 5: Per-Repo Integration（order-parser-app 為首例）
 

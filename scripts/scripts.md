@@ -6,10 +6,14 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
+| `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
+| `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/` |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/ → ~/.copilot/ |
+| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/ → ~/.copilot/ + ~/.gemini/, generate gal-context.md |
 | `setup-machine.sh` | macOS | Same for Mac |
+| `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + gal-context.md (wrapper for `Setup-Machine.ps1 -Uninstall`) |
+| `uninstall-machine.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate adapter files from .dev/project.md |
 | `sync-dev-context.sh` | macOS | Same for Mac |
 
@@ -62,10 +66,12 @@ Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank 
 
 The setup script creates these symlinks:
 
-| Source (repo) | Target (runtime) |
-| --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` |
-| `skills/*/` | `~/.copilot/skills/` |
+| Source (repo) | Copilot Target | Gemini Target |
+| --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/` | — |
+| `skills/*/` | `~/.copilot/skills/` | `~/.gemini/skills/` |
+
+Additionally generates `~/.gemini/gal-context.md` with sorted `@file` skill imports.
 
 ## Sync-DevContext Flow
 
@@ -73,13 +79,10 @@ The setup script creates these symlinks:
 .dev/project.md (Active Skills field)
        │
        ├──→ Read selected skill content from conventions/
-       ├──→ Read workflow.md state machine
+       ├──→ Read workflows/ state machines
        ├──→ Read model-roles.md routing table
        │
        └──→ Generate:
             ├── .github/copilot-instructions.md (for Copilot)
-            ├── GEMINI.md (for Gemini CLI, skills inlined)
-            ├── CLAUDE.md (for Claude Code, skills inlined)
-            ├── AGENTS.md (for OmO/OpenCode)
-            └── .cursorrules (for Cursor)
+            └── GEMINI.md (for Gemini CLI, skills inlined)
 ```

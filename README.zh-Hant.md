@@ -16,7 +16,7 @@ AI 程式助手變化很快。你的技能和工作流程不應該被鎖在任�
 GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 
 - **知識**（工作流程、慣例、代理、技能）→ 這個 repo 裡的 Markdown 檔案
-- **工具設定**（`copilot-instructions.md`、`GEMINI.md`、`CLAUDE.md`）→ 自動生成的轉接器
+- **工具設定**（`copilot-instructions.md`、`GEMINI.md`）→ 自動生成的轉接器
 
 換工具時，更新一張路由表、重跑同步腳本。你的知識不需要搬家。
 
@@ -26,7 +26,7 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 ┌─────────────────────────────────────────────────────────────┐
 │ 第一層：~/golem-agents-legion/（這個 repo — 你的大腦）        │
 │  ├── workflows/         ← 狀態機（coding、research）         │
-│  ├── agent/             ← 9 個 Golem 代理定義                │
+│  ├── agent/             ← 10 個 Golem 代理定義               │
 │  ├── model-roles.md     ← 模型路由 + 分級系統                │
 │  ├── conventions/       ← 可攜式語言規範                     │
 │  ├── templates/         ← plan、state、project 樣板          │
@@ -39,13 +39,11 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 ├─────────────────────────────────────────────────────────────┤
 │ 第三層：自動生成的轉接器（用完即棄）                           │
 │  ├── .github/copilot-instructions.md                        │
-│  ├── GEMINI.md                                              │
-│  ├── CLAUDE.md                                              │
-│  └── AGENTS.md                                              │
+│  └── GEMINI.md                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 9 個 Golem 代理
+## 10 個 Golem 代理
 
 | 代理 | 分類 | 用途 |
 | --- | --- | --- |
@@ -58,6 +56,7 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 | **verifier** | 工作流程 | 目標回推驗證 + 計畫生命週期結束 |
 | **debugger** | 工具 | 科學方法除錯 |
 | **scribe** | 工具 | 日誌 + 宵禁執行者 |
+| **librarian** | 工具 | Obsidian vault 寫入 — 收件匣處理 + 知識萃取 |
 
 ## 開發流程分級
 
@@ -85,7 +84,7 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ~/golem-agents-legion/scripts/setup-machine.sh
 ```
 
-設定腳本會建立 symlink：`agent/` → `~/.copilot/agents/`、`skills/` → `~/.copilot/skills/`。
+設定腳本會建立 symlink：`agent/` → `~/.copilot/agents/`、`skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`。
 多台機器透過 `git push/pull` 共享相同定義。
 
 ## 跨機器設定
@@ -127,10 +126,10 @@ symlink。模型和工具因機器而異；方法論完全相同。
 | --- | --- |
 | [workflows/coding.md](workflows/coding.md) | 開發流程狀態機（分級 + Scope Fence + 審查包） |
 | [model-roles.md](model-roles.md) | 模型路由 + 分級系統 — 換工具時更新這裡 |
-| [agent/](agent/agents.md) | 9 個 Golem 代理定義 |
+| [agent/](agent/agents.md) | 10 個 Golem 代理定義 |
 | [conventions/](conventions/conventions.md) | 可攜式語言規範（通用、C#、Go、TS、Rust） |
 | [templates/](templates/templates.md) | plan、state、project、diary、agent 樣板 |
-| [skills/](skills/) | Copilot 技能（來源目錄，symlink 到 `~/.copilot/skills/`） |
+| [skills/](skills/) | 技能（來源目錄，symlink 到 `~/.copilot/skills/` + `~/.gemini/skills/`） |
 | [scripts/](scripts/scripts.md) | 機器設定、repo 初始化、工作流程調度 |
 | [ROADMAP.md](ROADMAP.md) | 實作進度與里程碑 |
 

@@ -11,7 +11,7 @@ Build the complete GAL system from scratch.
 | Phase | Name | Status | Summary |
 | --- | --- | --- | --- |
 | 1 | Bootstrap Repo | ✅ Done | Initial repo structure, agent files, conventions, templates, scripts |
-| 1.5 | Golem Agents | ✅ Done | 9 agent definitions (planner through scribe) |
+| 1.5 | Golem Agents | ✅ Done | 10 agent definitions (planner through librarian) |
 | 2 | Skills Migration | ✅ Done | 12 custom skills copied, Setup-Machine scripts, symlink verification |
 | 3 | Conventions + Templates | ✅ Done | 6 convention files extracted from skills, agent template created |
 | 4 | Design Sync | ✅ Done | All bootstrap design decisions extracted to implementation files |
@@ -25,8 +25,9 @@ Build the complete GAL system from scratch.
 | 4B | Agent + model updates | 7 agent files + `model-roles.md` updated |
 | 4C | Template updates | `plan.md`, `state.md`, `project.md`, `diary.md` updated |
 | 4D | README + ROADMAP | `README.md` rewritten, `ROADMAP.md` created |
-| 4E | Script updates | `gal.ps1`, `gal.sh`, `Init-Repo.ps1`, `init-repo.sh` updated |
-| 4F | Bootstrap termination | Bootstrap plan marked ABSORBED and deleted |
+| 4E | golem- rename audit | 13 files updated, 27 logical edits — agent/template/script refs |
+| 4F | Smudge/clean filter + hooks | `gal-smudge.sh`, `gal-clean.sh`, `.gitattributes`, `.githooks/pre-commit` |
+| 4G | Gemini support + doc alignment | Setup-Machine Gemini symlinks, gal-context.md, README/ROADMAP/scripts.md aligned |
 
 ### Phase 5 Scope (Per-Repo Integration)
 
@@ -41,7 +42,7 @@ Build the complete GAL system from scratch.
 
 ### v0.2: Research Flow
 
-- Define `workflows/research.md` state machine
+- Define `workflows/research.md` state machine ✅
 - Add researcher golem agent
 - Define research output format (ADR, comparison tables)
 

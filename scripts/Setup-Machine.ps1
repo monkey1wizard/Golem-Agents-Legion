@@ -1,11 +1,13 @@
 <#
 .SYNOPSIS
-    Creates symlinks from golem-agents-legion repo to ~/.copilot/ runtime directories.
+    Creates symlinks from golem-agents-legion repo to ~/.copilot/ and ~/.gemini/ runtime directories.
 
 .DESCRIPTION
     Links:
       - agent/*.agent.md  → ~/.copilot/agents/*.agent.md
       - skills/*/         → ~/.copilot/skills/*/
+      - skills/*/         → ~/.gemini/skills/*/ (Gemini CLI)
+      - Generates ~/.gemini/gal-context.md (@file skill imports)
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
     Falls back to directory junctions for skill folders if symlinks fail.
@@ -40,6 +42,10 @@ $repoRoot = Split-Path -Parent $scriptRoot
 $copilotRoot = Join-Path $env:USERPROFILE ".copilot"
 $agentsTarget = Join-Path $copilotRoot "agents"
 $skillsTarget = Join-Path $copilotRoot "skills"
+
+$geminiRoot = Join-Path $env:USERPROFILE ".gemini"
+$geminiSkillsTarget = Join-Path $geminiRoot "skills"
+$geminiContextFile = Join-Path $geminiRoot "gal-context.md"
 
 # --- Helpers ---
 
@@ -124,7 +130,7 @@ function Remove-SafeLink([string]$LinkPath) {
 # --- Ensure target directories ---
 
 if (-not $Uninstall) {
-    foreach ($dir in @($copilotRoot, $agentsTarget, $skillsTarget)) {
+    foreach ($dir in @($copilotRoot, $agentsTarget, $skillsTarget, $geminiRoot, $geminiSkillsTarget)) {
         if (-not (Test-Path $dir)) {
             if ($DryRun) {
                 Write-Host "[DRY RUN] Would create directory: $dir"
@@ -181,6 +187,58 @@ foreach ($d in $skillDirs) {
     }
 }
 
+# --- Gemini Skill symlinks (directory-level: same skills, different target) ---
+
+Write-Host ""
+Write-Host "=== Gemini Skills ($($skillDirs.Count) directories) ==="
+
+$geminiSkillOk = 0
+$geminiSkillFail = 0
+
+foreach ($d in $skillDirs) {
+    $linkPath = Join-Path $geminiSkillsTarget $d.Name
+
+    if ($Uninstall) {
+        Remove-SafeLink $linkPath
+    }
+    else {
+        if (New-SafeSymlink $linkPath $d.FullName "Directory") { $geminiSkillOk++ } else { $geminiSkillFail++ }
+    }
+}
+
+# --- Gemini gal-context.md ---
+
+Write-Host ""
+Write-Host "=== Gemini gal-context.md ==="
+
+if ($Uninstall) {
+    if (Test-Path $geminiContextFile) {
+        if ($DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $geminiContextFile"
+        }
+        else {
+            Remove-Item $geminiContextFile -Force
+            Write-Host "  [REMOVED] $geminiContextFile"
+        }
+    }
+}
+else {
+    $skillImports = $skillDirs | Sort-Object Name | ForEach-Object {
+        $skillMd = Join-Path $geminiSkillsTarget $_.Name "SKILL.md"
+        "@$skillMd"
+    }
+    $contextContent = ($skillImports -join "`n") + "`n"
+
+    if ($DryRun) {
+        Write-Host "  [DRY RUN] Would write: $geminiContextFile ($($skillDirs.Count) skill imports)"
+    }
+    else {
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($geminiContextFile, $contextContent, $utf8NoBom)
+        Write-Host "  [OK] $geminiContextFile ($($skillDirs.Count) skill imports)"
+    }
+}
+
 # --- Summary ---
 
 Write-Host ""
@@ -191,7 +249,7 @@ elseif ($DryRun) {
     Write-Host "Dry run complete. No changes made."
 }
 else {
-    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills=$skillOk/$($skillDirs.Count)"
+    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills(copilot)=$skillOk/$($skillDirs.Count), skills(gemini)=$geminiSkillOk/$($skillDirs.Count)"
     if ($agentFail -gt 0 -or $skillFail -gt 0) {
         Write-Host "Some links failed. Check warnings above." -ForegroundColor Yellow
         Write-Host "Tip: Enable Developer Mode in Windows Settings > Privacy & Security > For Developers" -ForegroundColor Yellow

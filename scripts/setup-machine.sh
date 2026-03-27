@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-machine.sh — Create symlinks from golem-agents-legion to ~/.copilot/
+# setup-machine.sh — Create symlinks from golem-agents-legion to ~/.copilot/ and ~/.gemini/
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
@@ -15,6 +15,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 COPILOT_ROOT="$HOME/.copilot"
 AGENTS_TARGET="$COPILOT_ROOT/agents"
 SKILLS_TARGET="$COPILOT_ROOT/skills"
+
+GEMINI_ROOT="$HOME/.gemini"
+GEMINI_SKILLS_TARGET="$GEMINI_ROOT/skills"
+GEMINI_CONTEXT_FILE="$GEMINI_ROOT/gal-context.md"
 
 UNINSTALL=false
 REPLACE=false
@@ -91,7 +95,7 @@ safe_unlink() {
 # --- Ensure target directories ---
 
 if ! $UNINSTALL; then
-    for dir in "$COPILOT_ROOT" "$AGENTS_TARGET" "$SKILLS_TARGET"; do
+    for dir in "$COPILOT_ROOT" "$AGENTS_TARGET" "$SKILLS_TARGET" "$GEMINI_ROOT" "$GEMINI_SKILLS_TARGET"; do
         if [ ! -d "$dir" ]; then
             if $DRY_RUN; then
                 echo "[DRY RUN] Would create directory: $dir"
@@ -157,6 +161,58 @@ for d in "${skill_dirs[@]}"; do
     fi
 done
 
+# --- Gemini Skill symlinks ---
+
+gemini_skill_ok=0
+gemini_skill_fail=0
+
+echo ""
+echo "=== Gemini Skills ($skill_count directories) ==="
+
+for d in "${skill_dirs[@]}"; do
+    name="$(basename "$d")"
+    link_path="$GEMINI_SKILLS_TARGET/$name"
+
+    if $UNINSTALL; then
+        safe_unlink "$link_path"
+    else
+        if safe_link "$link_path" "$d"; then
+            ((gemini_skill_ok++)) || true
+        else
+            ((gemini_skill_fail++)) || true
+        fi
+    fi
+done
+
+# --- Gemini gal-context.md ---
+
+echo ""
+echo "=== Gemini gal-context.md ==="
+
+if $UNINSTALL; then
+    if [ -f "$GEMINI_CONTEXT_FILE" ]; then
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $GEMINI_CONTEXT_FILE"
+        else
+            rm "$GEMINI_CONTEXT_FILE"
+            echo "  [REMOVED] $GEMINI_CONTEXT_FILE"
+        fi
+    fi
+else
+    context_lines=""
+    while IFS= read -r -d '' sd; do
+        sname="$(basename "$sd")"
+        context_lines+="@$GEMINI_SKILLS_TARGET/$sname/SKILL.md"$'\n'
+    done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would write: $GEMINI_CONTEXT_FILE ($skill_count skill imports)"
+    else
+        printf '%s' "$context_lines" > "$GEMINI_CONTEXT_FILE"
+        echo "  [OK] $GEMINI_CONTEXT_FILE ($skill_count skill imports)"
+    fi
+fi
+
 # --- Summary ---
 
 echo ""
@@ -165,7 +221,7 @@ if $UNINSTALL; then
 elif $DRY_RUN; then
     echo "Dry run complete. No changes made."
 else
-    echo "Setup complete: agents=$agent_ok/$agent_count, skills=$skill_ok/$skill_count"
+    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(gemini)=$gemini_skill_ok/$skill_count"
     if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ]; then
         echo "Some links failed. Check warnings above."
     fi

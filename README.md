@@ -16,36 +16,34 @@ any single tool (Copilot, Claude Code, Cursor, Gemini CLI, etc.).
 GAL solves this by separating **what you know** from **which tool reads it**:
 
 - **Knowledge** (workflows, conventions, agents, skills) → Markdown files in this repo
-- **Tool configs** (`copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`) → auto-generated adapters
+- **Tool configs** (`copilot-instructions.md`, `GEMINI.md`) → auto-generated adapters
 
 When you switch tools, update one routing table and re-run a sync script. Your knowledge doesn't move.
 
 ## Three-Layer Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ Layer 1: ~/golem-agents-legion/  (this repo — your brain)   │
-│  ├── workflows/         ← state machines (coding, research) │
-│  ├── agent/             ← 9 golem agent definitions         │
-│  ├── model-roles.md     ← model routing + tier system       │
-│  ├── conventions/       ← portable language rules           │
-│  ├── templates/         ← plan, state, project scaffolds    │
-│  ├── skills/            ← canonical skill source (symlinked)│
-│  └── scripts/           ← setup, init, sync, dispatcher     │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 2: <repo>/.dev/   (per-repo, tracked in each project) │
-│  ├── project.md         ← project summary + index           │
-│  └── state.md           ← active plans + session continuity │
-├─────────────────────────────────────────────────────────────┤
-│ Layer 3: Auto-generated adapters (disposable)               │
-│  ├── .github/copilot-instructions.md                        │
-│  ├── GEMINI.md                                              │
-│  ├── CLAUDE.md                                              │
-│  └── AGENTS.md                                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Layer 1: ~/golem-agents-legion/  (this repo — your brain)    │
+│  ├── workflows/         ← state machines (coding, research)  │
+│  ├── agent/             ← 10 golem agent definitions         │
+│  ├── model-roles.md     ← model routing + tier system        │
+│  ├── conventions/       ← portable language rules            │
+│  ├── templates/         ← plan, state, project scaffolds     │
+│  ├── skills/            ← canonical skill source (symlinked) │
+│  └── scripts/           ← setup, init, sync, dispatcher      │
+├──────────────────────────────────────────────────────────────┤
+│ Layer 2: <repo>/.dev/   (per-repo, tracked in each project)  │
+│  ├── project.md         ← project summary + index            │
+│  └── state.md           ← active plans + session continuity  │
+├──────────────────────────────────────────────────────────────┤
+│ Layer 3: Auto-generated adapters (disposable)                │
+│  ├── .github/copilot-instructions.md                         │
+│  └── GEMINI.md                                               │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## 9 Golem Agents
+## 10 Golem Agents
 
 | Agent | Classification | Purpose |
 | --- | --- | --- |
@@ -58,6 +56,7 @@ When you switch tools, update one routing table and re-run a sync script. Your k
 | **verifier** | Workflow | Goal-backward verification + plan lifecycle ending |
 | **debugger** | Utility | Scientific method bug investigation |
 | **scribe** | Utility | End-of-day diary + curfew enforcer |
+| **librarian** | Utility | Obsidian vault writer — inbox processing + knowledge extraction |
 
 ## Coding Flow Tiers
 
@@ -85,7 +84,7 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ~/golem-agents-legion/scripts/setup-machine.sh
 ```
 
-Setup scripts create symlinks: `agent/` → `~/.copilot/agents/`, `skills/` → `~/.copilot/skills/`.
+Setup scripts create symlinks: `agent/` → `~/.copilot/agents/`, `skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`.
 Both machines share the same definitions via `git push/pull`.
 
 ## Cross-Machine Setup
@@ -128,10 +127,10 @@ For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `m
 | --- | --- |
 | [workflows/coding.md](workflows/coding.md) | Coding Flow state machine (Tier + Scope Fence + review pack) |
 | [model-roles.md](model-roles.md) | Model routing + tier system — update when switching tools |
-| [agent/](agent/agents.md) | 9 golem agent definitions |
+| [agent/](agent/agents.md) | 10 golem agent definitions |
 | [conventions/](conventions/conventions.md) | Portable language rules (universal, C#, Go, TS, Rust) |
 | [templates/](templates/templates.md) | Plan, state, project, diary, agent scaffolds |
-| [skills/](skills/) | Copilot skills (canonical source, symlinked to `~/.copilot/skills/`) |
+| [skills/](skills/) | Skills (canonical source, symlinked to `~/.copilot/skills/` + `~/.gemini/skills/`) |
 | [scripts/](scripts/scripts.md) | Machine setup, repo init, workflow dispatcher |
 | [ROADMAP.md](ROADMAP.md) | Implementation progress and milestones |
 
