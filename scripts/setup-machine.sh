@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # setup-machine.sh — Create symlinks from golem-agents-legion to ~/.copilot/ and ~/.gemini/
 #
+# Links:
+#   agent/*.agent.md  -> ~/.copilot/agents/*.agent.md
+#   skills/*/         -> ~/.copilot/skills/*/
+#   skills/*/         -> ~/.gemini/skills/*/ (Gemini CLI)
+#   commands/gal/     -> ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/ (baked dispatcher skill)
+#   <repo root>       -> ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
+#   Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
+#   Generates ~/.gemini/gal-context.md (@file skill imports)
+#
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
 #   ./scripts/setup-machine.sh --replace    # Replace existing real dirs with symlinks
@@ -19,6 +28,13 @@ SKILLS_TARGET="$COPILOT_ROOT/skills"
 GEMINI_ROOT="$HOME/.gemini"
 GEMINI_SKILLS_TARGET="$GEMINI_ROOT/skills"
 GEMINI_CONTEXT_FILE="$GEMINI_ROOT/gal-context.md"
+
+GAL_SOURCE="$REPO_ROOT/commands/gal"
+GAL_ROOT_COPILOT="$COPILOT_ROOT/gal"
+GAL_ROOT_GEMINI="$GEMINI_ROOT/gal"
+GAL_SKILL_COPILOT="$SKILLS_TARGET/gal"
+GAL_SKILL_GEMINI="$GEMINI_SKILLS_TARGET/gal"
+SKILL_TEMPLATE="$GAL_SOURCE/SKILL.template.md"
 
 UNINSTALL=false
 REPLACE=false
@@ -199,19 +215,89 @@ if $UNINSTALL; then
         fi
     fi
 else
-    context_lines=""
+    context_lines="@$GAL_SKILL_GEMINI/SKILL.md"$'\n'
     while IFS= read -r -d '' sd; do
         sname="$(basename "$sd")"
         context_lines+="@$GEMINI_SKILLS_TARGET/$sname/SKILL.md"$'\n'
     done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
     if $DRY_RUN; then
-        echo "  [DRY RUN] Would write: $GEMINI_CONTEXT_FILE ($skill_count skill imports)"
+        echo "  [DRY RUN] Would write: $GEMINI_CONTEXT_FILE ($((skill_count + 1)) skill imports)"
     else
         printf '%s' "$context_lines" > "$GEMINI_CONTEXT_FILE"
-        echo "  [OK] $GEMINI_CONTEXT_FILE ($skill_count skill imports)"
+        echo "  [OK] $GEMINI_CONTEXT_FILE ($((skill_count + 1)) skill imports)"
     fi
 fi
+
+# --- GAL_ROOT symlinks ---
+
+gal_root_ok=0
+echo ""
+echo "=== GAL_ROOT symlinks ==="
+
+if $UNINSTALL; then
+    safe_unlink "$GAL_ROOT_COPILOT"
+    safe_unlink "$GAL_ROOT_GEMINI"
+else
+    if safe_link "$GAL_ROOT_COPILOT" "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
+    if safe_link "$GAL_ROOT_GEMINI"  "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
+fi
+
+# --- Generated GAL skill (bake template -> commands/gal/SKILL.md) ---
+
+echo ""
+echo "=== Generated GAL skill ==="
+
+if $UNINSTALL; then
+    baked_skill="$GAL_SOURCE/SKILL.md"
+    if [ -f "$baked_skill" ]; then
+        if $DRY_RUN; then echo "  [DRY RUN] Would remove baked: $baked_skill"
+        else rm "$baked_skill"; echo "  [REMOVED] $baked_skill"; fi
+    fi
+else
+    if [ ! -f "$SKILL_TEMPLATE" ]; then
+        echo "  [WARN] Template not found: $SKILL_TEMPLATE"
+    else
+        baked="$(sed "s|{{GAL_ROOT}}|$REPO_ROOT|g" "$SKILL_TEMPLATE")"
+        baked_skill="$GAL_SOURCE/SKILL.md"
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would write baked: $baked_skill"
+        else
+            printf '%s\n' "$baked" > "$baked_skill"
+            echo "  [OK] $baked_skill"
+        fi
+    fi
+fi
+
+# --- GAL skill symlinks (commands/gal/ -> ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/) ---
+
+echo ""
+echo "=== GAL skill symlinks ==="
+
+if $UNINSTALL; then
+    safe_unlink "$GAL_SKILL_COPILOT"
+    safe_unlink "$GAL_SKILL_GEMINI"
+else
+    safe_link "$GAL_SKILL_COPILOT" "$GAL_SOURCE"
+    safe_link "$GAL_SKILL_GEMINI"  "$GAL_SOURCE"
+fi
+
+# --- Migration: remove legacy gal-* dirs from installed locations ---
+
+echo ""
+echo "=== Migration: gal-* cleanup ==="
+
+for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET"; do
+    for d in "$skills_dir"/gal-*/; do
+        [ -e "$d" ] || continue
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $d"
+        else
+            rm -rf "$d"
+            echo "  [REMOVED] $d"
+        fi
+    done
+done
 
 # --- Summary ---
 
@@ -221,7 +307,8 @@ if $UNINSTALL; then
 elif $DRY_RUN; then
     echo "Dry run complete. No changes made."
 else
-    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(gemini)=$gemini_skill_ok/$skill_count"
+    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(gemini)=$gemini_skill_ok/$skill_count, gal-root=$gal_root_ok/2"
+    echo "Note: If SKILL.template.md changes, re-run setup-machine.sh --replace to regenerate."
     if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ]; then
         echo "Some links failed. Check warnings above."
     fi
@@ -273,14 +360,14 @@ if ! $UNINSTALL && ! $DRY_RUN; then
     git config core.hooksPath .githooks
     echo "  [OK] Set core.hooksPath to .githooks"
 
-    # 5. Re-checkout filtered files to trigger smudge
+    # 5. Re-checkout ONLY the smudge-filtered files (not all tracked files)
     if [ -f "$LOCAL_ENV" ]; then
         has_values=$(grep -v '^\s*#' "$LOCAL_ENV" | grep -c '=.' || true)
         if [ "$has_values" -gt 0 ]; then
-            git checkout -- .
-            echo "  [OK] Re-checked out files (smudge filter applied)"
+            git checkout -- config.local.env model-roles.local.md
+            echo "  [OK] Re-checked out filtered files (smudge filter applied)"
         else
-            echo "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- ."
+            echo "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md"
         fi
     fi
 fi

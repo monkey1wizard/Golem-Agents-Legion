@@ -18,8 +18,7 @@ function Show-Usage {
     Write-Host "  next                              Show the next step from .dev/state.md"
     Write-Host "  pause                             Commit .dev/ context for worktree handoff"
     Write-Host "  sync                              Run Sync-DevContext if available"
-    Write-Host "  ask <agent>                       Describe adapter-level direct consult command"
-    Write-Host "  run <agent>                       Describe adapter-level utility invocation"
+    Write-Host "  dispatch [subcommand|golem] [text] Auto-detect state or invoke named golem"
 }
 
 function ConvertTo-Slug([string]$Value) {
@@ -49,6 +48,48 @@ function Require-StateFile {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
+
+# --- Dispatch helpers ---
+
+function Write-Dispatch([hashtable]$Fields) {
+    Write-Host "--- GAL DISPATCH ---"
+    foreach ($key in $Fields.Keys) {
+        if ($null -ne $Fields[$key] -and $Fields[$key] -ne '') {
+            Write-Host "${key}: $($Fields[$key])"
+        }
+    }
+    Write-Host "--- END DISPATCH ---"
+}
+
+function Get-WFState {
+    $statePath = Join-Path (Get-Location).Path ".dev\state.md"
+    if (-not (Test-Path $statePath)) { return $null }
+    $line = Get-Content $statePath | Where-Object { $_ -match '^Workflow:' } | Select-Object -First 1
+    if ($line -match '^Workflow:\s*(\S+)') { return $Matches[1] }
+    return $null
+}
+
+function Resolve-Golem([string]$Name) {
+    $known = @('golem-planner','golem-architect','golem-analyst','golem-implementer',
+               'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
+               'golem-scribe','golem-librarian')
+    # accept with or without 'golem-' prefix
+    $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
+    if ($known -contains $full) { return $full }
+    return $null
+}
+
+$workflowGolems = @{
+    'PLAN'         = 'golem-planner'
+    'DISCUSS'      = 'golem-architect'
+    'IMPLEMENT'    = 'golem-implementer'
+    'TEST'         = 'golem-tester'
+    'CROSS_REVIEW' = 'golem-reviewer'
+    'VERIFY'       = 'golem-verifier'
+}
+
+$domainGolems  = @('golem-architect','golem-analyst','golem-librarian')
+$utilityGolems = @('golem-debugger','golem-scribe')
 
 switch ($Command) {
     "init" {
@@ -156,20 +197,84 @@ switch ($Command) {
         & $syncScriptPath @Arguments
         break
     }
-    "ask" {
-        if (-not $Arguments -or $Arguments.Count -eq 0) {
-            throw "Usage: gal ask <agent>"
+    "dispatch" {
+        $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
+        $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
+
+        $subcommands = @('init','plan','status','next','pause')
+        if ($subcommands -contains $intent) {
+            # Delegate to subcommand handler and wrap output
+            Write-Host "--- GAL DISPATCH ---"
+            Write-Host "COMMAND: $intent"
+            Write-Host "ACTION: Execute the $intent workflow step."
+            Write-Host "ON_COMPLETE: Report result to user."
+            Write-Host "--- END DISPATCH ---"
+            break
         }
 
-        Write-Host ("Adapter-level consult command: /gal ask {0}" -f ($Arguments -join " "))
-        break
-    }
-    "run" {
-        if (-not $Arguments -or $Arguments.Count -eq 0) {
-            throw "Usage: gal run <agent>"
+        $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
+        if ($resolved) {
+            $state = Get-WFState
+            if ($utilityGolems -contains $resolved) {
+                $mode = 'utility'
+            } elseif ($domainGolems -contains $resolved) {
+                $mode = 'consult'
+            } else {
+                $bound = $workflowGolems.GetEnumerator() | Where-Object { $_.Value -eq $resolved } | Select-Object -ExpandProperty Key -First 1
+                $mode = if ($bound -and $state -eq $bound) { 'bound' } else { 'consult' }
+            }
+            $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
+            Write-Dispatch @{
+                ROLE         = $resolved
+                MODE         = $mode
+                ACTION       = $action
+                ON_COMPLETE  = 'Report result to user.'
+            }
+            break
         }
 
-        Write-Host ("Adapter-level utility command: /gal run {0}" -f ($Arguments -join " "))
+        if ($intent -and $subcommands -notcontains $intent) {
+            Write-Dispatch @{
+                COMMAND = 'error'
+                ACTION  = "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause) or a golem name."
+            }
+            break
+        }
+
+        # Auto-detect from state
+        $state = Get-WFState
+        if (-not $state) {
+            Write-Dispatch @{
+                COMMAND = 'suggest'
+                ACTION  = 'No .dev/state.md found. Run /gal init to initialize this repository.'
+                ON_COMPLETE = 'Run /gal init'
+            }
+            break
+        }
+        if ($state -eq 'IDLE') {
+            Write-Dispatch @{
+                COMMAND = 'suggest'
+                ACTION  = "Workflow is IDLE. Run '/gal plan' to create a plan or '/gal status' for details."
+                ON_COMPLETE = 'Run /gal plan'
+            }
+            break
+        }
+        $golem = $workflowGolems[$state]
+        if ($golem) {
+            $agentPath = Join-Path $repoRoot ("agent\{0}.agent.md" -f $golem)
+            Write-Dispatch @{
+                ROLE        = $golem
+                MODE        = 'bound'
+                READ        = $agentPath
+                ACTION      = "Workflow state is $state. Activate $golem in bound mode."
+                ON_COMPLETE = 'Update .dev/state.md and suggest next step.'
+            }
+        } else {
+            Write-Dispatch @{
+                COMMAND = 'suggest'
+                ACTION  = "Workflow state '$state' has no default golem. Use '/gal <golem-name>' to invoke directly."
+            }
+        }
         break
     }
     default {

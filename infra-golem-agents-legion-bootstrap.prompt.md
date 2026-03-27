@@ -81,8 +81,13 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 │ Layer 1.5: ~/.copilot/ + ~/.gemini/  (Setup-Machine symlinks) │
 │  ├── ~/.copilot/agents/*.agent.md   ← symlink agent/     │
 │  ├── ~/.copilot/skills/*/           ← symlink skills/    │
+│  ├── ~/.copilot/skills/gal/         ← symlink commands/gal/ │
+│  ├── ~/.copilot/gal/                ← symlink <repo root> (GAL_ROOT) │
 │  ├── ~/.gemini/skills/*/            ← symlink skills/    │
-│  └── ~/.gemini/gal-context.md       ← 生成：@file imports│
+│  ├── ~/.gemini/skills/gal/          ← symlink commands/gal/ │
+│  ├── ~/.gemini/gal/                 ← symlink <repo root> (GAL_ROOT) │
+│  ├── commands/gal/SKILL.md          ← 生成：bake {{GAL_ROOT}} │
+│  └── ~/.gemini/gal-context.md       ← 生成：@file imports (gal first) │
 ├─────────────────────────────────────────────────────────┤
 │ Layer 2: <repo>/  (Per-Repo Context + Knowledge, 隨 repo 走) │
 │  ├── .dev/project.md     ← 可攜式 project context       │
@@ -112,7 +117,11 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 │                                 │   │                                  │
 │ ~/golem-agents-legion/ → clone               │   │ ~/golem-agents-legion/ → clone                │
 │ ~/.copilot/skills/ → symlinks   │   │ ~/.copilot/skills/ → symlinks    │
+│ ~/.copilot/skills/gal/ → symlink│   │ ~/.copilot/skills/gal/ → symlink │
+│ ~/.copilot/gal/ → repo root     │   │ ~/.copilot/gal/ → repo root      │
 │ ~/.gemini/skills/  → symlinks   │   │ ~/.gemini/skills/  → symlinks    │
+│ ~/.gemini/skills/gal/ → symlink │   │ ~/.gemini/skills/gal/ → symlink  │
+│ ~/.gemini/gal/ → repo root      │   │ ~/.gemini/gal/ → repo root       │
 └─────────────────────────────────┘   └──────────────────────────────────┘
                     │                                │
                     └──── git push/pull ─────────────┘
@@ -416,7 +425,12 @@ GAL 目前支援兩個 AI 工具。兩者能力不對稱，需要不同的接入
 | --- | --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/*.agent.md` | —（Gemini 無 agent） |
 | `skills/*/` | `~/.copilot/skills/*/` | `~/.gemini/skills/*/` |
+| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/skills/gal/` |
+| `<repo root>` | `~/.copilot/gal/` (GAL_ROOT) | `~/.gemini/gal/` (GAL_ROOT) |
+| `commands/gal/SKILL.md`（生成）| — | — |
 | —（生成） | — | `~/.gemini/gal-context.md` |
+
+`commands/gal/SKILL.md` 由 Setup-Machine 從 `SKILL.template.md` bake（替換 `{{GAL_ROOT}}` 為絕對路徑），再透過 symlink 讓 Copilot 和 Gemini CLI 都能發現。Gemini CLI v0.35.2 只掃描 `ReparsePoint`（symlink/junction）目錄，因此必須以 symlink 而非 plain dir 方式安裝。
 
 Gemini 無法自動發現 skills，但 symlink 後可透過 `@file` 引用：
 - `~/.gemini/gal-context.md`（Setup-Machine 生成）包含 `@skills/defuddle/SKILL.md` 等 imports

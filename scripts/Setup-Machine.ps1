@@ -7,6 +7,9 @@
       - agent/*.agent.md  → ~/.copilot/agents/*.agent.md
       - skills/*/         → ~/.copilot/skills/*/
       - skills/*/         → ~/.gemini/skills/*/ (Gemini CLI)
+      - commands/gal/     → ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/ (baked dispatcher skill)
+      - <repo root>       → ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
+      - Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
       - Generates ~/.gemini/gal-context.md (@file skill imports)
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
@@ -46,6 +49,13 @@ $skillsTarget = Join-Path $copilotRoot "skills"
 $geminiRoot = Join-Path $env:USERPROFILE ".gemini"
 $geminiSkillsTarget = Join-Path $geminiRoot "skills"
 $geminiContextFile = Join-Path $geminiRoot "gal-context.md"
+
+$galSource       = Join-Path $repoRoot "commands\gal"
+$galRootCopilot  = Join-Path $copilotRoot "gal"
+$galRootGemini   = Join-Path $geminiRoot "gal"
+$galSkillCopilot = Join-Path $skillsTarget "gal"
+$galSkillGemini  = Join-Path $geminiSkillsTarget "gal"
+$skillTemplate   = Join-Path $galSource "SKILL.template.md"
 
 # --- Helpers ---
 
@@ -227,15 +237,88 @@ else {
         $skillMd = Join-Path $geminiSkillsTarget $_.Name "SKILL.md"
         "@$skillMd"
     }
-    $contextContent = ($skillImports -join "`n") + "`n"
+    $galSkillMd = Join-Path $galSkillGemini "SKILL.md"
+    $allImports = @("@$galSkillMd") + $skillImports
+    $contextContent = ($allImports -join "`n") + "`n"
 
     if ($DryRun) {
-        Write-Host "  [DRY RUN] Would write: $geminiContextFile ($($skillDirs.Count) skill imports)"
+        Write-Host "  [DRY RUN] Would write: $geminiContextFile ($($skillDirs.Count + 1) skill imports)"
     }
     else {
         $utf8NoBom = New-Object System.Text.UTF8Encoding $false
         [System.IO.File]::WriteAllText($geminiContextFile, $contextContent, $utf8NoBom)
-        Write-Host "  [OK] $geminiContextFile ($($skillDirs.Count) skill imports)"
+        Write-Host "  [OK] $geminiContextFile ($($skillDirs.Count + 1) skill imports)"
+    }
+}
+
+# --- GAL_ROOT symlinks ---
+
+$galRootOk = 0
+Write-Host ""
+Write-Host "=== GAL_ROOT symlinks ==="
+
+if ($Uninstall) {
+    Remove-SafeLink $galRootCopilot
+    Remove-SafeLink $galRootGemini
+} else {
+    if (New-SafeSymlink $galRootCopilot $repoRoot "Directory") { $galRootOk++ }
+    if (New-SafeSymlink $galRootGemini  $repoRoot "Directory") { $galRootOk++ }
+}
+
+# --- Generated GAL skill (bake template → commands/gal/SKILL.md) ---
+
+Write-Host ""
+Write-Host "=== Generated GAL skill ==="
+
+if ($Uninstall) {
+    $bakedSkill = Join-Path $galSource "SKILL.md"
+    if (Test-Path $bakedSkill) {
+        if ($DryRun) { Write-Host "  [DRY RUN] Would remove baked: $bakedSkill" }
+        else { Remove-Item $bakedSkill -Force; Write-Host "  [REMOVED] $bakedSkill" }
+    }
+} else {
+    if (-not (Test-Path $skillTemplate)) {
+        Write-Host "  [WARN] Template not found: $skillTemplate"
+    } else {
+        $baked = (Get-Content $skillTemplate -Raw) -replace [regex]::Escape('{{GAL_ROOT}}'), $repoRoot
+        $bakedSkill = Join-Path $galSource "SKILL.md"
+        if ($DryRun) {
+            Write-Host "  [DRY RUN] Would write baked: $bakedSkill"
+        } else {
+            $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+            [System.IO.File]::WriteAllText($bakedSkill, $baked, $utf8NoBom)
+            Write-Host "  [OK] $bakedSkill"
+        }
+    }
+}
+
+# --- GAL skill symlinks (commands/gal/ → ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/) ---
+
+Write-Host ""
+Write-Host "=== GAL skill symlinks ==="
+
+if ($Uninstall) {
+    Remove-SafeLink $galSkillCopilot
+    Remove-SafeLink $galSkillGemini
+} else {
+    New-SafeSymlink $galSkillCopilot $galSource "Directory" | Out-Null
+    New-SafeSymlink $galSkillGemini  $galSource "Directory" | Out-Null
+}
+
+# --- Migration: remove legacy gal-* dirs from installed locations ---
+
+Write-Host ""
+Write-Host "=== Migration: gal-* cleanup ==="
+
+foreach ($skillsDir in @($skillsTarget, $geminiSkillsTarget)) {
+    $legacyDirs = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'gal-*' }
+    foreach ($d in $legacyDirs) {
+        if ($DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $($d.FullName)"
+        } else {
+            Remove-Item $d.FullName -Recurse -Force
+            Write-Host "  [REMOVED] $($d.FullName)"
+        }
     }
 }
 
@@ -249,7 +332,8 @@ elseif ($DryRun) {
     Write-Host "Dry run complete. No changes made."
 }
 else {
-    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills(copilot)=$skillOk/$($skillDirs.Count), skills(gemini)=$geminiSkillOk/$($skillDirs.Count)"
+    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills(copilot)=$skillOk/$($skillDirs.Count), skills(gemini)=$geminiSkillOk/$($skillDirs.Count), gal-root=$galRootOk/2"
+    Write-Host "Note: If SKILL.template.md changes, re-run Setup-Machine.ps1 -Replace to regenerate."
     if ($agentFail -gt 0 -or $skillFail -gt 0) {
         Write-Host "Some links failed. Check warnings above." -ForegroundColor Yellow
         Write-Host "Tip: Enable Developer Mode in Windows Settings > Privacy & Security > For Developers" -ForegroundColor Yellow
@@ -306,17 +390,17 @@ if (-not $Uninstall -and -not $DryRun) {
         git config core.hooksPath .githooks
         Write-Host "  [OK] Set core.hooksPath to .githooks"
 
-        # 5. Re-checkout filtered files to trigger smudge
+        # 5. Re-checkout ONLY the smudge-filtered files (not all tracked files)
         if (Test-Path $localEnv) {
             $hasValues = Get-Content $localEnv | Where-Object {
                 $_ -notmatch '^\s*#' -and $_ -match '=.+'
             }
             if ($hasValues) {
-                git checkout -- .
-                Write-Host "  [OK] Re-checked out files (smudge filter applied)"
+                git checkout -- config.local.env model-roles.local.md
+                Write-Host "  [OK] Re-checked out filtered files (smudge filter applied)"
             }
             else {
-                Write-Host "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- ."
+                Write-Host "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md"
             }
         }
     }

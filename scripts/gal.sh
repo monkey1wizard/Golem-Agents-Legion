@@ -13,8 +13,7 @@ Commands:
   next                              Show the next step from .dev/state.md
   pause                             Commit .dev/ context for worktree handoff
   sync                              Run sync-dev-context.sh if available
-  ask <agent>                       Describe adapter-level direct consult command
-  run <agent>                       Describe adapter-level utility invocation
+  dispatch [subcommand|golem] [text] Auto-detect state or invoke named golem
 EOF
 }
 
@@ -38,8 +37,67 @@ require_state() {
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 
-command="${1:-}"
-shift || true
+# --- Dispatch helpers ---
+
+write_dispatch() {
+  echo "--- GAL DISPATCH ---"
+  local key val
+  while [[ $# -ge 2 ]]; do
+    key="$1"; val="$2"; shift 2
+    [[ -n "$val" ]] && echo "${key}: ${val}"
+  done
+  echo "--- END DISPATCH ---"
+}
+
+get_wf_state() {
+  [[ -f .dev/state.md ]] || { echo ""; return; }
+  grep -E '^Workflow:' .dev/state.md | head -n1 | sed 's/^Workflow:[[:space:]]*//' || true
+}
+
+resolve_golem() {
+  local name="$1"
+  local full="$name"
+  [[ "$name" != golem-* ]] && full="golem-$name"
+  case "$full" in
+    golem-planner|golem-architect|golem-analyst|golem-implementer|\
+    golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
+    golem-scribe|golem-librarian) echo "$full" ;;
+    *) echo "" ;;
+  esac
+}
+
+golem_class() {
+  case "$1" in
+    golem-debugger|golem-scribe) echo utility ;;
+    golem-architect|golem-analyst|golem-librarian) echo domain ;;
+    *) echo workflow ;;
+  esac
+}
+
+golem_bound_state() {
+  case "$1" in
+    golem-planner)     echo PLAN ;;
+    golem-implementer) echo IMPLEMENT ;;
+    golem-tester)      echo TEST ;;
+    golem-reviewer)    echo CROSS_REVIEW ;;
+    golem-verifier)    echo VERIFY ;;
+    golem-architect)   echo DISCUSS ;;
+    *) echo "" ;;
+  esac
+}
+
+dispatch_for_state() {
+  local state="$1"
+  case "$state" in
+    PLAN)         echo golem-planner ;;
+    DISCUSS)      echo golem-architect ;;
+    IMPLEMENT)    echo golem-implementer ;;
+    TEST)         echo golem-tester ;;
+    CROSS_REVIEW) echo golem-reviewer ;;
+    VERIFY)       echo golem-verifier ;;
+    *) echo "" ;;
+  esac
+}
 
 case "$command" in
   init)
@@ -110,19 +168,50 @@ case "$command" in
     fi
     "$script_dir/sync-dev-context.sh" "$@"
     ;;
-  ask)
-    if [[ $# -eq 0 ]]; then
-      echo "Usage: gal ask <agent>" >&2
-      exit 1
-    fi
-    echo "Adapter-level consult command: /gal ask $*"
-    ;;
-  run)
-    if [[ $# -eq 0 ]]; then
-      echo "Usage: gal run <agent>" >&2
-      exit 1
-    fi
-    echo "Adapter-level utility command: /gal run $*"
+  dispatch)
+    intent="${1:-}"
+    sub_text="${*:2}"
+    case "$intent" in
+      init|plan|status|next|pause)
+        write_dispatch COMMAND "$intent" ACTION "Execute the $intent workflow step." ON_COMPLETE "Report result to user."
+        ;;
+      "")
+        state="$(get_wf_state)"
+        if [[ -z "$state" ]]; then
+          write_dispatch COMMAND suggest ACTION "No .dev/state.md found. Run /gal init to initialize this repository." ON_COMPLETE "Run /gal init"
+        elif [[ "$state" == "IDLE" ]]; then
+          write_dispatch COMMAND suggest ACTION "Workflow is IDLE. Run '/gal plan' to create a plan or '/gal status' for details." ON_COMPLETE "Run /gal plan"
+        else
+          golem="$(dispatch_for_state "$state")"
+          if [[ -n "$golem" ]]; then
+            agent_path="$repo_root/agent/${golem}.agent.md"
+            write_dispatch ROLE "$golem" MODE bound READ "$agent_path" ACTION "Workflow state is $state. Activate $golem in bound mode." ON_COMPLETE "Update .dev/state.md and suggest next step."
+          else
+            write_dispatch COMMAND suggest ACTION "Workflow state '$state' has no default golem. Use '/gal <golem-name>' to invoke directly."
+          fi
+        fi
+        ;;
+      *)
+        resolved="$(resolve_golem "$intent")"
+        if [[ -n "$resolved" ]]; then
+          cls="$(golem_class "$resolved")"
+          if [[ "$cls" == utility ]]; then
+            mode=utility
+          elif [[ "$cls" == domain ]]; then
+            mode=consult
+          else
+            state="$(get_wf_state)"
+            bound="$(golem_bound_state "$resolved")"
+            mode=consult
+            [[ -n "$bound" && "$state" == "$bound" ]] && mode=bound
+          fi
+          action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
+          write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
+        else
+          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause) or a golem name."
+        fi
+        ;;
+    esac
     ;;
   "")
     show_usage
