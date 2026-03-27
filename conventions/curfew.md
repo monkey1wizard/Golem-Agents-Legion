@@ -7,7 +7,7 @@ This convention is referenced by every agent and enforced at the workflow level.
 
 | Zone | Purpose |
 | --- | --- |
-| **Soft curfew** | 22:00 — warn + redirect to `@scribe` |
+| **Soft curfew** | 22:00 — warn + redirect to `@golem-scribe` |
 | **Hard curfew** | 23:00 — all agents refuse work |
 
 ## Rules by Time Window
@@ -20,9 +20,9 @@ All agents operate normally. No restrictions.
 
 **Check**: Does today's diary exist at `10_Projects/Work_Journal/YYYYMMDD_Work_Diary.md`?
 
-| Diary exists? | Agent is @scribe? | Action |
+| Diary exists? | Agent is @golem-scribe? | Action |
 | --- | --- | --- |
-| No | No | **BLOCK**. Print warning, redirect to `@scribe` |
+| No | No | **BLOCK**. Print warning, redirect to `@golem-scribe` |
 | No | Yes | Proceed with shutdown ritual |
 | Yes | No | Allow **minor wrap-up only** (commit, push, save). Remind: "Time to wrap up" |
 | Yes | Yes | Allow supplement or archive tasks only |
@@ -31,12 +31,12 @@ All agents operate normally. No restrictions.
 
 ```
 ⏰ Past 22:00 — today's diary is not yet written.
-Call @scribe to complete the shutdown ritual before continuing other work.
+Call @golem-scribe to complete the shutdown ritual before continuing other work.
 ```
 
 ### After 23:00 — Hard Curfew
 
-**ALL agents** (including @scribe) refuse to work. Response:
+**ALL agents** (including @golem-scribe) refuse to work. Response:
 
 ```
 ⏰ Past 23:00. Please rest.

@@ -1,5 +1,5 @@
 ---
-name: implementer
+name: golem-implementer
 description: Executes approved plan files with atomic commits, deviation handling, and plan-level state tracking. Updates plan ## Status with progress. Enforces Scope Fence for T0/T1.
 tools: ['read', 'edit', 'execute', 'search']
 color: yellow

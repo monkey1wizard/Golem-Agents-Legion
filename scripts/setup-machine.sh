@@ -170,3 +170,61 @@ else
         echo "Some links failed. Check warnings above."
     fi
 fi
+
+# --- Personalization: config.local.env + smudge/clean filter ---
+
+if ! $UNINSTALL && ! $DRY_RUN; then
+    echo ""
+    echo "=== Personalization ==="
+
+    EXAMPLE_ENV="$REPO_ROOT/config.example.env"
+    LOCAL_ENV="$REPO_ROOT/config.local.env"
+
+    # 1. Copy config.example.env → config.local.env if missing
+    if [ ! -f "$LOCAL_ENV" ]; then
+        if [ -f "$EXAMPLE_ENV" ]; then
+            cp "$EXAMPLE_ENV" "$LOCAL_ENV"
+            echo "  [OK] Created config.local.env from config.example.env"
+            echo "  [ACTION REQUIRED] Edit config.local.env with your paths"
+        else
+            echo "  [WARN] config.example.env not found — skipping"
+        fi
+    else
+        echo "  [SKIP] config.local.env already exists"
+    fi
+
+    # 2. Copy model-roles.example.md → model-roles.local.md if missing
+    EXAMPLE_ROLES="$REPO_ROOT/model-roles.example.md"
+    LOCAL_ROLES="$REPO_ROOT/model-roles.local.md"
+
+    if [ ! -f "$LOCAL_ROLES" ]; then
+        if [ -f "$EXAMPLE_ROLES" ]; then
+            cp "$EXAMPLE_ROLES" "$LOCAL_ROLES"
+            echo "  [OK] Created model-roles.local.md from model-roles.example.md"
+        fi
+    else
+        echo "  [SKIP] model-roles.local.md already exists"
+    fi
+
+    # 3. Register git smudge/clean filter
+    cd "$REPO_ROOT"
+    git config filter.gal-config.smudge "bash scripts/gal-smudge.sh"
+    git config filter.gal-config.clean  "bash scripts/gal-clean.sh"
+    git config filter.gal-config.required true
+    echo "  [OK] Registered git filter 'gal-config' (smudge/clean)"
+
+    # 4. Set custom hooks path
+    git config core.hooksPath .githooks
+    echo "  [OK] Set core.hooksPath to .githooks"
+
+    # 5. Re-checkout filtered files to trigger smudge
+    if [ -f "$LOCAL_ENV" ]; then
+        has_values=$(grep -v '^\s*#' "$LOCAL_ENV" | grep -c '=.' || true)
+        if [ "$has_values" -gt 0 ]; then
+            git checkout -- .
+            echo "  [OK] Re-checked out files (smudge filter applied)"
+        else
+            echo "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- ."
+        fi
+    fi
+fi

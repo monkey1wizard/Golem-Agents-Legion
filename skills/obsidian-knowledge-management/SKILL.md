@@ -5,7 +5,7 @@ description: Knowledge management protocol for the Obsidian vault. PARA + Zettel
 
 # Obsidian Knowledge Management Protocol
 
-> **Source of Truth**: `99_System/Guide.md` in the Obsidian Vault.
+> **Source of Truth**: `99_System/Guide.md` in the <OBSIDIAN_VAULT_NAME>.
 > Before any write operation, always load the actual `Guide.md` and relevant `Template_*.md` for the most up-to-date rules. This skill is a quick-reference distillation.
 
 ## Step 0: Check Obsidian CLI Availability
@@ -13,7 +13,7 @@ description: Knowledge management protocol for the Obsidian vault. PARA + Zettel
 Before any vault operation, run the availability check from the `obsidian-cli` skill:
 
 ```bash
-obsidian vault="Obsidian Vault" tags total
+obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
 ```
 
 - **CLI available (exit 0)** → Use `obsidian` CLI for all I/O in this session (read, create, append, property:set, backlinks). This keeps Obsidian's index and graph in sync.

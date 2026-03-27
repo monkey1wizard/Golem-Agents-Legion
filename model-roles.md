@@ -14,6 +14,7 @@ When you switch AI tools, update the mapping table — everything else stays the
 | TESTER | Write tests from plan spec + public API only | Spec-driven, does NOT read implementation |
 | REVIEWER | Review code for bugs, security, style | Critical eye, different perspective |
 | SCRIBE | End-of-day diary, shutdown enforcement | Summarization, Obsidian integration |
+| LIBRARIAN | Obsidian vault writes — inbox processing, knowledge extraction | Guide.md compliance, knowledge classification |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
 ## Model Tiers
@@ -24,7 +25,7 @@ Models are classified by capability tier. This drives activation rules.
 | --- | --- | --- | --- |
 | 1 | **Frontier** | PLANNER, ARCHITECT, ANALYST | Strong reasoning required — planning, trade-off analysis, business logic |
 | 2 | **Standard** | CODER, TESTER, REVIEWER | Execution tasks — implementation, testing, code review |
-| 3 | **Low-cost** | SCRIBE, LOCAL | Low-stakes tasks — diary writing, quick notes, offline |
+| 3 | **Low-cost** | SCRIBE, LIBRARIAN, LOCAL | Low-stakes tasks — diary writing, vault writes, quick notes, offline |
 
 ### Tier Rules
 
@@ -37,8 +38,9 @@ Models are classified by capability tier. This drives activation rules.
 
 1. **CODER and TESTER must be different models** — independent verification
 2. **REVIEWER should differ from CODER** — fresh perspective catches blind spots
-3. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
-4. When switching tools, update the **Current Mapping** table below only
+3. **LIBRARIAN** follows Guide.md for all vault writes — any model tier works, but must load Guide.md context first
+4. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
+5. When switching tools, update the **Current Mapping** table below only
 
 ## Architect Activation by Tier
 

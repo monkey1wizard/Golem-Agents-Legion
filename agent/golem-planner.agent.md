@@ -1,5 +1,5 @@
 ---
-name: planner
+name: golem-planner
 description: Analyzes requirements and produces executable plan files with goal-backward verification. Reads .dev/project.md for context, outputs to docs/plans/.
 tools: ['read', 'edit', 'execute', 'search', 'web']
 color: green

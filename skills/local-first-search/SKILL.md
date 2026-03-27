@@ -1,13 +1,13 @@
 ---
 name: local-first-search
-description: Search the existing Obsidian Vault for knowledge, prioritizing the 20_Slipbox directory. Use before answering questions, proposing solutions, or creating new notes to adhere to the Local-First and Context-First philosophy. Activate when the user asks a conceptual question, requests information that may exist in their vault, wants to look up a cheatsheet or reference table, or needs to verify existing knowledge before creating new content.
+description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge, prioritizing the 20_Slipbox directory. Use before answering questions, proposing solutions, or creating new notes to adhere to the Local-First and Context-First philosophy. Activate when the user asks a conceptual question, requests information that may exist in their vault, wants to look up a cheatsheet or reference table, or needs to verify existing knowledge before creating new content.
 ---
 
 # Local-First Search Strategy
 
 ## Core Philosophy
 
-**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you **MUST** first search the user's Obsidian Vault for existing knowledge, models, and concepts. Avoid generating purely generic AI responses; your answers must be grounded in the contents of the user's curated Vault.
+**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you **MUST** first search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge, models, and concepts. Avoid generating purely generic AI responses; your answers must be grounded in the contents of the user's curated Vault.
 
 ## Semantic Search Tool (Primary Search Method)
 
@@ -135,12 +135,12 @@ When you are tasked with adding new knowledge, restructuring, or creating notes 
    - Search the `23_Maps/` directory to find an existing relevant Map of Content (MOC).
    - If a relevant MOC is found, **update the MOC** to include a `[[backlink]]` to the newly updated/created permanent note, ensuring there are no orphaned notes in the vault.
 4. **Project Document Updates**:
-   - When asked to update a project's notes or logs, you must first search the `10_Projects/` directory in the Obsidian Vault to find the corresponding project file (e.g., `10_Projects/Project_Name.md` or a sub-folder).
+   - When asked to update a project's notes or logs, you must first search the `10_Projects/` directory in the <OBSIDIAN_VAULT_NAME> to find the corresponding project file (e.g., `10_Projects/Project_Name.md` or a sub-folder).
    - Project documentation and planning for the knowledge base should reside in `10_Projects/` following Obsidian standards, not directly inside the completely separate codebase repository.
 
 ## Cross-Boundary Referencing (Vault vs. Codebase)
 
-Because the Obsidian Vault and your coding repositories reside in completely different directories and use different version control systems (e.g., OneDrive vs. Git), you must respect the boundary between them:
+Because the <OBSIDIAN_VAULT_NAME> and your coding repositories reside in completely different directories and use different version control systems (e.g., OneDrive vs. Git), you must respect the boundary between them:
 
 - **When writing in a Code Repository** (e.g., creating project plans like `docs/plans/` or updating READMEs): **DO NOT** use Obsidian Wiki Links (`[[Note Name]]`) to reference concepts from the vault. Code repositories cannot resolve Obsidian's logical links. Use plain text descriptions or standard absolute paths instead.
-- **When writing in the Obsidian Vault**: Continue using standard Wiki Links (`[[...]]`) for internal vault references. If you need to reference a file from a code repository, use standard Markdown file links (e.g., `[file](/path/to/repo/file)`) or plain text paths, as Obsidian cannot logically track external Git files.
+- **When writing in the <OBSIDIAN_VAULT_NAME>**: Continue using standard Wiki Links (`[[...]]`) for internal vault references. If you need to reference a file from a code repository, use standard Markdown file links (e.g., `[file](/path/to/repo/file)`) or plain text paths, as Obsidian cannot logically track external Git files.

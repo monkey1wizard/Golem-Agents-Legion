@@ -1,9 +1,10 @@
 # Plan: Bootstrap Golem Agents Legion — Portable Development System
 
-> **Status: ABSORBED** — All design decisions have been extracted to implementation files.
-> Delete this file after confirming Phase 4 commit.
+> **Status: ABSORBED (partial)** — Design decisions extracted to implementation files.
+> **⚠️ Agent `golem-` rename incomplete**: filenames renamed via `git mv`, but frontmatter `name:` fields, cross-references (`@name`), file links in `agents.md`, `.gitattributes`, and README stale paths are NOT updated. See 「golem- Rename 審計」 under Phase 4.
+> Delete this file after all rename edits are verified and committed.
 >
-> 此計畫撰寫於 2026-03-24，最後更新 2026-03-26。
+> 此計畫撰寫於 2026-03-24，最後更新 2026-03-27。
 > **此文件是 GAL 的 bootstrap plan**——從零拉起整個系統的設計決策與實作步驟。
 > **終態**：當所有設計決策已萃取到對應檔案（`workflows/`、`agents.md`、`model-roles.md`、`conventions/` 等），此文件將標記為 ABSORBED 並刪除。
 
@@ -54,12 +55,13 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 建立一個 **GitHub private repo（`golem-agents-legion`）** 作為個人開發方法論的 canonical source：
 
 1. 跨機器同步（Windows PC ↔ Mac Mini）透過 `git pull`
-2. Skills 版本控管 + symlink 到 `~/.copilot/skills/`
+2. Skills 版本控管 + symlink 到 `~/.copilot/skills/` 及 `~/.gemini/`
 3. **多 Workflow 架構**：依工作性質切換不同狀態機（coding flow, research flow 等），各自定義 states、tiers、agent activation
 4. Model routing table（角色 → 工具的 mapping，換工具只改這張表）
-5. 9 個 Golem agents（planner, architect, analyst, implementer, tester, reviewer, verifier, debugger, scribe）
-6. Adapter 自動生成（從 `.dev/project.md` 生成 copilot-instructions.md / GEMINI.md / CLAUDE.md）
-7. Curfew system（22:00 soft + 23:00 hard）+ Scribe diary → Obsidian
+5. 10 個 Golem agents（planner, architect, analyst, implementer, tester, reviewer, verifier, debugger, scribe, librarian）
+6. **雙工具支援（Copilot + Gemini CLI）**：Setup-Machine 同時建立兩套 symlinks；Sync-DevContext 生成 per-repo adapter
+7. Adapter 自動生成（從 `.dev/project.md` 生成 copilot-instructions.md / GEMINI.md）
+8. Curfew system（22:00 soft + 23:00 hard）+ Scribe diary → Obsidian
 
 ---
 
@@ -70,11 +72,17 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 │ Layer 1: ~/golem-agents-legion/  (clone of GitHub repo, 永久)         │
 │  ├── workflows/           ← 多 Workflow 狀態機（coding, research 等）│
 │  ├── model-roles.md       ← Category-based model routing │
-│  ├── agent/               ← 9 個 .agent.md 定義檔       │
+│  ├── agent/               ← 10 個 .agent.md 定義檔      │
 │  ├── conventions/         ← 語言慣例 + curfew 規則       │
 │  ├── templates/           ← Phase prompt + diary 模板    │
 │  ├── skills/              ← Skills canonical src          │
 │  └── scripts/             ← Setup + Sync 腳本            │
+├─────────────────────────────────────────────────────────┤
+│ Layer 1.5: ~/.copilot/ + ~/.gemini/  (Setup-Machine symlinks) │
+│  ├── ~/.copilot/agents/*.agent.md   ← symlink agent/     │
+│  ├── ~/.copilot/skills/*/           ← symlink skills/    │
+│  ├── ~/.gemini/skills/*/            ← symlink skills/    │
+│  └── ~/.gemini/gal-context.md       ← 生成：@file imports│
 ├─────────────────────────────────────────────────────────┤
 │ Layer 2: <repo>/  (Per-Repo Context + Knowledge, 隨 repo 走) │
 │  ├── .dev/project.md     ← 可攜式 project context       │
@@ -84,10 +92,7 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 ├─────────────────────────────────────────────────────────┤
 │ Layer 3: Auto-generated adapters (可拋棄, 自動重生)       │
 │  ├── .github/copilot-instructions.md  ← for Copilot     │
-│  ├── GEMINI.md                        ← for Gemini CLI   │
-│  ├── CLAUDE.md                        ← for Claude Code  │
-│  ├── AGENTS.md                        ← for OmO/OpenCode │
-│  └── .cursorrules                     ← for Cursor       │
+│  └── GEMINI.md                        ← for Gemini CLI   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -107,6 +112,7 @@ GitHub Copilot 生態系。一旦 AI agent 工具改版（例如切換到 Claude
 │                                 │   │                                  │
 │ ~/golem-agents-legion/ → clone               │   │ ~/golem-agents-legion/ → clone                │
 │ ~/.copilot/skills/ → symlinks   │   │ ~/.copilot/skills/ → symlinks    │
+│ ~/.gemini/skills/  → symlinks   │   │ ~/.gemini/skills/  → symlinks    │
 └─────────────────────────────────┘   └──────────────────────────────────┘
                     │                                │
                     └──── git push/pull ─────────────┘
@@ -129,17 +135,18 @@ golem-agents-legion/
 │   ├── research.md                    ← (planned) Research flow
 │   └── ...                            ← (planned) 依需求擴充
 │
-├── agent/                             ← 9 個 Golem agent 定義
+├── agent/                             ← 10 個 Golem agent 定義
 │   ├── agents.md                      ← Agent 總覽 + review pack + 三類分類
-│   ├── planner.agent.md               ← PLAN state
-│   ├── architect.agent.md             ← DISCUSS state (技術審查)
-│   ├── analyst.agent.md               ← DISCUSS state (商業審查，條件式啟用)
-│   ├── implementer.agent.md           ← IMPLEMENT state + Scope Fence
-│   ├── tester.agent.md                ← TEST state (spec-only)
-│   ├── reviewer.agent.md              ← CROSS_REVIEW state
-│   ├── verifier.agent.md              ← VERIFY state + plan lifecycle
-│   ├── debugger.agent.md              ← utility (科學方法 debug)
-│   └── scribe.agent.md               ← utility (日記 + curfew)
+│   ├── golem-planner.agent.md         ← PLAN state
+│   ├── golem-architect.agent.md       ← DISCUSS state (技術審查)
+│   ├── golem-analyst.agent.md         ← DISCUSS state (商業審查，條件式啟用)
+│   ├── golem-implementer.agent.md     ← IMPLEMENT state + Scope Fence
+│   ├── golem-tester.agent.md          ← TEST state (spec-only)
+│   ├── golem-reviewer.agent.md        ← CROSS_REVIEW state
+│   ├── golem-verifier.agent.md        ← VERIFY state + plan lifecycle
+│   ├── golem-debugger.agent.md        ← utility (科學方法 debug)
+│   ├── golem-scribe.agent.md          ← utility (日記 + curfew)
+│   └── golem-librarian.agent.md       ← domain (Obsidian vault writes)
 │
 ├── conventions/                       ← 可攜式規則
 │   ├── conventions.md                 ← 規則總覽
@@ -298,11 +305,41 @@ golem-agents-legion/
 - [x] 更新 `scripts/Init-Repo.ps1`：補 adopt-existing 模式（先 ingest README + docs/ + 設定檔，再生成 .dev/project.md）
 - [x] 更新 `scripts/init-repo.sh`：同步 Windows 版更新
 
-#### 4F: Bootstrap 終態
+##### `golem-` Rename 審計 ✅ DONE（2026-03-27）
 
-- [x] 確認所有設計決策已萃取到對應檔案
-- [x] 此文件標記為 ABSORBED
-- [ ] 刪除此文件
+**全部完成：**
+- ✅ `git mv` 10 個 agent 檔案（`planner.agent.md` → `golem-planner.agent.md` 等）
+- ✅ `~/.copilot/agents/` 10 個 symlinks 指向新檔名
+- ✅ 10 個 agent frontmatter `name:` 更新（`planner` → `golem-planner` 等）
+- ✅ `agents.md` 10 個檔案連結更新 + 3 個 `@invocation` 引用更新
+- ✅ `golem-scribe.agent.md` 6× `@scribe` → `@golem-scribe`
+- ✅ `golem-librarian.agent.md` 2× `@librarian` → `@golem-librarian`
+- ✅ `golem-verifier.agent.md` 1× `@librarian` → `@golem-librarian`
+- ✅ `conventions/curfew.md` 5× `@scribe` → `@golem-scribe`
+- ✅ `templates/diary.md` 1× `@scribe` → `@golem-scribe`
+- ✅ `.gitattributes` `agent/scribe.agent.md` → `agent/golem-scribe.agent.md`
+- ✅ `README.md` `agent/scribe.agent.md` → `agent/golem-scribe.agent.md`
+- ✅ `README.zh-Hant.md` `agent/scribe.agent.md` → `agent/golem-scribe.agent.md`
+
+### Phase 4G: Gemini 支援 + 文件對齊
+
+**Setup-Machine Gemini 支援：**
+- [ ] 擴充 `Setup-Machine.ps1`：新增 `~/.gemini/skills/` symlinks（與 Copilot 同一 source）
+- [ ] 擴充 `Setup-Machine.ps1`：生成 `~/.gemini/gal-context.md`（含所有 skills 的 `@file` imports）
+- [ ] 擴充 `Setup-Machine.ps1 -Uninstall`：同時移除 `~/.gemini/` 下的 GAL symlinks + `gal-context.md`
+- [ ] 同步 `setup-machine.sh`：macOS 版 Gemini 支援
+- [ ] 在 Windows PC 跑一次驗證 `~/.gemini/skills/` symlinks + `gal-context.md` 正常
+- [ ] 驗證 Gemini CLI 可透過 `@~/.gemini/gal-context.md` 載入 GAL skills
+
+**文件對齊（adapter scope 2→Copilot+Gemini, agent count 9→10）：**
+- [ ] `README.md`：移除 CLAUDE.md / AGENTS.md / .cursorrules adapter 引用（lines 19, 42）
+- [ ] `README.md`：symlink 描述加入 `~/.gemini/`（line 88）
+- [ ] `README.md`：`agent/scribe.agent.md` → `agent/golem-scribe.agent.md`（line 117）
+- [ ] `README.md`：「9 golem agent」→「10 golem agent」（line 131）
+- [ ] `README.md`：skills 描述加入 Gemini symlink（line 134）
+- [ ] `README.zh-Hant.md`：同上 5 項對應修正（lines 88, 116, 131, 134 + adapter scope）
+- [ ] `ROADMAP.md`：新增 Phase 4G 列、「9 agent」→「10 agent」、Phase 4F 狀態修正為實際值
+- [ ] `scripts/scripts.md`：symlinks 表格加入 Gemini targets + Sync-DevContext flow 從 5 adapters 縮為 2
 
 ### Phase 5: Per-Repo Integration（order-parser-app 為首例）
 
@@ -327,10 +364,10 @@ golem-agents-legion/
 - 進 IMPLEMENT 的條件是：**該任務所需的 reviewers 全數 APPROVE**，不是固定要求 analyst 永遠參與
 - 原因：T2 代表高風險或高複雜度，不代表一定有商業語意；把 analyst 綁死在所有 T2 會造成流程膨脹與低價值審查
 
-### 為什麼有 9 個 Agent 而非更少
+### 為什麼有 10 個 Agent 而非更少
 
 - 每個 agent 有明確的 **單一職責**，避免 prompt 過長降低品質
-- 目前 9 個 agent 主要服務 Coding Flow；workflow states（PLAN, DISCUSS×2, IMPLEMENT, TEST, CROSS_REVIEW, VERIFY）+ utilities（debugger, scribe）
+- 目前 10 個 agent 主要服務 Coding Flow；workflow states（PLAN, DISCUSS×2, IMPLEMENT, TEST, CROSS_REVIEW, VERIFY）+ utilities（debugger, scribe, librarian）
 - **多 Workflow 架構下，部分 agent 可跨 workflow 共用**：architect 和 analyst 是 Domain 類，不鎖死在 Coding Flow
 - **不用全部啟用**：T0 可跳過所有計畫 agents；T1 預設為 planner-lite + architect-lite + implementer + tester + reviewer(lite) + verifier；T2 才啟動 full planner + architect-full + 條件式 review pack
 - 未來新增 workflow（如 research flow）可新增專屬 agent（如 researcher），不影響現有 coding flow 的 agent 組合
@@ -356,13 +393,60 @@ golem-agents-legion/
 - golem-agents-legion repo 不需要 include 其他 repo
 - 簡單就好
 
+### 跨工具策略：Copilot + Gemini CLI
+
+GAL 目前支援兩個 AI 工具。兩者能力不對稱，需要不同的接入策略：
+
+#### 能力矩陣
+
+| 能力 | Copilot | Gemini CLI |
+| --- | --- | --- |
+| Custom Agents | ✅ `.agent.md` 自動發現 | ❌ 無 agent 概念（單一模型） |
+| Skills 自動發現 | ✅ `~/.copilot/skills/*/SKILL.md` | ❌ 無 skill 目錄掃描 |
+| 全域 Context | ❌ 無全域 system prompt | ✅ `~/.gemini/GEMINI.md` global context |
+| Per-Repo Context | `copilot-instructions.md` | Repo 根目錄 `GEMINI.md` |
+| 檔案引用 | 無 @file 語法 | ✅ `@file.md` 將檔案內容 inline |
+| Context 階層 | flat（全域 skills + per-repo instructions） | hierarchical（global → repo → JIT `@file`） |
+
+#### Layer 1.5：Setup-Machine 雙工具 Symlinks
+
+`Setup-Machine.ps1` 為兩個工具建立 symlinks：
+
+| Source (repo) | Copilot Target | Gemini Target |
+| --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/*.agent.md` | —（Gemini 無 agent） |
+| `skills/*/` | `~/.copilot/skills/*/` | `~/.gemini/skills/*/` |
+| —（生成） | — | `~/.gemini/gal-context.md` |
+
+Gemini 無法自動發現 skills，但 symlink 後可透過 `@file` 引用：
+- `~/.gemini/gal-context.md`（Setup-Machine 生成）包含 `@skills/defuddle/SKILL.md` 等 imports
+- 使用者在 `~/.gemini/GEMINI.md` 加一行 `@~/.gemini/gal-context.md` 即可載入全部 GAL skills
+- **不覆寫** `~/.gemini/GEMINI.md`——使用者可能有自己的全域設定（如 Obsidian vault 規則）
+
+#### Layer 3：Per-Repo Adapter（Sync-DevContext）
+
+| Adapter | 生成內容 | Skills 處理 |
+| --- | --- | --- |
+| `copilot-instructions.md` | conventions + workflows + project context | 不含 skills（Copilot 自動發現） |
+| `GEMINI.md` | conventions + workflows + project context + active skills **inlined** | Skills 內容 inline（因 Gemini 不自動發現） |
+
+Gemini 的 per-repo `GEMINI.md`（Layer 3）會覆蓋 global `~/.gemini/GEMINI.md` 的 skills，
+因此 `gal-context.md`（Layer 1.5）只在未啟用 Sync-DevContext 的 repo 中生效。
+
+#### 設計原則
+
+- **Setup-Machine = 全域基礎設施**：確保任意 repo（即使沒跑 `gal init`）都能用 GAL skills
+- **Sync-DevContext = per-repo 精準載入**：只 inline 該 repo 的 Active Skills，降低 token
+- **不侵入使用者設定**：不碰 `~/.gemini/GEMINI.md`，只生成 `gal-context.md` 供手動引用
+- **Uninstall 對稱**：`Setup-Machine -Uninstall` 同時移除 `~/.copilot/` 和 `~/.gemini/` 的 GAL symlinks
+
 ### 為什麼 adapter 是自動生成的
 
 - `copilot-instructions.md` 的內容 = `.dev/project.md` + `conventions/` + `workflows/` 的組合
 - 手動同步三份文件遲早會不一致
 - 自動生成 = single source of truth 在 `.dev/project.md`
 - 換工具時只需加一個新的 output format
-- `project.md` 有 `Active Skills` 欄位 → 生成 GEMINI.md / CLAUDE.md 時直接 inline 指定 skill 的內容，解決 Gemini CLI 無法自動讀取 skills 的跨工具問題
+- `project.md` 有 `Active Skills` 欄位 → 生成 GEMINI.md 時直接 inline 指定 skill 的內容，解決 Gemini CLI 無法自動讀取 skills 的跨工具問題
 
 ### Memory Architecture：文件分層，而非長對話記憶
 
@@ -680,54 +764,53 @@ Review findings 和 test results 不能只活在 chat session 裡——切 sessi
 
 ---
 
-## 風險 / 待討論
+## Files Summary（2026-03-27 ground-truth audit）
 
-- **Symlink 權限**：Windows 需要開發者模式或 admin 權限才能建 symlink
-  - 解法：Setup-Machine.ps1 先檢查權限，不行就 fallback 到 junction
-- **Repo 可見性**：目前 private，未來可能 publish
-  - 注意：不要在 repo 裡放 API key、token、或個人敏感資訊
-- **Sync script 複雜度**：一開始不要做太複雜，先手動驗證格式再自動化
+> 此快照由磁碟實際狀態驗證產生，取代先前未經驗證的規劃快照。
 
----
-
-## Files Summary
-
-### 已完成
-
-| 路徑 | 狀態 | 說明 |
-| --- | --- | --- |
-| `README.md` | ✅→待重寫 | 全面重寫（目前仍為 dotdev 時代內容，需對齊多 workflow + 三層架構 + 跨機器架構） |
-| `workflow.md` | ✅→待遷移 | 遷移至 `workflows/coding.md`（重寫為 Coding Flow：Tier + 9-state + Scope Fence + review pack） |
-| `model-roles.md` | ✅→待更新 | 8 roles + 跨機器 mapping（待補 tier 分級、architect-lite/full、reviewer pack 規則） |
-| `agent/agents.md` | ✅→待更新 | Agent 總覽（待對齊 review pack / direct-call 原則 / golem 三類分類） |
-| `agent/planner.agent.md` | ✅ | Goal-backward planning |
-| `agent/architect.agent.md` | ✅ | 對抗性技術審查 (6 維度) |
-| `agent/analyst.agent.md` | ✅ | 商業邏輯審查 (6 維度) |
-| `agent/implementer.agent.md` | ✅→待更新 | state tracking 改為 plan `## Status` + 補 Scope Fence 禁止清單 |
-| `agent/tester.agent.md` | ✅→待更新 | 補 output 持久化（寫入 plan `## Test Results`） |
-| `agent/reviewer.agent.md` | ✅→待更新 | 補 output 持久化（寫入 plan `## Review Results`） |
-| `agent/verifier.agent.md` | ✅→待更新 | 擴充 plan lifecycle ending（知識萃取 → ABSORBED → 刪除 plan） |
-| `agent/debugger.agent.md` | ✅→待更新 | debug state 歸屬澄清（有 plan → plan Debug Log / 無 plan → state.md） |
-| `agent/scribe.agent.md` | ✅→待更新 | frontmatter 補 `edit` tool |
-| `conventions/conventions.md` | ✅ | Convention 總覽 |
-| `conventions/curfew.md` | ✅ | 三層 curfew 規則 |
-| `templates/plan.md` | ✅→待更新 | Plan scaffold（待加 Status / Review Results / Test Results / Debug Log / Handoff Notes + Success Criteria） |
-| `templates/templates.md` | ✅→待更新 | 移除 3 個不存在的 prompt template 引用（test-writer / cross-review / security-audit） |
-| `templates/state.md` | ✅→待更新 | 重新定義為 global index + session continuity（移除 per-task state） |
-| `templates/project.md` | ✅→待更新 | 補 Source Documents / Verified Facts / Suspected Drift / Documentation Gaps 欄位 |
-| `templates/diary.md` | ✅→待更新 | 對齊 scribe.agent.md 格式（emoji 使用、heading 格式、日期格式） |
-| `scripts/Init-Repo.ps1` | ✅→待更新 | 補 adopt-existing 模式 |
-| `scripts/init-repo.sh` | ✅→待更新 | 同步 Windows 版更新 |
-| `scripts/gal.ps1` | ✅→待更新 | 補 `pause` 命令 + 修正 plan filename 格式 |
-| `scripts/gal.sh` | ✅→待更新 | 同步 Windows 版更新 |
-
-### 待完成
+### ✅ 已完成（on disk, Phase 1–4）
 
 | 路徑 | 說明 |
 | --- | --- |
-| `workflows/coding.md` | Coding Flow 狀態機（從 `workflow.md` 遷移 + 擴充 Tier/Scope Fence/review pack） |
-| `workflows/research.md` | (planned) Research Flow 狀態機 |
-| `ROADMAP.md` | 從 bootstrap 抽出的里程碑 roadmap |
+| `README.md` | Phase 4D 全面重寫（多 workflow + 三層架構 + 跨機器架構） |
+| `README.zh-Hant.md` | 繁體中文版 README |
+| `ROADMAP.md` | Phase 4D 從 bootstrap 抽出的里程碑 |
+| `model-roles.md` | Phase 4B 更新（8 roles + tier 分級 + architect-lite/full + reviewer pack） |
+| `workflows/coding.md` | Phase 4A 從 `workflow.md` 遷移 + 擴充（Tier + 9-state + Scope Fence + review pack） |
+| `workflows/research.md` | Research Flow 狀態機 |
+| `agent/agents.md` | Phase 4B 更新（review pack / direct-call / 三類分類）— ⚠️ 10 條檔案連結指向舊檔名（broken） |
+| `agent/golem-planner.agent.md` | Goal-backward planning — ⚠️ `name: planner`（未更新） |
+| `agent/golem-architect.agent.md` | 對抗性技術審查 (6 維度) — ⚠️ `name: architect`（未更新） |
+| `agent/golem-analyst.agent.md` | 商業邏輯審查 (6 維度) — ⚠️ `name: analyst`（未更新） |
+| `agent/golem-implementer.agent.md` | Phase 4B + Scope Fence — ⚠️ `name: implementer`（未更新） |
+| `agent/golem-tester.agent.md` | Phase 4B + plan Test Results — ⚠️ `name: tester`（未更新） |
+| `agent/golem-reviewer.agent.md` | Phase 4B + plan Review Results — ⚠️ `name: reviewer`（未更新） |
+| `agent/golem-verifier.agent.md` | Phase 4B + plan lifecycle ending — ⚠️ `name: verifier`（未更新）, 1× `@librarian` |
+| `agent/golem-debugger.agent.md` | Phase 4B debug state — ⚠️ `name: debugger`（未更新） |
+| `agent/golem-scribe.agent.md` | Phase 4B + edit tool — ⚠️ `name: scribe`（未更新）, 6× `@scribe` |
+| `agent/golem-librarian.agent.md` | Obsidian vault writes — ⚠️ `name: librarian`（未更新）, 2× `@librarian` |
+| `conventions/conventions.md` | Convention 總覽 |
+| `conventions/curfew.md` | 三層 curfew 規則 — ⚠️ 5× `@scribe`（未更新） |
+| `conventions/universal.md` | 跨語言通則（git-commit + logging + markdownlint + result-pattern） |
+| `conventions/csharp.md` | C# conventions（csharp-dev + clean-arch + blazor 合併） |
+| `conventions/go.md` | Go conventions |
+| `conventions/typescript.md` | TypeScript conventions |
+| `conventions/rust.md` | Rust conventions |
+| `conventions/token-budget.md` | Token 使用規則 |
+| `templates/plan.md` | Phase 4C（Status / Review Results / Test Results / Debug Log / Handoff Notes） |
+| `templates/templates.md` | Phase 4C（移除不存在的 prompt template 引用） |
+| `templates/state.md` | Phase 4C（global index + session continuity） |
+| `templates/project.md` | Phase 4C（Source Documents / Verified Facts / Suspected Drift / Documentation Gaps） |
+| `templates/diary.md` | Phase 4C 對齊 scribe 格式 — ⚠️ 1× `@scribe`（未更新） |
+| `templates/agent.md` | Golem 建立模板 |
+| `scripts/Setup-Machine.ps1` | Phase 4E + broken symlink bug fix（僅支援 Copilot） |
+| `scripts/setup-machine.sh` | Phase 4E 同步 |
+| `scripts/gal.ps1` | Phase 4E（pause 命令 + plan filename 格式） |
+| `scripts/gal.sh` | Phase 4E 同步 |
+| `scripts/Init-Repo.ps1` | Phase 4E（adopt-existing 模式） |
+| `scripts/init-repo.sh` | Phase 4E 同步 |
+| `scripts/gal-smudge.sh` | Smudge filter |
+| `scripts/gal-clean.sh` | Clean filter |
 | `skills/defuddle/` | Defuddle CLI 網頁抽取 |
 | `skills/doc-coauthoring/` | 3 階段文件共同撰寫 workflow |
 | `skills/json-canvas/` | Obsidian .canvas 建立/編輯（含 references/） |
@@ -740,18 +823,25 @@ Review findings 和 test results 不能只活在 chat session 裡——切 sessi
 | `skills/pdf/` | Python PDF 處理（含 scripts/） |
 | `skills/skill-creator/` | Skills meta-skill（第三方，含 agents/+scripts/） |
 | `skills/webapp-testing/` | Playwright web app 測試（第三方，含 examples/+scripts/） |
-| `conventions/universal.md` | 跨語言通則（git-commit + logging + markdownlint + result-pattern） |
-| `conventions/csharp.md` | C# conventions（csharp-dev + clean-arch + blazor 合併） |
-| `conventions/go.md` | Go conventions |
-| `conventions/typescript.md` | TypeScript conventions |
-| `conventions/rust.md` | Rust conventions |
-| `conventions/token-budget.md` | Token 使用規則 |
-| `templates/agent.md` | Golem 建立模板（含 classification、required skills、tier） |
-| `scripts/Setup-Machine.ps1` | Windows setup (symlinks for skills + agents) |
-| `scripts/setup-machine.sh` | macOS setup |
-| `scripts/Sync-DevContext.ps1` | Adapter 生成器 |
-| `order-parser-app/.dev/project.md` | Per-repo context (首例) |
-| `order-parser-app/.dev/state.md` | Cross-session state (首例) |
+
+### ⚠️ `golem-` Rename 未完成（43 edits across 19 files）
+
+| 類別 | 數量 | 詳情 |
+| --- | --- | --- |
+| frontmatter `name:` | 10 files | 全部仍為 `name: planner` 等舊名 |
+| `agents.md` 檔案連結 | 10 broken links | Lines 18-27 指向 `planner.agent.md`（已不存在） |
+| `@invocation` 引用 | 20 occurrences / 6 files | 需從 `@scribe` → `@golem-scribe` 等 |
+| `.gitattributes` | 1 stale ref | `agent/scribe.agent.md` → `agent/golem-scribe.agent.md` |
+| `README.md` | 1 stale ref | Line 117: `agent/scribe.agent.md` |
+| `README.zh-Hant.md` | 1 stale ref | Line 116: `agent/scribe.agent.md` |
+
+### 🔲 Phase 5 待完成
+
+| 路徑 | 說明 |
+| --- | --- |
+| `scripts/Sync-DevContext.ps1` | Adapter 生成器（從 .dev/project.md 生成 copilot-instructions.md / GEMINI.md） |
+| `order-parser-app/.dev/project.md` | Per-repo context（首例） |
+| `order-parser-app/.dev/state.md` | Cross-session state（首例） |
 
 ---
 

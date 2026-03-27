@@ -113,7 +113,7 @@ symlink。模型和工具因機器而異；方法論完全相同。
 
 | 佔位符 | 意義 | 檔案 |
 | --- | --- | --- |
-| `<OBSIDIAN_VAULT>` | Obsidian vault 的絕對路徑 | `agent/scribe.agent.md`、`skills/obsidian-cli/`、`skills/local-first-search/` |
+| `<OBSIDIAN_VAULT>` | Obsidian vault 的絕對路徑 | `agent/golem-scribe.agent.md`、`skills/obsidian-cli/`、`skills/local-first-search/` |
 | `<OBSIDIAN_VAULT_NAME>` | Obsidian 顯示的 vault 名稱 | `skills/obsidian-cli/` |
 | `<LOCAL_SEARCH_PROJECT>` | `obsidian-note-taking-assistant` clone 路徑 | `skills/local-first-search/`、`skills/obsidian-knowledge-management/` |
 | `<GAL_SKILLS>` | Skills 安裝路徑（例如 `~/.copilot/skills`） | `skills/pdf/` |

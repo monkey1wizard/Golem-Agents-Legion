@@ -1,5 +1,5 @@
 ---
-name: analyst
+name: golem-analyst
 description: Business Analyst that reviews plans and features from a commercial perspective — validates business logic, ROI, user impact, and market fit. Provides business-oriented recommendations.
 tools: ['read', 'execute', 'search']
 color: green

@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# pre-commit hook — Safety net: scan all staged files for personal paths.
+# Blocks commit if any config.local.env values appear in staged content.
+# This catches leaks from files NOT covered by .gitattributes filter.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# .githooks/ is at repo root, so parent is repo root
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG="$REPO_ROOT/config.local.env"
+
+# No config → nothing to check (new user who hasn't personalized yet)
+if [ ! -f "$CONFIG" ]; then
+    exit 0
+fi
+
+# Collect non-empty values from config
+declare -a VALS=()
+declare -a KEYS=()
+
+while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${line// /}" ]] && continue
+
+    key="${line%%=*}"
+    val="${line#*=}"
+    [ -z "$val" ] && continue
+
+    KEYS+=("$key")
+    VALS+=("$val")
+done < "$CONFIG"
+
+if [ ${#VALS[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# --- Policy B: Collect files covered by gal-config clean filter ---
+# These files are already sanitized by the clean filter on stage.
+# Scanning them again causes false positives when smudge has run.
+declare -A FILTERED_FILES=()
+if [ -f "$REPO_ROOT/.gitattributes" ]; then
+    while IFS= read -r attr_line || [ -n "$attr_line" ]; do
+        [[ "$attr_line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${attr_line// /}" ]] && continue
+        if echo "$attr_line" | grep -qF "filter=gal-config"; then
+            # Extract the file path (first whitespace-delimited token)
+            fpath="$(echo "$attr_line" | awk '{print $1}')"
+            FILTERED_FILES["$fpath"]=1
+        fi
+    done < "$REPO_ROOT/.gitattributes"
+fi
+
+# --- Policy C: Minimum value length for leak detection ---
+# Short generic values (e.g. "Obsidian Vault") cause false positives
+# in files that legitimately mention the term. Only check values ≥ 15 chars.
+MIN_VAL_LEN=15
+
+# Check staged content (what would actually be committed)
+leaked=0
+
+# Collect staged file list once
+staged_files=()
+while IFS= read -r -d '' f; do
+    staged_files+=("$f")
+done < <(git diff --cached --diff-filter=ACMR --name-only -z)
+
+for ((i = 0; i < ${#VALS[@]}; i++)); do
+    val="${VALS[$i]}"
+    key="${KEYS[$i]}"
+
+    # Policy C: skip short values
+    if [ ${#val} -lt $MIN_VAL_LEN ]; then
+        continue
+    fi
+
+    # Policy B: only check non-filtered files for this value
+    key_leaked=0
+    leaked_files=()
+    for f in "${staged_files[@]}"; do
+        # Skip files covered by gal-config clean filter
+        if [ -n "${FILTERED_FILES[$f]+x}" ]; then
+            continue
+        fi
+        if git show ":$f" 2>/dev/null | grep -qF "$val"; then
+            leaked_files+=("$f")
+            key_leaked=1
+        fi
+    done
+
+    if [ "$key_leaked" -eq 1 ]; then
+        echo "BLOCKED: Personal path leaked in staged files!" >&2
+        echo "  Key:   $key" >&2
+        echo "  Value: $val" >&2
+        echo "" >&2
+        for f in "${leaked_files[@]}"; do
+            echo "  File:  $f" >&2
+        done
+        echo "" >&2
+        leaked=1
+    fi
+done
+
+if [ "$leaked" -eq 1 ]; then
+    echo "Commit aborted. Possible causes:" >&2
+    echo "  1. File missing from .gitattributes (clean filter not applied)" >&2
+    echo "  2. Clean filter bug (path not replaced back to placeholder)" >&2
+    echo "  3. Personal path in a file that shouldn't have one" >&2
+    echo "" >&2
+    echo "Fix: add the file to .gitattributes or remove the personal path." >&2
+    echo "Override: git commit --no-verify (use with caution)" >&2
+    exit 1
+fi

@@ -114,7 +114,7 @@ Several files contain `<PLACEHOLDER>` values that you must fill in after cloning
 
 | Placeholder | Meaning | Files |
 | --- | --- | --- |
-| `<OBSIDIAN_VAULT>` | Absolute path to your Obsidian vault | `agent/scribe.agent.md`, `skills/obsidian-cli/`, `skills/local-first-search/` |
+| `<OBSIDIAN_VAULT>` | Absolute path to your Obsidian vault | `agent/golem-scribe.agent.md`, `skills/obsidian-cli/`, `skills/local-first-search/` |
 | `<OBSIDIAN_VAULT_NAME>` | Vault name as shown in Obsidian | `skills/obsidian-cli/` |
 | `<LOCAL_SEARCH_PROJECT>` | Path to your `obsidian-note-taking-assistant` clone | `skills/local-first-search/`, `skills/obsidian-knowledge-management/` |
 | `<GAL_SKILLS>` | Path where skills are installed (e.g. `~/.copilot/skills`) | `skills/pdf/` |

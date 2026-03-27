@@ -1,5 +1,5 @@
 ---
-name: debugger
+name: golem-debugger
 description: Investigates bugs using scientific method with hypothesis testing, cognitive bias awareness, and persistent debug session state.
 tools: ['read', 'edit', 'execute', 'search', 'web']
 color: orange

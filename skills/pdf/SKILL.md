@@ -304,7 +304,7 @@ with open("encrypted.pdf", "wb") as output:
 | Merge PDFs | pypdf | `writer.add_page(page)` |
 | Split PDFs | pypdf | One page per file |
 | Extract text | pdfplumber | `page.extract_text()` |
-| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir C:\Temp` |
+| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir <TEMP_DIR>` |
 | Extract tables | pdfplumber | `page.extract_tables()` |
 | Create PDFs | reportlab | Canvas or Platypus |
 | Command line merge | qpdf | `qpdf --empty --pages ...` |

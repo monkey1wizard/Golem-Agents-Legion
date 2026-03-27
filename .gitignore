@@ -10,10 +10,10 @@ Desktop.ini
 *~
 
 # Secrets (never commit these)
-*.env
 *.key
 *.pem
 openclaw.json
 
 # Local overrides (fork and customize)
+config.local.env
 model-roles.local.md

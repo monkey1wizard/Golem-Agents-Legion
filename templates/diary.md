@@ -1,6 +1,6 @@
 # Diary Template
 
-Used by `@scribe` to generate daily work diaries in Obsidian.
+Used by `@golem-scribe` to generate daily work diaries in Obsidian.
 
 ## Frontmatter
 

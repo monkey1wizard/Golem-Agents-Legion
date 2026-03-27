@@ -1,5 +1,5 @@
 ---
-name: reviewer
+name: golem-reviewer
 description: Reviews implementation for bugs, security vulnerabilities, architecture violations, and convention compliance. Must be a different model from the implementer.
 tools: ['read', 'execute', 'search']
 color: purple

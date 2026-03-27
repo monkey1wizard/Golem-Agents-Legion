@@ -18,7 +18,7 @@ Use the `obsidian` CLI to interact with a running Obsidian instance. **Requires 
 Before running any CLI command, check if Obsidian is open:
 
 ```bash
-obsidian vault="Obsidian Vault" tags total
+obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
 ```
 
 - Exit code `0` → Obsidian is open, proceed with CLI.

@@ -1,0 +1,10 @@
+# Golem Agents Legion — Git attributes
+# Smudge/clean filter for personalizable files.
+# Registered by Setup-Machine via: git config filter.gal-config.smudge/clean
+
+agent/golem-scribe.agent.md                          filter=gal-config
+agent/golem-librarian.agent.md                        filter=gal-config
+skills/obsidian-cli/SKILL.md                   filter=gal-config
+skills/local-first-search/SKILL.md             filter=gal-config
+skills/obsidian-knowledge-management/SKILL.md   filter=gal-config
+skills/pdf/SKILL.md                            filter=gal-config

@@ -9,21 +9,22 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | --- | --- | --- |
 | **Workflow** | Yes — bound to specific states | planner, implementer, tester, reviewer, verifier |
 | **Utility** | No — callable at any tier | debugger, scribe |
-| **Domain** | No — bound to workflow, not single state | architect, analyst (cross-workflow capable) |
+| **Domain** | No — bound to workflow, not single state | architect, analyst, librarian (cross-workflow capable) |
 
 ## Agents → Workflow States
 
 | Agent | Classification | Workflow State | Purpose |
 | --- | --- | --- | --- |
-| [planner](planner.agent.md) | Workflow | PLAN | Analyze requirements, produce plan files |
-| [architect](architect.agent.md) | Domain | DISCUSS / consult | Adversarial plan review — trade-offs, over-engineering, bugs |
-| [analyst](analyst.agent.md) | Domain | DISCUSS (conditional) | Business logic review — ROI, domain correctness, user impact |
-| [implementer](implementer.agent.md) | Workflow | IMPLEMENT | Execute approved plans with atomic commits |
-| [tester](tester.agent.md) | Workflow | TEST | Write tests from spec only (never reads implementation) |
-| [reviewer](reviewer.agent.md) | Workflow | REVIEW | Review for bugs, security, architecture, conventions |
-| [verifier](verifier.agent.md) | Workflow | VERIFY | Goal-backward verification + plan lifecycle ending |
-| [debugger](debugger.agent.md) | Utility | *(any)* | Scientific method bug investigation |
-| [scribe](scribe.agent.md) | Utility | *(any)* | End-of-day diary + shutdown enforcer |
+| [golem-planner](golem-planner.agent.md) | Workflow | PLAN | Analyze requirements, produce plan files |
+| [golem-architect](golem-architect.agent.md) | Domain | DISCUSS / consult | Adversarial plan review — trade-offs, over-engineering, bugs |
+| [golem-analyst](golem-analyst.agent.md) | Domain | DISCUSS (conditional) | Business logic review — ROI, domain correctness, user impact |
+| [golem-implementer](golem-implementer.agent.md) | Workflow | IMPLEMENT | Execute approved plans with atomic commits |
+| [golem-tester](golem-tester.agent.md) | Workflow | TEST | Write tests from spec only (never reads implementation) |
+| [golem-reviewer](golem-reviewer.agent.md) | Workflow | REVIEW | Review for bugs, security, architecture, conventions |
+| [golem-verifier](golem-verifier.agent.md) | Workflow | VERIFY | Goal-backward verification + plan lifecycle ending |
+| [golem-debugger](golem-debugger.agent.md) | Utility | *(any)* | Scientific method bug investigation |
+| [golem-scribe](golem-scribe.agent.md) | Utility | *(any)* | End-of-day diary + shutdown enforcer |
+| [golem-librarian](golem-librarian.agent.md) | Domain | *(any)* | Obsidian vault writes — inbox processing, knowledge extraction |
 
 ## DISCUSS: Review Pack (T2 Only)
 
@@ -44,6 +45,7 @@ T0/T1 skip DISCUSS entirely. T1 gets architect-lite by default (structure risk o
 | **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `gal ask architect` |
 | **Utility** | Yes | Independent of workflow state. e.g., `gal run debugger`, `gal run scribe` |
 | **Workflow-bound** | No | State transitions via `gal next` only. implementer/tester/reviewer/verifier cannot be called directly to change state. |
+| **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
 
 Consult output is advice, not an APPROVE/REVIEW verdict. Formal verdicts come from DISCUSS/REVIEW states only.
 
@@ -66,6 +68,21 @@ Per [model-roles.md](../model-roles.md):
 These agents are symlinked to `~/.copilot/agents/` by `scripts/Setup-Machine.ps1`.
 VS Code Copilot discovers them as custom agents in Agent Mode.
 
+## Research Flow
+
+The [Research Flow](../workflows/research.md) is an independent workflow for research-driven tasks.
+It uses the same agents but with different activation rules:
+
+| Research State | Agents | Notes |
+| --- | --- | --- |
+| RESEARCH | User / any Frontier model | No dedicated research golem |
+| SYNTHESIZE | User / any Frontier model | Organize raw findings |
+| REVIEW (R2) | architect, analyst (conditional) | Same review pack logic as Coding Flow |
+| DOCUMENT (repo) | User / any model | Direct write to `docs/research/` |
+| DOCUMENT (vault) | librarian | Requires `start-implementation` |
+
+Research Flow can run in parallel with Coding Flow. Research output feeds into plans or vault knowledge.
+
 ## Curfew System
 
 All agents enforce a shutdown boundary defined in `conventions/curfew.md`:
@@ -73,9 +90,9 @@ All agents enforce a shutdown boundary defined in `conventions/curfew.md`:
 ```text
 ... normal work ... ──── 22:00 ──── shutdown window ──── 23:00 ──── hard curfew
                        │                                    │
-                       └─ only @scribe active ───────────────┘ all agents refuse
+                       └─ only @golem-scribe active ──────────┘ all agents refuse
 ```
 
-- **22:00**: Non-scribe agents block if today's diary is unwritten. Redirect to `@scribe`.
+- **22:00**: Non-scribe agents block if today's diary is unwritten. Redirect to `@golem-scribe`.
 - **23:00**: ALL agents refuse work, including scribe. No exceptions.
 - **Override**: User can say "override curfew" — single-use, does not persist.

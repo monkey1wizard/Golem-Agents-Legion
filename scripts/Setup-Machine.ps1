@@ -197,3 +197,72 @@ else {
         Write-Host "Tip: Enable Developer Mode in Windows Settings > Privacy & Security > For Developers" -ForegroundColor Yellow
     }
 }
+
+# --- Personalization: config.local.env + smudge/clean filter ---
+
+if (-not $Uninstall -and -not $DryRun) {
+    Write-Host ""
+    Write-Host "=== Personalization ==="
+
+    # 1. Copy config.example.env → config.local.env if missing
+    $exampleEnv = Join-Path $repoRoot "config.example.env"
+    $localEnv = Join-Path $repoRoot "config.local.env"
+
+    if (-not (Test-Path $localEnv)) {
+        if (Test-Path $exampleEnv) {
+            Copy-Item $exampleEnv $localEnv
+            Write-Host "  [OK] Created config.local.env from config.example.env"
+            Write-Host "  [ACTION REQUIRED] Edit config.local.env with your paths" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "  [WARN] config.example.env not found — skipping" -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "  [SKIP] config.local.env already exists"
+    }
+
+    # 2. Copy model-roles.example.md → model-roles.local.md if missing
+    $exampleRoles = Join-Path $repoRoot "model-roles.example.md"
+    $localRoles = Join-Path $repoRoot "model-roles.local.md"
+
+    if (-not (Test-Path $localRoles)) {
+        if (Test-Path $exampleRoles) {
+            Copy-Item $exampleRoles $localRoles
+            Write-Host "  [OK] Created model-roles.local.md from model-roles.example.md"
+        }
+    }
+    else {
+        Write-Host "  [SKIP] model-roles.local.md already exists"
+    }
+
+    # 3. Register git smudge/clean filter (uses bash from Git for Windows)
+    Push-Location $repoRoot
+    try {
+        git config filter.gal-config.smudge "bash scripts/gal-smudge.sh"
+        git config filter.gal-config.clean  "bash scripts/gal-clean.sh"
+        git config filter.gal-config.required true
+        Write-Host "  [OK] Registered git filter 'gal-config' (smudge/clean)"
+
+        # 4. Set custom hooks path
+        git config core.hooksPath .githooks
+        Write-Host "  [OK] Set core.hooksPath to .githooks"
+
+        # 5. Re-checkout filtered files to trigger smudge
+        if (Test-Path $localEnv) {
+            $hasValues = Get-Content $localEnv | Where-Object {
+                $_ -notmatch '^\s*#' -and $_ -match '=.+'
+            }
+            if ($hasValues) {
+                git checkout -- .
+                Write-Host "  [OK] Re-checked out files (smudge filter applied)"
+            }
+            else {
+                Write-Host "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- ."
+            }
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}

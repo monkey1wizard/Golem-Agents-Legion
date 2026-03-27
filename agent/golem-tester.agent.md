@@ -1,5 +1,5 @@
 ---
-name: tester
+name: golem-tester
 description: Writes tests from the plan spec and public API only — never reads implementation code. Ensures independent verification by a different model than the implementer.
 tools: ['read', 'edit', 'execute', 'search']
 color: blue
