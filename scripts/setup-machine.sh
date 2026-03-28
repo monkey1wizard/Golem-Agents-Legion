@@ -35,6 +35,8 @@ GAL_ROOT_GEMINI="$GEMINI_ROOT/gal"
 GAL_SKILL_COPILOT="$SKILLS_TARGET/gal"
 GAL_SKILL_GEMINI="$GEMINI_SKILLS_TARGET/gal"
 SKILL_TEMPLATE="$GAL_SOURCE/SKILL.template.md"
+COMMAND_ALIAS_NAMES=(gal-init gal-plan gal-status gal-next gal-pause)
+COMMAND_SKILL_NAMES=(gal "${COMMAND_ALIAS_NAMES[@]}")
 
 UNINSTALL=false
 REPLACE=false
@@ -215,17 +217,20 @@ if $UNINSTALL; then
         fi
     fi
 else
-    context_lines="@$GAL_SKILL_GEMINI/SKILL.md"$'\n'
+    context_lines=""
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        context_lines+="@$GEMINI_SKILLS_TARGET/$command_skill_name/SKILL.md"$'\n'
+    done
     while IFS= read -r -d '' sd; do
         sname="$(basename "$sd")"
         context_lines+="@$GEMINI_SKILLS_TARGET/$sname/SKILL.md"$'\n'
     done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
     if $DRY_RUN; then
-        echo "  [DRY RUN] Would write: $GEMINI_CONTEXT_FILE ($((skill_count + 1)) skill imports)"
+        echo "  [DRY RUN] Would write: $GEMINI_CONTEXT_FILE ($((skill_count + ${#COMMAND_SKILL_NAMES[@]})) skill imports)"
     else
         printf '%s' "$context_lines" > "$GEMINI_CONTEXT_FILE"
-        echo "  [OK] $GEMINI_CONTEXT_FILE ($((skill_count + 1)) skill imports)"
+        echo "  [OK] $GEMINI_CONTEXT_FILE ($((skill_count + ${#COMMAND_SKILL_NAMES[@]})) skill imports)"
     fi
 fi
 
@@ -243,43 +248,54 @@ else
     if safe_link "$GAL_ROOT_GEMINI"  "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
 fi
 
-# --- Generated GAL skill (bake template -> commands/gal/SKILL.md) ---
+# --- Generated GAL command skills (bake templates -> commands/gal*/SKILL.md) ---
 
 echo ""
-echo "=== Generated GAL skill ==="
+echo "=== Generated GAL command skills ==="
 
 if $UNINSTALL; then
-    baked_skill="$GAL_SOURCE/SKILL.md"
-    if [ -f "$baked_skill" ]; then
-        if $DRY_RUN; then echo "  [DRY RUN] Would remove baked: $baked_skill"
-        else rm "$baked_skill"; echo "  [REMOVED] $baked_skill"; fi
-    fi
-else
-    if [ ! -f "$SKILL_TEMPLATE" ]; then
-        echo "  [WARN] Template not found: $SKILL_TEMPLATE"
-    else
-        baked="$(sed "s|{{GAL_ROOT}}|$REPO_ROOT|g" "$SKILL_TEMPLATE")"
-        baked_skill="$GAL_SOURCE/SKILL.md"
-        if $DRY_RUN; then
-            echo "  [DRY RUN] Would write baked: $baked_skill"
-        else
-            printf '%s\n' "$baked" > "$baked_skill"
-            echo "  [OK] $baked_skill"
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        baked_skill="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+        if [ -f "$baked_skill" ]; then
+            if $DRY_RUN; then echo "  [DRY RUN] Would remove baked: $baked_skill"
+            else rm "$baked_skill"; echo "  [REMOVED] $baked_skill"; fi
         fi
-    fi
+    done
+else
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        command_skill_source="$REPO_ROOT/commands/$command_skill_name"
+        command_skill_template="$command_skill_source/SKILL.template.md"
+        if [ ! -f "$command_skill_template" ]; then
+            echo "  [WARN] Template not found: $command_skill_template"
+        else
+            baked="$(sed "s|{{GAL_ROOT}}|$REPO_ROOT|g" "$command_skill_template")"
+            baked_skill="$command_skill_source/SKILL.md"
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would write baked: $baked_skill"
+            else
+                printf '%s\n' "$baked" > "$baked_skill"
+                echo "  [OK] $baked_skill"
+            fi
+        fi
+    done
 fi
 
-# --- GAL skill symlinks (commands/gal/ -> ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/) ---
+# --- GAL command skill symlinks (commands/gal*/ -> ~/.copilot/skills/gal*/ + ~/.gemini/skills/gal*/) ---
 
 echo ""
-echo "=== GAL skill symlinks ==="
+echo "=== GAL command skill symlinks ==="
 
 if $UNINSTALL; then
-    safe_unlink "$GAL_SKILL_COPILOT"
-    safe_unlink "$GAL_SKILL_GEMINI"
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        safe_unlink "$SKILLS_TARGET/$command_skill_name"
+        safe_unlink "$GEMINI_SKILLS_TARGET/$command_skill_name"
+    done
 else
-    safe_link "$GAL_SKILL_COPILOT" "$GAL_SOURCE"
-    safe_link "$GAL_SKILL_GEMINI"  "$GAL_SOURCE"
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        command_skill_source="$REPO_ROOT/commands/$command_skill_name"
+        safe_link "$SKILLS_TARGET/$command_skill_name" "$command_skill_source"
+        safe_link "$GEMINI_SKILLS_TARGET/$command_skill_name" "$command_skill_source"
+    done
 fi
 
 # --- Migration: remove legacy gal-* dirs from installed locations ---
@@ -290,6 +306,17 @@ echo "=== Migration: gal-* cleanup ==="
 for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET"; do
     for d in "$skills_dir"/gal-*/; do
         [ -e "$d" ] || continue
+        d_name="$(basename "$d")"
+        keep_dir=false
+        for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+            if [ "$d_name" = "$command_skill_name" ]; then
+                keep_dir=true
+                break
+            fi
+        done
+        if $keep_dir; then
+            continue
+        fi
         if $DRY_RUN; then
             echo "  [DRY RUN] Would remove: $d"
         else
@@ -364,8 +391,19 @@ if ! $UNINSTALL && ! $DRY_RUN; then
     if [ -f "$LOCAL_ENV" ]; then
         has_values=$(grep -v '^\s*#' "$LOCAL_ENV" | grep -c '=.' || true)
         if [ "$has_values" -gt 0 ]; then
-            git checkout -- config.local.env model-roles.local.md
-            echo "  [OK] Re-checked out filtered files (smudge filter applied)"
+            tracked_filter_files=()
+            for filter_file in config.local.env model-roles.local.md; do
+                if git ls-files --error-unmatch "$filter_file" >/dev/null 2>&1; then
+                    tracked_filter_files+=("$filter_file")
+                fi
+            done
+
+            if [ "${#tracked_filter_files[@]}" -gt 0 ]; then
+                git checkout -- "${tracked_filter_files[@]}"
+                echo "  [OK] Re-checked out tracked filtered files (smudge filter applied)"
+            else
+                echo "  [INFO] Filtered files are not tracked yet — skipping git checkout"
+            fi
         else
             echo "  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md"
         fi

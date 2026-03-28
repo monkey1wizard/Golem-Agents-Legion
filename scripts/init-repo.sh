@@ -122,6 +122,7 @@ echo "Initialized repo context in: $target_path"
 echo "- Created: .dev/project.md"
 echo "- Created: .dev/state.md"
 echo "- Ensured: docs/plans/"
+echo "- Next: review .dev/project.md, fill in summary fields, set exact Active Skills, then run gal sync"
 
 if [[ ${#source_docs[@]} -gt 0 ]]; then
   echo ""

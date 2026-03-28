@@ -15,6 +15,8 @@ Not every change needs the same process. Tier determines which states are active
 
 **Upgrade rule**: Any tier can upgrade to T2 mid-flight if complexity exceeds expectations. Stop, create/upgrade the plan, engage architect-full.
 
+Tiering is about how many guardrails the task needs, not about whether the task is morally "important." T0 minimizes ceremony, T1 adds cheap structural protection, and T2 buys explicit review gates when a wrong move would be expensive.
+
 ## State Machine
 
 ### T2 (Full)
@@ -168,6 +170,8 @@ The condition is: **all required reviewers in the pack APPROVE**. If analyst is 
 - Dependency upgrades
 - Bug fixes where business semantics don't change
 
+T2 does not automatically imply analyst involvement. T2 means technical or delivery risk; analyst is added only when the change also carries business or customer-facing meaning.
+
 ## Architect Modes
 
 | Mode | Tier | Scope |
@@ -175,6 +179,8 @@ The condition is: **all required reviewers in the pack APPROVE**. If analyst is 
 | **Lite** | T1 (default on) | Structure risk only: cross-layer, DI/interface/public API, protected paths, obvious over-engineering |
 | **Full** | T2 (mandatory) | Complete trade-off review: all 6 dimensions (architecture fit, complexity budget, trade-offs, bug surface, performance, security) |
 | **Consult** | Any | Human-initiated, no formal verdict. Ask architect for advice without entering DISCUSS. |
+
+This split exists because architect review is most useful when it is frequent enough to catch drift but not so heavy that trivial work pays a T2 tax.
 
 ## Scope Fence (T0/T1)
 
@@ -217,7 +223,7 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 
 ### Plan Filename Convention
 
-```
+```text
 docs/plans/<type>-<slug>.prompt.md
 ```
 
@@ -255,9 +261,10 @@ This is manually triggered — the AI doesn't know when you're switching context
 | --- | --- | --- |
 | **Consult** | Yes — read-only advice, no state change | `gal ask architect`, `gal ask analyst` |
 | **Utility** | Yes — independent of workflow state | `gal run debugger`, `gal run scribe` |
-| **Workflow-bound** | No — state transitions via `gal next` only | implementer, tester, reviewer, verifier |
+| **Workflow-bound** | Yes — consult only unless already bound by current state | `gal golem-tester`, `gal golem-reviewer` |
 
 Consult output is advice, not a formal APPROVE/REVIEW verdict. Formal verdicts come from the DISCUSS/REVIEW states only.
+Explicitly naming a workflow golem never overrides the workflow gates; only the dispatcher can activate it in `bound` mode for the current state.
 
 ## Per-Phase Model Assignment
 

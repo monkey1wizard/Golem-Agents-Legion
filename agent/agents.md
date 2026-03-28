@@ -11,6 +11,15 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | **Utility** | No — callable at any tier | debugger, scribe |
 | **Domain** | No — bound to workflow, not single state | architect, analyst, librarian (cross-workflow capable) |
 
+## Why GAL Uses 10 Agents
+
+GAL keeps these roles separate on purpose.
+
+- Smaller prompts keep responsibilities legible and reduce context waste.
+- Independent tester/reviewer/verifier roles make verification more credible than one mega-agent doing everything.
+- Tiering means only the needed subset is active for a task; the system does not expect all 10 roles every time.
+- Domain and utility roles remain reusable across workflows without forcing state transitions.
+
 ## Agents → Workflow States
 
 | Agent | Classification | Workflow State | Purpose |
@@ -44,10 +53,11 @@ T0/T1 skip DISCUSS entirely. T1 gets architect-lite by default (structure risk o
 | --- | --- | --- |
 | **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `gal ask architect` |
 | **Utility** | Yes | Independent of workflow state. e.g., `gal run debugger`, `gal run scribe` |
-| **Workflow-bound** | No | State transitions via `gal next` only. implementer/tester/reviewer/verifier cannot be called directly to change state. |
+| **Workflow-bound** | Consult-only unless already bound | Explicit targeting is allowed for consultation, but state transitions still go through workflow control. |
 | **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
 
 Consult output is advice, not an APPROVE/REVIEW verdict. Formal verdicts come from DISCUSS/REVIEW states only.
+Workflow golems may be explicitly named, but doing so does not skip PLAN, TEST, REVIEW, or VERIFY gates.
 
 ## Model Role Enforcement
 

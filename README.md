@@ -20,6 +20,32 @@ GAL solves this by separating **what you know** from **which tool reads it**:
 
 When you switch tools, update one routing table and re-run a sync script. Your knowledge doesn't move.
 
+## Status
+
+Bootstrap is functionally complete.
+`gal init` and `gal sync` are shipped; macOS parity verification and the first full real-feature run remain deferred field checks.
+
+## For AI Agents
+
+If you are an AI agent or you are onboarding one to this repo, read [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) first.
+
+That document explains:
+
+- what this project is and is not
+- how to navigate the repo without misclassifying it as an app or service
+- which files are canonical versus temporary execution memory
+- where to start for workflow, agent, command, or setup changes
+
+## Architecture Docs
+
+The durable architecture and maintenance docs live here:
+
+- [docs/design-principles.md](docs/design-principles.md) - why GAL exists and what architectural trade-offs it makes
+- [docs/installation-topology.md](docs/installation-topology.md) - symlink, generated-file, and cross-machine runtime layout
+- [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) - canonical `/gal` model, alias rationale, dispatch contract
+- [docs/per-repo-context.md](docs/per-repo-context.md) - `.dev/`, plan lifecycle, and cross-worktree task memory model
+- [docs/skills-migration.md](docs/skills-migration.md) - why current skills and conventions are organized the way they are
+
 ## Three-Layer Architecture
 
 ```text
@@ -87,6 +113,8 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 Setup scripts create symlinks: `agent/` → `~/.copilot/agents/`, `skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`.
 Both machines share the same definitions via `git push/pull`.
 
+After `gal init` in a target repo, review `.dev/project.md`, curate `## Active Skills`, then run `gal sync` to generate `.github/copilot-instructions.md` and `GEMINI.md`.
+
 ## Cross-Machine Setup
 
 GAL supports multi-machine workflows. Each machine clones the same repo and
@@ -132,7 +160,7 @@ For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `m
 | [templates/](templates/templates.md) | Plan, state, project, diary, agent scaffolds |
 | [skills/](skills/) | Skills (canonical source, symlinked to `~/.copilot/skills/` + `~/.gemini/skills/`) |
 | [scripts/](scripts/scripts.md) | Machine setup, repo init, workflow dispatcher |
-| [ROADMAP.md](ROADMAP.md) | Implementation progress and milestones |
+| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | Repo orientation and reading order for AI agents and maintainers |
 
 ## Design Principles
 

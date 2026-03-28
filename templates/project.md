@@ -36,12 +36,8 @@ Template for `<repo>/.dev/project.md` — portable project context.
 
 ## Active Skills
 
-[List skills from golem-agents-legion that apply to this project.
-Sync-DevContext reads this field to inline skill content into adapters.]
-
-- csharp-development
-- clean-architecture
-- testing-strategy
+[List exact folder names from `golem-agents-legion/skills/` that apply to this project.
+Put one skill per bullet. `gal sync` fails if this section is missing, empty, duplicated, or references a skill folder that does not exist.]
 
 ## Constraints
 
@@ -93,7 +89,7 @@ Sync-DevContext reads this field to inline skill content into adapters.]
 1. **One per repo** — lives at `<repo>/.dev/project.md`
 2. **Portable** — no tool-specific syntax, any AI can read it
 3. **Concise** — context window is precious, don't bloat
-4. **Active Skills** — used by Sync-DevContext to generate adapters
+4. **Active Skills** — use exact skill folder names; Sync-DevContext validates this list and fails hard when it is missing or stale
 5. **Update on architecture changes** — not after every commit
 6. **Summary + index, not duplication** — point to canonical docs, don't copy their content
 7. **Record drift and gaps** — better to document uncertainty than ignore it

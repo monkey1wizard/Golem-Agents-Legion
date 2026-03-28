@@ -128,6 +128,7 @@ Write-Host "Initialized repo context in: $resolvedTarget"
 Write-Host "- Created: .dev/project.md"
 Write-Host "- Created: .dev/state.md"
 Write-Host "- Ensured: docs/plans/"
+Write-Host "- Next: review .dev/project.md, fill in summary fields, set exact Active Skills, then run gal sync"
 
 if ($sourceDocs.Count -gt 0) {
     Write-Host ""

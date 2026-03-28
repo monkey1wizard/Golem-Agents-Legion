@@ -12,3 +12,8 @@ These are runtime-agnostic — any AI tool can consume them.
 | [plan.md](plan.md) | `<repo>/docs/plans/*.prompt.md` | Plan scaffold for `gal plan` |
 | [diary.md](diary.md) | Obsidian vault | Scribe daily diary |
 | [agent.md](agent.md) | `agent/*.agent.md` | Golem agent scaffold |
+
+## Related Docs
+
+- [docs/per-repo-context.md](../docs/per-repo-context.md) - why `.dev/` and plan files are split the way they are
+- [workflows/coding.md](../workflows/coding.md) - plan lifecycle and workflow checkpoints

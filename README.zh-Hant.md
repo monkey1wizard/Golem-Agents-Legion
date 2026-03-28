@@ -20,6 +20,31 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 
 換工具時，更新一張路由表、重跑同步腳本。你的知識不需要搬家。
 
+## 目前狀態
+
+`gal init` 與 `gal sync` 已可使用，macOS 指令家族驗證與第一個真實功能流程驗證仍列為延後的實地檢查。
+
+## 給 AI 代理
+
+如果你是 AI 代理，或你正要讓 AI 代理接手這個 repo，請先讀 [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md)。
+
+這份文件會說明：
+
+- 這個專案是什麼，不是什麼
+- 怎麼瀏覽這個 repo，避免誤判成一般 app 或 service
+- 哪些檔案是 canonical，哪些只是暫時性的執行記憶
+- 要改 workflow、agent、command 或 setup 時該從哪裡開始
+
+## 架構文件
+
+長期保留的架構與維護文件在這裡：
+
+- [docs/design-principles.md](docs/design-principles.md) - 說明 GAL 為何存在，以及它採用哪些架構取捨
+- [docs/installation-topology.md](docs/installation-topology.md) - 說明 symlink、生成檔與跨機器執行布局
+- [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) - 說明 canonical `/gal` 模型、alias 理由與 dispatch 合約
+- [docs/per-repo-context.md](docs/per-repo-context.md) - 說明 `.dev/`、plan 生命週期與跨 worktree 的任務記憶模型
+- [docs/skills-migration.md](docs/skills-migration.md) - 說明目前 skills 與 conventions 的組織理由
+
 ## 三層架構
 
 ```text
@@ -87,10 +112,12 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 設定腳本會建立 symlink：`agent/` → `~/.copilot/agents/`、`skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`。
 多台機器透過 `git push/pull` 共享相同定義。
 
+在目標 repo 執行 `gal init` 之後，請檢查 `.dev/project.md`、整理 `## Active Skills`，再執行 `gal sync` 生成 `.github/copilot-instructions.md` 與 `GEMINI.md`。
+
 ## 跨機器設定
 
 GAL 支援多機器工作流程。每台機器 clone 同一個 repo 並執行 `Setup-Machine` 建立
-symlink。模型和工具因機器而異；方法論完全相同。
+symlink。模型和工具因機器而異，方法論完全相同。
 
 ```text
 ┌────────────────────────────┐    ┌────────────────────────────┐
@@ -131,15 +158,15 @@ symlink。模型和工具因機器而異；方法論完全相同。
 | [templates/](templates/templates.md) | plan、state、project、diary、agent 樣板 |
 | [skills/](skills/) | 技能（來源目錄，symlink 到 `~/.copilot/skills/` + `~/.gemini/skills/`） |
 | [scripts/](scripts/scripts.md) | 機器設定、repo 初始化、工作流程調度 |
-| [ROADMAP.md](ROADMAP.md) | 實作進度與里程碑 |
+| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | AI 代理與維護者的 repo 導覽與閱讀順序 |
 
 ## 設計原則
 
 1. **知識寫在 Markdown，不寫在程式碼裡** — Markdown 不會有 breaking changes
-2. **轉接器用完即棄** — `copilot-instructions.md`、`GEMINI.md` 是自動生成的；隨時刪掉重跑
-3. **方法論 > 工具** — 工具可以換；你的工作流程留下來
+2. **轉接器用完即棄** — `copilot-instructions.md`、`GEMINI.md` 是自動生成的，隨時刪掉重跑
+3. **方法論 > 工具** — 工具可以換，你的工作流程留下來
 4. **計畫是暫態記憶** — 計畫建立、執行、知識萃取到 `docs/`，然後刪除
-5. **人是指揮者** — Golem 是專家；人決定分級、範圍、何時推進
+5. **人是指揮者** — Golem 是專家，人決定分級、範圍、何時推進
 
 ## 影響來源
 

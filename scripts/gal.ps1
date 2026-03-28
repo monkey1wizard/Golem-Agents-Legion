@@ -37,15 +37,6 @@ function Get-StatePath {
     return Join-Path (Get-Location).Path ".dev\state.md"
 }
 
-function Require-StateFile {
-    $statePath = Get-StatePath
-    if (-not (Test-Path $statePath)) {
-        throw "Missing .dev/state.md in current directory. Run gal init first."
-    }
-
-    return $statePath
-}
-
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 
@@ -79,13 +70,22 @@ function Resolve-Golem([string]$Name) {
     return $null
 }
 
-$workflowGolems = @{
+$dispatchByState = @{
     'PLAN'         = 'golem-planner'
     'DISCUSS'      = 'golem-architect'
     'IMPLEMENT'    = 'golem-implementer'
     'TEST'         = 'golem-tester'
+    'REVIEW'       = 'golem-reviewer'
     'CROSS_REVIEW' = 'golem-reviewer'
     'VERIFY'       = 'golem-verifier'
+}
+
+$workflowBindings = @{
+    'golem-planner'     = @('PLAN')
+    'golem-implementer' = @('IMPLEMENT')
+    'golem-tester'      = @('TEST')
+    'golem-reviewer'    = @('REVIEW', 'CROSS_REVIEW')
+    'golem-verifier'    = @('VERIFY')
 }
 
 $domainGolems  = @('golem-architect','golem-analyst','golem-librarian')
@@ -138,7 +138,10 @@ switch ($Command) {
         break
     }
     "status" {
-        $statePath = Require-StateFile
+        $statePath = Get-StatePath
+        if (-not (Test-Path $statePath)) {
+            throw "Missing .dev/state.md in current directory. Run gal init first."
+        }
         $stateContent = Get-Content -Path $statePath
         $interestingLines = $stateContent | Where-Object {
             $_ -match "^Workflow:" -or $_ -match "^Plan:" -or $_ -match "^Step:" -or $_ -match "^Last activity:" -or $_ -match "^Last session:" -or $_ -match "^Next step:"
@@ -149,7 +152,10 @@ switch ($Command) {
         break
     }
     "next" {
-        $statePath = Require-StateFile
+        $statePath = Get-StatePath
+        if (-not (Test-Path $statePath)) {
+            throw "Missing .dev/state.md in current directory. Run gal init first."
+        }
         $nextLine = Get-Content -Path $statePath | Where-Object { $_ -match "^Next step:" } | Select-Object -First 1
 
         if (-not $nextLine) {
@@ -160,7 +166,10 @@ switch ($Command) {
         break
     }
     "pause" {
-        $statePath = Require-StateFile
+        $statePath = Get-StatePath
+        if (-not (Test-Path $statePath)) {
+            throw "Missing .dev/state.md in current directory. Run gal init first."
+        }
         $devDir = Join-Path (Get-Location).Path ".dev"
         $plansDir = Join-Path (Get-Location).Path "docs\plans"
 
@@ -201,13 +210,27 @@ switch ($Command) {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
 
-        $subcommands = @('init','plan','status','next','pause')
+        $subcommands = @('init','plan','status','next','pause','sync')
         if ($subcommands -contains $intent) {
+            $action = "Execute the $intent workflow step."
+            $onComplete = 'Report result to user.'
+
+            switch ($intent) {
+                'init' {
+                    $action = 'Initialize .dev/ for the target repo, then surface the manual next step.'
+                    $onComplete = 'Tell the user to review .dev/project.md, curate ## Active Skills, then run /gal sync.'
+                }
+                'sync' {
+                    $action = 'Generate .github/copilot-instructions.md and GEMINI.md from .dev/project.md.'
+                    $onComplete = 'Report which adapter files were generated and whether Active Skills validation passed.'
+                }
+            }
+
             # Delegate to subcommand handler and wrap output
             Write-Host "--- GAL DISPATCH ---"
             Write-Host "COMMAND: $intent"
-            Write-Host "ACTION: Execute the $intent workflow step."
-            Write-Host "ON_COMPLETE: Report result to user."
+            Write-Host "ACTION: $action"
+            Write-Host "ON_COMPLETE: $onComplete"
             Write-Host "--- END DISPATCH ---"
             break
         }
@@ -220,8 +243,8 @@ switch ($Command) {
             } elseif ($domainGolems -contains $resolved) {
                 $mode = 'consult'
             } else {
-                $bound = $workflowGolems.GetEnumerator() | Where-Object { $_.Value -eq $resolved } | Select-Object -ExpandProperty Key -First 1
-                $mode = if ($bound -and $state -eq $bound) { 'bound' } else { 'consult' }
+                $boundStates = $workflowBindings[$resolved]
+                $mode = if ($boundStates -and $boundStates -contains $state) { 'bound' } else { 'consult' }
             }
             $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
             Write-Dispatch @{
@@ -236,7 +259,7 @@ switch ($Command) {
         if ($intent -and $subcommands -notcontains $intent) {
             Write-Dispatch @{
                 COMMAND = 'error'
-                ACTION  = "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause) or a golem name."
+                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause/sync) or a golem name."
             }
             break
         }
@@ -259,7 +282,7 @@ switch ($Command) {
             }
             break
         }
-        $golem = $workflowGolems[$state]
+            $golem = $dispatchByState[$state]
         if ($golem) {
             $agentPath = Join-Path $repoRoot ("agent\{0}.agent.md" -f $golem)
             Write-Dispatch @{

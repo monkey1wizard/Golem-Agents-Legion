@@ -79,7 +79,7 @@ golem_bound_state() {
     golem-planner)     echo PLAN ;;
     golem-implementer) echo IMPLEMENT ;;
     golem-tester)      echo TEST ;;
-    golem-reviewer)    echo CROSS_REVIEW ;;
+    golem-reviewer)    echo REVIEW ;;
     golem-verifier)    echo VERIFY ;;
     golem-architect)   echo DISCUSS ;;
     *) echo "" ;;
@@ -93,6 +93,7 @@ dispatch_for_state() {
     DISCUSS)      echo golem-architect ;;
     IMPLEMENT)    echo golem-implementer ;;
     TEST)         echo golem-tester ;;
+    REVIEW)       echo golem-reviewer ;;
     CROSS_REVIEW) echo golem-reviewer ;;
     VERIFY)       echo golem-verifier ;;
     *) echo "" ;;
@@ -162,18 +163,30 @@ case "$command" in
     fi
     ;;
   sync)
-    if [[ ! -x "$script_dir/sync-dev-context.sh" ]]; then
+    if [[ ! -f "$script_dir/sync-dev-context.sh" ]]; then
       echo "sync-dev-context.sh is not implemented yet. Command surface reserved; adapter generation still pending." >&2
       exit 1
     fi
-    "$script_dir/sync-dev-context.sh" "$@"
+    bash "$script_dir/sync-dev-context.sh" "$@"
     ;;
   dispatch)
     intent="${1:-}"
     sub_text="${*:2}"
     case "$intent" in
-      init|plan|status|next|pause)
-        write_dispatch COMMAND "$intent" ACTION "Execute the $intent workflow step." ON_COMPLETE "Report result to user."
+      init|plan|status|next|pause|sync)
+        action="Execute the $intent workflow step."
+        on_complete="Report result to user."
+        case "$intent" in
+          init)
+            action="Initialize .dev/ for the target repo, then surface the manual next step."
+            on_complete="Tell the user to review .dev/project.md, curate ## Active Skills, then run /gal sync."
+            ;;
+          sync)
+            action="Generate .github/copilot-instructions.md and GEMINI.md from .dev/project.md."
+            on_complete="Report which adapter files were generated and whether Active Skills validation passed."
+            ;;
+        esac
+        write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
         ;;
       "")
         state="$(get_wf_state)"
@@ -203,12 +216,16 @@ case "$command" in
             state="$(get_wf_state)"
             bound="$(golem_bound_state "$resolved")"
             mode=consult
-            [[ -n "$bound" && "$state" == "$bound" ]] && mode=bound
+            if [[ "$resolved" == "golem-reviewer" ]]; then
+              [[ "$state" == "REVIEW" || "$state" == "CROSS_REVIEW" ]] && mode=bound
+            elif [[ -n "$bound" && "$state" == "$bound" ]]; then
+              mode=bound
+            fi
           fi
           action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
           write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
         else
-          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause) or a golem name."
+          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause/sync) or a golem name."
         fi
         ;;
     esac

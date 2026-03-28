@@ -10,10 +10,10 @@ Run the dispatch script with any arguments the user provided, then follow the ou
 ## Invoke
 
 **Windows:**
-`{{GAL_ROOT}}\scripts\gal.ps1 dispatch [args]`
+`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch [args]`
 
 **macOS / Linux:**
-`{{GAL_ROOT}}/scripts/gal.sh dispatch [args]`
+`C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch [args]`
 
 Pass any text the user typed after `/gal` as `[args]`.
 
