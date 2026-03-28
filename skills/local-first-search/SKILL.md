@@ -7,7 +7,7 @@ description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge, prioritizi
 
 ## Core Philosophy
 
-**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you **MUST** first search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge, models, and concepts. Avoid generating purely generic AI responses; your answers must be grounded in the contents of the user's curated Vault.
+**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you **MUST** first search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge, models, and concepts. Avoid generating purely generic AI responses. Your answers must be grounded in the contents of the user's curated Vault.
 
 ## Semantic Search Tool (Primary Search Method)
 
@@ -118,7 +118,7 @@ If filename search fails, use a full-text search (e.g., `grep_search`).
 2. **Synthesize & Cite (MANDATORY)**:
    - Your response must be **primarily based** on the Vault content.
    - **CRITICAL**: Whenever you use knowledge from the vault, you **MUST explicitly cite the source article** using Wiki Link format (e.g., `[[Note Name]]`).
-   - If supplementing with external AI knowledge, explicitly state: *"The Vault does not mention this aspect; the following is supplementary..."*
+   - If supplementing with external AI knowledge, explicitly state: *"The Vault does not mention this aspect. The following is supplementary..."*
 
 ## Execution Workflow: Pre-Write & Database Update
 

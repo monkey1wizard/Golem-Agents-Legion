@@ -38,7 +38,7 @@ This is intentional. GAL does not infer skills from the target repo's tech stack
 
 When the list is valid, Sync generates two disposable repo-local adapters:
 
-- `.github/copilot-instructions.md` — shared project context, conventions, workflow, and model routing; no skill bodies
+- `.github/copilot-instructions.md` — shared project context, conventions, workflow, and model routing, with no skill bodies
 - `GEMINI.md` — the same shared base plus the selected skill bodies inlined for Gemini CLI
 
 ## Why Plans Own Per-Task Status

@@ -32,7 +32,7 @@ This is why the repo optimizes for portability and explicit state, not for tool-
 3. Generated adapters are replaceable and should never become the source of truth.
 4. Workflow rules should be explicit enough that different tools can execute them consistently.
 5. Temporary task memory should collapse back into canonical docs once work is complete.
-6. Human operators remain the orchestrator; agents are specialists, not autonomous owners of process.
+6. Human operators remain the orchestrator, and agents are specialists rather than autonomous owners of process.
 
 ## Borrowed Concepts, Not Borrowed Implementations
 

@@ -23,7 +23,7 @@ When you switch tools, update one routing table and re-run a sync script. Your k
 ## Status
 
 Bootstrap is functionally complete.
-`gal init` and `gal sync` are shipped; macOS parity verification and the first full real-feature run remain deferred field checks.
+`gal init` and `gal sync` are shipped. macOS parity verification and the first full real-feature run remain deferred field checks.
 
 ## For AI Agents
 
@@ -118,7 +118,7 @@ After `gal init` in a target repo, review `.dev/project.md`, curate `## Active S
 ## Cross-Machine Setup
 
 GAL supports multi-machine workflows. Each machine clones the same repo and
-runs `Setup-Machine` to create symlinks. Models and tools differ per machine;
+runs `Setup-Machine` to create symlinks. Models and tools differ per machine,
 the methodology stays identical.
 
 ```text
@@ -165,10 +165,10 @@ For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `m
 ## Design Principles
 
 1. **Knowledge in Markdown, not code** — Markdown doesn't have breaking changes
-2. **Adapters are disposable** — `copilot-instructions.md`, `GEMINI.md` are auto-generated; delete and regenerate anytime
-3. **Methodology > Tools** — Tools can be swapped; your workflow stays
+2. **Adapters are disposable** — `copilot-instructions.md`, `GEMINI.md` are auto-generated. Delete and regenerate anytime
+3. **Methodology > Tools** — Tools can be swapped, your workflow stays
 4. **Plan as transient memory** — Plans are created, executed, knowledge extracted to `docs/`, then deleted
-5. **Human is orchestrator** — Golems are specialists; the human decides tier, scope, and when to proceed
+5. **Human is orchestrator** — Golems are specialists, the human decides tier, scope, and when to proceed
 
 ## Influences
 

@@ -140,7 +140,7 @@ graph TD
 ```
 ````
 
-To link Mermaid nodes to Obsidian notes, add `class NodeName internal-link;`.
+To link Mermaid nodes to Obsidian notes, add a Mermaid `class` statement that applies the `internal-link` class to the target node.
 
 ## Footnotes
 

@@ -207,8 +207,8 @@ Generate 16-character lowercase hexadecimal strings (64-bit random value):
 ## Layout Guidelines
 
 - Coordinates can be negative (canvas extends infinitely)
-- `x` increases right, `y` increases down; position is the top-left corner
-- Space nodes 50-100px apart; leave 20-50px padding inside groups
+- `x` increases right, and `y` increases down. Position is the top-left corner.
+- Space nodes 50-100px apart, and leave 20-50px padding inside groups.
 - Align to grid (multiples of 10 or 20) for cleaner layouts
 
 | Node Type | Suggested Width | Suggested Height |

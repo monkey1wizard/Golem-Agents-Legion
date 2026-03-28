@@ -203,7 +203,7 @@ tags:
 
 ### Key Frontmatter Rules
 
-- `source`: Use Wiki Link `[[Note]]` if source exists in vault; URL if external; `ai-synthesis` only for AI-generated content with no specific vault source; `personal-observation` for personal data.
+- `source`: Use Wiki Link `[[Note]]` if the source exists in the vault, use a URL if external, use `ai-synthesis` only for AI-generated content with no specific vault source, and use `personal-observation` for personal data.
 - `author`: **Plain text only**. No wiki-links.
 - `tags`: **English (en-US)**, **kebab-case** (e.g., `#knowledge-management`).
 - Template `<!-- ... -->` comments are meta-instructions: follow them, then **remove** from final output.
@@ -243,7 +243,7 @@ tags:
 3. **Transform**: Create independent `.md` files in `22_Permanent/` using `Type_Keyword.md` naming.
 4. **Bi-directional Linking**:
    - Permanent → Literature: include `source: [[Literature_Note]]` in frontmatter.
-   - Literature → Permanent: **do not edit** source text; rely on Backlinks. Exception: append `參考: [[Related]]` at end for closely related sources only.
+  - Literature → Permanent: **do not edit** source text. Rely on Backlinks. Exception: append `參考: [[Related]]` at end for closely related sources only.
 5. **Archive**: Move literature to `30_Archives/`. Content must remain **verbatim** — no summarization.
 
 ### Auto-Tagging
@@ -274,14 +274,14 @@ tags:
 ### Punctuation
 
 - **CJK text**: Use full-width symbols `：`、`（`、`）`、`，`、`。`.
-- **No semicolons** (`;` or `；`). Use commas or periods instead.
+- **No semicolons**. Use commas or periods instead.
 - **Half-width only for**: English terms in CJK text `(example)`, full English sentences, code blocks, URLs.
 
 ### Content Style
 
 - **No Emoji** (unless for warnings).
 - **Quality over quantity** for contextual links — only strong connections.
-- **Link validation**: Every `[[link]]` must point to an existing file; create the file or omit the link.
+- **Link validation**: Every `[[link]]` must point to an existing file. Create the file or omit the link.
 - **Hierarchy over lists**: Use heading levels (`###`, `####`) for long content instead of flat bullet lists.
 - **Flexible numbering**: Sequential (`1.`/`2.`), categorical (`A.`/`B.`), or CJK (`一、`/`二、`) — but consistent within the same level.
 
