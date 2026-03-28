@@ -2,6 +2,8 @@
 
 A workflow for research-driven tasks — investigating technologies, synthesizing findings, and writing results to the code repo (`docs/`) or Obsidian vault via the librarian.
 
+`golem-researcher` owns the RESEARCH and SYNTHESIZE states. `architect`, `analyst`, and `designer` remain review specialists; `librarian` remains the only vault writer.
+
 This workflow is **independent of the Coding Flow**. It can run in parallel with active development, or as a standalone investigation.
 
 ## Tier System
@@ -21,7 +23,7 @@ This workflow is **independent of the Coding Flow**. It can run in parallel with
 ```text
 IDLE → RESEARCH → SYNTHESIZE → REVIEW → DOCUMENT → DONE
                                   ↑                   │
-                                  └── (gaps found) ────┘
+                                  └── (gaps found) ───┘
 ```
 
 ### R1 (Standard)
@@ -51,7 +53,7 @@ No active research. Waiting for a research question or topic.
   - **Local-first**: Always search the Obsidian vault first (via local-first-search skill) before external sources.
   - Collect raw findings with source attribution.
   - For R1/R2: create a working document to track progress.
-- **Golem**: The invoking agent or user drives this. No dedicated research golem — any Frontier-tier model can research.
+- **Golem**: researcher
 - **Exit**: Sufficient raw material collected to answer the question.
 
 ### SYNTHESIZE (R1/R2)
@@ -62,16 +64,18 @@ No active research. Waiting for a research question or topic.
   - Identify conflicts, gaps, and open questions.
   - For R2: produce a comparison table or decision matrix if evaluating options.
   - Cross-reference with existing vault knowledge.
+- **Golem**: researcher
 - **Exit**: Draft synthesis ready for review (R2) or documentation (R1).
 
 ### REVIEW (R2 only)
 
 - **Entry**: Synthesis complete, needs adversarial review.
 - **Actions**:
-  - Architect reviews for technical accuracy, missing trade-offs, and bias.
+  - Architect reviews (conditional) for technical accuracy, missing trade-offs, and bias.
   - Analyst reviews (conditional) if business implications exist.
+  - Designer reviews (conditional) if the research affects visual design, UX flow, accessibility, or design systems.
   - Identify gaps that need additional research → loop back to RESEARCH.
-- **Golems**: architect (mandatory for R2), analyst (conditional)
+- **Golems**: architect (conditional), analyst (conditional), designer (conditional)
 - **Exit**: All reviewers satisfied, no critical gaps remain.
 - **Checkpoint**: HUMAN — confirm findings before documentation.
 
@@ -108,6 +112,7 @@ No active research. Waiting for a research question or topic.
 ### Routing Rule
 
 **Default to repo** (`docs/research/`). Only route to Obsidian when the knowledge is:
+
 - Reusable across projects (not repo-specific)
 - Worth maintaining long-term (not disposable investigation notes)
 - The user explicitly requests vault storage
@@ -116,9 +121,9 @@ No active research. Waiting for a research question or topic.
 
 | State | Primary Agent | Supporting Agents |
 | --- | --- | --- |
-| RESEARCH | User / any Frontier model | — |
-| SYNTHESIZE | User / any Frontier model | — |
-| REVIEW | architect | analyst (conditional) |
+| RESEARCH | researcher | — |
+| SYNTHESIZE | researcher | — |
+| REVIEW | architect (conditional) | analyst (conditional), designer (conditional) |
 | DOCUMENT (repo) | User / any model | — |
 | DOCUMENT (vault) | librarian | — |
 

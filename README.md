@@ -52,7 +52,7 @@ The durable architecture and maintenance docs live here:
 ┌──────────────────────────────────────────────────────────────┐
 │ Layer 1: ~/golem-agents-legion/  (this repo — your brain)    │
 │  ├── workflows/         ← state machines (coding, research)  │
-│  ├── agent/             ← 10 golem agent definitions         │
+│  ├── agent/             ← 12 golem agent definitions         │
 │  ├── model-roles.md     ← model routing + tier system        │
 │  ├── conventions/       ← portable language rules            │
 │  ├── templates/         ← plan, state, project scaffolds     │
@@ -69,13 +69,15 @@ The durable architecture and maintenance docs live here:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## 10 Golem Agents
+## 12 Golem Agents
 
 | Agent | Classification | Purpose |
 | --- | --- | --- |
 | **planner** | Workflow | Analyze requirements, produce plan files |
 | **architect** | Domain | Adversarial plan review — trade-offs, over-engineering, bugs |
 | **analyst** | Domain | Business logic review — ROI, domain correctness |
+| **designer** | Domain | Visual design, UX flow, accessibility, and design-system review |
+| **researcher** | Domain | Local-first research and structured synthesis |
 | **implementer** | Workflow | Execute plans with atomic commits + Scope Fence |
 | **tester** | Workflow | Write tests from spec only (never reads implementation) |
 | **reviewer** | Workflow | Cross-review for bugs, security, architecture |
@@ -154,8 +156,8 @@ For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `m
 | Path | Purpose |
 | --- | --- |
 | [workflows/coding.md](workflows/coding.md) | Coding Flow state machine (Tier + Scope Fence + review pack) |
-| [model-roles.md](model-roles.md) | Model routing + tier system — update when switching tools |
-| [agent/](agent/agents.md) | 10 golem agent definitions |
+| [model-roles.md](model-roles.md) | Model routing + tier system — different-model cross-checks are the default |
+| [agent/](agent/agents.md) | 12 golem agent definitions |
 | [conventions/](conventions/conventions.md) | Portable language rules (universal, C#, Go, TS, Rust) |
 | [templates/](templates/templates.md) | Plan, state, project, diary, agent scaffolds |
 | [skills/](skills/) | Skills (canonical source, symlinked to `~/.copilot/skills/` + `~/.gemini/skills/`) |
@@ -169,6 +171,8 @@ For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `m
 3. **Methodology > Tools** — Tools can be swapped, your workflow stays
 4. **Plan as transient memory** — Plans are created, executed, knowledge extracted to `docs/`, then deleted
 5. **Human is orchestrator** — Golems are specialists, the human decides tier, scope, and when to proceed
+6. **Verification is separate** — plan, test, and review should use different models whenever practical
+7. **Review is higher-level than testing** — tester does basic verification; reviewer does the deeper cross-check
 
 ## Influences
 

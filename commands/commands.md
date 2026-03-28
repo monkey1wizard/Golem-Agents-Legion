@@ -43,6 +43,8 @@ A small command-skill set is baked from templates under `commands/` and installe
 | `/gal pause` | Commit context for session handoff |
 | `/gal sync` | Generate repo-local Copilot and Gemini adapters from `.dev/project.md` |
 | `/gal golem-architect` | Consult architect in domain/consult mode |
+| `/gal golem-designer` | Consult designer in domain/consult mode |
+| `/gal golem-researcher` | Invoke the dedicated research golem in domain/consult mode |
 | `/gal golem-debugger` | Invoke debugger in utility mode |
 | `/gal <any golem name>` | Invoke that golem directly |
 
@@ -84,6 +86,8 @@ ON_COMPLETE: <next-step hint>
 | golem-verifier | Workflow | VERIFY | bound / consult |
 | golem-architect | Domain | — | consult |
 | golem-analyst | Domain | — | consult |
+| golem-designer | Domain | — | consult |
+| golem-researcher | Domain | — | consult |
 | golem-librarian | Domain | — | consult |
 | golem-debugger | Utility | any | utility |
 | golem-scribe | Utility | any | utility |

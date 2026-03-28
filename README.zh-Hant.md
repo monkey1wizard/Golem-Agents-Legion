@@ -51,7 +51,7 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 ┌─────────────────────────────────────────────────────────────┐
 │ 第一層：~/golem-agents-legion/（這個 repo — 你的大腦）        │
 │  ├── workflows/         ← 狀態機（coding、research）         │
-│  ├── agent/             ← 10 個 Golem 代理定義               │
+│  ├── agent/             ← 12 個 Golem 代理定義               │
 │  ├── model-roles.md     ← 模型路由 + 分級系統                │
 │  ├── conventions/       ← 可攜式語言規範                     │
 │  ├── templates/         ← plan、state、project 樣板          │
@@ -68,13 +68,15 @@ GAL 把**你知道什麼**跟**哪個工具讀它**分開：
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 10 個 Golem 代理
+## 12 個 Golem 代理
 
 | 代理 | 分類 | 用途 |
 | --- | --- | --- |
 | **planner** | 工作流程 | 分析需求、產出計畫檔案 |
 | **architect** | 領域 | 對抗式審查 — 抓取捨、過度設計、bug |
 | **analyst** | 領域 | 商業邏輯審查 — ROI、領域正確性 |
+| **designer** | 領域 | 視覺設計、UX 流程、無障礙與 design system 審查 |
+| **researcher** | 領域 | Local-first 研究與結構化整合 |
 | **implementer** | 工作流程 | 執行計畫，原子式 commit + Scope Fence |
 | **tester** | 工作流程 | 只從規格寫測試（不讀實作程式碼） |
 | **reviewer** | 工作流程 | 交叉審查：bug、安全、架構 |
@@ -131,7 +133,7 @@ symlink。模型和工具因機器而異，方法論完全相同。
            └────── git push/pull ────────────┘
 ```
 
-角色如何對應到你的機器和模型，請見 [model-roles.md](model-roles.md)。
+角色如何對應到你的機器和模型，請見 [model-roles.md](model-roles.md)。預設原則是：計畫、測試、審查都盡量用不同模型做交叉檢驗。
 
 ## 個人化設定
 
@@ -152,8 +154,8 @@ symlink。模型和工具因機器而異，方法論完全相同。
 | 路徑 | 用途 |
 | --- | --- |
 | [workflows/coding.md](workflows/coding.md) | 開發流程狀態機（分級 + Scope Fence + 審查包） |
-| [model-roles.md](model-roles.md) | 模型路由 + 分級系統 — 換工具時更新這裡 |
-| [agent/](agent/agents.md) | 10 個 Golem 代理定義 |
+| [model-roles.md](model-roles.md) | 模型路由 + 分級系統 — 預設以不同模型交叉檢驗 |
+| [agent/](agent/agents.md) | 12 個 Golem 代理定義 |
 | [conventions/](conventions/conventions.md) | 可攜式語言規範（通用、C#、Go、TS、Rust） |
 | [templates/](templates/templates.md) | plan、state、project、diary、agent 樣板 |
 | [skills/](skills/) | 技能（來源目錄，symlink 到 `~/.copilot/skills/` + `~/.gemini/skills/`） |
@@ -167,6 +169,8 @@ symlink。模型和工具因機器而異，方法論完全相同。
 3. **方法論 > 工具** — 工具可以換，你的工作流程留下來
 4. **計畫是暫態記憶** — 計畫建立、執行、知識萃取到 `docs/`，然後刪除
 5. **人是指揮者** — Golem 是專家，人決定分級、範圍、何時推進
+6. **驗證要分離** — 計畫、測試、審查盡量使用不同模型
+7. **審查比測試更高階** — tester 做基本驗證，reviewer 做更深的交叉檢查
 
 ## 影響來源
 

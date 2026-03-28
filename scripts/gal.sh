@@ -61,7 +61,7 @@ resolve_golem() {
   case "$full" in
     golem-planner|golem-architect|golem-analyst|golem-implementer|\
     golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
-    golem-scribe|golem-librarian) echo "$full" ;;
+    golem-scribe|golem-librarian|golem-designer|golem-researcher) echo "$full" ;;
     *) echo "" ;;
   esac
 }
@@ -69,7 +69,7 @@ resolve_golem() {
 golem_class() {
   case "$1" in
     golem-debugger|golem-scribe) echo utility ;;
-    golem-architect|golem-analyst|golem-librarian) echo domain ;;
+    golem-architect|golem-analyst|golem-librarian|golem-designer|golem-researcher) echo domain ;;
     *) echo workflow ;;
   esac
 }

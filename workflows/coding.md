@@ -3,15 +3,17 @@
 The primary development workflow — a state machine governing how code changes move from idea to done.
 Every AI agent follows this workflow. Tool-agnostic: works with Copilot, Gemini CLI, Claude Code, or any future tool.
 
+Cross-model verification is the default guardrail: planning, testing, and review should be done by different models whenever a separate capable model is available.
+
 ## Tier System
 
 Not every change needs the same process. Tier determines which states are active.
 
-| Tier | When | States | Plan? | Architect | Analyst | Reviewer |
-| --- | --- | --- | --- | --- | --- | --- |
-| T0 (Trivial) | Typo fix, obvious bug, single-file edit | IMPLEMENT → TEST? → VERIFY? | No | No (consult OK) | No | No |
-| T1 (Standard) | Small feature, known-cause bug fix, 2-3 files | PLAN → IMPLEMENT → TEST → REVIEW → VERIFY | Lightweight | Lite (default on) | No | Mandatory (lite) |
-| T2 (Strategic) | New feature, arch change, high-risk, cross-cutting | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY | Full | Full (mandatory) | Conditional | Full |
+| Tier | When | States | Plan? | Architect | Designer | Analyst | Reviewer |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| T0 (Trivial) | Typo fix, obvious bug, single-file edit | IMPLEMENT → TEST? → VERIFY? | No | No (consult OK) | No | No | No |
+| T1 (Standard) | Small feature, known-cause bug fix, 2-3 files | PLAN → IMPLEMENT → TEST → REVIEW → VERIFY | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
+| T2 (Strategic) | New feature, arch change, high-risk, cross-cutting | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
 
 **Upgrade rule**: Any tier can upgrade to T2 mid-flight if complexity exceeds expectations. Stop, create/upgrade the plan, engage architect-full.
 
@@ -58,18 +60,19 @@ No active work. Waiting for a new task.
   - Read relevant `docs/` if project.md points to them.
   - Create `docs/plans/<type>-<slug>.prompt.md` using the plan template.
   - Fill in: Goal, Tier, Review Pack, Requirements, Approach, Files, Test Cases, Risks, Success Criteria.
+- For T2, the adversarial plan review is handled by `architect-full` and `designer`, both using different models from `planner`.
 - **Golem**: planner
 - **Exit**: Plan file created with all sections filled.
 - **Checkpoint**: HUMAN — review plan before proceeding.
 
 ### DISCUSS (T2 only)
 
-- **Entry**: Plan exists, needs adversarial review before implementation.
+- **Entry**: Plan exists, needs adversarial review before implementation by a different model.
 - **Actions**:
-  - **Review Pack** reviews the plan (see Review Pack section below).
+  - **Review Pack** reviews the plan (see Review Pack section below) with `architect-full` and `designer` as separate models.
   - Resolve items in Risks / Open Questions.
   - Refine approach based on feedback.
-- **Golems**: architect-full (mandatory) + analyst (conditional) + others per task
+- **Golems**: architect-full (mandatory) + designer (mandatory) + analyst (conditional) + others per task
 - **Verdicts**: Each reviewer issues APPROVE / REVISE / REJECT
   - All required reviewers APPROVE → proceed to human approval
   - Any REVISE → planner updates plan, re-review
@@ -101,6 +104,7 @@ No active work. Waiting for a new task.
 - **Entry**: Implementation complete.
 - **Actions**:
   - Write tests based on the plan's Test Cases and public API only.
+  - Prefer basic unit/integration coverage first; keep deeper judgment for REVIEW.
   - **NEVER read implementation code** (independent verification).
   - Run tests and fix failures.
   - Write summary to plan's `## Test Results` section.
@@ -113,6 +117,7 @@ No active work. Waiting for a new task.
 - **Entry**: All tests pass.
 - **Actions (T2 — full)**:
   - Different model reviews for: bugs, OWASP Top 10, architecture, conventions.
+  - REVIEW is a higher-level check than TEST; it should not be used as a substitute for test generation.
   - Report findings with severity: BLOCKING / WARNING / INFO.
   - Write findings to plan's `## Review Results` section.
 - **Actions (T1 — lite)**:
@@ -146,11 +151,13 @@ No active work. Waiting for a new task.
 
 ## Review Pack (T2)
 
-T2 no longer hard-codes "architect + analyst." Instead, the review pack is composed per task.
+T2 uses a fixed core review pack plus conditional specialists.
+Current default policy includes `designer` in every T2 review, even for technical tasks.
 
 ### Always included
 
 - **Architect-full**: trade-off analysis, over-engineering, bug surface, dependency pollution, public API risk.
+- **Designer**: visual direction, UX flow, accessibility, interaction clarity, and design-system consistency. If the task has no meaningful UI surface, return a no-impact verdict instead of inventing issues.
 
 ### Conditionally included
 
@@ -272,6 +279,10 @@ Model assignment is defined in [model-roles.md](../model-roles.md).
 
 Key rules:
 
+- **Planner and architect must be different models** — cross-check the plan before implementation
+- **Planner and designer should be different models when designer is a formal reviewer** — keep design critique independent from plan authorship
 - **Implementer and tester must be different models** — independent verification
 - **Reviewer should differ from implementer** — fresh perspective
+- **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
 - **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
+- **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger

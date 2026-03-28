@@ -63,7 +63,7 @@ function Get-WFState {
 function Resolve-Golem([string]$Name) {
     $known = @('golem-planner','golem-architect','golem-analyst','golem-implementer',
                'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
-               'golem-scribe','golem-librarian')
+               'golem-scribe','golem-librarian','golem-designer','golem-researcher')
     # accept with or without 'golem-' prefix
     $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
     if ($known -contains $full) { return $full }
@@ -88,7 +88,7 @@ $workflowBindings = @{
     'golem-verifier'    = @('VERIFY')
 }
 
-$domainGolems  = @('golem-architect','golem-analyst','golem-librarian')
+$domainGolems  = @('golem-architect','golem-analyst','golem-librarian','golem-designer','golem-researcher')
 $utilityGolems = @('golem-debugger','golem-scribe')
 
 switch ($Command) {
