@@ -198,14 +198,15 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 ## Status
 
 Workflow: DRAFT
-Step: 0 of 6
-Last activity: 2026-03-30 — plan created
-Next step: P0 control-plane redesign — 定義新的 `/gal` command surface 與 rename policy
+Step: 2 of 6
+Last activity: 2026-03-30 — P1 complete
+Next step: P2 — 實作 Product/Plan/Review Skills: `/office-hours`、`/cso`、`/plan-ceo-review`、`/plan-eng-review`、`/plan-design-review`、`/autoplan`
 
 ### Deviations
 
 | Step | Plan Said | Actually Did | Why |
 | --- | --- | --- | --- |
+| P0 | Create `docs/gal-control-plane-contracts.md` only | Also updated `commands/gal/SKILL.md`, `commands/gal/SKILL.template.md`, `commands/gal-status/SKILL.{md,template.md}`, `commands/commands.md`, `docs/command-dispatch-architecture.md`; created `commands/gal-whats-next/`, `commands/gal-wrap-up/`; demoted `gal-next`, `gal-pause`, `gal-plan` | The contract document alone would have been orphaned — the actual skill files needed to change for the contracts to be real |
 
 ### Handoff Notes
 

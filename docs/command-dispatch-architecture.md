@@ -4,31 +4,53 @@ This document explains the durable command-surface model behind GAL.
 
 ## Canonical Rule
 
-`/gal` is the canonical command surface.
+`/gal` is the canonical control-plane entry point.
 
-Everything else exists to improve discoverability, not to create competing execution paths.
+Everything else exists to improve discoverability or to provide substantive procedures for specific operations, not to create competing execution paths.
 
-## Why Aliases Still Exist
+## Two Kinds of Alias Skills
 
-GAL intentionally keeps a small `gal-*` alias set:
+GAL `gal-*` alias skills come in two kinds:
+
+**Substantive skills** — contain full procedures and do not dispatch through the script:
+
+- `/gal-status` — full state projection (reads `.dev/state.md` and active plan files)
+- `/gal-whats-next` — next-action recommendation (reads state, applies decision tree)
+- `/gal-wrap-up` — session close-out (writes `### Handoff Notes` and `## Session Continuity`)
+
+**Script-forwarding aliases** — exist only for autocomplete discoverability and route through `gal dispatch`:
 
 - `/gal-init`
-- `/gal-plan`
-- `/gal-status`
-- `/gal-next`
-- `/gal-pause`
 
-These aliases exist because slash-command UIs often discover commands through prefix autocomplete. They are UX affordances, not separate architectures.
+**Legacy aliases** — retained for backward compatibility, redirect to new commands:
 
-The important invariant is: all command logic still flows through the dispatcher.
+- `/gal-next` → use `/gal-whats-next`
+- `/gal-pause` → use `/gal-wrap-up`
+
+**Removed from public surface:**
+
+- `/gal-plan` — planning operations are now specialist commands (`/office-hours`, `/autoplan`, `/plan-eng-review`)
+- `/gal sync` — adapter generation is internal to `/gal init`
+
+## Public Command Surface
+
+Use these as the stable user-facing entry points:
+
+| Command | What It Answers |
+| --- | --- |
+| `/gal init` | How do I bootstrap this repo? |
+| `/gal status` | Where are we right now? |
+| `/gal whats-next` | What do I do next? |
+| `/gal wrap-up` | How do I close this session cleanly? |
+| `/gal research` | I need structured investigation |
 
 ## Dispatcher Contract
 
-`gal dispatch` emits a structured block that the AI should follow deterministically.
+`gal dispatch` emits a structured block for script-dispatched subcommands (`init`, `research`, golem names).
 
 ```text
 --- GAL DISPATCH ---
-COMMAND: <init|plan|status|next|pause|error|suggest>
+COMMAND: <init|error|suggest>
 ROLE: <golem-name>
 MODE: <bound|consult|utility>
 READ: <file-path>
@@ -64,13 +86,6 @@ Explicit golem targeting is valid, but it does not bypass workflow gates.
 | Utility | Allowed at any time |
 | Workflow | Allowed only as consult unless dispatcher binds it to the current workflow state |
 
-This is the rule that keeps these two statements compatible:
-
-- explicit workflow golem targeting is supported
-- state transitions still belong to workflow control, not arbitrary direct calls
-
-In practice, `/gal golem-tester` may be valid as consultation, but it does not replace entering the TEST state through the workflow.
-
 ## Reviewer State Compatibility
 
 Current canonical docs use `REVIEW` as the reviewer state.
@@ -78,26 +93,13 @@ The dispatcher also accepts legacy `CROSS_REVIEW` values for backward compatibil
 
 New docs and new state files should use `REVIEW`.
 
-## Public Command Surface
-
-Use these as the stable user-facing entry points:
-
-- `/gal`
-- `/gal init`
-- `/gal plan`
-- `/gal status`
-- `/gal next`
-- `/gal pause`
-- `/gal sync`
-
-`/gal sync` is the manual-first adapter generation command. It reads `.dev/project.md`, validates `## Active Skills`, and writes `.github/copilot-instructions.md` plus `GEMINI.md` without mutating any global user configuration.
-
 ## Source Of Truth
 
 This document owns the architectural rationale.
 These files own the current operational implementation:
 
 - [commands/commands.md](../commands/commands.md)
+- [docs/gal-control-plane-contracts.md](gal-control-plane-contracts.md)
 - [scripts/gal.ps1](../scripts/gal.ps1)
 - [scripts/gal.sh](../scripts/gal.sh)
 - [scripts/scripts.md](../scripts/scripts.md)

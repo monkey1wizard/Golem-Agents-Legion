@@ -1,22 +1,18 @@
 ---
 name: gal-next
-description: "GAL alias for next. Use /gal-next to resume the next recorded workflow step through the dispatcher."
+description: "[Legacy alias] Use /gal-whats-next instead. This command is kept for discoverability only."
 ---
 
-# /gal-next
+# /gal-next — Legacy Alias
 
-Run the dispatch script as `next`, then follow the output block exactly.
+> **This command has been superseded.** Use `/gal-whats-next` instead.
 
-## Invoke
+`/gal-next` is retained as a compatibility alias only. It will not receive further updates.
 
-**Windows:**
-`{{GAL_ROOT}}\scripts\gal.ps1 dispatch next [args]`
+## Use Instead
 
-**macOS / Linux:**
-`{{GAL_ROOT}}/scripts/gal.sh dispatch next [args]`
+```
+/gal-whats-next
+```
 
-Pass any text the user typed after `/gal-next` as `[args]`.
-
-## Follow the Output
-
-The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly.
+Reads current plan state, review and test results, and recommends the single next specialist command or control-plane action.

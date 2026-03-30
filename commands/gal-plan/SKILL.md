@@ -1,22 +1,20 @@
 ---
 name: gal-plan
-description: "GAL alias for plan. Use /gal-plan [name] to create a plan scaffold through the dispatcher."
+description: "[Removed from public surface] Planning operations are now handled by specialist commands. See below."
 ---
 
-# /gal-plan
+# /gal-plan — Removed from Public Surface
 
-Run the dispatch script as `plan`, then follow the output block exactly.
+> **This command has been removed from the public command surface.**
 
-## Invoke
+`/gal-plan` no longer generates plan scaffolds as a direct command. Planning-stage operations are handled by specialist commands that read `.dev/` state and write canonical artifacts.
 
-**Windows:**
-`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch plan [args]`
+## Use Instead
 
-**macOS / Linux:**
-`C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch plan [args]`
-
-Pass any text the user typed after `/gal-plan` as `[args]`.
-
-## Follow the Output
-
-The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly.
+| Intent | Command |
+| --- | --- |
+| Start a new sprint or feature | `/office-hours` |
+| Auto-generate a plan from requirements | `/autoplan` |
+| Get engineering review on an existing plan | `/plan-eng-review` |
+| Get CEO-level review on an existing plan | `/plan-ceo-review` |
+| Get design review on a plan | `/plan-design-review` |

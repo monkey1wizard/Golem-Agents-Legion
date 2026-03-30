@@ -1,12 +1,13 @@
 # Commands
 
-GAL slash commands use a canonical `/gal` dispatcher plus lightweight `gal-*` aliases for autocomplete discoverability.
+GAL slash commands use a canonical `/gal` control-plane entry point plus `gal-*` aliases for autocomplete discoverability.
 
 See [docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) for the architectural rationale and dispatch contract.
+See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) for the canonical command definitions, read/write contracts, and migration rules.
 
 ## Architecture
 
-A small command-skill set is baked from templates under `commands/` and installed into both Copilot and Gemini skill directories.
+Command skills are installed into Copilot and Gemini skill directories via `Setup-Machine`.
 
 **Four runtime layers:**
 
@@ -19,54 +20,52 @@ A small command-skill set is baked from templates under `commands/` and installe
 
 **Key principles:**
 
-- **Canonical entry point** — `/gal` is the main interface. It handles subcommands, golem routing, and state-aware dispatch.
-- **Discoverability aliases** — `/gal-init`, `/gal-plan`, `/gal-status`, `/gal-next`, `/gal-pause` exist so typing `/gal-` exposes common actions in slash-command autocomplete.
-- **Script-driven dispatch** — `gal dispatch` emits a structured `--- GAL DISPATCH ---` block. The AI follows that output deterministically.
+- **Canonical control plane** — `/gal` is the main interface. It routes subcommands, consults golems, and handles state-aware dispatch.
+- **Substantive alias skills** — `/gal-status`, `/gal-whats-next`, and `/gal-wrap-up` contain full procedures and do not dispatch through the script.
+- **Script-dispatched subcommands** — `init` and `research` still route through `gal.ps1 dispatch`.
+- **Discoverability aliases** — `/gal-init`, `/gal-status`, `/gal-whats-next`, `/gal-wrap-up` exist so typing `/gal-` exposes controls in slash-command autocomplete.
 - **Baked absolute paths** — `Setup-Machine.ps1` and `setup-machine.sh` replace `{{GAL_ROOT}}` with the absolute repo path before installation.
-- **One repo symlink** — `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root, so all conventions, workflows, and templates remain available.
+- **One repo symlink** — `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root.
 
 ## Command Surface
 
-### `/gal` — Canonical Dispatcher
+### `/gal` — Control Plane Entry Point
 
 ```sh
 /gal [subcommand | golem-name | free text]
 ```
 
-| Invocation | Behaviour |
-| --- | --- |
-| `/gal` | Auto-detect from `.dev/state.md` and route to the bound golem |
-| `/gal init` | Initialize `.dev/` for a repo — scaffold `project.md` + `state.md` |
-| `/gal plan` | Create a plan scaffold from template |
-| `/gal status` | Show current workflow state |
-| `/gal next` | Show next step for session resumption |
-| `/gal pause` | Commit context for session handoff |
-| `/gal sync` | Generate repo-local Copilot and Gemini adapters from `.dev/project.md` |
-| `/gal golem-architect` | Consult architect in domain/consult mode |
-| `/gal golem-designer` | Consult designer in domain/consult mode |
-| `/gal golem-researcher` | Invoke the dedicated research golem in domain/consult mode |
-| `/gal golem-debugger` | Invoke debugger in utility mode |
-| `/gal <any golem name>` | Invoke that golem directly |
+| Invocation | What It Answers | Behaviour |
+| --- | --- | --- |
+| `/gal` | What should I do? | Auto-detect from `.dev/state.md` — follow `/gal-whats-next` procedure |
+| `/gal init` | How do I bootstrap this repo? | Scaffold `.dev/project.md` + `.dev/state.md` via script |
+| `/gal status` | Where are we right now? | Full state projection — active plans, review/test/blockers/continuity |
+| `/gal whats-next` | What do I do next? | Read state and recommend single next action or command |
+| `/gal wrap-up` | How do I close this session? | Converge handoff artifacts and update session continuity |
+| `/gal research` | I need structured investigation | Invoke research golem via script |
+| `/gal <golem-name>` | Consult a specific golem | Invoke that golem via script |
 
 ### `gal-*` — Discoverability Aliases
 
-These aliases exist only for slash-command discoverability. They all route back through `gal dispatch`.
+These aliases exist for slash-command autocomplete discoverability.
 
-| Alias | Equivalent canonical call |
-| --- | --- |
-| `/gal-init` | `/gal init` |
-| `/gal-plan` | `/gal plan` |
-| `/gal-status` | `/gal status` |
-| `/gal-next` | `/gal next` |
-| `/gal-pause` | `/gal pause` |
+| Alias | Status | Purpose |
+| --- | --- | --- |
+| `/gal-init` | Active | Bootstrap `.dev/` for a repo |
+| `/gal-status` | Active | Full state projection (substantive skill, no script) |
+| `/gal-whats-next` | Active | Next-action recommendation (substantive skill, no script) |
+| `/gal-wrap-up` | Active | Session close-out (substantive skill, no script) |
+| `/gal-next` | **Legacy** — use `/gal-whats-next` | Compatibility alias only |
+| `/gal-pause` | **Legacy** — use `/gal-wrap-up` | Compatibility alias only |
+| `/gal-plan` | **Removed** — use `/office-hours` or `/autoplan` | No longer a public command |
 
 ### Dispatch Output Protocol
 
-The CLI emits a block that the AI reads and executes:
+For script-dispatched subcommands (`init`, `research`, golem names), the CLI emits a block that the AI reads and executes:
 
 ```text
 --- GAL DISPATCH ---
-COMMAND: <init|plan|status|next|pause|error|suggest>
+COMMAND: <init|error|suggest>
 ROLE: <golem-name>           # mutually exclusive with COMMAND
 MODE: <bound|consult|utility>  # required when ROLE present
 READ: <file-path>            # optional, may appear multiple times
@@ -77,22 +76,20 @@ ON_COMPLETE: <next-step hint>
 
 ### Golem Classification
 
-| Golem | Class | Bound State | Default Mode |
-| --- | --- | --- | --- |
-| golem-planner | Workflow | PLAN | bound / consult |
-| golem-implementer | Workflow | IMPLEMENT | bound / consult |
-| golem-tester | Workflow | TEST | bound / consult |
-| golem-reviewer | Workflow | REVIEW | bound / consult |
-| golem-verifier | Workflow | VERIFY | bound / consult |
-| golem-architect | Domain | — | consult |
-| golem-analyst | Domain | — | consult |
-| golem-designer | Domain | — | consult |
-| golem-researcher | Domain | — | consult |
-| golem-librarian | Domain | — | consult |
-| golem-debugger | Utility | any | utility |
-| golem-scribe | Utility | any | utility |
-
-Workflow golems use `bound` mode when the current state matches their bound state, `consult` otherwise. The dispatcher also accepts legacy `CROSS_REVIEW` state values for reviewer compatibility.
+| Golem | Class | Default Mode |
+| --- | --- | --- |
+| golem-planner | Workflow | bound / consult |
+| golem-implementer | Workflow | bound / consult |
+| golem-tester | Workflow | bound / consult |
+| golem-reviewer | Workflow | bound / consult |
+| golem-verifier | Workflow | bound / consult |
+| golem-architect | Domain | consult |
+| golem-analyst | Domain | consult |
+| golem-designer | Domain | consult |
+| golem-researcher | Domain | consult |
+| golem-librarian | Domain | consult |
+| golem-debugger | Utility | utility |
+| golem-scribe | Utility | utility |
 
 ## Source Files
 

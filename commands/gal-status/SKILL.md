@@ -1,22 +1,69 @@
 ---
 name: gal-status
-description: "GAL alias for status. Use /gal-status to inspect the current workflow state through the dispatcher."
+description: "GAL — full state projection. Shows active plans, workflow position, review and test results, blockers, session continuity, and specialist readiness."
 ---
 
-# /gal-status
+# /gal status
 
-Run the dispatch script as `status`, then follow the output block exactly.
+Project the full recorded GAL state for this repo.
 
-## Invoke
+## Step 1 — Read
 
-**Windows:**
-`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch status [args]`
+Read these files:
 
-**macOS / Linux:**
-`C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch status [args]`
+1. `.dev/state.md` — active plans, global decisions, blockers, session continuity
+2. Each plan file listed in the Active Plans table — `## Status`, `## Review Results`, `## Test Results`, `### Handoff Notes`
 
-Pass any text the user typed after `/gal-status` as `[args]`.
+If `.dev/state.md` does not exist: output **Repo not initialized — run `/gal init`.**
 
-## Follow the Output
+## Step 2 — Project
 
-The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly.
+Output the following sections in order:
+
+### Active Plans
+
+For each row in `.dev/state.md` Active Plans table:
+- Plan name and file path
+- Workflow state and current step
+- Last activity date
+
+### Current Position
+
+From the primary active plan:
+- Workflow state (DRAFT / PLAN / IMPLEMENT / TEST / REVIEW / VERIFY / DONE)
+- Current step and total steps
+- What the plan's `## Status` says the next step is
+- Any deviations recorded in the Deviations table
+
+### Review & Test Status
+
+For each active plan with results filled in:
+- **Test Results**: Pass / Fail / Pending — one-line summary from `## Test Results`
+- **Review Results**: verdict and any BLOCKING findings from `## Review Results`
+
+If sections are unpopulated placeholders, show: *Pending.*
+
+### Blockers
+
+From `.dev/state.md` `## Blockers` section.
+If the section is empty or not present: **None.**
+
+### Session Continuity
+
+From `.dev/state.md` `## Session Continuity`:
+- Last session
+- Stopped at
+- Next step
+- Active context
+
+### Specialist Readiness
+
+Based on the current workflow state, list the commands that are appropriate to invoke next:
+
+| Workflow State | Appropriate Commands |
+| --- | --- |
+| DRAFT / PLAN | `/plan-eng-review`, `/plan-ceo-review`, `/autoplan`, `/office-hours` |
+| IMPLEMENT | `/review`, `/investigate`, `/careful`, `/design-consultation` |
+| TEST | `/qa`, `/qa-only` |
+| REVIEW | `/review`, `/design-review`, `/investigate` |
+| Any | `/gal whats-next`, `/gal wrap-up`, `/learn`, `/browse` |

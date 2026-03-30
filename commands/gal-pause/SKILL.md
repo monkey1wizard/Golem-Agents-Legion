@@ -1,22 +1,18 @@
 ---
 name: gal-pause
-description: "GAL alias for pause. Use /gal-pause to create a workflow handoff checkpoint through the dispatcher."
+description: "[Legacy alias] Use /gal-wrap-up instead. This command is kept for discoverability only."
 ---
 
-# /gal-pause
+# /gal-pause — Legacy Alias
 
-Run the dispatch script as `pause`, then follow the output block exactly.
+> **This command has been superseded.** Use `/gal-wrap-up` instead.
 
-## Invoke
+`/gal-pause` is retained as a compatibility alias only. It will not receive further updates.
 
-**Windows:**
-`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch pause [args]`
+## Use Instead
 
-**macOS / Linux:**
-`C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch pause [args]`
+```
+/gal-wrap-up
+```
 
-Pass any text the user typed after `/gal-pause` as `[args]`.
-
-## Follow the Output
-
-The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly.
+Converges handoff artifacts, updates session continuity in `.dev/state.md`, and prepares the repo for clean resumption.
