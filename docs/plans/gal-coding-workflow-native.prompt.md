@@ -198,9 +198,9 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 ## Status
 
 Workflow: DRAFT
-Step: 2 of 6
-Last activity: 2026-03-30 — P1 complete
-Next step: P2 — 實作 Product/Plan/Review Skills: `/office-hours`、`/cso`、`/plan-ceo-review`、`/plan-eng-review`、`/plan-design-review`、`/autoplan`
+Step: 5 of 6
+Last activity: P4 complete
+Next step: P5 — 重寫 README.md（gstack-style command catalog）與 docs/gstack-integration.md（整合模型說明）
 
 ### Deviations
 
