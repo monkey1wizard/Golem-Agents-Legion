@@ -6,7 +6,7 @@ Cross-language rules that apply to all code in every repository.
 
 ## Git Commits
 
-Follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+Must follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Format
 
