@@ -1,25 +1,8 @@
 # GAL Control-Plane Contracts
 
-**This is an ADR (Architectural Decision Record), not a usage guide.**
+This document is the canonical current read/write contract for the `/gal` control plane.
 
-It serves two purposes:
-
-1. `## Command Decisions` — records *why* each `/gal` command was kept, renamed, or removed. Read this when you want to understand the historical rationale. Do not treat it as the current command list.
-2. `## Canonical Command Surface` — the authoritative read/write contract for each current `/gal` command. This is the section you actually need.
-
-P0 deliverable of `docs/plans/gal-coding-workflow-native.prompt.md`.
-
-## Command Decisions
-
-| Old Command | Decision | Reason |
-| --- | --- | --- |
-| `/gal init` | **Kept** | Clear intent — bootstraps the repo |
-| `/gal status` | **Kept, rewritten** | Name is clear; implementation was not — now a full state projection |
-| `/gal next` | **Renamed → `whats-next`** | "Next" is ambiguous; "whats-next" answers a direct user question |
-| `/gal pause` | **Renamed → `wrap-up`** | "Pause" implies a temporary suspension; "wrap-up" describes what it actually does |
-| `/gal plan` | **Removed** | Planning is specialist work — `/office-hours`, `/autoplan`, `/plan-eng-review` |
-| `/gal sync` | **Removed from public surface** | Adapter generation is internal to `/gal init`; exposing it as a user command created a false dependency on static skill allowlists |
-| `/gal research` | **Kept** | Clear intent — enters a structured investigation flow |
+It records the stable command surface and ownership boundaries only. Live/manual verification status is tracked separately in [docs/runtime-verification.md](runtime-verification.md).
 
 ## Canonical Command Surface
 
@@ -77,24 +60,11 @@ P0 deliverable of `docs/plans/gal-coding-workflow-native.prompt.md`.
 | **Dispatched via** | `gal.ps1 dispatch research` |
 | **Specialist boundary** | Routes to golem-researcher in consult mode |
 
-## Legacy Alias Policy
-
-The following commands were renamed or removed and their alias directories have been deleted from the repo:
-
-| Former Command | Replacement |
-| --- | --- |
-| `/gal next` | `/gal whats-next` |
-| `/gal pause` | `/gal wrap-up` |
-| `/gal plan` | `/office-hours`, `/autoplan`, `/plan-eng-review` |
-| `/gal sync` | Internal to `/gal init` — no public command |
-
-No alias files exist for these. They will not appear in autocomplete.
-
 ## Skill Activation Model
 
 Skill activation is driven by **chat intent and runtime routing**, not by a static allowlist in `.dev/project.md`.
 
-The `## Active Skills` section and `gal sync` workflow are no longer the primary mechanism for bringing skills into scope. The user invokes a skill by name (e.g., `/plan-eng-review`), and the installed skill file provides the full procedure.
+The user invokes a skill by name (e.g., `/plan-eng-review`), and the installed skill file provides the full procedure.
 
 If capability gating is needed for skills with external dependencies (browser tools, deploy integrations, Obsidian vault access), this should be handled within the skill's own precondition checks, not by a centralized allowlist managed by the user.
 

@@ -3,7 +3,7 @@
 GAL slash commands use a canonical `/gal` control-plane entry point plus `gal-*` aliases for autocomplete discoverability.
 
 See [docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) for the architectural rationale and dispatch contract.
-See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) for the canonical command definitions, read/write contracts, and migration rules.
+See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) for the canonical command definitions and read/write contracts.
 
 ## Architecture
 

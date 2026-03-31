@@ -26,9 +26,9 @@ Do **not** read `README.md`, `docs/`, or full codebase on cold start. Let `proje
 
 Each agent's instruction set should consume **≤ 15%** of the available context window. If an agent's prompt grows beyond this, split into smaller focused sections or move reference material to separate files.
 
-## `gal pause` Context Handoff
+## `/gal wrap-up` Context Handoff
 
-Before switching contexts (worktree, branch, session), run `gal pause` to:
+Before switching contexts (worktree, branch, session), run `/gal wrap-up` to:
 
 1. Compress key conversation insights into plan `## Status > ### Handoff Notes`
 2. Update `state.md` session continuity

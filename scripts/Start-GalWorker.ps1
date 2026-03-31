@@ -52,6 +52,8 @@ $summaryPath = Join-Path $OutputDir "summary.md"
 $logPath     = Join-Path $OutputDir "worker.log"
 $patchPath   = Join-Path $OutputDir "result.patch"
 
+New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+
 function Write-StatusJson([string]$Status, [int]$ExitCode = 0, [string]$ErrorMessage = $null) {
     $payload = [ordered]@{
         taskId       = $TaskId
@@ -67,7 +69,7 @@ function Write-StatusJson([string]$Status, [int]$ExitCode = 0, [string]$ErrorMes
 
 # ── Validate prerequisites ────────────────────────────────────────────────────
 if (-not (Test-Path $WorktreePath)) {
-    Write-Status "failed" -ExitCode 1 -ErrorMessage "Worktree not found: $WorktreePath"
+    Write-StatusJson "failed" -ExitCode 1 -ErrorMessage "Worktree not found: $WorktreePath"
     exit 1
 }
 if (-not (Test-Path $TaskSpec)) {
@@ -78,8 +80,6 @@ if (-not (Get-Command gemini -ErrorAction SilentlyContinue)) {
     Write-StatusJson "failed" -ExitCode 1 -ErrorMessage "gemini command not found on PATH"
     exit 1
 }
-
-New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
 # ── Write initial running status ──────────────────────────────────────────────
 $script:startedAt = (Get-Date -Format "o")
@@ -94,7 +94,6 @@ $taskPrompt = Get-Content -Path $TaskSpec -Raw
 # - output is captured to worker.log; summary is extracted from the final response
 Set-Location $WorktreePath
 
-$geminiProcess = $null
 $geminiExitCode = 0
 
 try {

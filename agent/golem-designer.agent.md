@@ -176,6 +176,6 @@ If this task has no meaningful UI/UX surface, state:
 Check current time before starting work:
 - **Before 22:00**: Proceed normally
 - **22:00-23:00**: Warn user, suggest wrapping up. Only scribe may start new work.
-- **After 23:00**: Stop. Only `gal pause` and scribe diary allowed.
+- **After 23:00**: Stop. Only `/gal wrap-up` and scribe diary allowed.
 - **Override**: User says "override curfew" → proceed once, re-check next task.
 </rules>

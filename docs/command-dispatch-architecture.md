@@ -15,10 +15,10 @@ Everything else exists to improve discoverability or to provide substantive proc
 Rules:
 
 - Scripts are invoked by the AI after reading a `--- GAL DISPATCH ---` block, not typed directly by users.
-- The only valid top-level commands are `init` and `dispatch`. All other direct invocations (`plan`, `status`, `next`, `pause`, `sync`) are removed and will exit with a migration error.
+- The only valid top-level commands are `init` and `dispatch`. Any other direct invocation exits with a migration error.
 - `dispatch` accepts two subcommands: `init` (bootstraps a repo) and `research` (routes to the research skill). All other `dispatch` arguments are golem names.
 - `/gal status`, `/gal whats-next`, and `/gal wrap-up` are **substantive skills** — they have their own SKILL.md files and do not route through the script at all.
-- Internal adapter generation (formerly `gal sync`) is plumbing inside `gal init`, not a separate public command.
+- Internal adapter generation is plumbing inside `gal init`, not a separate public command.
 
 ## Two Kinds of Alias Skills
 

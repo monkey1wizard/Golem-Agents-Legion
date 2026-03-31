@@ -28,7 +28,7 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 | Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native |
 | Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
 
-### Repo-Layer gal sync Outputs
+### Repo-Layer Adapter Outputs
 
 | Output File | CLI(s) | Content Strategy |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 To add a new CLI runtime to GAL:
 
 1. **Machine layer**: determine if the CLI has a global config dir; if yes, add a symlink or config step to both Setup-Machine scripts.
-2. **Repo layer**: determine the CLI's canonical instruction file. If it is `AGENTS.md`, no code change needed — gal sync already generates it. Otherwise add a `Build-AdapterContent` / `build_adapter` call to both Sync-DevContext scripts.
+2. **Repo layer**: determine the CLI's canonical instruction file. If it is `AGENTS.md`, no code change needed — the repo adapter generator already writes it. Otherwise add a `Build-AdapterContent` / `build_adapter` call to both Sync-DevContext scripts.
 3. **Settings bridge pattern**: if the CLI reads a configurable filename list (like Gemini's `context.fileName`), add a settings-write/merge step to Setup-Machine.
 4. **Slash-command layer**: research the CLI's plugin or skill packaging model separately — do not block the other layers on it.
 

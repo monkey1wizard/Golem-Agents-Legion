@@ -592,9 +592,9 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 
 | Command | Reason |
 |---------|--------|
-| `/codex` | Refers to the `/codex` *slash command* — a gstack second-opinion workflow requiring the OpenAI Codex CLI binary. Architecturally desirable but out of scope for this plan; defer to `gal-cross-ai-orchestrator`. Note: Codex CLI is supported as a GAL runtime target via `AGENTS.md`. |
+| `/codex` | Refers to the `/codex` *slash command* — a gstack second-opinion workflow requiring the OpenAI Codex CLI binary. Architecturally desirable but currently out of scope. Note: Codex CLI is supported as a GAL runtime target via `AGENTS.md`. |
 | `/gstack-upgrade` | No direct analog. Procedure documented in §3 above. Implement as a `README.md` note, not a SKILL.md. |
 
 ---
 
-*Source: `garrytan/gstack` README (sha `9dc42370`) and `docs/skills.md`, fetched 2025. This document is the P1 deliverable for `docs/plans/gal-coding-workflow-native.prompt.md`.*
+*Source: `garrytan/gstack` README (sha `9dc42370`) and `docs/skills.md`, fetched 2025. This document is the durable specialist-contract reference for GAL's native gstack adaptation.*

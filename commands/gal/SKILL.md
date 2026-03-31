@@ -25,8 +25,6 @@ GAL control-plane entry point. Route based on the subcommand provided.
 | `<golem-name>` | I want to consult a specific golem | Run `gal.ps1 dispatch <golem-name> [args]` — follow output block |
 | *(no args)* | Auto-detect and recommend | Read `.dev/state.md` and follow the `/gal-whats-next` procedure |
 
-**Removed from public surface:** `plan`, `sync`. See `## Legacy Commands` below.
-
 ## Invoke (for script-dispatched subcommands)
 
 **Windows:**
@@ -56,11 +54,3 @@ For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load 
 - `whats-next` → load the installed `gal-whats-next` skill procedure
 - `wrap-up` → load the installed `gal-wrap-up` skill procedure
 
-## Legacy Commands
-
-| Old Command | Status | Use Instead |
-| --- | --- | --- |
-| `/gal next` | Legacy alias for `whats-next` | `/gal whats-next` or `/gal-whats-next` |
-| `/gal pause` | Legacy alias for `wrap-up` | `/gal wrap-up` or `/gal-wrap-up` |
-| `/gal plan` | Removed — planning is specialist work | `/office-hours`, `/autoplan`, `/plan-eng-review` |
-| `/gal sync` | Removed from public surface | Adapter generation is internal to `/gal init` |

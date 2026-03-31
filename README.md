@@ -250,6 +250,7 @@ For model routing, copy [model-roles.example.md](model-roles.example.md) to `mod
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | Canonical `/gal` read/write contracts |
 | [docs/gstack-integration.md](docs/gstack-integration.md) | Why GAL reimplements gstack semantics natively |
 | [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | Implementation blueprint for specialist skills |
+| [docs/runtime-verification.md](docs/runtime-verification.md) | Live/manual verification status for commands and execution-plane behavior |
 | [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch model and alias policy |
 | [commands/commands.md](commands/commands.md) | Installed command surface and alias architecture |
 | [workflows/coding.md](workflows/coding.md) | Original coding workflow state machine reference |

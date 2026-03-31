@@ -80,7 +80,7 @@ Next step: [what to do next]
 
 ### Handoff Notes
 
-[Context from `gal pause` — key insights, unresolved questions, current hypothesis]
+[Context from `/gal wrap-up` — key insights, unresolved questions, current hypothesis]
 ```
 
 **Do NOT update `.dev/state.md` for per-task progress.** state.md is the global index; the plan carries its own state.

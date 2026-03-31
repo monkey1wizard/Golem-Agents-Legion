@@ -17,8 +17,6 @@ function Show-Usage {
     Write-Host ""
     Write-Host "Script-dispatched subcommands: init, research"
     Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
-    Write-Host ""
-    Write-Host "Deprecated (removed): plan, status, next, pause, sync — see docs/gal-control-plane-contracts.md"
 }
 
 function ConvertTo-Slug([string]$Value) {
@@ -95,29 +93,6 @@ switch ($Command) {
     "init" {
         & (Join-Path $scriptRoot "Init-Repo.ps1") @Arguments
         break
-    }
-    "plan" {
-        Write-Host "ERROR: 'gal plan' has been removed from the public command surface." -ForegroundColor Red
-        Write-Host "Planning is specialist work. Use /office-hours, /autoplan, or /plan-eng-review instead."
-        exit 1
-    }
-    "status" {
-        Write-Host "ERROR: 'gal status' has been removed from the public command surface." -ForegroundColor Red
-        Write-Host "Use /gal status or /gal-status in chat for full state projection."
-        exit 1
-    }
-    "next" {
-        Write-Host "ERROR: 'gal next' has been removed. Use /gal whats-next or /gal-whats-next in chat." -ForegroundColor Red
-        exit 1
-    }
-    "pause" {
-        Write-Host "ERROR: 'gal pause' has been removed. Use /gal wrap-up or /gal-wrap-up in chat." -ForegroundColor Red
-        exit 1
-    }
-    "sync" {
-        Write-Host "ERROR: 'gal sync' has been removed from the public command surface." -ForegroundColor Red
-        Write-Host "Adapter generation is internal to /gal init. No manual sync step required."
-        exit 1
     }
     "dispatch" {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
@@ -214,9 +189,13 @@ switch ($Command) {
         break
     }
     default {
-        Show-Usage
         if ($Command) {
+            Write-Host "ERROR: Unsupported top-level command '$Command'. Use 'gal init' or 'gal dispatch'." -ForegroundColor Red
+            Write-Host "Control-plane actions like /gal status, /gal whats-next, and /gal wrap-up run in chat."
+            Write-Host ""
+            Show-Usage
             exit 1
         }
+        Show-Usage
     }
 }

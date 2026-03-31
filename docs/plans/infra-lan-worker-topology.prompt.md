@@ -16,7 +16,7 @@ T2
 
 ## Requirements
 
-- [ ] 本計畫是 `docs/plans/gal-cross-ai-orchestrator.prompt.md` 的 execution-plane 子計畫。
+- [ ] 本計畫是 GAL control plane 的 execution-plane 子計畫。
 - [ ] 遠端執行面必須服從 `/gal` orchestrator 的 task contract 與 policy 決策。
 - [ ] 使用者不需要手動指定 tier 或 golem 才能派工。
 - [ ] 遠端派工必須能承接由 gstack coding workflow 指令產生的 task artifact 與結果回寫需求。

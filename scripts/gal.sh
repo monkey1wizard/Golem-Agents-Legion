@@ -12,8 +12,6 @@ Commands:
 
 Script-dispatched subcommands: init, research
 Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up
-
-Deprecated (removed): plan, status, next, pause, sync — see docs/gal-control-plane-contracts.md
 EOF
 }
 
@@ -36,6 +34,10 @@ require_state() {
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
+command="${1:-}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
 
 # --- Dispatch helpers ---
 
@@ -104,29 +106,6 @@ case "$command" in
   init)
     "$script_dir/init-repo.sh" "$@"
     ;;
-  plan)
-    echo "ERROR: 'gal plan' has been removed from the public command surface." >&2
-    echo "Planning is specialist work. Use /office-hours, /autoplan, or /plan-eng-review instead." >&2
-    exit 1
-    ;;
-  status)
-    echo "ERROR: 'gal status' has been removed from the public command surface." >&2
-    echo "Use /gal status or /gal-status in chat for full state projection." >&2
-    exit 1
-    ;;
-  next)
-    echo "ERROR: 'gal next' has been removed. Use /gal whats-next or /gal-whats-next in chat." >&2
-    exit 1
-    ;;
-  pause)
-    echo "ERROR: 'gal pause' has been removed. Use /gal wrap-up or /gal-wrap-up in chat." >&2
-    exit 1
-    ;;
-  sync)
-    echo "ERROR: 'gal sync' has been removed from the public command surface." >&2
-    echo "Adapter generation is internal to /gal init. No manual sync step required." >&2
-    exit 1
-    ;;
   dispatch)
     intent="${1:-}"
     sub_text="${*:2}"
@@ -192,6 +171,8 @@ case "$command" in
     show_usage
     ;;
   *)
+    echo "ERROR: Unsupported top-level command '$command'. Use 'gal init' or 'gal dispatch'." >&2
+    echo "Control-plane actions like /gal status, /gal whats-next, and /gal wrap-up run in chat." >&2
     show_usage
     exit 1
     ;;

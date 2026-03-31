@@ -251,6 +251,7 @@ clone 後需填入你的環境特定佔位符：
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | `/gal` 讀寫合約的 canonical 定義 |
 | [docs/gstack-integration.md](docs/gstack-integration.md) | GAL 為何原生重新實作 gstack 語意 |
 | [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | 專家技能的實作藍圖 |
+| [docs/runtime-verification.md](docs/runtime-verification.md) | 指令與執行平面的 live/manual 驗證狀態 |
 | [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch 模型與 alias 政策 |
 | [commands/commands.md](commands/commands.md) | 已安裝的指令表面與 alias 架構 |
 | [workflows/coding.md](workflows/coding.md) | 原始開發流程狀態機參考 |
