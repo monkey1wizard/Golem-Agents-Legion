@@ -34,10 +34,11 @@ Template for `<repo>/.dev/project.md` — portable project context.
 | Infrastructure | Project.Infrastructure | Application, Domain |
 | Presentation | Project.Presentation | Application |
 
-## Active Skills
+## Active Skills (Optional)
 
-[List exact folder names from `golem-agents-legion/skills/` that apply to this project.
-Put one skill per bullet. `gal sync` fails if this section is missing, empty, duplicated, or references a skill folder that does not exist.]
+[Deprecated: GAL no longer requires a static skill list. Skills are activated by chat intent and
+runtime routing when specialist commands are invoked. You may keep this section as a human-readable
+note about which skill areas apply to this project, but it is not read by any command.]
 
 ## Constraints
 
@@ -89,7 +90,7 @@ Put one skill per bullet. `gal sync` fails if this section is missing, empty, du
 1. **One per repo** — lives at `<repo>/.dev/project.md`
 2. **Portable** — no tool-specific syntax, any AI can read it
 3. **Concise** — context window is precious, don't bloat
-4. **Active Skills** — use exact skill folder names; Sync-DevContext validates this list and fails hard when it is missing or stale
+4. **Active Skills** — optional documentation only; GAL routes to skills at runtime based on command invocation, not this list
 5. **Update on architecture changes** — not after every commit
 6. **Summary + index, not duplication** — point to canonical docs, don't copy their content
 7. **Record drift and gaps** — better to document uncertainty than ignore it

@@ -1,199 +1,268 @@
-# GAL 目標架構：吸收 GSD 能力與 gstack 操作層
+# GAL 與 gstack 的整合模型
 
-## 目的
+## 這份文件是什麼
 
-GAL 的目標不是維持一套獨立於 GSD 與 gstack 的舊工作流，也不是把兩者原封不動搬進來。
+這不是歷史討論筆記，也不是理想化願景稿。
 
-GAL 的目標是成為一個跨 AI 工作控制平面：
+這份文件說明的是目前已拍板的整合模型：
 
-- 以 Markdown 為 canonical source
-- 以 repo-local state 為工作記憶
-- 以 `/gal` 為統一入口
-- 可跨 Copilot 與 Gemini 執行
-- 可把工作派送到不同 execution endpoint
+- 為什麼 GAL 不能直接依賴 upstream gstack
+- 為什麼最終形態是「GAL control plane + gstack-style specialist commands」
+- Copilot 與 Gemini 在這個模型中各自扮演什麼角色
+- canonical artifacts 與 command contract 如何接線
+
+如果你要理解 README 裡的 command catalog 為什麼長這樣，讀這份文件。
+
+## 問題定義
+
+gstack 是為 Claude Code 生態系設計的 slash command 系統。
+
+GAL 的主控制面不是 Claude Code，而是 Copilot。Gemini CLI 則是另一個可接入的 runtime。這代表一個基本現實：
+
+**GAL 不能把「直接執行 upstream gstack slash commands」當成整合策略。**
+
+原因不是語意不相容，而是 host runtime 不相容。
+
+如果 README 寫成「直接用 gstack」，在 Copilot 裡就是假話。真正可行的方式只有一種：
+
+**把 gstack 的工作流語意重新實作成 GAL-native skills。**
 
 ## 核心決策
 
-### 1. GSD 提供的是核心能力，不是要照搬的產品表面
+### 1. GAL 保留 control plane，不保留另一套平行 coding workflow
 
-GAL 應吸收 GSD 類能力：
+GAL 持有的是控制面責任：
 
-- stateful workflow
-- context engineering
-- task memory
-- summary / continuity
-- orchestration loop
+- repo bootstrap
+- state projection
+- continuity / wrap-up
+- next-action recommendation
+- research entry point
 
-GAL 不需要照搬 GSD 的命名、安裝方式或全部 command surface。
+這些工作由 `/gal` surface 負責。
 
-### 2. gstack 提供的是 coding workflow 的主要操作層
+GAL 不應再另外定義一組 `/gal review`、`/gal qa`、`/gal ship` 之類與 specialist layer 平行的命令面。那會變成重複抽象。
 
-GAL 在 coding workflow 上應直接使用 gstack 指令面。
+### 2. coding workflow 直接採用 gstack-style command surface
 
-也就是說，對於規劃、審查、QA、發佈這些工作，主要操作層應直接採用 gstack 的指令，而不是再由 GAL 重新包一套命名相近的平行指令。
-
-GAL 應吸收的重點是：
+對使用者來說，真正的工作層命令就是：
 
 - `/office-hours`
 - `/plan-ceo-review`
 - `/plan-eng-review`
 - `/plan-design-review`
+- `/autoplan`
 - `/review`
 - `/qa`
 - `/ship`
-- multi-model second opinion 思維
+- 以及 design / browser / release / memory / guardrail 全部 specialist commands
 
-重點不是保留 gstack 的 repo 結構，而是直接採用它已經成熟的 coding workflow 操作層。
+也就是說，GAL 吸收的是 gstack 的操作語意，不是 upstream repo 或 Claude Code runtime 依賴。
 
-### 3. `/gal` 是 control plane，不是單次 dispatcher
+### 3. specialist commands 必須回寫到 GAL canonical artifacts
 
-`/gal` 的責任應該是：
+這是整合能成立的關鍵。
 
-- 讀取與更新 repo-local state
-- 判斷目前任務屬於哪種工作流
-- 選擇需要的 specialist operations
-- 決定使用哪個 runtime
-- 在必要時派工到遠端 worker
-- 將結果壓回 canonical artifacts
+specialist commands 不是各做各的。它們必須把結果寫回 GAL 讀得懂的 artifact：
 
-因此，`/gal` 不應停留在只輸出 dispatch block 的層級。
-
-### 4. T0 / T1 / T2 不保留
-
-T0 / T1 / T2 不應保留在新的 GAL 架構裡。
-
-原因很直接：
-
-- 它們屬於舊 GAL 的 workflow 分流模型
-- 這個模型會迫使使用者先理解內部流程分類，再開始工作
-- 一旦 coding workflow 直接採用 gstack 指令，舊 tier 分流就成為多餘抽象
-
-新的系統應直接以操作意圖與 task context 決定需要哪些 guardrails，而不是保留 T0 / T1 / T2 這組中介分類。
-
-### 5. golem 應退到內部編排層
-
-planner、architect、designer、reviewer、tester、verifier 仍然有存在價值。
-
-但它們主要應該是 orchestrator 的內部角色，而不是主要 user-facing API。
-
-若保留 direct golem invocation，也只應作為 expert escape hatch。
-
-### 6. Copilot 與 Gemini 共享同一套 contract，但不必假裝完全對稱
-
-GAL 必須讓 Copilot 與 Gemini 共享：
-
-- 同一套 state model
-- 同一套 `/gal` 語意
-- 同一套 task contract
-- 同一套結果回寫規則
-
-但不需要假裝兩者有完全相同的 host 能力。
-
-目前較合理的假設是：
-
-- Copilot 偏互動型主控制面
-- Gemini CLI 偏可腳本化的 worker engine
-
-## 使用者操作層
-
-GAL 的使用者操作層應拆成兩類。
-
-### A. GAL control-plane 指令
-
-這一層負責 state、連續性、派工與控制面工作。
-
-- `/gal start`
-- `/gal status`
-- `/gal next`
-- `/gal do`
-- `/gal research`
-
-這組指令是目標中的正式操作面，不等同於目前 repo 內仍存在的過渡期 `gal init`、`gal plan`、`gal pause` 等舊入口。
-這些舊入口在重構完成前可繼續存在作為兼容層，但不應被視為新的長期 command surface。
-
-### B. Coding workflow 指令
-
-這一層直接使用 gstack 指令。
-
-- `/office-hours`
-- `/plan-ceo-review`
-- `/plan-eng-review`
-- `/plan-design-review`
-- `/review`
-- `/qa`
-- `/ship`
-
-也就是說，未來 GAL 不應再自行定義 `/gal plan`、`/gal review`、`/gal qa`、`/gal ship` 這類與 gstack 平行的 coding workflow 指令面。
-
-## 狀態模型
-
-GAL 需要完整的 repo-local state layer，而不只是一份簡短索引。
-
-目標最小集合：
-
-- `.dev/project.md`
+- plan `## Review Results`
+- plan `## Test Plan`
+- plan `## Test Results`
+- plan `## Ship`
+- plan `## Deploy`
+- plan `### Handoff Notes`
 - `.dev/state.md`
-- `.dev/requirements.md`
-- `.dev/roadmap.md`
-- `.dev/summary.md`
-- `.dev/threads/`
-- `docs/plans/*.prompt.md`
 
-其中：
+`/gal status` 與 `/gal whats-next` 不需要知道 specialist 是怎麼做事的，它們只需要讀這些 canonical sections。
 
-- `.dev/` 負責 repo 層級的持久狀態
-- `docs/plans/*.prompt.md` 負責 task-local execution memory
+### 4. repo-local state 是真正的 ownership boundary
 
-plan file 不應承載整段對話歷程，只應保留執行所需的規格、狀態、驗證與 handoff。
+upstream gstack 會把許多資料寫到 user-global 路徑，例如 `~/.gstack/projects/$SLUG/`。
 
-## 過渡期規則
+GAL 不採用這個模型。
 
-在 GAL 尚未完成內化前：
+GAL 的 ownership boundary 是 repo-local：
 
-- 若已安裝 gstack，仍可直接使用 `/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/ship` 等指令
-- 這些指令目前仍是外部 specialist operations
-- 輸出結果必須回寫到 GAL 的 canonical artifacts
-- repo 內現有的 `/gal init`、`/gal plan`、`/gal pause` 等入口可暫時作為 bootstrap 與兼容層，但它們不代表最終 public control-plane API
+- `.dev/`
+- `docs/plans/`
+- `docs/designs/`
+- `docs/qa-reports/`
+- `docs/benchmarks/`
+- `docs/retros/`
 
-這代表過渡期可以共用，但 canonical ownership 仍在 GAL。
+這讓團隊成員看到的是同一組 artifacts，而不是每個人本機各自一份不可見的狀態。
 
-完成重構後，coding workflow 仍直接使用 gstack 指令；改變的是它們會被正式接入 GAL 的 state 與 contract，而不是被另一套 `/gal` coding 指令取代。
+## 最終分層
 
-## 不做的事
+### Layer A: Control Plane
 
-GAL 不應做以下事情：
+這層回答的是使用者的控制面問題。
 
-- 繼續把舊的 tier flow 保留為主要使用者介面
-- 保留 T0 / T1 / T2 作為新的正式 workflow 概念
-- 繼續把 direct golem invocation 當成主要操作模式
-- 把 gstack 是否安裝，當成 GAL 是否可工作的前提
-- 把 Copilot 與 Gemini 硬做成完全對稱的 host
-- 把遠端派工獨立成第二套 workflow
-- 直接假設可呼叫 gstack slash commands：gstack 屬於 Claude Code 生態系，在 Copilot 環境中無法直接執行（見 `docs/plans/gal-coding-workflow-native.prompt.md`）
+| Command | 回答的問題 |
+| --- | --- |
+| `/gal init` | 怎麼讓這個 repo 進入 GAL 管理？ |
+| `/gal status` | 現在工作做到哪裡？ |
+| `/gal whats-next` | 我現在下一步做什麼？ |
+| `/gal wrap-up` | 我怎麼乾淨地收尾這次 session？ |
+| `/gal research` | 我要進入結構化研究流程 |
 
-## 實作順序
+這層不做 specialist execution。它負責讀 state、投影 state、推薦下一步、收斂 continuity。
 
-1. 重寫 repo-local state model
-2. 做實 Copilot / Gemini adapter parity
-3. 重寫使用者操作層，將 coding workflow 明確切到 gstack 指令面
-4. 將 `/gal` 升級成 orchestrator，專注 control-plane 工作
-5. 接上 notebook / Mac Mini execution plane
+### Layer B: Specialist Execution
 
-## 對應計畫
+這層直接執行工作。
 
-- `docs/plans/gal-cross-ai-orchestrator.prompt.md`
-- `docs/plans/infra-lan-worker-topology.prompt.md`
+| Family | Commands |
+| --- | --- |
+| Planning | `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/autoplan`, `/cso` |
+| Design | `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review` |
+| Debug / Review | `/investigate`, `/review` |
+| Browser / QA | `/browse`, `/connect-chrome`, `/setup-browser-cookies`, `/qa`, `/qa-only` |
+| Ship / Release | `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/setup-deploy`, `/document-release`, `/retro` |
+| Memory / Guardrails | `/learn`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade` |
+
+這些命令不需要通過 `/gal` 才能執行，但它們的輸出必須符合 `/gal` 會讀取的 contract。
+
+## 為什麼不是「保留舊 GAL 命令，再包一層」
+
+這條路已被否決，原因很直接。
+
+如果 GAL 同時保留：
+
+- `/gal review`
+- `/gal qa`
+- `/gal ship`
+
+又再提供：
+
+- `/office-hours`
+- `/review`
+- `/qa`
+- `/ship`
+
+那使用者就必須先理解兩套命令面的差別，才知道要做什麼。這是純粹的複雜度，沒有帶來能力。
+
+因此 final model 是：
+
+- `/gal` 只保留 control-plane 問題
+- specialist commands 直接成為 work-layer public surface
+
+## 為什麼不是「直接依賴 gstack 安裝」
+
+這也被否決。
+
+原因：
+
+1. gstack 的 host 假設是 Claude Code，不是 Copilot。
+2. GAL 的價值之一是 tool-agnostic methodology；若把 upstream gstack 安裝變成前置條件，控制權就外包出去。
+3. GAL 需要 repo-local canonical artifacts；upstream gstack 的部分儲存模型是 user-global，不符合 GAL 的 state ownership。
+
+所以 GAL 的做法是：
+
+- 讀 gstack 的 workflow contract
+- 用 GAL 自己的 SKILL.md 實作相同語意
+- 把結果回寫到 GAL 自己的 canonical artifacts
+
+## Copilot 與 Gemini 的角色
+
+兩者共享的是 contract，不是 host 能力對稱。
+
+### Copilot
+
+- 主控制面
+- 擅長互動式 orchestration
+- 適合 `/gal status`、`/gal whats-next`、review 對話、plan refinement
+
+### Gemini CLI
+
+- worker runtime
+- 適合被派去執行具體 specialist 任務
+- 與 Copilot 共用同一套 state model、同一套 skill contract、同一套 artifact write-back 規則
+
+整合目標不是假裝兩者完全一樣，而是讓它們對同一組 repo artifacts 做一致操作。
+
+## Artifact 接線規則
+
+### `.dev/project.md`
+
+repo 的背景、技術棧、目標與限制。
+
+### `.dev/state.md`
+
+control plane 的索引：
+
+- active plans
+- blockers
+- session continuity
+
+### `docs/plans/*.prompt.md`
+
+單一 feature 或 sprint 的 canonical execution memory。
+
+這裡承接：
+
+- `## Goal`
+- `## Context`
+- `## Scope`
+- `## Review Results`
+- `## Test Plan`
+- `## Test Results`
+- `## Ship`
+- `## Deploy`
+- `### Handoff Notes`
+
+### 其他 supporting artifacts
+
+- `DESIGN.md`
+- `docs/designs/`
+- `docs/qa-reports/`
+- `docs/benchmarks/`
+- `docs/retros/`
+- `.dev/learnings.jsonl`
+
+## `/gal status` 與 `/gal whats-next` 如何成立
+
+這兩個命令不是靠內建魔法推論，而是靠 specialist commands 的回寫 contract。
+
+例如：
+
+- `/plan-eng-review` 寫 `<!-- ENG_REVIEW: CLEAR -->`
+- `/qa` 寫 `## Test Results`
+- `/review` 寫 `<!-- STAFF_REVIEW: CLEAR -->`
+- `/ship` 寫 `## Ship` 與 PR URL
+- `/land-and-deploy` 寫 `## Deploy`
+
+所以 `/gal whats-next` 能根據已存在的 artifacts 判斷：
+
+- 還沒做 eng review，就先做 `/plan-eng-review`
+- review 已清，test plan 已有，就做 `/qa`
+- QA 已清、review 也過了，就做 `/ship`
+- 已有 PR 且 deploy config 已設定，就做 `/land-and-deploy`
+
+這是 contract-driven orchestration，不是另一套 hidden workflow。
+
+## 過渡期差異
+
+舊文件中出現過的下列概念，現在都不再是主 public model：
+
+- T0/T1/T2 作為新 command surface 的主要詞彙
+- 「直接呼叫 upstream gstack」作為整合方法
+
+這些如果還出現在舊文件裡，應視為待遷移描述，而不是目前設計。
 
 ## 結論
 
-完整吸收 GSD 與 gstack 後，GAL 應保留的不是舊 command tree，也不是舊 tier 分流，而是 control plane。
+GAL 整合 gstack 的正確方式，不是依賴 upstream runtime，也不是複製另一套平行 workflow。
 
-GAL 的核心價值應收斂為：
+正確方式是：
 
-- canonical methodology
-- repo-local state
-- cross-runtime parity
-- orchestrator contract
-- execution endpoint contract
+1. GAL 持有 control plane
+2. gstack-style commands 成為 specialist execution layer
+3. 全部 specialist results 回寫到 GAL canonical artifacts
+4. Copilot 與 Gemini 共享 contract，但不強求 host 能力完全對稱
 
-這才是 GAL 應該持有、而不應外包出去的部分。
+這樣做的結果是：
+
+- 使用者得到一個可理解的 command surface
+- repo 得到可追蹤、可共享的狀態與 artifacts
+- methodology 不依賴 Claude Code 或任何單一工具生態

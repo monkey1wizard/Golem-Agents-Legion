@@ -35,7 +35,13 @@ GAL_ROOT_GEMINI="$GEMINI_ROOT/gal"
 GAL_SKILL_COPILOT="$SKILLS_TARGET/gal"
 GAL_SKILL_GEMINI="$GEMINI_SKILLS_TARGET/gal"
 SKILL_TEMPLATE="$GAL_SOURCE/SKILL.template.md"
-COMMAND_ALIAS_NAMES=(gal-init gal-plan gal-status gal-next gal-pause)
+COMMAND_ALIAS_NAMES=()
+while IFS= read -r -d '' _d; do
+    _name="$(basename "$_d")"
+    [ "$_name" = "gal" ] && continue
+    COMMAND_ALIAS_NAMES+=("$_name")
+done < <(find "$REPO_ROOT/commands" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+
 COMMAND_SKILL_NAMES=(gal "${COMMAND_ALIAS_NAMES[@]}")
 
 UNINSTALL=false

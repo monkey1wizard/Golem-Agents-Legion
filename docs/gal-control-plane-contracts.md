@@ -79,14 +79,16 @@ P0 deliverable of `docs/plans/gal-coding-workflow-native.prompt.md`.
 
 ## Legacy Alias Policy
 
-| Legacy Command | Maps To | Retention Policy |
-| --- | --- | --- |
-| `/gal next` | `/gal whats-next` | Retained indefinitely as a discoverability alias. Not removed — too common a muscle memory. |
-| `/gal pause` | `/gal wrap-up` | Retained indefinitely as a discoverability alias. |
-| `/gal plan` | `/office-hours`, `/autoplan`, `/plan-eng-review` | Retained as a removed-surface notice. Alias file explains the alternatives. |
-| `/gal sync` | Internal to `/gal init` | No alias file needed — `sync` as a concept is removed, not renamed. |
+The following commands were renamed or removed and their alias directories have been deleted from the repo:
 
-Legacy aliases will NOT appear in the README's primary command table. They appear only in migration notes and the legacy section of `commands/commands.md`.
+| Former Command | Replacement |
+| --- | --- |
+| `/gal next` | `/gal whats-next` |
+| `/gal pause` | `/gal wrap-up` |
+| `/gal plan` | `/office-hours`, `/autoplan`, `/plan-eng-review` |
+| `/gal sync` | Internal to `/gal init` — no public command |
+
+No alias files exist for these. They will not appear in autocomplete.
 
 ## Skill Activation Model
 

@@ -108,10 +108,10 @@ The long-lived architecture rationale belongs in `docs/`, not in `docs/plans/`.
 
 ## Command Surface: How To Think About It
 
-GAL currently uses:
+GAL uses:
 
 - A canonical `/gal` entry point
-- Lightweight `gal-*` aliases such as `/gal-plan` and `/gal-status` for discoverability
+- Lightweight `gal-*` aliases such as `/gal-status` and `/gal-whats-next` for discoverability
 
 An AI agent should understand that the aliases are UX affordances, not independent logic branches. The canonical behavior still flows through the dispatcher.
 

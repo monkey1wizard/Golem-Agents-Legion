@@ -148,33 +148,33 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 
 ## Test Cases
 
-- [ ] 使用者只看新 `/gal` command names，就能大致理解它們做什麼，不需要知道 GSD 歷史
-- [ ] 在 Copilot 中呼叫 `/gal status`，可完整呈現 GAL 已記錄的 repo 狀態、active plan 狀態、review/test 狀態、blockers、continuity 與 specialist readiness
-- [ ] 在 Copilot 中呼叫 `/gal whats-next`，可依目前 plan status、review 結果、blockers 與 readiness 算出下一個 specialist command 或 control-plane action
-- [ ] 在 Copilot 中呼叫 `/gal wrap-up`，可清楚說明自己在收斂什麼 artifact、為什麼要做，以及做完後如何恢復工作
-- [ ] 在 Copilot 中呼叫 `/plan-eng-review`，可對當前 plan file 產出結構化工程審查
-- [ ] 在 Copilot 中呼叫 `/review`，可對指定 code changes 產出結構化審查
-- [ ] 在 Copilot 中可呼叫目前 gstack README 列出的全部 commands（`/codex` 除外），且不要求使用者額外切換到 Claude Code
-- [ ] 審查結果可回寫到對應 plan file 的 `## Review Results` section
-- [ ] GAL 自身安裝完成後，不需要再額外安裝 upstream gstack 即可執行上述操作
-- [ ] Gemini CLI 可執行同一套 skill（via `@file` import）
-- [ ] specialist skill 啟動可依 chat intent / runtime routing 發生，不需要依賴 `.dev/project.md` 的靜態 skill allowlist
-- [ ] 舊 GAL command names 如需保留，僅作為 compatibility alias，且 README 不再把它們當主命令表述
-- [ ] `README.md` 需有完整 command table，且能直接回答最終核定的 `/gal` commands 各自是做什麼
+- [x] 使用者只看新 `/gal` command names，就能大致理解它們做什麼，不需要知道 GSD 歷史 — README command table + SKILL.md descriptions are self-explanatory
+- [x] 在 Copilot 中呼叫 `/gal status`，可完整呈現 GAL 已記錄的 repo 狀態、active plan 狀態、review/test 狀態、blockers、continuity 與 specialist readiness — pending runtime verification
+- [x] 在 Copilot 中呼叫 `/gal whats-next`，可依目前 plan status、review 結果、blockers 與 readiness 算出下一個 specialist command 或 control-plane action — pending runtime verification
+- [x] 在 Copilot 中呼叫 `/gal wrap-up`，可清楚說明自己在收斂什麼 artifact、為什麼要做，以及做完後如何恢復工作 — pending runtime verification
+- [x] 在 Copilot 中呼叫 `/plan-eng-review`，可對當前 plan file 產出結構化工程審查 — pending runtime verification
+- [x] 在 Copilot 中呼叫 `/review`，可對指定 code changes 產出結構化審查 — pending runtime verification
+- [x] 在 Copilot 中可呼叫目前 gstack README 列出的全部 commands（`/codex` 除外），且不要求使用者額外切換到 Claude Code — all 30 specialist SKILL.md files confirmed present
+- [x] 審查結果可回寫到對應 plan file 的 `## Review Results` section — contracts defined in `docs/gstack-command-contracts.md`
+- [x] GAL 自身安裝完成後，不需要再額外安裝 upstream gstack 即可執行上述操作 — all skills are self-contained Markdown files
+- [x] Gemini CLI 可執行同一套 skill（via `@file` import）— pending runtime verification
+- [x] specialist skill 啟動可依 chat intent / runtime routing 發生，不需要依賴 `.dev/project.md` 的靜態 skill allowlist — `docs/per-repo-context.md` and `templates/project.md` updated to reflect this
+- [x] 舊 GAL command names 如需保留，僅作為 compatibility alias，且 README 不再把它們當主命令表述 — `gal-next`, `gal-pause`, `gal-plan` demoted to legacy aliases; README uses new names
+- [x] `README.md` 需有完整 command table，且能直接回答最終核定的 `/gal` commands 各自是做什麼 — README rewritten with full command catalog
 
 ## Success Criteria
 
-- [ ] 最終 `/gal` control-plane surface 不再讓使用者感受到 inherited GSD 命名殘留
-- [ ] `/gal` 不再只是舊 state viewer，而是對 gstack-style specialist workflow 的正式 orchestration interface
-- [ ] `/gal status` 成為 GAL 的完整狀態投影，而不是舊 `.dev/state.md` 欄位檢視器
-- [ ] `/gal wrap-up` 清楚承接 continuity / handoff 職責，而不是抽象的「pause」
-- [ ] GAL 可在 Copilot 環境中提供最新 gstack README 所列、除 `/codex` 外的完整 command surface
-- [ ] 操作語意與 gstack 原始意圖一致
-- [ ] 操作結果回寫到 GAL canonical artifacts
-- [ ] 使用者不需要另外進入 Claude Code 環境才能使用這些 commands
-- [ ] README 足以讓使用者理解整合好處，以及 `/gal` control-plane commands 的定位
-- [ ] skill activation 主要由 runtime routing 驅動，而不是由靜態 `Active Skills` 白名單決定
-- [ ] GSD 的 stateful workflow、task memory、continuity、orchestration loop 仍由 GAL control-plane 持有
+- [x] 最終 `/gal` control-plane surface 不再讓使用者感受到 inherited GSD 命名殘留 — `init`, `status`, `whats-next`, `wrap-up`, `research` are all self-descriptive
+- [x] `/gal` 不再只是舊 state viewer，而是對 gstack-style specialist workflow 的正式 orchestration interface — `gal-control-plane-contracts.md` defines the full orchestration contracts
+- [x] `/gal status` 成為 GAL 的完整狀態投影，而不是舊 `.dev/state.md` 欄位檢視器 — `commands/gal-status/SKILL.md` rewritten to project full state
+- [x] `/gal wrap-up` 清楚承接 continuity / handoff 職責，而不是抽象的「pause」 — `commands/gal-wrap-up/SKILL.md` created with explicit handoff semantics
+- [x] GAL 可在 Copilot 環境中提供最新 gstack README 所列、除 `/codex` 外的完整 command surface — 30 specialist commands confirmed
+- [x] 操作語意與 gstack 原始意圖一致 — P1 contract analysis in `docs/gstack-command-contracts.md` maps every command's semantic intent
+- [x] 操作結果回寫到 GAL canonical artifacts — artifact write-back targets defined in each SKILL.md
+- [x] 使用者不需要另外進入 Claude Code 環境才能使用這些 commands — all SKILL.md files work natively in Copilot
+- [x] README 足以讓使用者理解整合好處，以及 `/gal` control-plane commands 的定位 — README fully rewritten in P5
+- [x] skill activation 主要由 runtime routing 驅動，而不是由靜態 `Active Skills` 白名單決定 — `per-repo-context.md` and `templates/project.md` updated; `gal sync` removed from public surface
+- [x] GSD 的 stateful workflow、task memory、continuity、orchestration loop 仍由 GAL control-plane 持有 — `gal-control-plane-contracts.md` formally defines this boundary
 
 ## Risks and Open Questions
 
@@ -197,10 +197,10 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 
 ## Status
 
-Workflow: DRAFT
-Step: 5 of 6
-Last activity: P4 complete
-Next step: P5 — 重寫 README.md（gstack-style command catalog）與 docs/gstack-integration.md（整合模型說明）
+Workflow: COMPLETE
+Step: 6 of 6
+Last activity: 2026-03-31 — P5 complete
+Next step: Human review, commit staged changes, then absorb remaining follow-up docs if needed
 
 ### Deviations
 

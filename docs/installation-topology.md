@@ -25,10 +25,10 @@ Setup-Machine creates this effective topology.
 | `skills/*/` | `~/.copilot/skills/` | `~/.gemini/skills/` | Shared portable skill set |
 | `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/skills/gal/` | Canonical slash-command entry |
 | `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/skills/gal-init/` | Discoverability alias |
-| `commands/gal-plan/` | `~/.copilot/skills/gal-plan/` | `~/.gemini/skills/gal-plan/` | Discoverability alias |
 | `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/skills/gal-status/` | Discoverability alias |
-| `commands/gal-next/` | `~/.copilot/skills/gal-next/` | `~/.gemini/skills/gal-next/` | Discoverability alias |
-| `commands/gal-pause/` | `~/.copilot/skills/gal-pause/` | `~/.gemini/skills/gal-pause/` | Discoverability alias |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/skills/gal-whats-next/` | Discoverability alias |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/skills/gal-wrap-up/` | Discoverability alias |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/skills/<specialist>/` | Specialist command skills (dynamic) |
 | `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` | Stable GAL_ROOT symlink |
 
 ## Generated Files
@@ -37,8 +37,7 @@ Setup-Machine also generates a small set of runtime files:
 
 | Generated File | Purpose |
 | --- | --- |
-| `commands/gal/SKILL.md` | Baked canonical command skill with absolute GAL_ROOT |
-| `commands/gal-*/SKILL.md` | Baked alias command skills |
+| `commands/*/SKILL.md` | Baked command skill with absolute GAL_ROOT (generated from each `SKILL.template.md`) |
 | `~/.gemini/gal-context.md` | Aggregated `@file` imports so Gemini can load GAL consistently |
 
 These files are generated because the tools need runtime-specific absolute paths, while the templates in the repo remain portable.
@@ -75,7 +74,7 @@ After running Setup-Machine, verify:
 
 1. `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root.
 2. `~/.copilot/skills/gal/` and `~/.gemini/skills/gal/` are symlinked command skill directories.
-3. The five `gal-*` alias directories exist in both tool skill trees.
+3. All `commands/*/` skill directories exist in both tool skill trees.
 4. Generated `SKILL.md` files no longer contain `{{GAL_ROOT}}`.
 5. `~/.gemini/gal-context.md` exists and imports GAL command skills first.
 

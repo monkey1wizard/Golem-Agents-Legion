@@ -2,98 +2,50 @@
 
 [English](README.md) | 繁體中文
 
-一套可攜式、不綁定工具的開發方法論系統。
+GAL 是一套以 Markdown 為核心的 AI 工作系統，分為兩層：
 
-> **方法論用 Markdown 寫，工具設定自動生成。**
-> 方法論在 `golem-agents-legion/`，不在任何工具的設定裡。
-> 工具來來去去，你的知識留下來。
+- `/gal` 控制平面：負責 repo 初始化、狀態檢視、下一步推薦、工作階段收尾與研究入口
+- gstack 風格的專家指令層：負責規劃、審查、QA、發佈、記憶管理與安全守護
 
-## 為什麼
+重點不在於保留某個工具的 UX，而是讓方法論、狀態模型與指令合約都掌握在你手中，同時讓 Copilot 與 Gemini 執行同一套工作流程。
 
-AI 程式助手變化很快。你的技能和工作流程不應該被鎖在任何單一工具裡
-（Copilot、Claude Code、Cursor、Gemini CLI 等）。
+## GAL 是什麼
 
-GAL 把**你知道什麼**跟**哪個工具讀它**分開：
+GAL 把持久的工作流程知識與工具特定的轉接器分開。
 
-- **知識**（工作流程、慣例、代理、技能）→ 這個 repo 裡的 Markdown 檔案
-- **工具設定**（`copilot-instructions.md`、`GEMINI.md`）→ 自動生成的轉接器
+- 知識以 Markdown 形式存放在這個 repo 裡：工作流程、代理、慣例、樣板與技能
+- Repo 本地的執行狀態存放於 `.dev/` 與 `docs/plans/`
+- 工具轉接器是生成出來的輸出物，不是真相來源
 
-換工具時，更新一張路由表、重跑同步腳本。你的知識不需要搬家。
+這個 repo 不是一個應用服務，而是 canonical 的方法論與指令表面。
 
-## 目前狀態
+## 最終運作模型
 
-`gal init` 與 `gal sync` 已可使用，macOS 指令家族驗證與第一個真實功能流程驗證仍列為延後的實地檢查。
+GAL 現在採用控制平面與執行層的嚴格分層。
 
-## 給 AI 代理
-
-如果你是 AI 代理，或你正要讓 AI 代理接手這個 repo，請先讀 [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md)。
-
-這份文件會說明：
-
-- 這個專案是什麼，不是什麼
-- 怎麼瀏覽這個 repo，避免誤判成一般 app 或 service
-- 哪些檔案是 canonical，哪些只是暫時性的執行記憶
-- 要改 workflow、agent、command 或 setup 時該從哪裡開始
-
-## 架構文件
-
-長期保留的架構與維護文件在這裡：
-
-- [docs/design-principles.md](docs/design-principles.md) - 說明 GAL 為何存在，以及它採用哪些架構取捨
-- [docs/installation-topology.md](docs/installation-topology.md) - 說明 symlink、生成檔與跨機器執行布局
-- [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) - 說明 canonical `/gal` 模型、alias 理由與 dispatch 合約
-- [docs/per-repo-context.md](docs/per-repo-context.md) - 說明 `.dev/`、plan 生命週期與跨 worktree 的任務記憶模型
-- [docs/skills-migration.md](docs/skills-migration.md) - 說明目前 skills 與 conventions 的組織理由
-
-## 三層架構
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ 第一層：~/golem-agents-legion/（這個 repo — 你的大腦）        │
-│  ├── workflows/         ← 狀態機（coding、research）         │
-│  ├── agent/             ← 12 個 Golem 代理定義               │
-│  ├── model-roles.md     ← 模型路由 + 分級系統                │
-│  ├── conventions/       ← 可攜式語言規範                     │
-│  ├── templates/         ← plan、state、project 樣板          │
-│  ├── skills/            ← 技能來源（symlink 到工具目錄）      │
-│  └── scripts/           ← 設定、初始化、同步、調度腳本        │
-├─────────────────────────────────────────────────────────────┤
-│ 第二層：<repo>/.dev/（每個專案各自追蹤）                      │
-│  ├── project.md         ← 專案摘要 + 索引                    │
-│  └── state.md           ← 活動計畫 + 工作階段延續             │
-├─────────────────────────────────────────────────────────────┤
-│ 第三層：自動生成的轉接器（用完即棄）                           │
-│  ├── .github/copilot-instructions.md                        │
-│  └── GEMINI.md                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 12 個 Golem 代理
-
-| 代理 | 分類 | 用途 |
+| 層級 | 職責 | 指令 |
 | --- | --- | --- |
-| **planner** | 工作流程 | 分析需求、產出計畫檔案 |
-| **architect** | 領域 | 對抗式審查 — 抓取捨、過度設計、bug |
-| **analyst** | 領域 | 商業邏輯審查 — ROI、領域正確性 |
-| **designer** | 領域 | 視覺設計、UX 流程、無障礙與 design system 審查 |
-| **researcher** | 領域 | Local-first 研究與結構化整合 |
-| **implementer** | 工作流程 | 執行計畫，原子式 commit + Scope Fence |
-| **tester** | 工作流程 | 只從規格寫測試（不讀實作程式碼） |
-| **reviewer** | 工作流程 | 交叉審查：bug、安全、架構 |
-| **verifier** | 工作流程 | 目標回推驗證 + 計畫生命週期結束 |
-| **debugger** | 工具 | 科學方法除錯 |
-| **scribe** | 工具 | 日誌 + 宵禁執行者 |
-| **librarian** | 工具 | Obsidian vault 寫入 — 收件匣處理 + 知識萃取 |
+| 控制平面 | 初始化 repo、讀取狀態、推薦下一步、收斂連續性、路由研究 | `/gal init`、`/gal status`、`/gal whats-next`、`/gal wrap-up`、`/gal research` |
+| 專家執行層 | 規劃、設計、除錯、審查、QA、發佈、記憶管理、安全守護 | `/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/ship` 及下方完整專家目錄 |
 
-## 開發流程分級
+`/gal` 不重複實作專家行為。專家指令會把結果回寫到 `/gal` 讀取的 canonical artifacts。
 
-| 分級 | 適用情境 | 流程 |
-| --- | --- | --- |
-| **T0**（瑣碎） | 打字錯誤、明顯 bug、單檔修改 | IMPLEMENT → DONE |
-| **T1**（標準） | 小功能、已知原因修正 | PLAN → IMPLEMENT → TEST → REVIEW(lite) → VERIFY |
-| **T2**（策略） | 新功能、架構變動、高風險 | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY |
+## Canonical Artifacts
 
-完整狀態機請見 [workflows/coding.md](workflows/coding.md)。
+這些是持久的狀態模型檔案。
+
+| 路徑 | 用途 |
+| --- | --- |
+| `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
+| `.dev/state.md` | 活動計畫、阻塞點、工作階段連續性 |
+| `docs/plans/*.prompt.md` | 單一功能或 sprint 的執行記憶 |
+| `DESIGN.md` | 產品設計系統 |
+| `CLAUDE.md` | Repo 本地操作備注，如部署設定與設計參考 |
+| `docs/designs/` | 設計變體、審核結果、定稿 mockup |
+| `docs/qa-reports/` | QA 報告 |
+| `docs/benchmarks/` | 效能與 canary 基準線 |
+| `docs/retros/` | 回顧快照 |
+| `.dev/learnings.jsonl` | Repo 本地的制度化記憶 |
 
 ## 快速開始
 
@@ -111,75 +63,193 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ~/golem-agents-legion/scripts/setup-machine.sh
 ```
 
-設定腳本會建立 symlink：`agent/` → `~/.copilot/agents/`、`skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`。
-多台機器透過 `git push/pull` 共享相同定義。
-
-在目標 repo 執行 `gal init` 之後，請檢查 `.dev/project.md`、整理 `## Active Skills`，再執行 `gal sync` 生成 `.github/copilot-instructions.md` 與 `GEMINI.md`。
-
-## 跨機器設定
-
-GAL 支援多機器工作流程。每台機器 clone 同一個 repo 並執行 `Setup-Machine` 建立
-symlink。模型和工具因機器而異，方法論完全相同。
+然後在目標 repo 內執行：
 
 ```text
-┌────────────────────────────┐    ┌────────────────────────────┐
-│ 機器 A                     │    │ 機器 B                      │
-│ ├─ AI 程式工具              │    │ ├─ AI 程式工具             │
-│ ├─ Ollama（本地模型）       │    │ ├─ Ollama（本地模型）       │
-│ └─ 主要開發機               │    │ └─ 次要 / 行動開發機        │
-│                            │    │                            │
-│ ~/golem-agents-legion/     │    │ ~/golem-agents-legion/     │
-└──────────┬─────────────────┘    └──────────┬─────────────────┘
-           └────── git push/pull ────────────┘
+/gal init
+/gal status
+/office-hours
+/autoplan
 ```
 
-角色如何對應到你的機器和模型，請見 [model-roles.md](model-roles.md)。預設原則是：計畫、測試、審查都盡量用不同模型做交叉檢驗。
+最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
+
+## 控制平面指令
+
+這些是穩定的使用者端 `/gal` 指令。
+
+| 指令 | 使用時機 | 讀取 | 寫入 | 結果 |
+| --- | --- | --- | --- | --- |
+| `/gal init` | 為 repo 初始化 GAL 管理 | 現有 repo 文件與結構 | `.dev/project.md`、`.dev/state.md` | Repo 進入 GAL 管理狀態 |
+| `/gal status` | 需要完整狀態投影 | `.dev/state.md`、活動計畫檔案 | 無 | 回報活動計畫、審查/測試狀態、阻塞點、連續性與準備度 |
+| `/gal whats-next` | 想知道單一下一步 | `.dev/state.md`、計畫狀態與結果 | 無 | 回傳一個推薦的下一步指令或任務 |
+| `/gal wrap-up` | 結束工作階段 | `.dev/state.md`、活動計畫 | `### Handoff Notes`、`## Session Continuity` | 收斂可恢復的上下文 |
+| `/gal research` | 需要結構化調查 | 當前 repo 上下文 | 研究成果（依指示） | 進入研究工作流程 |
+
+### 可發現性 Alias
+
+這些 alias 是為了 slash 指令自動補全而存在，不是主要指令表。
+
+| Alias | 狀態 | 替代指令 |
+| --- | --- | --- |
+| `/gal-init` | 啟用中 | `/gal init` |
+| `/gal-status` | 啟用中 | `/gal status` |
+| `/gal-whats-next` | 啟用中 | `/gal whats-next` |
+| `/gal-wrap-up` | 啟用中 | `/gal wrap-up` |
+
+## 專家指令目錄
+
+這些指令直接實作工作層，不需要經過 `/gal` 路由。
+
+### 規劃
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/*.prompt.md`、`.dev/state.md` |
+| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results` |
+| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan` |
+| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results` |
+| `/autoplan` | 串接 CEO、設計與工程審查並自動決策 | 計畫審查區段與測試計畫 |
+| `/cso` | OWASP 加 STRIDE 資安審查 | 計畫 `## Review Results` |
+
+### 設計
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/design-consultation` | 建立產品設計系統 | `DESIGN.md`、`CLAUDE.md` |
+| `/design-shotgun` | 生成多個視覺變體並記錄審核結果 | `docs/designs/<slug>/approved.json` |
+| `/design-html` | 將已審核的設計轉換為可執行的 HTML 或元件程式碼 | `docs/designs/<slug>/finalized.html` |
+| `/design-review` | 對照 `DESIGN.md` 對線上站台進行精準視覺修正 | 計畫 `## Review Results`、`docs/design-reports/` |
+
+### 除錯與審查
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/investigate` | 根因優先的除錯工作流程 | 計畫 `## Debug Session` |
+| `/review` | Staff 級別的 diff 審查，找出 CI 漏掉的問題 | 計畫 `## Review Results` |
+
+### 瀏覽器與 QA
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/browse` | 供其他指令使用的 Playwright 瀏覽器能力原語 | 僅限當前工作階段 |
+| `/connect-chrome` | 將瀏覽器工作切換為有頭 Chrome | 僅限當前工作階段 |
+| `/setup-browser-cookies` | 將真實瀏覽器認證匯入 Playwright | 僅限當前工作階段 |
+| `/qa` | 完整 QA 流程，含修復迴圈與迴歸測試 | 計畫 `## Test Results`、`docs/qa-reports/` |
+| `/qa-only` | QA bug 報告，不修改程式碼 | 計畫 `## Test Results (Report Only)`、`docs/qa-reports/` |
+
+### 發佈
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/ship` | 合併前的最終關卡：測試、覆蓋率、PR、文件 | 計畫 `## Ship` |
+| `/land-and-deploy` | 合併並驗證正式環境部署 | 計畫 `## Deploy` |
+| `/canary` | 部署後對正式環境的持續監控 | 基準線、選擇性計畫備注 |
+| `/benchmark` | 使用真實瀏覽器測量效能並比對基準 | `docs/benchmarks/`、選擇性計畫 `## Performance` |
+| `/setup-deploy` | 一次性部署設定 | `CLAUDE.md` |
+| `/document-release` | 更新文件以符合已發佈的程式碼 | Repo 文件、PR 內容 |
+| `/retro` | 帶有 repo 指標與快照的回顧報告 | `docs/retros/` |
+
+### 記憶管理與安全守護
+
+| 指令 | 用途 | 主要寫入 |
+| --- | --- | --- |
+| `/learn` | Repo 本地制度化記憶管理員 | `.dev/learnings.jsonl` |
+| `/careful` | 在執行破壞性指令前發出警告 | 僅限當前工作階段 |
+| `/freeze` | 將編輯範圍限制在指定目錄邊界內 | 僅限當前工作階段 |
+| `/guard` | 同時啟用 `/careful` 與 `/freeze` | 僅限當前工作階段 |
+| `/unfreeze` | 移除當前的 freeze 邊界 | 僅限當前工作階段 |
+| `/gstack-upgrade` | 拉取最新版 GAL 並重新執行設定 | 機器維護，僅限本機 |
+
+## 典型流程
+
+### 新功能
+
+```text
+/gal init
+/office-hours
+/autoplan
+<實作>
+/review
+/qa
+/ship
+```
+
+### Bug 調查
+
+```text
+/gal status
+/investigate
+/review
+/qa
+/gal wrap-up
+```
+
+### 正式環境發佈
+
+```text
+/ship
+/land-and-deploy
+/canary
+/retro
+```
+
+## 狀態邏輯
+
+控制平面能運作，是因為專家指令會把可預測的區段回寫到活動計畫中。
+
+| 區段 | 由誰寫入 | 由誰讀取 |
+| --- | --- | --- |
+| `## Review Results` | 審查類專家指令 | `/gal status`、`/gal whats-next` |
+| `## Test Plan` | `/plan-eng-review` | `/qa`、`/qa-only` |
+| `## Test Results` | `/qa`、`/qa-only` | `/gal status`、`/gal whats-next` |
+| `## Ship` | `/ship` | `/gal status`、`/gal whats-next`、`/land-and-deploy` |
+| `## Deploy` | `/land-and-deploy` | `/gal status`、`/canary` |
+| `### Handoff Notes` | `/gal wrap-up` | `/gal status`、`/gal whats-next` |
+
+## 架構摘要
+
+```text
+~/golem-agents-legion/     canonical 方法論與指令來源
+<repo>/.dev/              repo 本地狀態與連續性
+docs/plans/*.prompt.md    活動執行記憶
+~/.copilot/skills/        已安裝的 Copilot skills
+~/.gemini/skills/         已安裝的 Gemini skills
+```
+
+方法論是可攜帶的。轉接器是用完即棄的。
 
 ## 個人化設定
 
-多個檔案包含 `<PLACEHOLDER>` 佔位符，clone 後需填入你的路徑：
+clone 後需填入你的環境特定佔位符：
 
 | 佔位符 | 意義 | 檔案 |
 | --- | --- | --- |
-| `<OBSIDIAN_VAULT>` | Obsidian vault 的絕對路徑 | `agent/golem-scribe.agent.md`、`skills/obsidian-cli/`、`skills/local-first-search/` |
-| `<OBSIDIAN_VAULT_NAME>` | Obsidian 顯示的 vault 名稱 | `skills/obsidian-cli/` |
-| `<LOCAL_SEARCH_PROJECT>` | `obsidian-note-taking-assistant` clone 路徑 | `skills/local-first-search/`、`skills/obsidian-knowledge-management/` |
-| `<GAL_SKILLS>` | Skills 安裝路徑（例如 `~/.copilot/skills`） | `skills/pdf/` |
-| `<TEMP_DIR>` | 暫存輸出目錄 | `skills/pdf/` |
+| `<OBSIDIAN_VAULT>` | Obsidian vault 的絕對路徑 | Obsidian 代理與技能 |
+| `<OBSIDIAN_VAULT_NAME>` | Obsidian 顯示的 vault 名稱 | Obsidian 技能 |
+| `<LOCAL_SEARCH_PROJECT>` | 本地搜尋專案 clone 路徑 | Local-first 與知識管理技能 |
+| `<GAL_SKILLS>` | Skills 安裝路徑 | 部分輔助技能 |
+| `<TEMP_DIR>` | 暫存輸出目錄 | PDF 技能 |
 
-模型對應設定請複製 [`model-roles.example.md`](model-roles.example.md) 為 `model-roles.local.md` 後自訂。
+模型路由設定請複製 [model-roles.example.md](model-roles.example.md) 為 `model-roles.local.md` 後自訂。
 
-## 重要檔案
+## 重要文件
 
 | 路徑 | 用途 |
 | --- | --- |
-| [workflows/coding.md](workflows/coding.md) | 開發流程狀態機（分級 + Scope Fence + 審查包） |
-| [model-roles.md](model-roles.md) | 模型路由 + 分級系統 — 預設以不同模型交叉檢驗 |
-| [agent/](agent/agents.md) | 12 個 Golem 代理定義 |
-| [conventions/](conventions/conventions.md) | 可攜式語言規範（通用、C#、Go、TS、Rust） |
-| [templates/](templates/templates.md) | plan、state、project、diary、agent 樣板 |
-| [skills/](skills/) | 技能（來源目錄，symlink 到 `~/.copilot/skills/` + `~/.gemini/skills/`） |
-| [scripts/](scripts/scripts.md) | 機器設定、repo 初始化、工作流程調度 |
-| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | AI 代理與維護者的 repo 導覽與閱讀順序 |
+| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | AI 代理與維護者的閱讀順序 |
+| [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | `/gal` 讀寫合約的 canonical 定義 |
+| [docs/gstack-integration.md](docs/gstack-integration.md) | GAL 為何原生重新實作 gstack 語意 |
+| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | 專家技能的實作藍圖 |
+| [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch 模型與 alias 政策 |
+| [commands/commands.md](commands/commands.md) | 已安裝的指令表面與 alias 架構 |
+| [workflows/coding.md](workflows/coding.md) | 原始開發流程狀態機參考 |
 
-## 設計原則
+## GAL 不再視為公開工作流程的部分
 
-1. **知識寫在 Markdown，不寫在程式碼裡** — Markdown 不會有 breaking changes
-2. **轉接器用完即棄** — `copilot-instructions.md`、`GEMINI.md` 是自動生成的，隨時刪掉重跑
-3. **方法論 > 工具** — 工具可以換，你的工作流程留下來
-4. **計畫是暫態記憶** — 計畫建立、執行、知識萃取到 `docs/`，然後刪除
-5. **人是指揮者** — Golem 是專家，人決定分級、範圍、何時推進
-6. **驗證要分離** — 計畫、測試、審查盡量使用不同模型
-7. **審查比測試更高階** — tester 做基本驗證，reviewer 做更深的交叉檢查
-
-## 影響來源
-
-借鑑概念（未使用其實作）：
-
-- [GSD](https://github.com/gsd-build/get-shit-done) — 階段式工作流程、狀態追蹤、驗證關卡
-- [OmO](https://github.com/code-yeongyu/oh-my-openagent) — 以分類為基礎的模型路由（角色，非模型）
-- [LangGraph](https://github.com/langchain-ai/langgraph) — 帶狀態的工作流程，支援持久化與檢查點
+- T0/T1/T2 不再是新指令表面的主要使用者詞彙
+- 使用 GAL 的專家指令不需要另外安裝 upstream gstack
 
 ## 授權
 
-MIT — 詳見 [LICENSE](LICENSE)。
+MIT — 詳見 [LICENSE](LICENSE).

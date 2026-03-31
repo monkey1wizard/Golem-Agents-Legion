@@ -56,7 +56,11 @@ $galRootGemini   = Join-Path $geminiRoot "gal"
 $galSkillCopilot = Join-Path $skillsTarget "gal"
 $galSkillGemini  = Join-Path $geminiSkillsTarget "gal"
 $skillTemplate   = Join-Path $galSource "SKILL.template.md"
-$commandAliasNames = @('gal-init', 'gal-plan', 'gal-status', 'gal-next', 'gal-pause')
+$commandsSourceDir = Join-Path $repoRoot "commands"
+$commandAliasNames = Get-ChildItem $commandsSourceDir -Directory |
+    Where-Object { $_.Name -ne 'gal' } |
+    Select-Object -ExpandProperty Name
+
 $commandSkillDirs = @(
     [pscustomobject]@{
         Name          = 'gal'

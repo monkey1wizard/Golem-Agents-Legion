@@ -23,23 +23,15 @@ The target is not to rewrite the project's architecture docs. The target is to g
 | `.dev/state.md` | Repo-wide active plan index, blockers, cross-plan decisions, session continuity |
 | `docs/plans/*.prompt.md` | Temporary per-task execution memory |
 
-## Active Skills And Sync
+## Skill Activation
 
-`gal sync` reads `## Active Skills` from `.dev/project.md`.
+Skills are activated by chat intent and runtime routing — not by a static allowlist in `.dev/project.md`.
 
-Rules:
+When you invoke a specialist command (e.g. `/review`, `/design-consultation`, `/qa`), the agent loads the corresponding `SKILL.md` for that command automatically. No configuration in `project.md` is required.
 
-- use exact folder names from `golem-agents-legion/skills/`
-- list one skill per bullet
-- curate this list manually after `gal init`
-- expect `gal sync` to fail hard when the section is missing, empty, duplicated, or references a nonexistent skill
+`.dev/project.md` may still include a `## Active Skills` section as an optional hint for documentation purposes, but GAL no longer reads it for routing decisions and does not fail when it is absent.
 
-This is intentional. GAL does not infer skills from the target repo's tech stack because silent guesses would make generated adapters nondeterministic.
-
-When the list is valid, Sync generates two disposable repo-local adapters:
-
-- `.github/copilot-instructions.md` — shared project context, conventions, workflow, and model routing, with no skill bodies
-- `GEMINI.md` — the same shared base plus the selected skill bodies inlined for Gemini CLI
+The legacy `gal sync` command and the static skill allowlist it enforced are no longer part of the public workflow surface.
 
 ## Why Plans Own Per-Task Status
 
@@ -78,13 +70,13 @@ It tracks:
 
 It should not become a duplicate of every plan's detailed execution log.
 
-## `gal pause` And Handoff Notes
+## `/gal wrap-up` And Handoff Notes
 
-Before switching worktrees or ending a work session:
+Before switching worktrees or ending a work session, run `/gal wrap-up`. It will:
 
 1. compress key task context into the plan's `### Handoff Notes`
 2. update `.dev/state.md` session continuity
-3. commit those changes if the task needs a clean handoff point
+3. prompt you to commit those changes if the task needs a clean handoff point
 
 This keeps the repo, not the chat session, as the durable memory surface.
 

@@ -22,16 +22,6 @@ GAL `gal-*` alias skills come in two kinds:
 
 - `/gal-init`
 
-**Legacy aliases** — retained for backward compatibility, redirect to new commands:
-
-- `/gal-next` → use `/gal-whats-next`
-- `/gal-pause` → use `/gal-wrap-up`
-
-**Removed from public surface:**
-
-- `/gal-plan` — planning operations are now specialist commands (`/office-hours`, `/autoplan`, `/plan-eng-review`)
-- `/gal sync` — adapter generation is internal to `/gal init`
-
 ## Public Command Surface
 
 Use these as the stable user-facing entry points:

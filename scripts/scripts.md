@@ -20,48 +20,37 @@ Machine setup and adapter sync scripts.
 ## Command Surface
 
 The portable shell entrypoint is `gal <subcommand>`.
-AI slash commands map onto the same subcommands, with `/gal` as the canonical entry and `gal-*` aliases for autocomplete discoverability.
+AI slash commands map onto the same subcommands, with `/gal` as the canonical entry.
 
 | Command | Purpose |
 | --- | --- |
 | `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` |
-| `/gal plan [-Type <type>] <name>` | Create a draft plan scaffold (type defaults to `feat`) |
-| `/gal status` | Read current workflow state |
-| `/gal next` | Show the next recorded step |
-| `/gal pause` | Commit `.dev/` and `docs/plans/` for worktree context handoff |
-| `/gal sync` | Generate `.github/copilot-instructions.md` and `GEMINI.md` from `.dev/project.md` |
-| `/gal dispatch [golem\|subcommand]` | Resolve and invoke the correct golem for current state, or explicitly target a golem |
+| `/gal status` | Show current workflow state, active plan, review and test status, blockers, and specialist readiness |
+| `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
+| `/gal wrap-up` | Close the session cleanly — converge handoff artifacts, update `.dev/state.md`, prompt for commit |
+| `/gal research` | Enter structured investigation mode |
 
 Alias slash commands:
 
 | Command | Purpose |
 | --- | --- |
 | `/gal-init` | Alias for `/gal init` |
-| `/gal-plan` | Alias for `/gal plan` |
 | `/gal-status` | Alias for `/gal status` |
-| `/gal-next` | Alias for `/gal next` |
-| `/gal-pause` | Alias for `/gal pause` |
+| `/gal-whats-next` | Alias for `/gal whats-next` |
+| `/gal-wrap-up` | Alias for `/gal wrap-up` |
 
 Shell usage examples:
 
 ```powershell
 .\scripts\gal.ps1 init
-.\scripts\gal.ps1 plan "refactor order pipeline"
-.\scripts\gal.ps1 plan -Type fix "null ref in parser"
 .\scripts\gal.ps1 status
-.\scripts\gal.ps1 pause
-.\scripts\gal.ps1 sync
 .\scripts\gal.ps1 dispatch
 .\scripts\gal.ps1 dispatch golem-planner
 ```
 
 ```bash
 ./scripts/gal.sh init
-./scripts/gal.sh plan "refactor order pipeline"
-./scripts/gal.sh plan -t fix "null ref in parser"
 ./scripts/gal.sh status
-./scripts/gal.sh pause
-./scripts/gal.sh sync
 ./scripts/gal.sh dispatch
 ./scripts/gal.sh dispatch golem-planner
 ```
@@ -74,7 +63,6 @@ By default, `gal init` scans the target repo for existing documentation:
 2. Detects tech stack from config files (`.csproj`, `package.json`, `go.mod`, etc.)
 3. Pre-populates `.dev/project.md` Source Documents table and Tech Stack field
 4. User/AI completes the summary by reviewing discovered docs
-5. User curates `## Active Skills`, then runs `/gal sync` to generate repo-local adapters
 
 Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank template.
 
@@ -88,35 +76,16 @@ The setup script creates these symlinks:
 | `skills/*/` | `~/.copilot/skills/` | `~/.gemini/skills/` |
 | `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/skills/gal/` |
 | `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/skills/gal-init/` |
-| `commands/gal-plan/` | `~/.copilot/skills/gal-plan/` | `~/.gemini/skills/gal-plan/` |
 | `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/skills/gal-status/` |
-| `commands/gal-next/` | `~/.copilot/skills/gal-next/` | `~/.gemini/skills/gal-next/` |
-| `commands/gal-pause/` | `~/.copilot/skills/gal-pause/` | `~/.gemini/skills/gal-pause/` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/skills/gal-whats-next/` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/skills/gal-wrap-up/` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/skills/<specialist>/` |
 | `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` |
 
-Additionally **generates** `commands/gal/SKILL.md` and `commands/gal-*/SKILL.md` by baking each `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into both skill targets so Gemini CLI discovers them as proper `ReparsePoint` directories.
+All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
+
+Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into both skill targets.
 
 Generates `~/.gemini/gal-context.md` with all GAL command skills first, then sorted `@file` skill imports.
 
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.
-
-## Sync-DevContext Flow
-
-`gal sync` is the manual-first adapter generation step. It validates `## Active Skills` in `.dev/project.md` and fails fast if the list is missing, empty, duplicated, or references unknown skills.
-
-```text
-.dev/project.md (Active Skills field)
-       │
-       ├──→ Read conventions/*.md
-       ├──→ Read workflows/coding.md
-       ├──→ Read model-roles.md
-       ├──→ Validate listed skills exist under skills/*/SKILL.md
-       │
-       └──→ Generate:
-            ├── .github/copilot-instructions.md (project context + shared GAL docs; no skill bodies)
-            └── GEMINI.md (same shared base + listed skill bodies inlined)
-```
-
-`gal init` does not infer skills. The target repo owner or AI session must curate `## Active Skills` manually before Sync can succeed.
-
-See [docs/per-repo-context.md](../docs/per-repo-context.md) for the working-memory model behind this flow.

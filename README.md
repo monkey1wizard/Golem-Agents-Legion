@@ -2,99 +2,50 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-A portable, tool-agnostic development methodology system.
+GAL is a Markdown-native AI working system with two layers:
 
-> **Methodology is written in Markdown, tools are auto-generated.**
-> You own the methodology in `golem-agents-legion/`, not any tool's config.
-> Tools come and go. Your knowledge stays.
+- A `/gal` control plane for repo bootstrap, state inspection, next-action routing, wrap-up, and research
+- A gstack-style specialist command surface for planning, review, QA, release, memory, and guardrails
 
-## Why
+The point is not to preserve one tool's UX. The point is to keep the methodology, state model, and command contracts under your control while letting Copilot and Gemini execute the same workflow.
 
-AI coding agents change fast. Your skills and workflow shouldn't be locked into
-any single tool (Copilot, Claude Code, Cursor, Gemini CLI, etc.).
+## What GAL Is
 
-GAL solves this by separating **what you know** from **which tool reads it**:
+GAL separates durable workflow knowledge from tool-specific adapters.
 
-- **Knowledge** (workflows, conventions, agents, skills) → Markdown files in this repo
-- **Tool configs** (`copilot-instructions.md`, `GEMINI.md`) → auto-generated adapters
+- Knowledge lives in this repo as Markdown: workflows, agents, conventions, templates, and skills
+- Repo-local execution state lives in `.dev/` and `docs/plans/`
+- Tool adapters are generated outputs, not the source of truth
 
-When you switch tools, update one routing table and re-run a sync script. Your knowledge doesn't move.
+This repo is not an application service. It is the canonical methodology and command surface.
 
-## Status
+## Final Operating Model
 
-Bootstrap is functionally complete.
-`gal init` and `gal sync` are shipped. macOS parity verification and the first full real-feature run remain deferred field checks.
+GAL now uses a strict split between control plane and execution layer.
 
-## For AI Agents
-
-If you are an AI agent or you are onboarding one to this repo, read [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) first.
-
-That document explains:
-
-- what this project is and is not
-- how to navigate the repo without misclassifying it as an app or service
-- which files are canonical versus temporary execution memory
-- where to start for workflow, agent, command, or setup changes
-
-## Architecture Docs
-
-The durable architecture and maintenance docs live here:
-
-- [docs/design-principles.md](docs/design-principles.md) - why GAL exists and what architectural trade-offs it makes
-- [docs/installation-topology.md](docs/installation-topology.md) - symlink, generated-file, and cross-machine runtime layout
-- [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) - canonical `/gal` model, alias rationale, dispatch contract
-- [docs/per-repo-context.md](docs/per-repo-context.md) - `.dev/`, plan lifecycle, and cross-worktree task memory model
-- [docs/skills-migration.md](docs/skills-migration.md) - why current skills and conventions are organized the way they are
-
-## Three-Layer Architecture
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ Layer 1: ~/golem-agents-legion/  (this repo — your brain)    │
-│  ├── workflows/         ← state machines (coding, research)  │
-│  ├── agent/             ← 12 golem agent definitions         │
-│  ├── model-roles.md     ← model routing + tier system        │
-│  ├── conventions/       ← portable language rules            │
-│  ├── templates/         ← plan, state, project scaffolds     │
-│  ├── skills/            ← canonical skill source (symlinked) │
-│  └── scripts/           ← setup, init, sync, dispatcher      │
-├──────────────────────────────────────────────────────────────┤
-│ Layer 2: <repo>/.dev/   (per-repo, tracked in each project)  │
-│  ├── project.md         ← project summary + index            │
-│  └── state.md           ← active plans + session continuity  │
-├──────────────────────────────────────────────────────────────┤
-│ Layer 3: Auto-generated adapters (disposable)                │
-│  ├── .github/copilot-instructions.md                         │
-│  └── GEMINI.md                                               │
-└──────────────────────────────────────────────────────────────┘
-```
-
-## 12 Golem Agents
-
-| Agent | Classification | Purpose |
+| Layer | Responsibility | Commands |
 | --- | --- | --- |
-| **planner** | Workflow | Analyze requirements, produce plan files |
-| **architect** | Domain | Adversarial plan review — trade-offs, over-engineering, bugs |
-| **analyst** | Domain | Business logic review — ROI, domain correctness |
-| **designer** | Domain | Visual design, UX flow, accessibility, and design-system review |
-| **researcher** | Domain | Local-first research and structured synthesis |
-| **implementer** | Workflow | Execute plans with atomic commits + Scope Fence |
-| **tester** | Workflow | Write tests from spec only (never reads implementation) |
-| **reviewer** | Workflow | Cross-review for bugs, security, architecture |
-| **verifier** | Workflow | Goal-backward verification + plan lifecycle ending |
-| **debugger** | Utility | Scientific method bug investigation |
-| **scribe** | Utility | End-of-day diary + curfew enforcer |
-| **librarian** | Utility | Obsidian vault writer — inbox processing + knowledge extraction |
+| Control plane | Bootstrap repo, read state, recommend next action, converge continuity, route research | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` |
+| Specialist execution | Plan, design, debug, review, QA, release, memory, guardrails | `/office-hours`, `/plan-eng-review`, `/review`, `/qa`, `/ship`, and the rest of the specialist catalog below |
 
-## Coding Flow Tiers
+`/gal` does not duplicate specialist behavior. Specialist commands write back to canonical artifacts that `/gal` reads.
 
-| Tier | When | Process |
-| --- | --- | --- |
-| **T0** (Trivial) | Typo, obvious bug, single file | IMPLEMENT → DONE |
-| **T1** (Standard) | Small feature, known-cause fix | PLAN → IMPLEMENT → TEST → REVIEW(lite) → VERIFY |
-| **T2** (Strategic) | New feature, arch change, high risk | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY |
+## Canonical Artifacts
 
-See [workflows/coding.md](workflows/coding.md) for the complete state machine.
+These files are the durable state model.
+
+| Path | Purpose |
+| --- | --- |
+| `.dev/project.md` | Repo summary, stack, goals, constraints |
+| `.dev/state.md` | Active plans, blockers, session continuity |
+| `docs/plans/*.prompt.md` | Active execution memory for a feature or sprint |
+| `DESIGN.md` | Product design system |
+| `CLAUDE.md` | Repo-local operational notes such as deploy config and design references |
+| `docs/designs/` | Design variants, approvals, finalized mockups |
+| `docs/qa-reports/` | QA reports |
+| `docs/benchmarks/` | Performance and canary baselines |
+| `docs/retros/` | Retro snapshots |
+| `.dev/learnings.jsonl` | Repo-local institutional memory |
 
 ## Quick Start
 
@@ -112,75 +63,192 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ~/golem-agents-legion/scripts/setup-machine.sh
 ```
 
-Setup scripts create symlinks: `agent/` → `~/.copilot/agents/`, `skills/` → `~/.copilot/skills/` + `~/.gemini/skills/`.
-Both machines share the same definitions via `git push/pull`.
-
-After `gal init` in a target repo, review `.dev/project.md`, curate `## Active Skills`, then run `gal sync` to generate `.github/copilot-instructions.md` and `GEMINI.md`.
-
-## Cross-Machine Setup
-
-GAL supports multi-machine workflows. Each machine clones the same repo and
-runs `Setup-Machine` to create symlinks. Models and tools differ per machine,
-the methodology stays identical.
+Then, inside a target repo:
 
 ```text
-┌────────────────────────────┐    ┌────────────────────────────┐
-│ Machine A                  │    │ Machine B                  │
-│ ├─ AI coding tools         │    │ ├─ AI coding tools         │
-│ ├─ Ollama (local models)   │    │ ├─ Ollama (local models)   │
-│ └─ Primary dev machine     │    │ └─ Secondary / mobile      │
-│                            │    │                            │
-│ ~/golem-agents-legion/     │    │ ~/golem-agents-legion/     │
-└──────────┬─────────────────┘    └──────────┬─────────────────┘
-           └────── git push/pull ────────────┘
+/gal init
+/gal status
+/office-hours
+/autoplan
 ```
 
-See [model-roles.md](model-roles.md) for how to map roles to your specific machines and models.
+There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
+
+## Control-Plane Commands
+
+These are the stable user-facing `/gal` commands.
+
+| Command | When To Use | Reads | Writes | Outcome |
+| --- | --- | --- | --- | --- |
+| `/gal init` | Bootstrap a repo for GAL | Existing repo docs and structure | `.dev/project.md`, `.dev/state.md` | Repo is ready for GAL-managed work |
+| `/gal status` | You need full state projection | `.dev/state.md`, active plan files | Nothing | Reports active plans, review/test status, blockers, continuity, readiness |
+| `/gal whats-next` | You want a single next action | `.dev/state.md`, active plan status and results | Nothing | Returns one recommended next command or task |
+| `/gal wrap-up` | You are ending a session | `.dev/state.md`, active plan | `### Handoff Notes`, `## Session Continuity` | Converges resumable context |
+| `/gal research` | You need structured investigation | Current repo context | Research artifacts as directed | Enters research workflow |
+
+### Discoverability Aliases
+
+These exist for slash-command autocomplete, not as the primary command table.
+
+| Alias | Status | Use Instead |
+| --- | --- | --- |
+| `/gal-init` | Active alias | `/gal init` |
+| `/gal-status` | Active alias | `/gal status` |
+| `/gal-whats-next` | Active alias | `/gal whats-next` |
+| `/gal-wrap-up` | Active alias | `/gal wrap-up` |
+
+## Specialist Command Catalog
+
+These commands implement the work layer directly. They do not route through `/gal`.
+
+### Planning
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/*.prompt.md`, `.dev/state.md` |
+| `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results` |
+| `/plan-eng-review` | Architecture and test-plan gate; required before `/ship` | Plan `## Review Results`, `## Test Plan` |
+| `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results` |
+| `/autoplan` | Chains CEO, design, and eng reviews with auto-decisions | Plan review sections and test plan |
+| `/cso` | OWASP plus STRIDE security review | Plan `## Review Results` |
+
+### Design
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/design-consultation` | Creates the product design system | `DESIGN.md`, `CLAUDE.md` |
+| `/design-shotgun` | Generates multiple visual variants and records approval | `docs/designs/<slug>/approved.json` |
+| `/design-html` | Converts an approved design into runnable HTML or component code | `docs/designs/<slug>/finalized.html` |
+| `/design-review` | Live-site audit against `DESIGN.md` with surgical fixes | Plan `## Review Results`, `docs/design-reports/` |
+
+### Debug And Review
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/investigate` | Root-cause-first debugging workflow | Plan `## Debug Session` |
+| `/review` | Staff-level diff review for bugs CI misses | Plan `## Review Results` |
+
+### Browser And QA
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/browse` | Playwright browser capability primitive used by other commands | Session only |
+| `/connect-chrome` | Switches browser work to headed Chrome | Session only |
+| `/setup-browser-cookies` | Imports real browser auth into Playwright | Session only |
+| `/qa` | Full QA pass with fix loop and regression tests | Plan `## Test Results`, `docs/qa-reports/` |
+| `/qa-only` | QA bug report without code changes | Plan `## Test Results (Report Only)`, `docs/qa-reports/` |
+
+### Ship And Release
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/ship` | Final pre-merge gate: tests, coverage, PR, docs | Plan `## Ship` |
+| `/land-and-deploy` | Merge and verify production deployment | Plan `## Deploy` |
+| `/canary` | Post-deploy monitoring against production | Baselines, optional plan note |
+| `/benchmark` | Real-browser performance measurement and comparison | `docs/benchmarks/`, optional plan `## Performance` |
+| `/setup-deploy` | One-time deploy configuration | `CLAUDE.md` |
+| `/document-release` | Updates docs to match shipped code | Repo docs, PR body |
+| `/retro` | Retrospective with repo metrics and snapshots | `docs/retros/` |
+
+### Memory And Guardrails
+
+| Command | Purpose | Primary Writes |
+| --- | --- | --- |
+| `/learn` | Repo-local institutional memory manager | `.dev/learnings.jsonl` |
+| `/careful` | Warns before destructive commands | Session only |
+| `/freeze` | Restricts edits to a directory boundary | Session only |
+| `/guard` | Combines `/careful` and `/freeze` | Session only |
+| `/unfreeze` | Removes the active freeze boundary | Session only |
+| `/gstack-upgrade` | Pulls latest GAL and re-runs setup | Machine maintenance only |
+
+## Typical Flow
+
+### New feature
+
+```text
+/gal init
+/office-hours
+/autoplan
+<implement>
+/review
+/qa
+/ship
+```
+
+### Bug investigation
+
+```text
+/gal status
+/investigate
+/review
+/qa
+/gal wrap-up
+```
+
+### Production release
+
+```text
+/ship
+/land-and-deploy
+/canary
+/retro
+```
+
+## State Logic
+
+The control plane works because specialist commands write predictable sections back to the active plan.
+
+| Section | Written By | Read By |
+| --- | --- | --- |
+| `## Review Results` | Review specialists | `/gal status`, `/gal whats-next` |
+| `## Test Plan` | `/plan-eng-review` | `/qa`, `/qa-only` |
+| `## Test Results` | `/qa`, `/qa-only` | `/gal status`, `/gal whats-next` |
+| `## Ship` | `/ship` | `/gal status`, `/gal whats-next`, `/land-and-deploy` |
+| `## Deploy` | `/land-and-deploy` | `/gal status`, `/canary` |
+| `### Handoff Notes` | `/gal wrap-up` | `/gal status`, `/gal whats-next` |
+
+## Architecture Summary
+
+```text
+~/golem-agents-legion/     canonical methodology and command source
+<repo>/.dev/              repo-local state and continuity
+docs/plans/*.prompt.md    active execution memory
+~/.copilot/skills/        installed Copilot skills
+~/.gemini/skills/         installed Gemini skills
+```
+
+The methodology is portable. The adapters are disposable.
 
 ## Personalization
 
-Several files contain `<PLACEHOLDER>` values that you must fill in after cloning:
+Several files still contain environment-specific placeholders you must set after cloning.
 
 | Placeholder | Meaning | Files |
 | --- | --- | --- |
-| `<OBSIDIAN_VAULT>` | Absolute path to your Obsidian vault | `agent/golem-scribe.agent.md`, `skills/obsidian-cli/`, `skills/local-first-search/` |
-| `<OBSIDIAN_VAULT_NAME>` | Vault name as shown in Obsidian | `skills/obsidian-cli/` |
-| `<LOCAL_SEARCH_PROJECT>` | Path to your `obsidian-note-taking-assistant` clone | `skills/local-first-search/`, `skills/obsidian-knowledge-management/` |
-| `<GAL_SKILLS>` | Path where skills are installed (e.g. `~/.copilot/skills`) | `skills/pdf/` |
-| `<TEMP_DIR>` | Temporary directory for output | `skills/pdf/` |
+| `<OBSIDIAN_VAULT>` | Absolute path to your Obsidian vault | Obsidian agents and skills |
+| `<OBSIDIAN_VAULT_NAME>` | Vault name shown in Obsidian | Obsidian skills |
+| `<LOCAL_SEARCH_PROJECT>` | Path to your local search project clone | Local-first and knowledge-management skills |
+| `<GAL_SKILLS>` | Path where skills are installed | Some helper skills |
+| `<TEMP_DIR>` | Temp output directory | PDF skill |
 
-For model mapping, copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize.
+For model routing, copy [model-roles.example.md](model-roles.example.md) to `model-roles.local.md` and customize it.
 
-## Key Files
+## Important Docs
 
 | Path | Purpose |
 | --- | --- |
-| [workflows/coding.md](workflows/coding.md) | Coding Flow state machine (Tier + Scope Fence + review pack) |
-| [model-roles.md](model-roles.md) | Model routing + tier system — different-model cross-checks are the default |
-| [agent/](agent/agents.md) | 12 golem agent definitions |
-| [conventions/](conventions/conventions.md) | Portable language rules (universal, C#, Go, TS, Rust) |
-| [templates/](templates/templates.md) | Plan, state, project, diary, agent scaffolds |
-| [skills/](skills/) | Skills (canonical source, symlinked to `~/.copilot/skills/` + `~/.gemini/skills/`) |
-| [scripts/](scripts/scripts.md) | Machine setup, repo init, workflow dispatcher |
-| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | Repo orientation and reading order for AI agents and maintainers |
+| [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | Reading order for AI agents and maintainers |
+| [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | Canonical `/gal` read/write contracts |
+| [docs/gstack-integration.md](docs/gstack-integration.md) | Why GAL reimplements gstack semantics natively |
+| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | Implementation blueprint for specialist skills |
+| [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch model and alias policy |
+| [commands/commands.md](commands/commands.md) | Installed command surface and alias architecture |
+| [workflows/coding.md](workflows/coding.md) | Original coding workflow state machine reference |
 
-## Design Principles
+## What GAL No Longer Treats As Public Workflow
 
-1. **Knowledge in Markdown, not code** — Markdown doesn't have breaking changes
-2. **Adapters are disposable** — `copilot-instructions.md`, `GEMINI.md` are auto-generated. Delete and regenerate anytime
-3. **Methodology > Tools** — Tools can be swapped, your workflow stays
-4. **Plan as transient memory** — Plans are created, executed, knowledge extracted to `docs/`, then deleted
-5. **Human is orchestrator** — Golems are specialists, the human decides tier, scope, and when to proceed
-6. **Verification is separate** — plan, test, and review should use different models whenever practical
-7. **Review is higher-level than testing** — tester does basic verification; reviewer does the deeper cross-check
-
-## Influences
-
-Concepts borrowed from (implementations not used):
-
-- [GSD](https://github.com/gsd-build/get-shit-done) — Phase-based workflow, state tracking, verification gates
-- [OmO](https://github.com/code-yeongyu/oh-my-openagent) — Category-based model routing (role, not model)
-- [LangGraph](https://github.com/langchain-ai/langgraph) — Stateful workflow with persistence and checkpoints
+- T0/T1/T2 are not the primary user-facing workflow vocabulary for the new command surface
+- Upstream gstack installation is not required to use GAL's specialist commands
 
 ## License
 
