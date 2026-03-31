@@ -66,10 +66,17 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 Then, inside a target repo:
 
 ```text
+# Copilot / Gemini CLI (slash-command surface)
 /gal init
 /gal status
 /office-hours
 /autoplan
+
+# Codex CLI (skill mention surface — $ prefix, not /)
+$gal init
+$gal status
+$office-hours
+$autoplan
 ```
 
 There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
@@ -77,6 +84,8 @@ There is no public `gal sync` step in the final model. Adapter generation is ins
 ## Control-Plane Commands
 
 These are the stable user-facing `/gal` commands.
+
+> **CLI invocation note** — Copilot CLI and Gemini CLI expose these as `/gal <subcommand>`. Codex CLI uses `$gal <subcommand>` instead. The `/` prefix in Codex is reserved for built-in Codex commands only.
 
 | Command | When To Use | Reads | Writes | Outcome |
 | --- | --- | --- | --- | --- |
@@ -88,14 +97,14 @@ These are the stable user-facing `/gal` commands.
 
 ### Discoverability Aliases
 
-These exist for slash-command autocomplete, not as the primary command table.
+These exist for slash-command autocomplete in Copilot/Gemini, and as named skills in Codex.
 
-| Alias | Status | Use Instead |
+| Alias | Copilot / Gemini | Codex CLI |
 | --- | --- | --- |
-| `/gal-init` | Active alias | `/gal init` |
-| `/gal-status` | Active alias | `/gal status` |
-| `/gal-whats-next` | Active alias | `/gal whats-next` |
-| `/gal-wrap-up` | Active alias | `/gal wrap-up` |
+| gal-init | `/gal-init` | `$gal-init` |
+| gal-status | `/gal-status` | `$gal-status` |
+| gal-whats-next | `/gal-whats-next` | `$gal-whats-next` |
+| gal-wrap-up | `/gal-wrap-up` | `$gal-wrap-up` |
 
 ## Specialist Command Catalog
 

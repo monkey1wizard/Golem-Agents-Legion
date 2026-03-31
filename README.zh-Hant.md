@@ -7,7 +7,7 @@ GAL 是一套以 Markdown 為核心的 AI 工作系統，分為兩層：
 - `/gal` 控制平面：負責 repo 初始化、狀態檢視、下一步推薦、工作階段收尾與研究入口
 - gstack 風格的專家指令層：負責規劃、審查、QA、發佈、記憶管理與安全守護
 
-重點不在於保留某個工具的 UX，而是讓方法論、狀態模型與指令合約都掌握在你手中，同時讓 Copilot 與 Gemini 執行同一套工作流程。
+重點不在於保留某個工具的 UX，而是讓方法論、狀態模型與指令合約都掌握在你手中，同時讓 Copilot、Gemini 與 Codex 執行同一套工作流程。
 
 ## GAL 是什麼
 
@@ -66,10 +66,17 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 然後在目標 repo 內執行：
 
 ```text
+# Copilot / Gemini CLI（slash-command 介面）
 /gal init
 /gal status
 /office-hours
 /autoplan
+
+# Codex CLI（skill mention 介面，使用 $ 前綴，不是 /）
+$gal init
+$gal status
+$office-hours
+$autoplan
 ```
 
 最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
@@ -77,6 +84,8 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ## 控制平面指令
 
 這些是穩定的使用者端 `/gal` 指令。
+
+> **CLI 呼叫差異**：Copilot CLI 與 Gemini CLI 使用 `/gal <subcommand>`。Codex CLI 則使用 `$gal <subcommand>`。在 Codex 中，`/` 前綴保留給 Codex 內建指令，不能用來呼叫自訂技能。
 
 | 指令 | 使用時機 | 讀取 | 寫入 | 結果 |
 | --- | --- | --- | --- | --- |
@@ -88,14 +97,14 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 
 ### 可發現性 Alias
 
-這些 alias 是為了 slash 指令自動補全而存在，不是主要指令表。
+這些 alias 在 Copilot / Gemini 中用於 slash 指令自動補全，在 Codex 中則以同名 skill 出現。
 
-| Alias | 狀態 | 替代指令 |
+| Alias | Copilot / Gemini | Codex CLI |
 | --- | --- | --- |
-| `/gal-init` | 啟用中 | `/gal init` |
-| `/gal-status` | 啟用中 | `/gal status` |
-| `/gal-whats-next` | 啟用中 | `/gal whats-next` |
-| `/gal-wrap-up` | 啟用中 | `/gal wrap-up` |
+| gal-init | `/gal-init` | `$gal-init` |
+| gal-status | `/gal-status` | `$gal-status` |
+| gal-whats-next | `/gal-whats-next` | `$gal-whats-next` |
+| gal-wrap-up | `/gal-wrap-up` | `$gal-wrap-up` |
 
 ## 專家指令目錄
 
@@ -215,6 +224,7 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 docs/plans/*.prompt.md    活動執行記憶
 ~/.copilot/skills/        已安裝的 Copilot skills
 ~/.gemini/skills/         已安裝的 Gemini skills
+~/.agents/skills/         已安裝的 Codex skills
 ```
 
 方法論是可攜帶的。轉接器是用完即棄的。

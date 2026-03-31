@@ -1,5 +1,7 @@
 # Plan: GAL Coding Workflow 原生技能實作
 
+> Archive note: 這份前置計畫已完成，且其 durable outputs 已吸收進 canonical docs 與 command skills。暫時不要刪除這個檔案，因為 `gal-cross-ai-orchestrator.prompt.md`、`docs/gal-control-plane-contracts.md`、`docs/gstack-command-contracts.md` 仍直接引用它，且它仍是目前最完整的重疊範圍執行紀錄。
+
 ## Goal
 
 gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot 中直接運作。本計畫分兩層完成整合：
@@ -40,6 +42,27 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 - Out of scope for this plan: `/codex`。原因是它依賴外部 OpenAI Codex CLI 與獨立 second-opinion 流程，應在後續另開 multi-AI integration plan。
 
 本計畫為 `gal-cross-ai-orchestrator.prompt.md` P3（Operation Layer And Role Model）的前置作業。
+
+## Archive Decision
+
+這份 plan 已完成它應該完成的事：
+
+- `/gal` control-plane command surface 的 rename 與 contract 重寫
+- gstack-style specialist command surface 的 GAL-native skill 實作
+- README / integration docs / command docs 的 public model 重寫
+
+它現在保留的理由只有兩個：
+
+- **execution record**：保留已完成重疊範圍的交付紀錄與 handoff notes
+- **live references**：目前仍被 `gal-cross-ai-orchestrator.prompt.md`、`docs/gal-control-plane-contracts.md`、`docs/gstack-command-contracts.md` 直接引用
+
+因此答案是：**現在還不建議刪除**。
+
+可刪除條件：
+
+- `gal-cross-ai-orchestrator.prompt.md` 已完整吸收剩餘 orchestrator gap 與 overlap summary
+- 其他 canonical docs 不再把這份檔案當 deliverable / source citation
+- runtime `/gal` 收斂工作完成後，不再需要這份 plan 作為活躍 handoff artifact
 
 ## Requirements
 
@@ -199,8 +222,8 @@ gstack 基於 Claude Code 執行環境，其 slash commands 無法在 Copilot �
 
 Workflow: COMPLETE
 Step: 6 of 6
-Last activity: 2026-03-31 — P5 complete
-Next step: Human review, commit staged changes, then absorb remaining follow-up docs if needed
+Last activity: 2026-03-31 — marked as completed precursor and retained as execution record for cross-ai orchestrator follow-up
+Next step: keep this file until downstream references are migrated and remaining runtime/orchestrator gaps are closed in `gal-cross-ai-orchestrator.prompt.md`
 
 ### Deviations
 
@@ -217,6 +240,8 @@ Next step: Human review, commit staged changes, then absorb remaining follow-up 
 2026-03-31 補充：以上「除 `/codex` 外」的範圍限制僅指 `/codex` slash command（gstack second-opinion workflow）。Codex CLI 作為 GAL runtime target 的支援已透過 `AGENTS.md` 機制獨立實作（見 `docs/installation-topology.md` Cross-CLI Support Matrix），不受本計畫限制。
 
 2026-03-30 補充決策：目前 `/gal` surface 仍帶有 inherited GSD 命名殘留，使用者無法從 `/gal next`、`/gal pause` 等名稱直接理解整合作用，因此本計畫新增 P0 先重做 control-plane command surface。已確定 `/gal next` 改為 `/gal whats-next`；`/gal pause` 改為 `/gal wrap-up`；`/gal plan` 與 `/gal sync` 自 public command surface 移除；`/gal init` 與 `/gal research` 保留現名；`/gal status` 保留現名但必須重寫為完整 state projection。此外，舊 GAL 的 `Active Skills` + `gal sync` 靜態 allowlist 設計不再視為主要 routing 架構，後續改採 gstack-style runtime routing。
+
+2026-03-31 更新：經與 `gal-cross-ai-orchestrator.prompt.md` 對照後確認，這份 plan 的重疊範圍已基本完成，但 orchestrator runtime、本地 state layer 補齊、tier / golem public model 退場、execution endpoints 仍屬後續工作。因此本檔改標記為 completed precursor，而不是直接刪除。
 
 ## Test Results
 

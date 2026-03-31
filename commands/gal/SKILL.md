@@ -7,6 +7,12 @@ description: "GAL — workflow control plane. /gal init · /gal status · /gal w
 
 GAL control-plane entry point. Route based on the subcommand provided.
 
+## Runtime Invocation Note
+
+- In Copilot and Gemini command surfaces, this skill appears conceptually as `/gal`.
+- In Codex CLI, custom skills are invoked via `/skills` or `$gal`, not `/gal`.
+- For Codex explicit invocation, phrase the request like `$gal status` or `$gal init`.
+
 ## Command Routing
 
 | Subcommand | What It Answers | Action |
@@ -44,11 +50,11 @@ The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no infe
 
 ## Non-Script Procedures
 
-For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load and follow the corresponding skill:
+For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load and follow the corresponding installed skill:
 
-- `status` → load `~/.copilot/skills/gal-status/SKILL.md` procedure
-- `whats-next` → load `~/.copilot/skills/gal-whats-next/SKILL.md` procedure
-- `wrap-up` → load `~/.copilot/skills/gal-wrap-up/SKILL.md` procedure
+- `status` → load the installed `gal-status` skill procedure
+- `whats-next` → load the installed `gal-whats-next` skill procedure
+- `wrap-up` → load the installed `gal-wrap-up` skill procedure
 
 ## Legacy Commands
 
