@@ -25,7 +25,7 @@ Your job: Accept knowledge that doesn't belong in a code repo and write it to th
 <classification>
 - **Category**: Domain
 - **Bound to state**: none (cross-workflow capable)
-- **Tier activation**: all tiers
+- **Risk weight activation**: all
 - **Required skills**: obsidian-knowledge-management, obsidian-cli, local-first-search, obsidian-markdown, obsidian-bases
 </classification>
 

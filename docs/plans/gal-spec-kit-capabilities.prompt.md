@@ -16,11 +16,21 @@
 
 目前 GAL 已有成熟的 control-plane 與 specialist chain：`/office-hours` 建 plan，`/plan-ceo-review`、`/plan-design-review`、`/plan-eng-review` 產生規劃與審查結果，`/review`、`/qa`、`/ship` 在後續階段消費這些結果。
 
+另外，repo 的對外文件已比這份計畫初稿更前進：`README.md` 與 `README.zh-Hant.md` 已經完成 control-plane / specialist layer、Codex/Copilot/Gemini 呼叫方式，以及現有 canonical artifacts 的對齊。這代表本計畫現在不是從零開始補 README，而是要在既有 README 基礎上補上 clarify / tasks / analyze 對 plan artifact 的影響。
+
 現況缺口不在 command 數量，而在 plan artifact 缺三個中間層能力：
 
-- 缺少正式的 clarify surface：不確定性雖存在於 `office-hours` forcing questions、CEO review 的 ambiguities、Eng review 的 architecture decisions 中，但沒有統一落點。
+- 缺少正式的 clarify surface：不確定性雖存在於 `office-hours` forcing questions、CEO review 的 ambiguities、Eng review 的 architecture decisions 中，但目前仍只散落在自由文字與 review prose 中，沒有統一落點。
 - 缺少正式的 tasks surface：`plan-eng-review` 已能形成 test matrix 與 buildable plan，但沒有將 implementation work breakdown 寫成 canonical tasks list。
 - 缺少正式的 drift analysis surface：`/review`、`/ship`、`/gal status` 能看到 review/test 結果，但尚不能系統性回答「requirements、tasks、implementation、tests 是否仍一致」。
+
+目前 repo 內真正需要補的是「plan shape 與使用者文件以外的內部 contract」：
+
+- `templates/plan.md` 仍是舊版 scaffold，只有 `## Risks and Open Questions`，沒有 `## Open Questions`、`## Tasks`、`## Analyze`
+- `commands/office-hours/SKILL.md` 仍會產出舊版 plan 結構
+- `workflows/coding.md` 與 `agent/golem-planner.agent.md` 仍描述舊的 plan shape 與舊欄位名稱
+- `commands/gal-status/SKILL.md` 目前只讀 `## Status`、`## Review Results`、`## Test Results`、`### Handoff Notes`
+- `commands/plan-eng-review/SKILL.md` 目前只寫 `## Review Results` 與 `## Test Plan`
 
 spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。從 GAL 現有架構來看，最適合的導入方式不是新增獨立 `/clarify`、`/analyze`、`/tasks` 命令，而是把能力嵌入既有命令鏈：
 
@@ -42,6 +52,7 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 - [ ] `/review` 必須能檢查 implementation 與 `## Tasks` / `## Requirements` 是否 drift，並將結果寫入 `## Analyze`
 - [ ] `/ship` 必須能把 `## Open Questions`、`## Tasks`、`## Analyze` 納入 readiness gate
 - [ ] `/gal status` 與 `/gal whats-next` 必須能讀取這三個 section，投影問題數量、任務完成度與 drift 狀態
+- [ ] `workflows/coding.md` 與 `agent/golem-planner.agent.md` 必須改寫為新的 plan shape，避免 planner 文件與實際 contract 漂移
 - [ ] 功能完成後，`README.md` 與 `README.zh-Hant.md` 必須同步更新，說明新增的 plan sections 與使用者可見的 workflow 變化
 - [ ] 既有 `## Review Results`、`## Test Plan`、`## Test Results` contract 不得被破壞
 - [ ] 本計畫不得引入新的 public command，也不得要求使用者學一組新的 slash commands
@@ -52,11 +63,13 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 
 - **Scope**
   - 更新 `templates/plan.md`，新增 `## Open Questions`、`## Tasks`、`## Analyze`
+  - 更新 `workflows/coding.md`，把 workflow 對 plan scaffold 與 lifecycle 的描述改為新的 section 結構
+  - 更新 `agent/golem-planner.agent.md`，確保 planner agent 產出的 plan 形狀與 template 一致
   - 在 `docs/gstack-command-contracts.md` 中補上這三個 section 的 ownership 與 produce / re-check / consume 關係
   - 在 `docs/gal-control-plane-contracts.md` 中補上 `/gal status`、`/gal whats-next` 對這三個 section 的讀取責任
 
-- **Files**: `templates/plan.md`, `docs/gstack-command-contracts.md`, `docs/gal-control-plane-contracts.md`
-- **Verify**: plan artifact 本身已能作為 clarify / tasks / analyze 的 canonical 容器，且控制平面知道如何讀取它們
+- **Files**: `templates/plan.md`, `workflows/coding.md`, `agent/golem-planner.agent.md`, `docs/gstack-command-contracts.md`, `docs/gal-control-plane-contracts.md`
+- **Verify**: plan artifact 本身已能作為 clarify / tasks / analyze 的 canonical 容器，且 template、workflow、planner agent 與控制平面對這個形狀有一致理解
 
 ### P1: Clarify Integration
 
@@ -102,6 +115,8 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 ## Files to Create or Modify
 
 - `templates/plan.md` — 擴充 plan canonical sections，加入 clarify / tasks / analyze 容器
+- `workflows/coding.md` — 對齊新的 plan sections 與 workflow lifecycle 說明
+- `agent/golem-planner.agent.md` — 對齊 planner 輸出的 plan 結構
 - `docs/gstack-command-contracts.md` — 補上各 command 對新 sections 的 produce / re-check / consume 契約
 - `docs/gal-control-plane-contracts.md` — 補上 control-plane 對新 sections 的讀取與決策責任
 - `commands/office-hours/SKILL.md` — 將未收斂問題寫入 `## Open Questions`
@@ -118,6 +133,7 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 ## Test Cases
 
 - [ ] 建立新 plan 後，`## Open Questions`、`## Tasks`、`## Analyze` 三個 section 皆存在且為空 scaffold
+- [ ] `workflows/coding.md` 與 `agent/golem-planner.agent.md` 對 plan 欄位的描述已改為新 scaffold，不再停留在舊版 `Risks and Open Questions` / `Approach` 心智模型
 - [ ] 執行 `/office-hours` 後，未解答的假設會被寫入 `## Open Questions`
 - [ ] 執行 `/plan-ceo-review` 後，scope ambiguities 會被追加到 `## Open Questions`
 - [ ] 執行 `/plan-eng-review` 並通過後，plan 會生成可勾選的 `## Tasks`
@@ -132,11 +148,13 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 - [ ] GAL 在不新增 public commands 的前提下，吸收 spec-kit 最有價值的 clarify / tasks / analyze 能力
 - [ ] plan artifact 成為從規劃、實作、審查到發佈的一致性主軸，而不只是一份 kickoff 文檔
 - [ ] 使用者能從單一 plan 看出還有哪些問題未決、實作該做哪些事、以及是否已發生 drift
+- [ ] template、workflow 文件、planner agent、specialist skills 與 control-plane 對 plan shape 的理解重新收斂，不再同時存在舊版與新版 scaffold
 - [ ] README 與 README.zh-Hant 的敘述與新 artifact contract 保持一致，避免使用者文件落後於實作
 - [ ] control-plane 與 specialist layer 的既有分工保持成立，沒有因導入 spec-kit 概念而長出第二套 workflow
 
 ## Risks and Open Questions
 
+- 目前 README 已先行對齊既有 command surface，若內部 contract 升級節奏過慢，會出現「對外文件比實際 plan contract 更進一步」的第二層 drift
 - 若 `## Tasks` 粒度過粗，會重複 `## Approach`；若過細，則維護成本過高
 - 若 `## Analyze` 寫得太抽象，最後會退化成另一段 review prose，而不是可消費的 drift signal
 - 若 `clarify` 沒有清楚定義 resolved 規則，`## Open Questions` 容易累積過期問題
@@ -152,18 +170,21 @@ spec-kit 的價值不在於取代 GAL，而在於把這三個薄弱層補齊。�
 ## Status
 
 Workflow: DRAFT
-Step: 0 of 4
-Last activity: 2026-03-31 — plan created from spec-kit gap analysis
-Next step: confirm whether clarify / tasks / analyze should all land in one batch or be phased with plan contract first
+Step: 1 of 4
+Last activity: 2026-03-31 — repo audit refreshed; README baseline confirmed, internal plan contract drift identified
+Next step: land P0 first across template, workflow, planner agent, and contracts before touching specialist behavior
 
 ### Deviations
 
 | Step | Plan Said | Actually Did | Why |
 | --- | --- | --- | --- |
+| P4 | Treat README alignment as a later documentation phase | README / README.zh-Hant are already aligned to the current command surface baseline; remaining README work is only about the new plan sections | The repo moved forward after the first draft, so README is no longer the slowest part of this plan |
 
 ### Handoff Notes
 
 這份計畫刻意採最小變更策略：不新增 `/clarify`、`/analyze`、`/tasks` 三個獨立命令，而是把這些能力嵌入既有 planning → review → ship 鏈條。這樣既能借到 spec-kit 的結構化優勢，也不會破壞 GAL 已形成的命令心智模型。
+
+2026-03-31 repo audit 補充：對外 README 已完成目前 command surface 與 artifact baseline 的整理，但 template、planner、workflow、control-plane 與 specialist skills 仍停留在舊 plan shape。真正的第一步不是先改 README，而是先讓內部 contract 收斂，再把新 sections 補回 README。
 
 ## Test Results
 

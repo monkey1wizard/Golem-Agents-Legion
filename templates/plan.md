@@ -4,9 +4,9 @@
 
 [What this change accomplishes and why it matters — stated as a truth that must hold when done]
 
-## Tier
+## Risk Weight
 
-[T0 | T1 | T2]
+[Trivial | Standard | Strategic]
 
 ## Review Pack
 
@@ -64,7 +64,7 @@
 Workflow: DRAFT
 Step: 0 of N
 Last activity: YYYY-MM-DD — plan created
-Next step: [classify tier, fill review pack]
+Next step: [assess risk weight, select review pack]
 
 ### Deviations
 
@@ -73,16 +73,16 @@ Next step: [classify tier, fill review pack]
 
 ### Handoff Notes
 
-[Context from `gal pause` — key insights, unresolved questions, current hypothesis]
+[Context from /gal wrap-up — key insights, unresolved questions, current hypothesis]
 
 ## Test Results
 
-[Written by tester golem after TEST phase]
+[Written by tester specialist after TEST phase]
 
 ## Review Results
 
-[Written by reviewer golem after REVIEW phase]
+[Written by reviewer specialist after REVIEW phase]
 
 ## Debug Log
 
-[Written by debugger golem if debugging occurs during this plan]
+[Written by debugger specialist if debugging occurs during this plan]

@@ -5,23 +5,23 @@ Every AI agent follows this workflow. Tool-agnostic: works with Copilot, Gemini 
 
 Cross-model verification is the default guardrail: planning, testing, and review should be done by different models whenever a separate capable model is available.
 
-## Tier System
+## Risk Weight
 
-Not every change needs the same process. Tier determines which states are active.
+Not every change needs the same process. **Risk weight** determines which states are active.
 
-| Tier | When | States | Plan? | Architect | Designer | Analyst | Reviewer |
+| Weight | When | States | Plan? | Architect | Designer | Analyst | Reviewer |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| T0 (Trivial) | Typo fix, obvious bug, single-file edit | IMPLEMENT → TEST? → VERIFY? | No | No (consult OK) | No | No | No |
-| T1 (Standard) | Small feature, known-cause bug fix, 2-3 files | PLAN → IMPLEMENT → TEST → REVIEW → VERIFY | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
-| T2 (Strategic) | New feature, arch change, high-risk, cross-cutting | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
+| **Trivial** | Typo fix, obvious bug, single-file edit | IMPLEMENT → TEST? → VERIFY? | No | No (consult OK) | No | No | No |
+| **Standard** | Small feature, known-cause bug fix, 2–3 files | PLAN → IMPLEMENT → TEST → REVIEW → VERIFY | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
+| **Strategic** | New feature, arch change, high-risk, cross-cutting | PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
 
-**Upgrade rule**: Any tier can upgrade to T2 mid-flight if complexity exceeds expectations. Stop, create/upgrade the plan, engage architect-full.
+**Upgrade rule**: Any change can escalate to Strategic mid-flight if complexity exceeds expectations. Stop, create/upgrade the plan, engage architect-full.
 
-Tiering is about how many guardrails the task needs, not about whether the task is morally "important." T0 minimizes ceremony, T1 adds cheap structural protection, and T2 buys explicit review gates when a wrong move would be expensive.
+Risk weight is about how many guardrails the task needs, not about whether the task is morally "important." Trivial minimizes ceremony; Standard adds cheap structural protection; Strategic buys explicit review gates when a wrong move would be expensive.
 
 ## State Machine
 
-### T2 (Full)
+### Strategic (Full)
 
 ```text
 IDLE → PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERIFY → DONE
@@ -29,7 +29,7 @@ IDLE → PLAN → DISCUSS → APPROVE → IMPLEMENT → TEST → REVIEW → VERI
                                        └──────── (verify failed) ─────────┘
 ```
 
-### T1 (Standard)
+### Standard
 
 ```text
 IDLE → PLAN → IMPLEMENT → TEST → REVIEW(lite) → VERIFY → DONE
@@ -37,13 +37,13 @@ IDLE → PLAN → IMPLEMENT → TEST → REVIEW(lite) → VERIFY → DONE
                  └──────── (verify failed) ──────────┘
 ```
 
-### T0 (Trivial)
+### Trivial
 
 ```text
 IDLE → IMPLEMENT → DONE
 ```
 
-T0 may optionally run TEST and VERIFY, but they are not required.
+Trivial may optionally run TEST and VERIFY, but they are not required.
 
 ## State Definitions
 
@@ -53,26 +53,26 @@ No active work. Waiting for a new task.
 
 ### PLAN
 
-- **Entry**: New feature or complex change identified (T1/T2).
+- **Entry**: New feature or complex change requiring a plan (Standard/Strategic).
 - **Actions**:
   - Read `.dev/project.md` for architecture context.
   - Read `.dev/state.md` for current position and active plans.
   - Read relevant `docs/` if project.md points to them.
   - Create `docs/plans/<type>-<slug>.prompt.md` using the plan template.
-  - Fill in: Goal, Tier, Review Pack, Requirements, Approach, Files, Test Cases, Risks, Success Criteria.
-- For T2, the adversarial plan review is handled by `architect-full` and `designer`, both using different models from `planner`.
-- **Golem**: planner
+  - Fill in: Goal, Risk Weight, Review Pack, Requirements, Approach, Files, Test Cases, Risks, Success Criteria.
+- For Strategic weight, the adversarial plan review is handled by `architect-full` and `designer`, both using different models from the planner.
+- **Specialist**: planner
 - **Exit**: Plan file created with all sections filled.
 - **Checkpoint**: HUMAN — review plan before proceeding.
 
-### DISCUSS (T2 only)
+### DISCUSS (Strategic only)
 
 - **Entry**: Plan exists, needs adversarial review before implementation by a different model.
 - **Actions**:
   - **Review Pack** reviews the plan (see Review Pack section below) with `architect-full` and `designer` as separate models.
   - Resolve items in Risks / Open Questions.
   - Refine approach based on feedback.
-- **Golems**: architect-full (mandatory) + designer (mandatory) + analyst (conditional) + others per task
+- **Specialists**: architect-full (mandatory) + designer (mandatory) + analyst (conditional) + others per task
 - **Verdicts**: Each reviewer issues APPROVE / REVISE / REJECT
   - All required reviewers APPROVE → proceed to human approval
   - Any REVISE → planner updates plan, re-review
@@ -80,7 +80,7 @@ No active work. Waiting for a new task.
 - **Exit**: All required reviewers issue APPROVE, all open questions resolved.
 - **Checkpoint**: HUMAN — confirm questions addressed.
 
-### APPROVE (T2 only)
+### APPROVE (Strategic only)
 
 - **Entry**: Plan is complete and reviewed.
 - **Actions**: Human reads the plan and decides go / no-go.
@@ -89,13 +89,13 @@ No active work. Waiting for a new task.
 
 ### IMPLEMENT
 
-- **Entry**: Approved plan (T1/T2) or direct task (T0).
+- **Entry**: Approved plan (Standard/Strategic) or direct task (Trivial).
 - **Actions**:
   - Write code following the plan. Check off items as completed.
   - Reference the plan file in commit messages.
   - Update plan's `## Status` section with progress (not state.md).
-  - Observe the Scope Fence (T0/T1) — see below.
-- **Golem**: implementer
+  - Observe the Scope Fence for Trivial/Standard work — see below.
+- **Specialist**: implementer
 - **Exit**: All implementation steps in the plan are checked.
 - **Checkpoint**: NONE — agent works autonomously within the approved plan.
 
@@ -108,22 +108,22 @@ No active work. Waiting for a new task.
   - **NEVER read implementation code** (independent verification).
   - Run tests and fix failures.
   - Write summary to plan's `## Test Results` section.
-- **Golem**: tester — **must be a different model from implementer**.
+- **Specialist**: tester — **must be a different model from implementer**.
 - **Exit**: All test cases from the plan pass.
 - **Checkpoint**: NONE — report results to human.
 
 ### REVIEW
 
 - **Entry**: All tests pass.
-- **Actions (T2 — full)**:
+- **Actions (Strategic — full)**:
   - Different model reviews for: bugs, OWASP Top 10, architecture, conventions.
   - REVIEW is a higher-level check than TEST; it should not be used as a substitute for test generation.
   - Report findings with severity: BLOCKING / WARNING / INFO.
   - Write findings to plan's `## Review Results` section.
-- **Actions (T1 — lite)**:
+- **Actions (Standard — lite)**:
   - Correctness + architecture only. Skip full OWASP scan.
   - Still mandatory — catches Scope Fence violations the implementer missed.
-- **Golem**: reviewer — **should be a different model from implementer**.
+- **Specialist**: reviewer — **should be a different model from implementer**.
 - **Exit**: No blocking issues, or blocking issues fixed.
 - **Checkpoint**: HUMAN — if blocking issues found.
 
@@ -137,7 +137,7 @@ No active work. Waiting for a new task.
   - Confirm related knowledge has been extracted to `docs/`.
   - Mark plan status as ABSORBED.
   - Delete the plan file.
-- **Golem**: verifier
+- **Specialist**: verifier
 - **Exit**: All green, plan absorbed and deleted.
 - **Checkpoint**: HUMAN — final sign-off before merge.
 
@@ -149,10 +149,10 @@ No active work. Waiting for a new task.
   - Clean up: close related issues, remove worktree if used.
 - **Exit**: Back to IDLE.
 
-## Review Pack (T2)
+## Review Pack (Strategic)
 
-T2 uses a fixed core review pack plus conditional specialists.
-Current default policy includes `designer` in every T2 review, even for technical tasks.
+Strategic weight uses a fixed core review pack plus conditional specialists.
+Current default policy includes `designer` in every Strategic review, even for technical tasks.
 
 ### Always included
 
@@ -169,7 +169,7 @@ Current default policy includes `designer` in every T2 review, even for technica
 
 The condition is: **all required reviewers in the pack APPROVE**. If analyst is not in the pack, analyst approval is not needed.
 
-### When analyst is NOT needed (T2 examples)
+### When analyst is NOT needed (Strategic examples)
 
 - Pure technical refactoring
 - Infrastructure / build / CI changes
@@ -177,25 +177,25 @@ The condition is: **all required reviewers in the pack APPROVE**. If analyst is 
 - Dependency upgrades
 - Bug fixes where business semantics don't change
 
-T2 does not automatically imply analyst involvement. T2 means technical or delivery risk; analyst is added only when the change also carries business or customer-facing meaning.
+Strategic weight does not automatically imply analyst involvement. Strategic means technical or delivery risk; analyst is added only when the change also carries business or customer-facing meaning.
 
 ## Architect Modes
 
-| Mode | Tier | Scope |
+| Mode | Weight | Scope |
 | --- | --- | --- |
-| **Lite** | T1 (default on) | Structure risk only: cross-layer, DI/interface/public API, protected paths, obvious over-engineering |
-| **Full** | T2 (mandatory) | Complete trade-off review: all 6 dimensions (architecture fit, complexity budget, trade-offs, bug surface, performance, security) |
+| **Lite** | Standard (default on) | Structure risk only: cross-layer, DI/interface/public API, protected paths, obvious over-engineering |
+| **Full** | Strategic (mandatory) | Complete trade-off review: all 6 dimensions (architecture fit, complexity budget, trade-offs, bug surface, performance, security) |
 | **Consult** | Any | Human-initiated, no formal verdict. Ask architect for advice without entering DISCUSS. |
 
-This split exists because architect review is most useful when it is frequent enough to catch drift but not so heavy that trivial work pays a T2 tax.
+This split exists because architect review is most useful when it is frequent enough to catch drift but not so heavy that trivial work pays a Strategic-weight tax.
 
-## Scope Fence (T0/T1)
+## Scope Fence (Trivial/Standard)
 
-T0/T1 lack full architect review. To prevent accidental architecture damage, a dual-layer defence applies.
+Trivial and Standard weight changes lack full architect review. To prevent accidental architecture damage, a dual-layer defence applies.
 
 ### Layer 1 — Implementer Scope Fence (Prevention)
 
-The implementer's instruction set includes a **T0/T1 prohibited operations list**. Triggering any item requires stopping and requesting T2 upgrade:
+The implementer's instruction set includes a **Trivial/Standard prohibited operations list**. Triggering any item requires stopping and requesting a Strategic upgrade:
 
 - Create or delete project files (.csproj, .sln, package.json, etc.)
 - Add or remove package dependencies
@@ -206,13 +206,13 @@ The implementer's instruction set includes a **T0/T1 prohibited operations list*
 - Introduce new design patterns
 - Modify shared/core/base classes used by 3+ consumers
 
-### Layer 2 — T1 Mandatory Reviewer (Detection)
+### Layer 2 — Standard Mandatory Reviewer (Detection)
 
-T1's reviewer is mandatory (not optional), but checks only two dimensions: **correctness + architecture**. This catches Scope Fence violations the implementer missed, without the overhead of a full OWASP scan.
+Standard weight's reviewer is mandatory (not optional), but checks only two dimensions: **correctness + architecture**. This catches Scope Fence violations the implementer missed, without the overhead of a full OWASP scan.
 
 ## Protected Paths
 
-Each repo's `.dev/project.md` contains a `## Protected Paths` section listing architecture-critical files. The implementer touching any protected path during T0/T1 work **automatically triggers T2 upgrade**.
+Each repo's `.dev/project.md` contains a `## Protected Paths` section listing architecture-critical files. The implementer touching any protected path during Trivial/Standard work **automatically triggers a Strategic upgrade**.
 
 ## Plan Lifecycle: Transient Task Memory
 
@@ -252,7 +252,7 @@ Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 | Repo-level blockers, cross-plan decisions | **state.md** |
 | Session continuity (last session, stopped at, next step) | **state.md** |
 
-## `gal pause`: Context Handoff
+## Context Handoff
 
 Before switching worktrees or ending a session:
 
@@ -266,12 +266,12 @@ This is manually triggered — the AI doesn't know when you're switching context
 
 | Type | Allowed | Examples |
 | --- | --- | --- |
-| **Consult** | Yes — read-only advice, no state change | `gal ask architect`, `gal ask analyst` |
-| **Utility** | Yes — independent of workflow state | `gal run debugger`, `gal run scribe` |
-| **Workflow-bound** | Yes — consult only unless already bound by current state | `gal golem-tester`, `gal golem-reviewer` |
+| **Consult** | Yes — read-only advice, no state change | `/gal [ask architect]`, `/gal [ask analyst]` |
+| **Utility** | Yes — independent of workflow state | `/gal [run debugger]`, `/gal [run scribe]` |
+| **Workflow-bound** | Yes — consult only unless already bound by current state | `/gal [golem-tester]`, `/gal [golem-reviewer]` |
 
 Consult output is advice, not a formal APPROVE/REVIEW verdict. Formal verdicts come from the DISCUSS/REVIEW states only.
-Explicitly naming a workflow golem never overrides the workflow gates; only the dispatcher can activate it in `bound` mode for the current state.
+Explicitly naming a workflow specialist never overrides the workflow gates; only the dispatcher can activate it in `bound` mode for the current state.
 
 ## Per-Phase Model Assignment
 

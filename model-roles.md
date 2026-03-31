@@ -21,24 +21,6 @@ Default principle: formal cross-checks should use a different model from the one
 | LIBRARIAN | Obsidian vault writes — inbox processing, knowledge extraction | Guide.md compliance, knowledge classification |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
-## Model Tiers
-
-Models are classified by capability tier. This drives activation rules.
-
-| Tier | Label | Roles | When to Use |
-| --- | --- | --- | --- |
-| 1 | **Frontier** | PLANNER, ARCHITECT, ANALYST, DESIGNER, RESEARCHER | Strong reasoning required — planning, trade-off analysis, business logic, design critique, research synthesis |
-| 2 | **Standard** | CODER, TESTER, REVIEWER | Execution tasks — implementation, testing, code review |
-| 3 | **Low-cost** | SCRIBE, LIBRARIAN, LOCAL | Low-stakes tasks — diary writing, vault writes, quick notes, offline |
-
-### Tier Rules
-
-- **Reviewer model tier ≥ implementer (CODER) model tier** — the reviewer must be at least as capable as the code it reviews.
-- **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test authoring, and usually stronger.
-- **Architect-full requires Tier 1** — trade-off analysis needs frontier reasoning.
-- **Architect-lite can use Tier 2** — structural checks don't need full reasoning power.
-- **Within the same tier, prefer model diversity** — different models catch different blind spots.
-
 ## Routing Rules
 
 1. **PLAN review is a different-model check** — `PLANNER` and `ARCHITECT` must be different models.
@@ -51,17 +33,9 @@ Models are classified by capability tier. This drives activation rules.
 8. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
 9. When switching tools, update the **Current Mapping** table below only
 
-## Architect Activation by Tier
+## Review Pack Rules (Full Review)
 
-| Coding Flow Tier | Architect Mode | Model Tier Required |
-| --- | --- | --- |
-| T0 (Trivial) | Off (consult OK) | — |
-| T1 (Standard) | Lite (default on) | Tier 2+ |
-| T2 (Strategic) | Full (mandatory) | Tier 1 |
-
-## Review Pack Rules (T2)
-
-The T2 review pack has a fixed core plus conditional specialists:
+The Strategic review pack has a fixed core plus conditional specialists:
 
 | Reviewer | When Included | Verdict Required? |
 | --- | --- | --- |
@@ -76,8 +50,8 @@ Entry to IMPLEMENT: **all required reviewers APPROVE**. If analyst is not in pac
 ## Typical Workflow (Single Developer)
 
 ```text
-1. PLAN    → Use a frontier-tier model (interactive or async), then cross-check it with a different model in T2
-2. IMPLEMENT → Use a standard-tier coding agent — follow the approved plan
+1. PLAN    → Use a frontier-class model (interactive or async), then cross-check it with a different model for Strategic weight
+2. IMPLEMENT → Use a standard coding agent — follow the approved plan
 3. TEST    → Use a DIFFERENT model — feed it plan + public interfaces only; this is usually basic unit/integration coverage
 4. REVIEW  → Use a DIFFERENT model again — bugs, security, architecture; this should be a higher-level check than TEST
 5. VERIFY  → Run full test suite, confirm all plan items implemented

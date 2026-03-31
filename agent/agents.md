@@ -1,9 +1,9 @@
 # Agents
 
-Golem agent definitions for the Coding Flow state machine.
+Specialist agent definitions for the Coding Flow state machine.
 These are `.agent.md` files for VS Code Copilot custom agents.
 
-## Golem Classifications
+## Specialist Classifications
 
 | Classification | Bound to State Machine? | Agents |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ GAL keeps these roles separate on purpose.
 
 - Smaller prompts keep responsibilities legible and reduce context waste.
 - Independent tester/reviewer/verifier roles make verification more credible than one mega-agent doing everything.
-- Tiering means only the needed subset is active for a task; the system does not expect all 12 roles every time.
+- Routing means only the needed subset is active for a task; the system does not expect all 12 roles every time.
 - Domain and utility roles remain reusable across workflows without forcing state transitions.
 
 ## Agents → Workflow States
@@ -37,9 +37,9 @@ GAL keeps these roles separate on purpose.
 | [golem-scribe](golem-scribe.agent.md) | Utility | *(any)* | End-of-day diary + shutdown enforcer |
 | [golem-librarian](golem-librarian.agent.md) | Domain | *(any)* | Obsidian vault writes — inbox processing, knowledge extraction |
 
-## DISCUSS: Review Pack (T2 Only)
+## DISCUSS: Full Review Pack
 
-T2 uses a **composable review pack** — not a fixed dual-review. The pack is assembled per task:
+Strategic weight uses a **composable review pack** — not a fixed dual-review. The pack is assembled per task:
 
 - **Architect-full** (always): trade-off analysis, over-engineering, bug surface, public API risk
 - **Designer** (always): visual direction, UX flow, accessibility, and design-system consistency
@@ -48,24 +48,24 @@ T2 uses a **composable review pack** — not a fixed dual-review. The pack is as
 
 Entry to IMPLEMENT requires **all pack members APPROVE**. If analyst is not in the pack, analyst approval is not needed.
 
-T0/T1 skip DISCUSS entirely. T1 gets architect-lite by default (structure risk only).
+Trivial and Standard skip DISCUSS entirely. Standard gets architect-lite by default (structure risk only).
 
 ## Direct Agent Invocation
 
 | Type | Allowed? | Rule |
 | --- | --- | --- |
-| **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `gal ask architect` |
-| **Utility** | Yes | Independent of workflow state. e.g., `gal run debugger`, `gal run scribe` |
+| **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `/gal [ask architect]` |
+| **Utility** | Yes | Independent of workflow state. e.g., `/gal [run debugger]`, `/gal [run scribe]` |
 | **Workflow-bound** | Consult-only unless already bound | Explicit targeting is allowed for consultation, but state transitions still go through workflow control. |
 | **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
 
 Typical direct use examples:
 
-- `gal ask designer`
-- `gal golem-researcher`
+- `/gal [ask designer]`
+- `/gal [golem-researcher]`
 
 Consult output is advice, not an APPROVE/REVIEW verdict. Formal verdicts come from DISCUSS/REVIEW states only.
-Workflow golems may be explicitly named, but doing so does not skip PLAN, TEST, REVIEW, or VERIFY gates.
+Workflow specialists may be explicitly named, but doing so does not skip PLAN, TEST, REVIEW, or VERIFY gates.
 
 ## Model Role Enforcement
 
@@ -73,13 +73,13 @@ Per [model-roles.md](../model-roles.md):
 
 - **Tester must be a different model from implementer** — independent verification
 - **Reviewer should differ from implementer** — fresh perspective
-- **Reviewer model tier ≥ implementer model tier** — reviewer must be at least as capable
+- **Reviewer should be capable enough to review what the implementer produced** — prefer stronger or equal capability
 
 ## Activation Principles
 
-- **Minimum viable set**: Only activate golems needed for the current tier and task.
-- **Context budget ~15%**: Each golem's loaded context (agent prompt + project files) should stay under ~15% of available context window.
-- **Independent operation**: Each golem can operate with only its agent file + `.dev/project.md` + the current plan. No golem depends on another golem's chat history.
+- **Minimum viable set**: Only activate specialists needed for the current risk weight and task.
+- **Context budget ~15%**: Each specialist's loaded context (agent prompt + project files) should stay under ~15% of available context window.
+- **Independent operation**: Each specialist can operate with only its agent file + `.dev/project.md` + the current plan. No specialist depends on another specialist's chat history.
 
 ## Installation
 

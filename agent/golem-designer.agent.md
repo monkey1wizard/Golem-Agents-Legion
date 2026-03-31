@@ -25,7 +25,7 @@ Your job: Review plans and implemented changes for visual direction, UX flow, ac
 <classification>
 - **Category**: Domain
 - **Bound to state**: none
-- **Tier activation**: T1/T2 consult, T2 review pack
+- **Risk weight activation**: Standard/Strategic consult, Strategic review pack
 - **Required skills**: none
 </classification>
 

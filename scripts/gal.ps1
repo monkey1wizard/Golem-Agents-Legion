@@ -12,13 +12,13 @@ function Show-Usage {
     Write-Host "Usage: gal <command> [args]"
     Write-Host ""
     Write-Host "Commands:"
-    Write-Host "  init [targetPath] [projectName]   Initialize .dev/ and docs/plans/"
-    Write-Host "  plan [-Type <type>] <name>        Create a draft plan file from template"
-    Write-Host "  status                            Show current workflow status from .dev/state.md"
-    Write-Host "  next                              Show the next step from .dev/state.md"
-    Write-Host "  pause                             Commit .dev/ context for worktree handoff"
-    Write-Host "  sync                              Run Sync-DevContext if available"
-    Write-Host "  dispatch [subcommand|golem] [text] Auto-detect state or invoke named golem"
+    Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
+    Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
+    Write-Host ""
+    Write-Host "Script-dispatched subcommands: init, research"
+    Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
+    Write-Host ""
+    Write-Host "Deprecated (removed): plan, status, next, pause, sync — see docs/gal-control-plane-contracts.md"
 }
 
 function ConvertTo-Slug([string]$Value) {
@@ -97,120 +97,33 @@ switch ($Command) {
         break
     }
     "plan" {
-        $planType = "feat"
-        $nameArgs = @()
-
-        for ($i = 0; $i -lt $Arguments.Count; $i++) {
-            if ($Arguments[$i] -eq "-Type" -and ($i + 1) -lt $Arguments.Count) {
-                $planType = $Arguments[$i + 1]
-                $i++
-            } else {
-                $nameArgs += $Arguments[$i]
-            }
-        }
-
-        if ($nameArgs.Count -eq 0) {
-            throw "Usage: gal plan [-Type <type>] <name>"
-        }
-
-        $planName = ($nameArgs -join " ").Trim()
-        $slug = ConvertTo-Slug $planName
-        $plansDir = Join-Path (Get-Location).Path "docs\plans"
-        $planTemplatePath = Join-Path $repoRoot "templates\plan.md"
-        $planTargetPath = Join-Path $plansDir ("{0}-{1}.prompt.md" -f $planType, $slug)
-
-        if (-not (Test-Path $planTemplatePath)) {
-            throw "Missing template: $planTemplatePath"
-        }
-
-        New-Item -ItemType Directory -Force -Path $plansDir | Out-Null
-
-        if (Test-Path $planTargetPath) {
-            throw "Plan already exists: $planTargetPath"
-        }
-
-        $content = Get-Content -Path $planTemplatePath -Raw
-        $content = $content -replace "\[Feature Name\]", $planName
-        Set-Content -Path $planTargetPath -Value $content
-
-        Write-Host "Created plan scaffold: $planTargetPath"
-        Write-Host "Next: classify T0/T1/T2 and fill Review Pack before implementation."
-        break
+        Write-Host "ERROR: 'gal plan' has been removed from the public command surface." -ForegroundColor Red
+        Write-Host "Planning is specialist work. Use /office-hours, /autoplan, or /plan-eng-review instead."
+        exit 1
     }
     "status" {
-        $statePath = Get-StatePath
-        if (-not (Test-Path $statePath)) {
-            throw "Missing .dev/state.md in current directory. Run gal init first."
-        }
-        $stateContent = Get-Content -Path $statePath
-        $interestingLines = $stateContent | Where-Object {
-            $_ -match "^Workflow:" -or $_ -match "^Plan:" -or $_ -match "^Step:" -or $_ -match "^Last activity:" -or $_ -match "^Last session:" -or $_ -match "^Next step:"
-        }
-
-        Write-Host ("State file: {0}" -f $statePath)
-        $interestingLines | ForEach-Object { Write-Host $_ }
-        break
+        Write-Host "ERROR: 'gal status' has been removed from the public command surface." -ForegroundColor Red
+        Write-Host "Use /gal status or /gal-status in chat for full state projection."
+        exit 1
     }
     "next" {
-        $statePath = Get-StatePath
-        if (-not (Test-Path $statePath)) {
-            throw "Missing .dev/state.md in current directory. Run gal init first."
-        }
-        $nextLine = Get-Content -Path $statePath | Where-Object { $_ -match "^Next step:" } | Select-Object -First 1
-
-        if (-not $nextLine) {
-            throw "No 'Next step:' entry found in $statePath"
-        }
-
-        Write-Host $nextLine
-        break
+        Write-Host "ERROR: 'gal next' has been removed. Use /gal whats-next or /gal-whats-next in chat." -ForegroundColor Red
+        exit 1
     }
     "pause" {
-        $statePath = Get-StatePath
-        if (-not (Test-Path $statePath)) {
-            throw "Missing .dev/state.md in current directory. Run gal init first."
-        }
-        $devDir = Join-Path (Get-Location).Path ".dev"
-        $plansDir = Join-Path (Get-Location).Path "docs\plans"
-
-        Write-Host "=== gal pause: Context Handoff ==="
-        Write-Host ""
-        Write-Host "Before running this command, ask your AI session to:"
-        Write-Host "  1. Write key context to plan's ## Status > ### Handoff Notes"
-        Write-Host "  2. Update .dev/state.md Session Continuity"
-        Write-Host ""
-
-        $hasChanges = $false
-        $gitStatus = git status --porcelain -- $devDir $plansDir 2>$null
-        if ($gitStatus) {
-            $hasChanges = $true
-        }
-
-        if (-not $hasChanges) {
-            Write-Host "No uncommitted changes in .dev/ or docs/plans/. Nothing to commit."
-            break
-        }
-
-        git add $devDir $plansDir
-        git commit -m "chore: gal pause — context handoff"
-        Write-Host ""
-        Write-Host "Committed .dev/ and docs/plans/ changes. Safe to switch worktree."
-        break
+        Write-Host "ERROR: 'gal pause' has been removed. Use /gal wrap-up or /gal-wrap-up in chat." -ForegroundColor Red
+        exit 1
     }
     "sync" {
-        $syncScriptPath = Join-Path $scriptRoot "Sync-DevContext.ps1"
-        if (-not (Test-Path $syncScriptPath)) {
-            throw "Sync-DevContext.ps1 is not implemented yet. Command surface reserved; adapter generation still pending."
-        }
-
-        & $syncScriptPath @Arguments
-        break
+        Write-Host "ERROR: 'gal sync' has been removed from the public command surface." -ForegroundColor Red
+        Write-Host "Adapter generation is internal to /gal init. No manual sync step required."
+        exit 1
     }
     "dispatch" {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
 
-        $subcommands = @('init','plan','status','next','pause','sync')
+        $subcommands = @('init','research')
         if ($subcommands -contains $intent) {
             $action = "Execute the $intent workflow step."
             $onComplete = 'Report result to user.'
@@ -218,11 +131,11 @@ switch ($Command) {
             switch ($intent) {
                 'init' {
                     $action = 'Initialize .dev/ for the target repo, then surface the manual next step.'
-                    $onComplete = 'Tell the user to review .dev/project.md, curate ## Active Skills, then run /gal sync.'
+                    $onComplete = 'Tell the user to review .dev/project.md, then invoke /gal status for next steps.'
                 }
-                'sync' {
-                    $action = 'Generate .github/copilot-instructions.md and GEMINI.md from .dev/project.md.'
-                    $onComplete = 'Report which adapter files were generated and whether Active Skills validation passed.'
+                'research' {
+                    $action = 'Activate the /gal research skill for structured investigation.'
+                    $onComplete = 'Synthesize findings and surface RESEARCH_COMPLETE to the user.'
                 }
             }
 
@@ -259,7 +172,7 @@ switch ($Command) {
         if ($intent -and $subcommands -notcontains $intent) {
             Write-Dispatch @{
                 COMMAND = 'error'
-                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/plan/status/next/pause/sync) or a golem name."
+                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/research) or a golem name."
             }
             break
         }
@@ -277,8 +190,8 @@ switch ($Command) {
         if ($state -eq 'IDLE') {
             Write-Dispatch @{
                 COMMAND = 'suggest'
-                ACTION  = "Workflow is IDLE. Run '/gal plan' to create a plan or '/gal status' for details."
-                ON_COMPLETE = 'Run /gal plan'
+                ACTION  = "Workflow is IDLE. Use /office-hours or /autoplan to create a plan, or /gal status for details."
+                ON_COMPLETE = 'Run /gal status or /office-hours'
             }
             break
         }

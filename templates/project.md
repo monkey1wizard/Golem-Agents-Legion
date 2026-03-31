@@ -34,12 +34,6 @@ Template for `<repo>/.dev/project.md` — portable project context.
 | Infrastructure | Project.Infrastructure | Application, Domain |
 | Presentation | Project.Presentation | Application |
 
-## Active Skills (Optional)
-
-[Deprecated: GAL no longer requires a static skill list. Skills are activated by chat intent and
-runtime routing when specialist commands are invoked. You may keep this section as a human-readable
-note about which skill areas apply to this project, but it is not read by any command.]
-
 ## Constraints
 
 - [Constraint 1] — [reason]
@@ -90,7 +84,5 @@ note about which skill areas apply to this project, but it is not read by any co
 1. **One per repo** — lives at `<repo>/.dev/project.md`
 2. **Portable** — no tool-specific syntax, any AI can read it
 3. **Concise** — context window is precious, don't bloat
-4. **Active Skills** — optional documentation only; GAL routes to skills at runtime based on command invocation, not this list
-5. **Update on architecture changes** — not after every commit
-6. **Summary + index, not duplication** — point to canonical docs, don't copy their content
-7. **Record drift and gaps** — better to document uncertainty than ignore it
+4. **Summary + index, not duplication** — point to canonical docs, don't copy their content
+6. **Record drift and gaps** — better to document uncertainty than ignore it

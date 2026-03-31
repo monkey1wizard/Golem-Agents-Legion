@@ -10,12 +10,15 @@ Machine setup and adapter sync scripts.
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/` |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md` + `GEMINI.md` from `.dev/project.md` |
+| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
 | `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/ → ~/.copilot/ + ~/.gemini/, bake command skills, generate `gal-context.md` |
 | `setup-machine.sh` | macOS | Same for Mac |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
+| `Invoke-GalRemoteTask.ps1` | Windows | Dispatch a task to a remote LAN worker over SSH |
+| `Start-GalWorker.ps1` | Windows | Run a task on the local worker node via Gemini CLI (invoked remotely) |
+| `Get-GalRemoteResult.ps1` | Windows | Retrieve results from a completed remote task and clean up the worktree |
 
 ## Command Surface
 
@@ -43,15 +46,15 @@ Shell usage examples:
 
 ```powershell
 .\scripts\gal.ps1 init
-.\scripts\gal.ps1 status
 .\scripts\gal.ps1 dispatch
+.\scripts\gal.ps1 dispatch init
 .\scripts\gal.ps1 dispatch golem-planner
 ```
 
 ```bash
 ./scripts/gal.sh init
-./scripts/gal.sh status
 ./scripts/gal.sh dispatch
+./scripts/gal.sh dispatch init
 ./scripts/gal.sh dispatch golem-planner
 ```
 
