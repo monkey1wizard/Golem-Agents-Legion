@@ -13,7 +13,7 @@ This document defines, for each gstack command:
 **How to use this document:** When implementing a SKILL.md for command `/foo`, find the `/foo` entry in §3. The `Input reads`, `Output artifacts`, `State written to plan`, and `GAL deviation` fields are the contract your SKILL.md must honour.
 
 **Source:** `garrytan/gstack` README + `docs/skills.md` fetched from GitHub (sha `9dc42370`).  
-**Out of scope:** `/codex` (requires OpenAI Codex CLI binary; not implemented in this plan).
+**Out of scope:** `/codex` slash command (requires OpenAI Codex CLI binary; not implemented in this plan). Note: Codex CLI is supported as a GAL *runtime target* via `AGENTS.md` — see `docs/installation-topology.md`.
 
 ---
 
@@ -592,7 +592,7 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 
 | Command | Reason |
 |---------|--------|
-| `/codex` | Requires OpenAI Codex CLI binary. Multi-AI second-opinion is architecturally desirable but declared out of scope for this plan. Defer to parent plan `gal-cross-ai-orchestrator`. |
+| `/codex` | Refers to the `/codex` *slash command* — a gstack second-opinion workflow requiring the OpenAI Codex CLI binary. Architecturally desirable but out of scope for this plan; defer to `gal-cross-ai-orchestrator`. Note: Codex CLI is supported as a GAL runtime target via `AGENTS.md`. |
 | `/gstack-upgrade` | No direct analog. Procedure documented in §3 above. Implement as a `README.md` note, not a SKILL.md. |
 
 ---

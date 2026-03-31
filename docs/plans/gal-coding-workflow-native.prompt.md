@@ -214,6 +214,8 @@ Next step: Human review, commit staged changes, then absorb remaining follow-up 
 
 2026-03-30 更新決策：以最新 gstack README command list 為準，`/codex` 明確排除在本計畫外，其餘 commands 全數納入。另將 README 重寫納入本計畫正式交付物，要求用 gstack 式 command catalog 方式清楚說明整合好處，以及 `/gal init` 之外各 control-plane commands 的用途與分工。
 
+2026-03-31 補充：以上「除 `/codex` 外」的範圍限制僅指 `/codex` slash command（gstack second-opinion workflow）。Codex CLI 作為 GAL runtime target 的支援已透過 `AGENTS.md` 機制獨立實作（見 `docs/installation-topology.md` Cross-CLI Support Matrix），不受本計畫限制。
+
 2026-03-30 補充決策：目前 `/gal` surface 仍帶有 inherited GSD 命名殘留，使用者無法從 `/gal next`、`/gal pause` 等名稱直接理解整合作用，因此本計畫新增 P0 先重做 control-plane command surface。已確定 `/gal next` 改為 `/gal whats-next`；`/gal pause` 改為 `/gal wrap-up`；`/gal plan` 與 `/gal sync` 自 public command surface 移除；`/gal init` 與 `/gal research` 保留現名；`/gal status` 保留現名但必須重寫為完整 state projection。此外，舊 GAL 的 `Active Skills` + `gal sync` 靜態 allowlist 設計不再視為主要 routing 架構，後續改採 gstack-style runtime routing。
 
 ## Test Results

@@ -11,9 +11,48 @@ GAL uses four practical runtime layers.
 | Layer 1 | `~/golem-agents-legion/` | Canonical methodology source |
 | Layer 1.5 | `~/.copilot/` and `~/.gemini/` | Tool-facing symlinks and baked command skills |
 | Layer 2 | `<target-repo>/.dev/` | Per-repo working context and state |
-| Layer 3 | Generated adapter files in target repos | Tool-specific repo instructions |
+| Layer 3 | Generated adapter files in target repos | `AGENTS.md` (shared cross-CLI) + tool-specific shims |
 
 README keeps the high-level three-layer model. This document expands the runtime installation details that sit between the repo and the tools.
+
+## Cross-CLI Support Matrix
+
+This matrix is the canonical reference for how each CLI runtime integrates with GAL. Use it when adding a new CLI or auditing an existing one.
+
+### Machine-Layer Install
+
+| CLI | Machine Install | Notes |
+| --- | --- | --- |
+| Copilot CLI | `~/.copilot/agents/` + `~/.copilot/skills/` | Symlinks + baked `SKILL.md` via Setup-Machine |
+| Gemini CLI | `~/.gemini/skills/` + `settings.json` bridge | Bridge writes `AGENTS.md` to `context.fileName` |
+| Codex CLI | None required | Natively discovers `AGENTS.md` — zero machine install |
+| Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
+
+### Repo-Layer gal sync Outputs
+
+| Output File | CLI(s) | Content Strategy |
+| --- | --- | --- |
+| `AGENTS.md` | Copilot + Codex + Gemini (via bridge) + Claude Code | Canonical shared contract. Inline skills, conventions, workflows. |
+| `.github/copilot-instructions.md` | Copilot only | Additive Copilot layer. No inline skills (machine install provides them). |
+| `GEMINI.md` | Gemini *(transitional shim)* | Kept during migration to bridge. Inline skills. |
+
+### Slash-Command / Skill Availability
+
+| CLI | Status | Location |
+| --- | --- | --- |
+| Copilot CLI | Available | `~/.copilot/skills/<command>/` |
+| Gemini CLI | No native slash-command runtime | — |
+| Codex CLI | Phase 2 | `.agents/skills/` |
+| Claude Code CLI | Deferred | MCP tools |
+
+### Adding a New CLI
+
+To add a new CLI runtime to GAL:
+
+1. **Machine layer**: determine if the CLI has a global config dir; if yes, add a symlink or config step to both Setup-Machine scripts.
+2. **Repo layer**: determine the CLI's canonical instruction file. If it is `AGENTS.md`, no code change needed — gal sync already generates it. Otherwise add a `Build-AdapterContent` / `build_adapter` call to both Sync-DevContext scripts.
+3. **Settings bridge pattern**: if the CLI reads a configurable filename list (like Gemini's `context.fileName`), add a settings-write/merge step to Setup-Machine.
+4. **Slash-command layer**: research the CLI's plugin or skill packaging model separately — do not block the other layers on it.
 
 ## Layer 1.5: Tool Installation Surface
 

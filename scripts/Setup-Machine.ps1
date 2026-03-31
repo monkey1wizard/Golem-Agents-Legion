@@ -277,7 +277,44 @@ else {
     }
 }
 
-# --- GAL_ROOT symlinks ---
+# --- Gemini settings.json: context.fileName bridge ---
+
+$geminiSettingsFile = Join-Path $geminiRoot "settings.json"
+
+Write-Host ""
+Write-Host "=== Gemini settings.json bridge ==="
+
+if ($Uninstall) {
+    Write-Host "  [SKIP] settings.json not modified during uninstall (user-owned file)"
+} elseif ($DryRun) {
+    Write-Host "  [DRY RUN] Would merge AGENTS.md into context.fileName in: $geminiSettingsFile"
+} else {
+    if (Test-Path $geminiSettingsFile) {
+        $rawJson = Get-Content $geminiSettingsFile -Raw -Encoding UTF8
+        try   { $settings = $rawJson | ConvertFrom-Json }
+        catch { Write-Host "  [WARN] Could not parse $geminiSettingsFile as JSON — skipping bridge" -ForegroundColor Yellow; $settings = $null }
+    } else {
+        $settings = [PSCustomObject]@{}
+    }
+
+    if ($null -ne $settings) {
+        if (-not (Get-Member -InputObject $settings -Name 'context' -MemberType NoteProperty)) {
+            Add-Member -InputObject $settings -MemberType NoteProperty -Name 'context' -Value ([PSCustomObject]@{})
+        }
+        if (-not (Get-Member -InputObject $settings.context -Name 'fileName' -MemberType NoteProperty)) {
+            Add-Member -InputObject $settings.context -MemberType NoteProperty -Name 'fileName' -Value @('AGENTS.md', 'GEMINI.md')
+        } else {
+            $current = @($settings.context.fileName)
+            foreach ($required in @('AGENTS.md', 'GEMINI.md')) {
+                if ($current -notcontains $required) { $current += $required }
+            }
+            $settings.context.fileName = $current
+        }
+        $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText($geminiSettingsFile, ($settings | ConvertTo-Json -Depth 10), $utf8NoBom)
+        Write-Host "  [OK] $geminiSettingsFile (context.fileName includes AGENTS.md and GEMINI.md)"
+    }
+}
 
 $galRootOk = 0
 Write-Host ""

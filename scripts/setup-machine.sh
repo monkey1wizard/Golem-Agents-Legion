@@ -240,6 +240,34 @@ else
     fi
 fi
 
+# --- Gemini settings.json: context.fileName bridge ---
+
+GEMINI_SETTINGS_FILE="$GEMINI_ROOT/settings.json"
+
+echo ""
+echo "=== Gemini settings.json bridge ==="
+
+if $UNINSTALL; then
+    echo "  [SKIP] settings.json not modified during uninstall (user-owned file)"
+elif $DRY_RUN; then
+    echo "  [DRY RUN] Would merge AGENTS.md into context.fileName in: $GEMINI_SETTINGS_FILE"
+else
+    if command -v jq &>/dev/null; then
+        if [ -f "$GEMINI_SETTINGS_FILE" ]; then
+            merged="$(jq '.context.fileName = ((.context.fileName // []) + ["AGENTS.md","GEMINI.md"] | unique)' "$GEMINI_SETTINGS_FILE")"
+        else
+            merged='{"context":{"fileName":["AGENTS.md","GEMINI.md"]}}'
+        fi
+        printf '%s\n' "$merged" > "$GEMINI_SETTINGS_FILE"
+        echo "  [OK] $GEMINI_SETTINGS_FILE (context.fileName includes AGENTS.md and GEMINI.md)"
+    elif [ ! -f "$GEMINI_SETTINGS_FILE" ]; then
+        printf '{"context":{"fileName":["AGENTS.md","GEMINI.md"]}}\n' > "$GEMINI_SETTINGS_FILE"
+        echo "  [OK] $GEMINI_SETTINGS_FILE (created; install jq for merge support on future runs)"
+    else
+        echo "  [WARN] jq not found and $GEMINI_SETTINGS_FILE already exists — skipping bridge (install jq and rerun)"
+    fi
+fi
+
 # --- GAL_ROOT symlinks ---
 
 gal_root_ok=0
