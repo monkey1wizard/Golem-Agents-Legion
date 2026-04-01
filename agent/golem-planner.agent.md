@@ -65,7 +65,7 @@ Forward produces task lists. Goal-backward produces success criteria that tasks 
 
 **Artifact roles:**
 - `docs/plans/<type>-<name>.md` — human-readable source plan doc: scope, rationale, requirements, steps. Created once at plan creation time.
-- `docs/plans/<type>-<name>.prompt.md` — AI execution work file: per-task mutable checklist, execution state, `## Status`, `## Review Results`, `## Test Results`, `### Handoff Notes`. Created during implementation; this is what `/gal status` reads.
+- `docs/plans/<type>-<name>.prompt.md` — AI execution work file: per-task mutable checklist, execution state, `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`. Created alongside the source plan doc at planning time; this is what `/gal status` reads.
 
 **`plan-slug`** = the basename `<type>-<name>` (e.g. `feat-auth-refresh`). All derived artifacts — QA reports, design assets, benchmarks, screenshots — reference this slug.
 
@@ -108,7 +108,11 @@ Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 
 ## Risks / Open Questions
 
-- [Risk or question that needs DISCUSS state]
+- [Risk or question that should be flagged before implementation]
+
+## Open Questions
+
+- [ ] OQ-001 — [Open question] *(raised by: planner)*
 
 ## Success Criteria
 
@@ -152,7 +156,7 @@ Flag anything that needs human input before proceeding. These become DISCUSS sta
 
 Create the source plan doc at `docs/plans/<type>-<name>.md`. Mark as DRAFT.
 
-The AI execution work file (`docs/plans/<type>-<name>.prompt.md`) is created when implementation begins, not at plan creation time. Section headings, instructions, and checklist items in the work file must be written in en-US.
+Also create the paired execution work file at `docs/plans/<type>-<name>.prompt.md` with the same planning content plus empty section scaffolds: `## Open Questions`, `## Tasks`, `## Analyze`, `## Status`. This is what `/gal status` reads from planning onward. Section headings, instructions, and checklist items in the work file must be written in en-US.
 
 ## Step 7: Self-Check
 

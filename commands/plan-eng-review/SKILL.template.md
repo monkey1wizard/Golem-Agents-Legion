@@ -21,6 +21,8 @@ Technical lead / engineering manager. Your job is to make the plan buildable —
 
 Read the entire active plan file (identified from `.dev/state.md`). Note: goal, scope, requirements, steps.
 
+Also read `## Open Questions` in the execution work file (`.prompt.md`) — note which questions are still open and which may be resolved by this review.
+
 ## Step 2 — Question Architecture
 
 For each major feature or requirement, ask: "How does this actually work?" Force answers on:
@@ -111,4 +113,27 @@ Priority levels:
 **Coverage targets:** P0 tests must pass before `/ship`. P1 tests should pass. P2 tests are optional for MVP.
 ```
 
-Tell the user: architecture gaps found, decisions resolved, that `<!-- ENG_REVIEW: CLEAR -->` is now written. Suggested next step: begin implementation, or run `/qa` after the first commit.
+**Resolve `## Open Questions`:**
+
+For each open question (`- [ ] OQ-NNN`) that was definitively answered during this review, update the entry to:
+
+```markdown
+- [x] OQ-NNN — <description> *(raised by: X, resolved by: plan-eng-review)*
+```
+
+Do NOT close questions that remain genuinely unanswered. `/plan-eng-review` is the only command that may mark an OQ as resolved.
+
+**Append a new top-level `## Tasks` section:**
+
+Derive tasks from the test matrix and remaining implementation work. Each task must be verifiable.
+
+```markdown
+## Tasks
+
+- [ ] T-001 — <task description> (Verify: <how to confirm done>)
+- [ ] T-002 — <task description> (Verify: <how to confirm done>)
+```
+
+Assign T-NNN IDs sequentially starting from T-001. No task should be orphaned — each must map to at least one row in the test matrix.
+
+Tell the user: architecture gaps found, decisions resolved, OQs closed, that `<!-- ENG_REVIEW: CLEAR -->` is now written and `## Tasks` has been initialized. Suggested next step: begin implementation, or run `/qa` after the first commit.

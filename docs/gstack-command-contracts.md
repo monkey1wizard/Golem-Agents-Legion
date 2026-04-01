@@ -42,7 +42,7 @@ Two layers, zero overlap. The rule: if an operation **governs the GAL workflow s
 gstack uses two storage scopes: user-global (`~/.gstack/projects/$SLUG/`) and repo-local (`.gstack/`). GAL has no user-global scope — all state is repo-local.
 
 | gstack stores | gstack path | GAL equivalent | GAL path |
-|---------------|-------------|----------------|----------|
+| --- | --- | --- | --- |
 | Design doc (from `/office-hours`) | `~/.gstack/projects/$SLUG/design.md` | Source plan doc | `docs/plans/<plan-slug>.md` |
 | AI execution work file | _(not modeled)_ | Per-task mutable checklist + execution state | `docs/plans/<plan-slug>.prompt.md` |
 | CEO/Design/Eng review results | Review Readiness Dashboard (in-memory + logged) | `## Review Results` section | Active plan file |
@@ -62,6 +62,20 @@ gstack uses two storage scopes: user-global (`~/.gstack/projects/$SLUG/`) and re
 
 ---
 
+## 2.5. Plan Section Ownership
+
+Three sections of the execution work file (`## Open Questions`, `## Tasks`, `## Analyze`) have explicit ownership rules. Ownership means: only the listed command may **initialize or produce** that section's content. Downstream consumers may **read** but must not recalculate or overwrite.
+
+| Section | Initialized by | Appended / Updated by | Consumed by (read-only) |
+| --- | --- | --- | --- |
+| `## Open Questions` | `/office-hours` (empty scaffold + initial OQs) | `/plan-ceo-review`, `/plan-design-review` (append), `/plan-eng-review` (closes resolved items) | `/ship`, `/gal status`, `/gal whats-next` |
+| `## Tasks` | `/plan-eng-review` (sole initializer, after Eng Review is CLEAR) | implementer (marks completion state only — no rewrite of task semantics) | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` |
+| `## Analyze` | `/review` (sole writer, drift verdict: CLEAR \| DRIFT-OPEN \| NOT-RUN) | — | `/ship`, `/gal status`, `/gal whats-next` |
+
+**Ship policy:** Unresolved open questions, unfinished tasks, and `DRIFT-OPEN` analyze verdict surface as high-visibility readiness **warnings** in `/ship`. They do not add a new hard gate. `ENG_REVIEW` remains the only required gate before `/ship`.
+
+---
+
 ## 3. Per-Command Contracts
 
 Commands are ordered by sprint phase: Think → Plan → Build → Review → Test → Ship → Reflect. Power tools and utilities follow.
@@ -71,17 +85,18 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 1 — Think
 
 #### `/office-hours`
+
 **Specialist: YC Office Hours**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | YC-style product partner |
 | **Mode** | Interactive — one forcing question at a time, with `AskUserQuestion` |
 | **Input reads** | `.dev/project.md` (tech stack, app name, project context) |
 | **Operation** | Two submodes: **Startup** (6 forcing questions: demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, future-fit) and **Builder** (generative exploration). Challenges framing, extracts capabilities user didn't articulate, challenges premises, suggests 2–3 implementation approaches with effort estimates. |
-| **Output artifacts** | New plan file `docs/plans/<feature>.prompt.md` (design doc: problem statement, reframe, validated premises, recommended approach, effort estimate) |
-| **State written to plan** | New `## Goal`, `## Context`, `## Scope`, `## Steps` sections in new plan file |
-| **Control-plane hook** | After: update `.dev/state.md` `## Active Plans` to include the new plan |
+| **Output artifacts** | `docs/plans/<feature>.md` (source plan doc: problem statement, reframe, validated premises, recommended approach, effort estimate) + `docs/plans/<feature>.prompt.md` (execution work file: initialized at planning time with empty `## Open Questions`, `## Tasks`, `## Analyze`, `## Status` scaffolds) |
+| **State written to plan** | `## Goal`, `## Context`, `## Scope`, `## Requirements`, `## Steps` to source plan doc; empty `## Open Questions`, `## Tasks`, `## Analyze`, `## Status` scaffolds initialized in execution work file; unresolved assumptions from the conversation written as OQ-### items in `## Open Questions` |
+| **Control-plane hook** | After: update `.dev/state.md` `## Active Plans` to include the new plan, referencing `docs/plans/<feature>.prompt.md` |
 | **GAL deviation from gstack** | gstack writes to `~/.gstack/projects/$SLUG/` (user-global). GAL writes to `docs/plans/` (repo-local). The plan file is the canonical artifact for all downstream pipeline steps. |
 | **Feeds into** | `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/autoplan` |
 
@@ -90,10 +105,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 2 — Plan
 
 #### `/plan-ceo-review`
+
 **Specialist: CEO / Founder**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | CEO / Founder — "Brian Chesky mode" |
 | **Mode** | Interactive — one scope decision at a time, `AskUserQuestion` for genuine tradeoffs |
 | **Input reads** | Active plan's AI execution work file `docs/plans/<plan-slug>.prompt.md` (reads `## Goal`, `## Context`, `## Scope`) |
@@ -107,10 +123,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/plan-eng-review`
+
 **Specialist: Eng Manager**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Technical lead / eng manager |
 | **Mode** | Interactive — `AskUserQuestion` for architecture decisions; auto-generates diagrams |
 | **Input reads** | Active plan file (all sections, especially `## CEO Review` if present) |
@@ -142,10 +159,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/autoplan`
+
 **Specialist: Review Pipeline**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Review autopilot — chains CEO → Design → Eng reviews |
 | **Mode** | Mostly automated; surfaces only "taste decisions" at final approval gate |
 | **Input reads** | Active plan file; reads all three review SKILL.md files from disk at runtime |
@@ -159,10 +177,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/cso`
+
 **Specialist: Chief Security Officer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Chief Security Officer |
 | **Mode** | Automated scan — no interactive questions |
 | **Input reads** | Codebase (current directory tree + source files) |
@@ -178,10 +197,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 3 — Build
 
 #### `/design-consultation`
+
 **Specialist: Design Partner**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Senior designer — design system creation from scratch |
 | **Mode** | Conversational — explores product context, researches landscape, generates system with explicit safe vs. risk annotations |
 | **Input reads** | `.dev/project.md`; existing `DESIGN.md` (if any); browses real sites for landscape research (uses `/browse`) |
@@ -195,10 +215,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/design-shotgun`
+
 **Specialist: Design Explorer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Design explorer — multiple variants, taste selection |
 | **Mode** | Interactive — comparison board in browser; iterative until user approves |
 | **Input reads** | Description from user; `DESIGN.md` (brand constraints if exists) |
@@ -211,10 +232,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/design-html`
+
 **Specialist: Design Engineer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Design engineer — mockup to production HTML |
 | **Mode** | Interactive — live-reload server, surgical edits per user feedback |
 | **Input reads** | `variant-approved.json` from `/design-shotgun`; framework detection from `package.json` |
@@ -228,10 +250,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 4 — Review
 
 #### `/review`
+
 **Specialist: Staff Engineer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Paranoid staff engineer |
 | **Mode** | Automated scan + `AskUserQuestion` for ambiguous findings |
 | **Input reads** | Git diff (current branch vs main); Greptile PR comments (if Greptile installed) |
@@ -244,10 +267,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/investigate`
+
 **Specialist: Debugger**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Systematic debugger |
 | **Mode** | Guided investigation — traces data flow, tests one hypothesis at a time |
 | **Iron Law** | No fixes without root-cause investigation first |
@@ -261,10 +285,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/design-review`
+
 **Specialist: Designer Who Codes**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Designer who codes — live-site visual audit + fix loop |
 | **Mode** | Automated audit + fix loop; `AskUserQuestion` on risky changes |
 | **Input reads** | Live site URL; `DESIGN.md` (audit against brand constraints if exists) |
@@ -279,10 +304,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 5 — Test
 
 #### `/qa`
+
 **Specialist: QA Lead**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | QA lead — find, fix, verify |
 | **Mode** | 4 modes: diff-aware (default on feature branches), full, quick (`--quick`), regression (`--regression baseline.json`) |
 | **Input reads** | URL (optional; auto-detected from git diff if not provided); `## Test Plan` from active plan (written by `/plan-eng-review`) |
@@ -297,10 +323,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/qa-only`
+
 **Specialist: QA Reporter**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | QA reporter — pure bug report, no code changes |
 | **Mode** | Same 4 modes as `/qa` |
 | **Input reads** | Same as `/qa` |
@@ -312,10 +339,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/browse`
+
 **Specialist: QA Engineer (browser)**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Real browser capability — gives agent eyes |
 | **Mode** | Persistent Chromium daemon; ~100–200ms per command after first call (~3s startup) |
 | **Input reads** | User-provided URL and commands; optionally imported session from `/setup-browser-cookies` |
@@ -328,10 +356,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/connect-chrome`
+
 **Specialist: Chrome Controller**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Co-presence mode — controlled headed Chrome with Side Panel |
 | **Mode** | One-time setup command; switches browse daemon to headed mode |
 | **Input reads** | None |
@@ -343,10 +372,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/setup-browser-cookies`
+
 **Specialist: Session Manager**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Session manager — import real browser auth into Playwright |
 | **Mode** | Interactive picker UI (or direct domain argument) |
 | **Input reads** | Chrome / Arc / Brave / Edge / Comet browser cookie stores; macOS Keychain for decryption |
@@ -360,10 +390,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 6 — Ship
 
 #### `/ship`
+
 **Specialist: Release Engineer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Release engineer — final mile |
 | **Mode** | Automated with one confirmation gate if Review Readiness is incomplete |
 | **Input reads** | Current branch; Review Readiness Dashboard state (from `## Review Results` in active plan); Greptile PR comments (if installed) |
@@ -376,10 +407,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/land-and-deploy`
+
 **Specialist: Release Engineer (deploy)**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Deploy pipeline — merge to verified-in-production |
 | **Mode** | Automated after one-time `/setup-deploy` configuration; dry-run on first use per project |
 | **Input reads** | PR number (from `/ship` output); deploy config from `CLAUDE.md` (written by `/setup-deploy`) |
@@ -391,10 +423,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/canary`
+
 **Specialist: SRE**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | SRE — post-deploy monitoring |
 | **Mode** | Monitoring loop (continuous until stopped or error threshold hit) |
 | **Input reads** | Production URL; optional baseline from previous run |
@@ -406,10 +439,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/benchmark`
+
 **Specialist: Performance Engineer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Performance engineer |
 | **Mode** | One-shot (or comparative if baseline exists) |
 | **Input reads** | URL(s); optional previous baseline saved by earlier run |
@@ -420,10 +454,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/document-release`
+
 **Specialist: Technical Writer**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Technical writer — keeps docs current |
 | **Mode** | Automated; surfaces only risky/subjective changes as questions |
 | **Input reads** | Git diff (all changed files); all documentation files in project (README.md, ARCHITECTURE.md, CONTRIBUTING.md, CLAUDE.md, TODOS.md, etc.) |
@@ -435,10 +470,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/retro`
+
 **Specialist: Eng Manager (retro)**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Engineering manager — weekly retrospective |
 | **Mode** | Automated data analysis; `/retro global` runs across all repos |
 | **Input reads** | Git history (commits, LOC, PR sizes, test ratios, timestamps); previous retro snapshot from `docs/retros/` |
@@ -449,10 +485,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/setup-deploy`
+
 **Specialist: Deploy Configurator**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | One-time deploy setup |
 | **Mode** | Automated detection + confirmation |
 | **Input reads** | Project root (detects `fly.toml`, `vercel.json`, `render.yaml`, `netlify.toml`, `heroku.yml`, `.github/workflows/`) |
@@ -465,10 +502,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Phase 7 — Reflect / Memory
 
 #### `/learn`
+
 **Specialist: Memory**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Institutional memory — manage accumulated learnings |
 | **Mode** | Interactive |
 | **Input reads** | Learnings store |
@@ -483,10 +521,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ### Power Tools
 
 #### `/careful`
+
 **Specialist: Safety Guardrails**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Accident prevention — warn before destructive commands |
 | **Mechanism** | Claude Code `PreToolUse` hooks (session-scoped) |
 | **Triggers** | `rm -rf`, `rm -r`, `DROP TABLE`, `DROP DATABASE`, `TRUNCATE`, `git push --force`, `git push -f`, `git reset --hard`, `git checkout .`, `git restore .`, `kubectl delete`, `docker rm -f`, `docker system prune` |
@@ -498,10 +537,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/freeze [path]`
+
 **Specialist: Edit Lock**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Directory-scoped edit lock |
 | **Mechanism** | Claude Code `PreToolUse` hooks; blocks Edit and Write tools outside path |
 | **Scope** | File edits (Edit tool, Write tool) only. Bash commands like `sed` can still modify files outside boundary. Not a security sandbox — accident prevention only. |
@@ -511,10 +551,11 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/guard`
+
 **Specialist: Full Safety**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Maximum safety mode |
 | **Operation** | Combines `/careful` (destructive command warnings) + `/freeze` (directory-scoped edits) in one command |
 | **Use when** | Touching production systems; debugging live data; any session where accidental lateral damage must be prevented |
@@ -522,25 +563,28 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 ---
 
 #### `/unfreeze`
+
 **Specialist: Unlock**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Remove `/freeze` boundary |
 | **Operation** | Allows edits everywhere again. Hooks stay registered for the session (they just allow everything). Run `/freeze` again to set a new boundary. |
 
 ---
 
 #### `/connect-chrome`
+
 _(See Phase 5 — Test section above)_
 
 ---
 
 #### `/gstack-upgrade`
+
 **Utility: Self-Updater**
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | **Role** | Keep GAL skills current |
 | **GAL equivalent** | Not a direct translation. In GAL, "upgrade" means pulling the latest `Golem-Agents-Legion` repo and re-running `Setup-Machine.ps1` to re-bake `SKILL.md` files from templates. |
 | **Operation (gstack)** | Detects global vs vendored install, syncs both, shows changelog. `auto_upgrade: true` in `~/.gstack/config.yaml` for silent upgrade. |
@@ -556,7 +600,7 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 ### What `/gal status` reads from plan files
 
 | Section | Written by | What status reports |
-|---------|-----------|---------------------|
+| --- | --- | --- |
 | `## Review Results → ### CEO Review` | `/plan-ceo-review`, `/autoplan` | CEO Review: CLEAR / MISSING |
 | `## Review Results → ### Eng Review` | `/plan-eng-review`, `/autoplan` | Eng Review: CLEAR / MISSING / FAILED (required gate) |
 | `## Review Results → ### Design Review` | `/plan-design-review`, `/autoplan` | Design Review: CLEAR / MISSING (informational) |
@@ -572,7 +616,7 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 ### What `/gal whats-next` decision table maps to specialists
 
 | State | Decision | Specialist to invoke |
-|-------|----------|---------------------|
+| --- | --- | --- |
 | No active plan | Create new plan | `/office-hours` |
 | Plan exists, no Eng Review | Run required gate | `/plan-eng-review` (or `/autoplan`) |
 | Eng Review CLEAR, no Staff Review | Review code | `/review` |
@@ -586,7 +630,7 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 ### What `/gal wrap-up` writes
 
 | Target | What it writes |
-|--------|---------------|
+| --- | --- |
 | Active plan `### Handoff Notes` | Compressed session state: what was done, what's next, open decisions |
 | `.dev/state.md` `## Session Continuity` | Single-paragraph resume point for next session |
 
@@ -595,7 +639,7 @@ This section defines exactly how the GAL control-plane commands (`/gal status`, 
 ## 5. Commands Not Implemented (Out of Scope or Deferred)
 
 | Command | Reason |
-|---------|--------|
+| --- | --- |
 | `/codex` | Refers to the `/codex` *slash command* — a gstack second-opinion workflow requiring the OpenAI Codex CLI binary. Architecturally desirable but currently out of scope. Note: Codex CLI is supported as a GAL runtime target via `AGENTS.md`. |
 | `/gstack-upgrade` | No direct analog. Procedure documented in §3 above. Implement as a `README.md` note, not a SKILL.md. |
 

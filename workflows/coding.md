@@ -58,8 +58,8 @@ No active work. Waiting for a new task.
   - Read `.dev/project.md` for architecture context.
   - Read `.dev/state.md` for current position and active plans.
   - Read relevant `docs/` if project.md points to them.
-  - Create `docs/plans/<type>-<slug>.prompt.md` using the plan template.
-  - Fill in: Goal, Risk Weight, Review Pack, Requirements, Approach, Files, Test Cases, Risks, Success Criteria.
+  - Create source plan doc `docs/plans/<type>-<slug>.md` with: Goal, Risk Weight, Review Pack, Requirements, Approach, Files, Test Cases, Risks, Success Criteria.
+  - Create paired execution work file `docs/plans/<type>-<slug>.prompt.md` with the same planning content plus empty section scaffolds: `## Open Questions`, `## Tasks`, `## Analyze`, `## Status`.
 - For Strategic weight, the adversarial plan review is handled by `architect-full` and `designer`, both using different models from the planner.
 - **Specialist**: planner
 - **Exit**: Plan file created with all sections filled.
@@ -220,7 +220,7 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 
 ### Lifecycle
 
-1. **Planner creates plan** → `docs/plans/<type>-<slug>.prompt.md`
+1. **Planner creates plan** → `docs/plans/<type>-<slug>.md` (source plan doc) + `docs/plans/<type>-<slug>.prompt.md` (execution work file, initialized with empty `## Open Questions`, `## Tasks`, `## Analyze`, `## Status` scaffolds)
 2. **Plan self-tracks status** → `## Status` section carries workflow state, step, deviations, decisions
 3. **Implementer updates plan status** during execution (not state.md)
 4. **Tester writes results** → plan `## Test Results`

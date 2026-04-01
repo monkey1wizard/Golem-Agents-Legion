@@ -210,6 +210,10 @@ control plane 的索引：
 - `## Goal`
 - `## Context`
 - `## Scope`
+- `## Open Questions`
+- `## Tasks`
+- `## Analyze`
+- `## Status`
 - `## Review Results`
 - `## Test Plan`
 - `## Test Results`
@@ -218,6 +222,12 @@ control plane 的索引：
 - `### Handoff Notes`
 
 兩個檔案以相同的 `plan-slug` 作為關聯鍵。控制平台讀取 `.prompt.md` 來輸出狀態。
+
+其中三個 sections 有明確所有權：
+
+- `## Open Questions`：`/office-hours` 初始化，`/plan-ceo-review`、`/plan-design-review` 追加，`/plan-eng-review` 關閉已解決項目
+- `## Tasks`：僅由 `/plan-eng-review` 初始化；實作階段只能更新完成狀態
+- `## Analyze`：僅由 `/review` 寫入 verdict；`/ship` 與 control-plane 只消費，不重算 semantics
 
 ### 其他 supporting artifacts
 
@@ -236,6 +246,7 @@ control plane 的索引：
 
 - `/plan-eng-review` 寫 `<!-- ENG_REVIEW: CLEAR -->`
 - `/qa` 寫 `## Test Results`
+- `/review` 寫 `## Analyze`
 - `/review` 寫 `<!-- STAFF_REVIEW: CLEAR -->`
 - `/ship` 寫 `## Ship` 與 PR URL
 - `/land-and-deploy` 寫 `## Deploy`

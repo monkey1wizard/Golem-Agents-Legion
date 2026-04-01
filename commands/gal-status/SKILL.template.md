@@ -12,7 +12,7 @@ Project the full recorded GAL state for this repo.
 Read these files:
 
 1. `.dev/state.md` — active plans, global decisions, blockers, session continuity
-2. Each plan file listed in the Active Plans table — `## Status`, `## Review Results`, `## Test Results`, `### Handoff Notes`
+2. Each plan file listed in the Active Plans table — `## Status`, `## Review Results`, `## Test Results`, `## Open Questions`, `## Tasks`, `## Analyze`, `### Handoff Notes`
 
 If `.dev/state.md` does not exist: output **Repo not initialized — run `/gal init`.**
 
@@ -42,6 +42,16 @@ For each active plan with results filled in:
 - **Review Results**: verdict and any BLOCKING findings from `## Review Results`
 
 If sections are unpopulated placeholders, show: *Pending.*
+
+### Spec Readiness
+
+From `## Open Questions`, `## Tasks`, and `## Analyze` in the active plan's `.prompt.md`:
+
+- **Open Questions**: count of unresolved `OQ-NNN` items (`- [ ]`)
+- **Tasks**: X of Y complete (count checked vs total `T-NNN` items)
+- **Analyze verdict**: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN` from `<!-- ANALYZE: ... -->`
+
+If any section is missing or not yet initialized: show *Not yet run.*
 
 ### Blockers
 

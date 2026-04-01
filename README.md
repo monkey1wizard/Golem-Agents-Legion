@@ -50,6 +50,18 @@ These files are the durable state model.
 | `docs/research/` | Research notes: `YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo-local institutional memory |
 
+### Plan Execution Sections
+
+The execution work file (`.prompt.md`) contains three specialist-written sections with explicit ownership rules:
+
+| Section | Written by | Consumed by | Purpose |
+| --- | --- | --- | --- |
+| `## Open Questions` | `/office-hours` (initial), `/plan-ceo-review`, `/plan-design-review` (append); `/plan-eng-review` closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions; IDs `OQ-NNN` |
+| `## Tasks` | `/plan-eng-review` (sole initializer after Eng Review CLEAR); implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist; IDs `T-NNN` |
+| `## Analyze` | `/review` (sole writer; verdict: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN`) | `/ship`, `/gal status`, `/gal whats-next` | Drift check: did the diff stay within plan scope? |
+
+Consumers read these sections for display and routing — they do not recalculate or overwrite them.
+
 ## Quick Start
 
 ### Windows
@@ -117,10 +129,10 @@ These commands implement the work layer directly. They do not route through `/ga
 
 | Command | Purpose | Primary Writes |
 | --- | --- | --- |
-| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/<plan-slug>.md`, `.dev/state.md` |
-| `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results` |
-| `/plan-eng-review` | Architecture and test-plan gate; required before `/ship` | Plan `## Review Results`, `## Test Plan` |
-| `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results` |
+| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/<plan-slug>.md` + `.prompt.md`, `.dev/state.md`, initial `## Open Questions` |
+| `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results`, `## Open Questions` (scope OQs) |
+| `/plan-eng-review` | Architecture and test-plan gate; required before `/ship` | Plan `## Review Results`, `## Test Plan`, `## Tasks`, closes resolved `## Open Questions` |
+| `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results`, `## Open Questions` (design OQs) |
 | `/autoplan` | Chains CEO, design, and eng reviews with auto-decisions | Plan review sections and test plan |
 | `/cso` | OWASP plus STRIDE security review | Plan `## Review Results` |
 
@@ -138,7 +150,7 @@ These commands implement the work layer directly. They do not route through `/ga
 | Command | Purpose | Primary Writes |
 | --- | --- | --- |
 | `/investigate` | Root-cause-first debugging workflow | Plan `## Debug Session` |
-| `/review` | Staff-level diff review for bugs CI misses | Plan `## Review Results` |
+| `/review` | Staff-level diff review for bugs CI misses | Plan `## Review Results`, `## Analyze` |
 
 ### Browser And QA
 

@@ -26,6 +26,9 @@ Read the active plan's `## Review Results` section. Check:
 | `<!-- ENG_REVIEW: CLEAR -->` | Required | If missing: ask "Eng Review not found. Run `/plan-eng-review` first, or proceed anyway?" |
 | `<!-- QA: CLEAR -->` | Recommended | If missing: warn, continue unless user says stop |
 | `<!-- STAFF_REVIEW: CLEAR -->` | Recommended | If missing: warn, continue unless user says stop |
+| Open `## Open Questions` | Warning | Count unresolved `OQ-NNN` items — list them if any remain |
+| Incomplete `## Tasks` | Warning | Count unchecked `T-NNN` items — list remaining tasks |
+| `<!-- ANALYZE: DRIFT-OPEN -->` | Warning | If present: warn that diff has drifted from plan scope |
 
 Security, CEO, and Design reviews are informational — note their state but do not block.
 

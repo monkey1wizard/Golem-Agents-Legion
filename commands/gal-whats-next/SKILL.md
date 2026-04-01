@@ -16,6 +16,9 @@ Read these files in order:
 3. Active plan `## Review Results` — any BLOCKING findings
 4. Active plan `## Test Results` — pass / fail / pending
 5. Active plan `### Handoff Notes` — interrupted work context
+6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
+7. Active plan `## Tasks` — task completion state
+8. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
 
 If `.dev/state.md` does not exist: output **Repo not initialized — run `/gal init`.**
 
@@ -33,6 +36,9 @@ Apply this decision tree in order:
 | Tests failing | Return to implementation — summarize what needs fixing |
 | Tests passing, no review recorded | `/review` for code review |
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
+| `<!-- ANALYZE: DRIFT-OPEN -->` present | Diff has drifted from plan scope — address deviations, then re-run `/review` to update verdict |
+| `## Tasks` has incomplete items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
+| Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
 | Review clean, plan not yet verified | `/gal wrap-up` to close the session for handoff |
 | Blocker listed in `.dev/state.md` | State the blocker and what resolves it before any other action |
 | Session continuity shows interrupted work | Resume from "Stopped at" in `.dev/state.md` `## Session Continuity` |

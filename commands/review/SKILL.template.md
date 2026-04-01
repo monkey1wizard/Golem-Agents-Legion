@@ -23,6 +23,8 @@ Run `git diff main` (or `git diff origin/main` if on a remote branch) and read t
 
 Read the active plan file from `.dev/state.md` — note what was intended to be built.
 
+Also read `## Tasks` and `## Open Questions` from the plan's `.prompt.md` — use the task list to check completeness against the diff.
+
 ## Step 2 — Bug Pattern Scan
 
 Check for each pattern. Auto-fix if mechanical and obvious. Flag for user decision if ambiguous.
@@ -92,4 +94,25 @@ In the active plan file, append under `## Review Results`:
 
 Replace `CLEAR` with `FINDINGS-OPEN` if there are flagged items the user has not yet resolved.
 
-Tell the user: auto-fixed count, open findings count, and whether the branch is ready for `/ship`.
+**Write `## Analyze`:**
+
+After reviewing the diff against the plan, overwrite the `## Analyze` section of the `.prompt.md` with the verdict:
+
+```markdown
+## Analyze
+
+**Date:** <today>
+**Diff:** <branch> vs main
+
+| Check | Result |
+| --- | --- |
+| All T-NNN tasks addressed by diff | ✓ / ✗ — <count> of <total> complete |
+| Diff stays within plan scope | ✓ / ✗ — <note any unplanned work> |
+| Requirements vs implementation | ✓ / ✗ — <gaps if any> |
+
+<!-- ANALYZE: CLEAR -->
+```
+
+Replace `CLEAR` with `DRIFT-OPEN` if any task is uncomplete or the diff includes significant out-of-scope work. Replace with `NOT-RUN` only if the plan has no `## Tasks` and no requirements to check against.
+
+Tell the user: auto-fixed count, open findings count, whether the branch is ready for `/ship`, and the `ANALYZE` verdict.

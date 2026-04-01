@@ -58,14 +58,16 @@ After scope is settled, review the plan across these dimensions:
 6. **Risk surface** — What is most likely to be wrong or underdone?
 7. **Dependencies** — What must be true elsewhere for this plan to work?
 8. **Cut candidates** — What could be deferred without harming the core?
-9. **Ambiguities** — What is underspecified and needs a decision now?
+9. **Ambiguities** — What is underspecified and needs a decision now? For each ambiguity that is not resolved during this review, assign a stable ID (`OQ-NNN`) and write it to `## Open Questions` in the execution work file.
 10. **Build confidence** — Is this plan ready to hand to an engineer?
 
 For each dimension: note it as clear, or call out what needs to change. Fix obvious gaps directly in the plan. Ask via `AskUserQuestion` for genuine trade-off decisions.
 
 ## Step 5 — Write Back to Plan
 
-In the active plan file, append under `## Review Results`:
+In the active plan file (`.prompt.md`), make two updates:
+
+**1. Append under `## Review Results`:**
 
 ```markdown
 ### CEO Review
@@ -79,9 +81,19 @@ In the active plan file, append under `## Review Results`:
 
 #### Open Questions
 
-<Any scope or priority questions not yet resolved.>
+<Any scope or priority questions not yet resolved — also written to ## Open Questions below.>
 
 <!-- CEO_REVIEW: CLEAR -->
 ```
+
+**2. Update `## Open Questions`:**
+
+For each ambiguity or scope question that was NOT resolved during this review, append to the `## Open Questions` section:
+
+```markdown
+- [ ] OQ-NNN — <description> *(raised by: plan-ceo-review)*
+```
+
+Do NOT close existing OQ items — only `/plan-eng-review` may mark an OQ as resolved.
 
 Tell the user: summary of scope decisions and suggested next step (`/plan-eng-review` or `/autoplan`).

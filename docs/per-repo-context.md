@@ -110,7 +110,7 @@ This design solves two problems:
 - the task spec and the task state stay together
 - worktree switching does not require reconstructing task state from multiple places
 
-That is why plan files include `## Status`, `## Test Results`, `## Review Results`, and optional `## Debug Log` sections.
+That is why execution work files include `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Test Results`, `## Review Results`, and optional debug sections.
 
 ## Cross-Worktree Rationale
 

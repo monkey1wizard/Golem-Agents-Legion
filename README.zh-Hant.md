@@ -50,6 +50,18 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | `docs/research/` | 研究筆記：`YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo 本地的制度化記憶 |
 
+### 計畫執行 Sections
+
+執行工作檔（`.prompt.md`）包含三個由專家指令寫入的 sections，各自有明確的所有權規則：
+
+| Section | 寫入者 | 消費者（唯讀） | 用途 |
+| --- | --- | --- | --- |
+| `## Open Questions` | `/office-hours`（初始化）、`/plan-ceo-review`、`/plan-design-review`（追加）；`/plan-eng-review` 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list；ID 格式 `OQ-NNN` |
+| `## Tasks` | `/plan-eng-review`（唯一初始化者，Eng Review CLEAR 後）；實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單；ID 格式 `T-NNN` |
+| `## Analyze` | `/review`（唯一寫入者；verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：diff 是否偏離計畫範圍？ |
+
+消費者只讀取這些 sections 用於顯示與路由 — 不重算、不覆寫。
+
 ## 快速開始
 
 ### Windows
@@ -117,10 +129,10 @@ $autoplan
 
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
-| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/<plan-slug>.md`、`.dev/state.md` |
-| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results` |
-| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan` |
-| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results` |
+| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/<plan-slug>.md` + `.prompt.md`、`.dev/state.md`、初始 `## Open Questions` |
+| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results`、`## Open Questions`（scope OQs）|
+| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan`、`## Tasks`；關閉已解決的 `## Open Questions` |
+| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results`、`## Open Questions`（設計相關 OQs）|
 | `/autoplan` | 串接 CEO、設計與工程審查並自動決策 | 計畫審查區段與測試計畫 |
 | `/cso` | OWASP 加 STRIDE 資安審查 | 計畫 `## Review Results` |
 
@@ -138,7 +150,7 @@ $autoplan
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
 | `/investigate` | 根因優先的除錯工作流程 | 計畫 `## Debug Session` |
-| `/review` | Staff 級別的 diff 審查，找出 CI 漏掉的問題 | 計畫 `## Review Results` |
+| `/review` | Staff 級別的 diff 審查，找出 CI 漏掉的問題 | 計畫 `## Review Results`、`## Analyze` |
 
 ### 瀏覽器與 QA
 

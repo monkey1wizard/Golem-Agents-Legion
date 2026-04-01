@@ -21,6 +21,8 @@ Senior designer. Your job is to make sure the plan accounts for all UX states, u
 
 Read the active plan file (identified from `.dev/state.md`). Also read `DESIGN.md` at the repo root if it exists.
 
+Also read `## Open Questions` in the execution work file (`.prompt.md`) — note any existing design-related questions that are still open.
+
 ## Step 2 — Seven-Pass Audit
 
 Rate each dimension 0–10. For dimensions scoring below 7: fix the plan directly if the fix is obvious. Use `AskUserQuestion` if the fix requires a genuine design choice.
@@ -74,11 +76,15 @@ Check against `DESIGN.md` if it exists:
 ### Pass 7: Unresolved Design Decisions (0–10)
 
 - Enumerate open design decisions that engineers will encounter but the plan does not answer
-- For each: make a recommended default decision, or surface it as `AskUserQuestion`
+- Check `## Open Questions` for any design-related items already listed — confirm they are still unresolved or note if they were addressed
+- For each unresolved item: make a recommended default decision, or surface it as `AskUserQuestion`
+- Items that remain unresolved after this pass will be written to `## Open Questions` in Step 3
 
 ## Step 3 — Write Back to Plan
 
-In the active plan file, append under `## Review Results`:
+In the active plan file (`.prompt.md`), make two updates:
+
+**1. Append under `## Review Results`:**
 
 ```markdown
 ### Design Review
@@ -101,11 +107,21 @@ In the active plan file, append under `## Review Results`:
 
 #### Open Design Decisions
 
-<List what was surfaced but not yet resolved, with recommended defaults.>
+<List what was surfaced but not yet resolved, with recommended defaults — also written to ## Open Questions below.>
 
 <!-- DESIGN_REVIEW: CLEAR -->
 ```
 
 If any dimension scores below 5 and the issue was not resolved in the plan: write `<!-- DESIGN_REVIEW: NEEDS-WORK -->` instead.
+
+**2. Update `## Open Questions`:**
+
+For each design decision that was NOT resolved during this review, append to the `## Open Questions` section:
+
+```markdown
+- [ ] OQ-NNN — <description> *(raised by: plan-design-review)*
+```
+
+Do NOT close existing OQ items — only `/plan-eng-review` may mark an OQ as resolved.
 
 Tell the user: dimension scores, what was fixed, what remains open. Suggested next step: `/plan-eng-review` (if not yet done), or `/autoplan` to run all three reviews.

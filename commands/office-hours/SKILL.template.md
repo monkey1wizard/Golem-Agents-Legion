@@ -53,9 +53,16 @@ Explore generatively. For each proposed feature or direction:
 
 ## Step 3 — Produce Plan File
 
-After the conversation, write a new plan file at `docs/plans/<feature-slug>.prompt.md`.
+After the conversation, write a new source plan doc at `docs/plans/<feature-slug>.md`.
 
-Use this structure:
+The `feature-slug` is an en-US descriptive kebab-case identifier (e.g. `auth-refresh`, `checkout-flow`). This slug becomes the shared key for all artifacts derived from this plan: QA reports, design assets, benchmarks, screenshots, and the AI execution work file.
+
+**Artifact roles:**
+
+- `docs/plans/<feature-slug>.md` — human-readable source plan doc (scope, rationale, requirements, steps). Created now.
+- `docs/plans/<feature-slug>.prompt.md` — AI execution work file (mutable checklist, execution state, write-back target). Also created now, initialized with empty section scaffolds so the planning chain has a canonical write target from the start.
+
+Use this structure for the source plan doc:
 
 ```markdown
 # Plan: <Feature Title>
@@ -81,6 +88,28 @@ Use this structure:
 | Step | Description | Status |
 | --- | --- | --- |
 | 1 | ... | TODO |
+```
+
+## Step 3b — Initialize Execution Work File
+
+After writing the source plan doc, create the paired execution work file at `docs/plans/<feature-slug>.prompt.md`.
+
+Initialize it with the full plan content (Goal, Context, Scope, Requirements, Steps) copied from the source plan doc, plus empty scaffolds for the specialist-written state sections:
+
+```markdown
+## Open Questions
+
+<!-- Written by /office-hours (initial), /plan-ceo-review, /plan-design-review. Closed by /plan-eng-review. -->
+<!-- Format: - [ ] OQ-NNN — description *(raised by: command)* -->
+
+## Tasks
+
+<!-- Written by /plan-eng-review after Eng Review is CLEAR. Sole writer. -->
+<!-- Format: - [ ] T-NNN — task description (Verify: how to confirm done) -->
+
+## Analyze
+
+<!-- Written by /review. Verdict: CLEAR | DRIFT-OPEN | NOT-RUN. Sole writer. -->
 
 ## Status
 
@@ -97,6 +126,8 @@ Next step: Run `/plan-eng-review` or `/autoplan` to review the plan before imple
 ### Handoff Notes
 ```
 
+If any unresolved assumptions or ambiguities surfaced during the conversation, write them into `## Open Questions` now. Use `OQ-001`, `OQ-002`, etc. as stable IDs. Mark the source as `office-hours`.
+
 ## Step 4 — Update State
 
 In `.dev/state.md` under `## Active Plans`, add a row for the new plan:
@@ -107,5 +138,6 @@ In `.dev/state.md` under `## Active Plans`, add a row for the new plan:
 
 Tell the user:
 
-- What plan file was created and where it lives
+- What plan files were created and where they live (both `.md` and `.prompt.md`)
+- The `feature-slug` that all derived artifacts should reference
 - Suggested next command: `/plan-eng-review` (required gate) or `/autoplan` (full review pipeline)

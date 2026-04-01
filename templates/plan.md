@@ -47,9 +47,16 @@
 - [ ] [Observable truth 1 — what must be TRUE when done]
 - [ ] [Observable truth 2]
 
-## Risks and Open Questions
+## Risks
 
-- [Risk or question that needs DISCUSS state]
+- [Risk that might require escalation to DISCUSS state]
+
+## Open Questions
+
+- [ ] OQ-001 — [Open question description] *(raised by: office-hours)*
+
+<!-- Format: - [ ] OQ-NNN — description *(raised by: command)* -->
+<!-- Resolved: - [x] OQ-NNN — description *(raised by: command, resolved by: plan-eng-review)* -->
 
 ## Approval
 
@@ -74,6 +81,18 @@ Next step: [assess risk weight, select review pack]
 ### Handoff Notes
 
 [Context from /gal wrap-up — key insights, unresolved questions, current hypothesis]
+
+## Tasks
+
+[Written by /plan-eng-review after Eng Review is CLEAR. Implementation updates completion state only — do not rewrite task semantics.]
+
+<!-- Format: - [ ] T-NNN — task description (Verify: how to confirm done) -->
+
+## Analyze
+
+[Written by /review — verdict: CLEAR | DRIFT-OPEN | NOT-RUN]
+
+<!-- Sole writer: /review. /ship, /gal status, /gal whats-next consume verdict only — they do not recalculate drift. -->
 
 ## Test Results
 
