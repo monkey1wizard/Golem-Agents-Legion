@@ -84,7 +84,7 @@ In the active plan file, append:
 **Production URL:** <url>
 **Version / commit:** <hash>
 **Health check:** PASSED / FAILED
-**Screenshot:** docs/screenshots/deploy-<date>.png
+**Screenshot:** docs/screenshots/deploy-YYYYMMDD-HHmmss.png
 ```
 
 Tell the user: production URL, deploy timestamp, health check result.

@@ -21,7 +21,7 @@ SRE on watch. Monitor production until confident or an alert fires.
 
 Ask the user for:
 1. The production URL to monitor (or read from `## Deploy` in active plan)
-2. Whether a previous baseline exists (`docs/benchmarks/canary-*.json`)
+2. Whether a previous baseline exists (`docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json`)
 
 ## Step 1 — Load Baseline (if exists)
 

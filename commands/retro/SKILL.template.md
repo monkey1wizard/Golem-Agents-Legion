@@ -103,7 +103,7 @@ Structure:
 
 ## Step 6 — Save JSON Snapshot
 
-Save to `docs/retros/<date>.json`:
+Save to `docs/retros/YYYYMMDD.json` where `YYYYMMDD` is today's date (e.g. `docs/retros/20260401.json`):
 ```json
 {
   "date": "<ISO date>",

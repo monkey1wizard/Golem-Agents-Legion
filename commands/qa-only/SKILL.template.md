@@ -86,6 +86,6 @@ In the active plan file, append:
 <!-- QA_ONLY: REPORT-COMPLETE -->
 ```
 
-Save a full report to `docs/qa-reports/<date>-<plan-slug>-report-only.md`.
+Save a full report to `docs/qa-reports/YYYYMMDD-<plan-slug>-report-only.md` where `YYYYMMDD` is today's date (e.g. `20260401-auth-refresh-report-only.md`).
 
 Tell the user: health score, bug count by severity, and suggested next command (`/qa` to fix, or `/investigate` for deep bugs).
