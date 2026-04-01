@@ -32,7 +32,7 @@ GAL 的 live/manual 驗證清單。這份文件會在 plan 檔清理後繼續保
 
 | 能力 | Runtime | 狀態 | 最後驗證 | 備註 |
 | --- | --- | --- | --- | --- |
-| `Start-GalWorker.ps1` 在 worktree path 無效時仍會寫出 `status.json` | 直接執行 PowerShell | 已驗證 | 2026-03-31 | 已用不存在的 `WorktreePath` 驗證；script 會輸出 failed `status.json`，不會直接崩潰 |
+| `Start-GalWorker.ps1` 在 worktree path 無效時仍會寫出 `status.json` | 直接執行 PowerShell | 已驗證 | 2026-03-31 | 已用不存在的 `WorktreePath` 驗證。script 會輸出 failed `status.json`，不會直接崩潰 |
 | 完整 remote dispatch → worker run → result retrieval 流程可跑通 | Windows PC → Windows notebook over SSH | 待驗證 | — | contract 與 scripts 已存在，但尚未完成端到端 live 驗證 |
 
 ## 備註

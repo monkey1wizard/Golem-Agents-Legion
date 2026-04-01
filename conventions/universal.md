@@ -233,6 +233,11 @@ func ParseOrder(input string) (*Order, error) {
 - No bare URLs — use `[text](url)` format
 - Tables use `| --- |` dividers (no alignment markers)
 
+### Punctuation
+
+- In general prose and documentation, do not use CJK fullwidth semicolon punctuation or semicolons padded with surrounding spaces
+- The semicolon rule above applies only to Conventional Commit bullet lists, not to normal Markdown docs
+
 ### Recommended `.markdownlint.json`
 
 ```json

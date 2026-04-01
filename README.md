@@ -19,6 +19,18 @@ GAL separates durable workflow knowledge from tool-specific adapters.
 
 This repo is not an application service. It is the canonical methodology and command surface.
 
+## Lineage
+
+GAL draws from several adjacent systems rather than a single upstream.
+
+- [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) contributes the phase-based workflow discipline: explicit state, verification gates, and a more rigorous execution lifecycle.
+- [gstack](https://github.com/garrytan/gstack) contributes much of the specialist workflow semantics and command vocabulary, GAL reimplements those semantics natively instead of depending on upstream gstack runtime or storage.
+- [GitHub Spec Kit](https://github.com/github/spec-kit) contributes the portable command-kit and artifact-driven direction: repo-carried workflow artifacts, Markdown-native docs, and installable command surfaces across different runtimes.
+
+GAL's own addition is the split between a dedicated `/gal` control plane and a specialist execution layer, backed by a repo-local canonical state model under `.dev/`, `docs/plans/`, and related artifact folders.
+
+In short: GAL is not a fork of any one source. It recombines ideas from GSD, gstack, and Spec Kit into a Copilot/Gemini/Codex-friendly operating model.
+
 ## Final Operating Model
 
 GAL now uses a strict split between control plane and execution layer.
@@ -45,7 +57,7 @@ These files are the durable state model.
 | `docs/designs/<plan-slug>/` | Plan-bound design assets: `variant-approved.json`, `variant-approved.png`, `handoff-final.html` |
 | `docs/qa-reports/` | QA reports: `YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
 | `docs/design-reports/` | Design audit reports: `YYYYMMDD-<plan-slug>-rNN.md` |
-| `docs/benchmarks/` | Performance baselines: `YYYYMMDD-HHmmss-<url-slug>.json`; canary baselines: `canary-YYYYMMDD-HHmmss-<url-slug>.json` |
+| `docs/benchmarks/` | Performance baselines: `YYYYMMDD-HHmmss-<url-slug>.json`, canary baselines: `canary-YYYYMMDD-HHmmss-<url-slug>.json` |
 | `docs/retros/` | Retro snapshots: `YYYYMMDD.json` |
 | `docs/research/` | Research notes: `YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo-local institutional memory |
@@ -56,9 +68,9 @@ The execution work file (`.prompt.md`) contains three specialist-written section
 
 | Section | Written by | Consumed by | Purpose |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/office-hours` (initial), `/plan-ceo-review`, `/plan-design-review` (append); `/plan-eng-review` closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions; IDs `OQ-NNN` |
-| `## Tasks` | `/plan-eng-review` (sole initializer after Eng Review CLEAR); implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist; IDs `T-NNN` |
-| `## Analyze` | `/review` (sole writer; verdict: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN`) | `/ship`, `/gal status`, `/gal whats-next` | Drift check: did the diff stay within plan scope? |
+| `## Open Questions` | `/office-hours` (initial), `/plan-ceo-review`, `/plan-design-review` (append), `/plan-eng-review` closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions, IDs `OQ-NNN` |
+| `## Tasks` | `/plan-eng-review` (sole initializer after Eng Review CLEAR), implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist, IDs `T-NNN` |
+| `## Analyze` | `/review` (sole writer, verdict: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN`) | `/ship`, `/gal status`, `/gal whats-next` | Drift check: did the diff stay within plan scope? |
 
 Consumers read these sections for display and routing — they do not recalculate or overwrite them.
 
@@ -131,7 +143,7 @@ These commands implement the work layer directly. They do not route through `/ga
 | --- | --- | --- |
 | `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/<plan-slug>.md` + `.prompt.md`, `.dev/state.md`, initial `## Open Questions` |
 | `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results`, `## Open Questions` (scope OQs) |
-| `/plan-eng-review` | Architecture and test-plan gate; required before `/ship` | Plan `## Review Results`, `## Test Plan`, `## Tasks`, closes resolved `## Open Questions` |
+| `/plan-eng-review` | Architecture and test-plan gate, required before `/ship` | Plan `## Review Results`, `## Test Plan`, `## Tasks`, closes resolved `## Open Questions` |
 | `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results`, `## Open Questions` (design OQs) |
 | `/autoplan` | Chains CEO, design, and eng reviews with auto-decisions | Plan review sections and test plan |
 | `/cso` | OWASP plus STRIDE security review | Plan `## Review Results` |

@@ -19,6 +19,18 @@ GAL 把持久的工作流程知識與工具特定的轉接器分開。
 
 這個 repo 不是一個應用服務，而是 canonical 的方法論與指令表面。
 
+## 來源與借鑑
+
+GAL 不是單一上游的改名版，而是把幾個相鄰系統的長處重新組合起來。
+
+- [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 提供的是 phase-based workflow discipline，也就是明確狀態、verification gates 與較嚴格的執行生命週期。
+- [gstack](https://github.com/garrytan/gstack) 提供的是 specialist workflow semantics 與大量指令語彙，GAL 取用的是這些工作流語意，並以 GAL-native skills 重新實作，而不是依賴 upstream gstack 的 runtime 或儲存模型。
+- [GitHub Spec Kit](https://github.com/github/spec-kit) 提供的是 portable command-kit 與 artifact-driven 的方向：repo 內可攜的 workflow artifacts、Markdown-native 文件，以及可安裝到不同 agent/runtime 的命令表面。
+
+GAL 自己額外做的，是把這些來源收斂成「`/gal` 控制平面 + specialist execution layer」的分層，並把 canonical state 固定在 repo 內的 `.dev/`、`docs/plans/` 與相關 artifact 目錄。
+
+簡單說，GAL 不是 spec-kit 或 gstack 的 fork，它是把 GSD、gstack、Spec Kit 的不同優點重組成一個更適合 Copilot、Gemini 與 Codex 的 repo-local operating model。
+
 ## 最終運作模型
 
 GAL 現在採用控制平面與執行層的嚴格分層。
@@ -45,7 +57,7 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | `docs/designs/<plan-slug>/` | 計畫綁定的設計資產：`variant-approved.json`、`variant-approved.png`、`handoff-final.html` |
 | `docs/qa-reports/` | QA 報告：`YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
 | `docs/design-reports/` | 設計審查報告：`YYYYMMDD-<plan-slug>-rNN.md` |
-| `docs/benchmarks/` | 效能基準線：`YYYYMMDD-HHmmss-<url-slug>.json`；canary 基準線：`canary-YYYYMMDD-HHmmss-<url-slug>.json` |
+| `docs/benchmarks/` | 效能基準線：`YYYYMMDD-HHmmss-<url-slug>.json`，canary 基準線：`canary-YYYYMMDD-HHmmss-<url-slug>.json` |
 | `docs/retros/` | 回顧快照：`YYYYMMDD.json` |
 | `docs/research/` | 研究筆記：`YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo 本地的制度化記憶 |
@@ -56,9 +68,9 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 
 | Section | 寫入者 | 消費者（唯讀） | 用途 |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/office-hours`（初始化）、`/plan-ceo-review`、`/plan-design-review`（追加）；`/plan-eng-review` 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list；ID 格式 `OQ-NNN` |
-| `## Tasks` | `/plan-eng-review`（唯一初始化者，Eng Review CLEAR 後）；實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單；ID 格式 `T-NNN` |
-| `## Analyze` | `/review`（唯一寫入者；verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：diff 是否偏離計畫範圍？ |
+| `## Open Questions` | `/office-hours`（初始化）、`/plan-ceo-review`、`/plan-design-review`（追加），`/plan-eng-review` 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list，ID 格式 `OQ-NNN` |
+| `## Tasks` | `/plan-eng-review`（唯一初始化者，Eng Review CLEAR 後），實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單，ID 格式 `T-NNN` |
+| `## Analyze` | `/review`（唯一寫入者，verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：diff 是否偏離計畫範圍？ |
 
 消費者只讀取這些 sections 用於顯示與路由 — 不重算、不覆寫。
 
@@ -130,9 +142,9 @@ $autoplan
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
 | `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/<plan-slug>.md` + `.prompt.md`、`.dev/state.md`、初始 `## Open Questions` |
-| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results`、`## Open Questions`（scope OQs）|
-| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan`、`## Tasks`；關閉已解決的 `## Open Questions` |
-| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results`、`## Open Questions`（設計相關 OQs）|
+| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results`、`## Open Questions`（scope OQs） |
+| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan`、`## Tasks`，關閉已解決的 `## Open Questions` |
+| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results`、`## Open Questions`（設計相關 OQs） |
 | `/autoplan` | 串接 CEO、設計與工程審查並自動決策 | 計畫審查區段與測試計畫 |
 | `/cso` | OWASP 加 STRIDE 資安審查 | 計畫 `## Review Results` |
 

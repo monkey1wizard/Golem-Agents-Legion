@@ -154,8 +154,8 @@ GAL 的 ownership boundary 是 repo-local：
 原因：
 
 1. gstack 的 host 假設是 Claude Code，不是 Copilot。
-2. GAL 的價值之一是 tool-agnostic methodology；若把 upstream gstack 安裝變成前置條件，控制權就外包出去。
-3. GAL 需要 repo-local canonical artifacts；upstream gstack 的部分儲存模型是 user-global，不符合 GAL 的 state ownership。
+2. GAL 的價值之一是 tool-agnostic methodology。若把 upstream gstack 安裝變成前置條件，控制權就外包出去。
+3. GAL 需要 repo-local canonical artifacts。upstream gstack 的部分儲存模型是 user-global，不符合 GAL 的 state ownership。
 
 所以 GAL 的做法是：
 
@@ -199,7 +199,7 @@ control plane 的索引：
 
 單一 feature 或 sprint 的 human-readable plan document。
 
-建立時包含範圍、理由與需求；建立後不被 specialist commands 修改。
+建立時包含範圍、理由與需求，建立後不被 specialist commands 修改。
 
 ### `docs/plans/<plan-slug>.prompt.md` — AI 執行工作檔案
 
@@ -226,8 +226,8 @@ control plane 的索引：
 其中三個 sections 有明確所有權：
 
 - `## Open Questions`：`/office-hours` 初始化，`/plan-ceo-review`、`/plan-design-review` 追加，`/plan-eng-review` 關閉已解決項目
-- `## Tasks`：僅由 `/plan-eng-review` 初始化；實作階段只能更新完成狀態
-- `## Analyze`：僅由 `/review` 寫入 verdict；`/ship` 與 control-plane 只消費，不重算 semantics
+- `## Tasks`：僅由 `/plan-eng-review` 初始化。實作階段只能更新完成狀態
+- `## Analyze`：僅由 `/review` 寫入 verdict。`/ship` 與 control-plane 只消費，不重算 semantics
 
 ### 其他 supporting artifacts
 

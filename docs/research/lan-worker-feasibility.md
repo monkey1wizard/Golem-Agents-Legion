@@ -2,7 +2,7 @@
 
 ## Research Question
 
-在現有 GAL 架構下，是否適合把少用的 Windows notebook 變成 LAN 上的無頭 CLI worker，由主 PC 透過 SSH 與 AI CLI 派送任務；若可行，MVP 應如何收斂，且未來 Mac Mini 加入後要如何演進。
+在現有 GAL 架構下，是否適合把少用的 Windows notebook 變成 LAN 上的無頭 CLI worker，由主 PC 透過 SSH 與 AI CLI 派送任務。若可行，MVP 應如何收斂，且未來 Mac Mini 加入後要如何演進。
 
 ## Scope
 
@@ -13,13 +13,13 @@
 ## Raw Findings
 
 - GAL 目前只支援跨機同步方法論與本地工具安裝，沒有內建 LAN/SSH 遠端執行、worker orchestration 或 async queue。來源：repo 文件 [docs/installation-topology.md](../installation-topology.md) 與 [docs/command-dispatch-architecture.md](../command-dispatch-architecture.md)
-- Microsoft Learn 確認 Windows 11 可啟用 OpenSSH Server，並可直接透過 `ssh user@host` 遠端登入；OpenSSH for Windows 屬正式支援能力。來源：[OpenSSH for Windows](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse)
+- Microsoft Learn 確認 Windows 11 可啟用 OpenSSH Server，並可直接透過 `ssh user@host` 遠端登入。OpenSSH for Windows 屬正式支援能力。來源：[OpenSSH for Windows](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse)
 - Git 官方文件確認 `git worktree` 適合建立 linked worktree 做隔離執行，並支援 `add`、`lock`、`list --porcelain`、`prune`、`repair` 等操作，可作為遠端任務工作樹生命週期基礎。來源：[git-worktree](https://git-scm.com/docs/git-worktree)
 - Gemini CLI 官方 README 與配置文件確認支援非互動模式 `gemini -p`、`--output-format json|stream-json`、設定檔階層、MCP、hooks、approval mode、sandbox，以及工作樹相關選項。來源：[Gemini CLI README](https://github.com/google-gemini/gemini-cli/blob/main/README.md) 與 [Gemini CLI configuration](https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md)
 - Gemini CLI 官方 cheatsheet 顯示 `--worktree` 目前屬 experimental，需要 `experimental.worktrees` 開啟，適合視為輔助能力，不適合作為 GAL 隔離模型的唯一基礎。來源：[Gemini CLI cheatsheet](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/cli-reference.md)
 - Gemini CLI 官方 troubleshooting 提供可腳本化的 exit codes，例如 41（auth）、42（input）、44（sandbox）、52（config）、53（turn limit），適合 worker 腳本做錯誤分流。來源：[Gemini CLI troubleshooting](https://github.com/google-gemini/gemini-cli/blob/main/docs/resources/troubleshooting.md)
 - Gemini CLI 原始碼與文件顯示某些 consent / auth 流程在 non-interactive mode 仍可能讀取 stdin，且 `security.disableYoloMode` 或 `admin.secureModeEnabled` 會影響自動執行能力，因此不能預設任務一定可完全無人值守。來源：[extensions consent code](https://github.com/google-gemini/gemini-cli/tree/main/packages/cli/src/config/extensions/consent.ts) 與 [Gemini CLI configuration](https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md)
-- 你的 notebook 在目前角色設計中本來就不是 local inference 節點，而是 planning / review / remote work 節點；因此它更適合吸收 SSH CLI 背景任務，而不是承接 GPU 型工作。來源：[model-roles.local.md](../../model-roles.local.md)
+- 你的 notebook 在目前角色設計中本來就不是 local inference 節點，而是 planning / review / remote work 節點。因此它更適合吸收 SSH CLI 背景任務，而不是承接 GPU 型工作。來源：[model-roles.local.md](../../model-roles.local.md)
 
 ## Synthesis
 
@@ -40,7 +40,7 @@ OpenSSH for Windows 已足以擔任最低層 transport。`git worktree` 已足�
 
 - 最大限制不是 LAN 頻寬，而是 worker engine 的非互動可靠性與 notebook 的電源/睡眠穩定性。
 - 不能把 branch 輸出、worker loop、Mac Mini 規劃、ACP、hooks、sandbox、multi-engine abstraction 一次塞進 MVP，否則設計會比需求先爆炸。
-- 不應依賴 Gemini CLI 的 experimental `--worktree` 來保證隔離；隔離應由 GAL 自己用 `git worktree` 管理。
+- 不應依賴 Gemini CLI 的 experimental `--worktree` 來保證隔離。隔離應由 GAL 自己用 `git worktree` 管理。
 
 ### 架構建議
 
