@@ -60,16 +60,16 @@ These preferences inform future `/design-shotgun` calls.
 
 ## Step 6 — Save Approved Design
 
-Save the approved variant:
+Save the approved variant using the active `plan-slug` as the directory name:
 
-- Image: `docs/designs/<slug>/approved.png` (if image generated)
-- Spec: `docs/designs/<slug>/approved.json`
+- Image: `docs/designs/<plan-slug>/variant-approved.png` (if image generated)
+- Spec: `docs/designs/<plan-slug>/variant-approved.json`
 
-`approved.json` format:
+`variant-approved.json` format:
 
 ```json
 {
-  "slug": "<slug>",
+  "planSlug": "<plan-slug>",
   "subject": "<what was designed>",
   "variant": "<A|B|C>",
   "character": "<one-line description>",
@@ -79,4 +79,4 @@ Save the approved variant:
 }
 ```
 
-Tell the user: variant approved, path to `approved.json`, and that `/design-html` will convert this to production HTML.
+Tell the user: variant approved, path to `variant-approved.json`, and that `/design-html` will convert this to production HTML.

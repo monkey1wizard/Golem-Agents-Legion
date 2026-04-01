@@ -38,13 +38,16 @@ These files are the durable state model.
 | --- | --- |
 | `.dev/project.md` | Repo summary, stack, goals, constraints |
 | `.dev/state.md` | Active plans, blockers, session continuity |
-| `docs/plans/*.prompt.md` | Active execution memory for a feature or sprint |
-| `DESIGN.md` | Product design system |
+| `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements) |
+| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, execution state, write-back target |
+| `DESIGN.md` | Repo-level design governance (design system, not plan-specific) |
 | `CLAUDE.md` | Repo-local operational notes such as deploy config and design references |
-| `docs/designs/` | Design variants, approvals, finalized mockups |
-| `docs/qa-reports/` | QA reports |
-| `docs/benchmarks/` | Performance and canary baselines |
-| `docs/retros/` | Retro snapshots |
+| `docs/designs/<plan-slug>/` | Plan-bound design assets: `variant-approved.json`, `variant-approved.png`, `handoff-final.html` |
+| `docs/qa-reports/` | QA reports: `YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
+| `docs/design-reports/` | Design audit reports: `YYYYMMDD-<plan-slug>-rNN.md` |
+| `docs/benchmarks/` | Performance baselines: `YYYYMMDD-HHmmss-<url-slug>.json`; canary baselines: `canary-YYYYMMDD-HHmmss-<url-slug>.json` |
+| `docs/retros/` | Retro snapshots: `YYYYMMDD.json` |
+| `docs/research/` | Research notes: `YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo-local institutional memory |
 
 ## Quick Start
@@ -114,7 +117,7 @@ These commands implement the work layer directly. They do not route through `/ga
 
 | Command | Purpose | Primary Writes |
 | --- | --- | --- |
-| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/*.prompt.md`, `.dev/state.md` |
+| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/<plan-slug>.md`, `.dev/state.md` |
 | `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results` |
 | `/plan-eng-review` | Architecture and test-plan gate; required before `/ship` | Plan `## Review Results`, `## Test Plan` |
 | `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results` |
@@ -126,8 +129,8 @@ These commands implement the work layer directly. They do not route through `/ga
 | Command | Purpose | Primary Writes |
 | --- | --- | --- |
 | `/design-consultation` | Creates the product design system | `DESIGN.md`, `CLAUDE.md` |
-| `/design-shotgun` | Generates multiple visual variants and records approval | `docs/designs/<slug>/approved.json` |
-| `/design-html` | Converts an approved design into runnable HTML or component code | `docs/designs/<slug>/finalized.html` |
+| `/design-shotgun` | Generates multiple visual variants and records approval | `docs/designs/<plan-slug>/variant-approved.json` |
+| `/design-html` | Converts an approved design into runnable HTML or component code | `docs/designs/<plan-slug>/handoff-final.html` |
 | `/design-review` | Live-site audit against `DESIGN.md` with surgical fixes | Plan `## Review Results`, `docs/design-reports/` |
 
 ### Debug And Review
@@ -221,7 +224,8 @@ The control plane works because specialist commands write predictable sections b
 ```text
 ~/golem-agents-legion/     canonical methodology and command source
 <repo>/.dev/              repo-local state and continuity
-docs/plans/*.prompt.md    active execution memory
+docs/plans/<slug>.md      human-readable source plan doc
+docs/plans/<slug>.prompt.md  AI execution work file (mutable state)
 ~/.copilot/skills/        installed Copilot skills
 ~/.gemini/skills/         installed Gemini skills
 ```

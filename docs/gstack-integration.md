@@ -195,7 +195,13 @@ control plane 的索引：
 - blockers
 - session continuity
 
-### `docs/plans/*.prompt.md`
+### `docs/plans/<plan-slug>.md` — Source Plan Doc
+
+單一 feature 或 sprint 的 human-readable plan document。
+
+建立時包含範圍、理由與需求；建立後不被 specialist commands 修改。
+
+### `docs/plans/<plan-slug>.prompt.md` — AI 執行工作檔案
 
 單一 feature 或 sprint 的 canonical execution memory。
 
@@ -210,6 +216,8 @@ control plane 的索引：
 - `## Ship`
 - `## Deploy`
 - `### Handoff Notes`
+
+兩個檔案以相同的 `plan-slug` 作為關聯鍵。控制平台讀取 `.prompt.md` 來輸出狀態。
 
 ### 其他 supporting artifacts
 

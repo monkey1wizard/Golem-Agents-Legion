@@ -26,9 +26,9 @@ Ask the user for:
 
 ## Step 1 — Load Previous Baseline (if exists)
 
-Check `docs/benchmarks/` for a previous run for this URL.
+Check `docs/benchmarks/` for a previous run for this URL. Match by `url-slug` — the `url-slug` is derived from the URL by lowercasing, replacing non-alphanumeric characters with hyphens, and trimming (e.g. `localhost-3000` or `myapp-com-dashboard`).
 
-If found: this run will produce a before/after comparison. Tell the user which baseline will be used.
+Find the most recent `YYYYMMDD-HHmmss-<url-slug>.json` file with the same `url-slug`. If found: this run will produce a before/after comparison. Tell the user which baseline will be used.
 
 If not found: this run creates the baseline.
 
@@ -73,11 +73,12 @@ Regardless of baseline comparison, report:
 
 ## Step 6 — Save Baseline
 
-Save to `docs/benchmarks/<date>-<url-slug>.json`:
+Save to `docs/benchmarks/YYYYMMDD-HHmmss-<url-slug>.json` where `YYYYMMDD-HHmmss` is the current timestamp (e.g. `20260401-143022-localhost-3000.json`):
 ```json
 {
   "date": "<ISO date>",
   "url": "<url>",
+  "urlSlug": "<url-slug>",
   "runs": 5,
   "metrics": {
     "loadMs": { "avg": 420, "p95": 510 },

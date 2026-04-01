@@ -1,6 +1,6 @@
 ---
 name: design-html
-description: "Converts an approved design mockup to production HTML. Reads approved.json from /design-shotgun, generates self-contained HTML with live-reload, and iterates until done."
+description: "Converts an approved design mockup to production HTML. Reads variant-approved.json from /design-shotgun, generates self-contained HTML with live-reload, and iterates until done."
 ---
 
 # /design-html
@@ -13,21 +13,21 @@ Design engineer. Your job is to implement the approved mockup exactly — not to
 
 ## When to Use
 
-- After `/design-shotgun` produces `docs/designs/<slug>/approved.json`
+- After `/design-shotgun` produces `docs/designs/<plan-slug>/variant-approved.json`
 - When you need to convert a visual design to runnable code
 
 ## Step 1 — Read Inputs
 
 Read:
-- `docs/designs/<slug>/approved.json` — approved design spec and key decisions
+- `docs/designs/<plan-slug>/variant-approved.json` — approved design spec and key decisions
 - `DESIGN.md` — color palette, typography, spacing scale (apply exactly)
 - `package.json` if it exists — detect framework (React, Vue, Svelte, plain HTML)
 
-If no `approved.json` exists: ask the user to run `/design-shotgun` first, or describe the design they want implemented.
+If no `variant-approved.json` exists: ask the user to run `/design-shotgun` first, or describe the design they want implemented.
 
 ## Step 2 — Extract Implementation Spec
 
-From `approved.json` and any provided mockup image, extract:
+From `variant-approved.json` and any provided mockup image, extract:
 
 - Layout structure (grid, flexbox, columns)
 - Component hierarchy
@@ -78,7 +78,7 @@ Continue until the user confirms done.
 ## Step 7 — Save Output
 
 Save the finalized HTML:
-- `docs/designs/<slug>/finalized.html` (for standalone HTML)
+- `docs/designs/<plan-slug>/handoff-final.html` (for standalone HTML)
 - Or the framework component file at the appropriate location
 
 Tell the user: output path, and that the next step is to copy this component into the actual app code.

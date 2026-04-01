@@ -38,13 +38,16 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | --- | --- |
 | `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
 | `.dev/state.md` | 活動計畫、阻塞點、工作階段連續性 |
-| `docs/plans/*.prompt.md` | 單一功能或 sprint 的執行記憶 |
-| `DESIGN.md` | 產品設計系統 |
+| `docs/plans/<plan-slug>.md` | 人類可讀的計畫文件（範圍、理由、需求） |
+| `docs/plans/<plan-slug>.prompt.md` | AI 執行工作檔案——可變清單、執行狀態、回寫目標 |
+| `DESIGN.md` | Repo 層級設計治理（設計系統，非計畫專屬） |
 | `CLAUDE.md` | Repo 本地操作備注，如部署設定與設計參考 |
-| `docs/designs/` | 設計變體、審核結果、定稿 mockup |
-| `docs/qa-reports/` | QA 報告 |
-| `docs/benchmarks/` | 效能與 canary 基準線 |
-| `docs/retros/` | 回顧快照 |
+| `docs/designs/<plan-slug>/` | 計畫綁定的設計資產：`variant-approved.json`、`variant-approved.png`、`handoff-final.html` |
+| `docs/qa-reports/` | QA 報告：`YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
+| `docs/design-reports/` | 設計審查報告：`YYYYMMDD-<plan-slug>-rNN.md` |
+| `docs/benchmarks/` | 效能基準線：`YYYYMMDD-HHmmss-<url-slug>.json`；canary 基準線：`canary-YYYYMMDD-HHmmss-<url-slug>.json` |
+| `docs/retros/` | 回顧快照：`YYYYMMDD.json` |
+| `docs/research/` | 研究筆記：`YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo 本地的制度化記憶 |
 
 ## 快速開始
@@ -114,7 +117,7 @@ $autoplan
 
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
-| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/*.prompt.md`、`.dev/state.md` |
+| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/<plan-slug>.md`、`.dev/state.md` |
 | `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results` |
 | `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan` |
 | `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results` |
@@ -126,8 +129,8 @@ $autoplan
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
 | `/design-consultation` | 建立產品設計系統 | `DESIGN.md`、`CLAUDE.md` |
-| `/design-shotgun` | 生成多個視覺變體並記錄審核結果 | `docs/designs/<slug>/approved.json` |
-| `/design-html` | 將已審核的設計轉換為可執行的 HTML 或元件程式碼 | `docs/designs/<slug>/finalized.html` |
+| `/design-shotgun` | 生成多個視覺變體並記錄審核結果 | `docs/designs/<plan-slug>/variant-approved.json` |
+| `/design-html` | 將已審核的設計轉換為可執行的 HTML 或元件程式碼 | `docs/designs/<plan-slug>/handoff-final.html` |
 | `/design-review` | 對照 `DESIGN.md` 對線上站台進行精準視覺修正 | 計畫 `## Review Results`、`docs/design-reports/` |
 
 ### 除錯與審查
@@ -221,7 +224,8 @@ $autoplan
 ```text
 ~/golem-agents-legion/     canonical 方法論與指令來源
 <repo>/.dev/              repo 本地狀態與連續性
-docs/plans/*.prompt.md    活動執行記憶
+docs/plans/<slug>.md      人類可讀的計畫文件
+docs/plans/<slug>.prompt.md  AI 執行工作檔案（可變狀態）
 ~/.copilot/skills/        已安裝的 Copilot skills
 ~/.gemini/skills/         已安裝的 Gemini skills
 ~/.agents/skills/         已安裝的 Codex skills

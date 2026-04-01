@@ -24,11 +24,11 @@ Two layers, zero overlap. The rule: if an operation **governs the GAL workflow s
 | Layer | Commands | Canonical Artifact |
 |-------|----------|--------------------|
 | **GAL control-plane** | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up` | `.dev/state.md`, `.dev/project.md` |
-| **Planning specialists** | `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/autoplan`, `/cso` | `docs/plans/*.prompt.md` |
-| **Design specialists** | `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review` | `DESIGN.md`, `docs/designs/` |
-| **Debug / Review specialists** | `/investigate`, `/review` | `docs/plans/*.prompt.md` → `## Review Results` |
-| **QA / Test specialists** | `/qa`, `/qa-only`, `/browse`, `/connect-chrome`, `/setup-browser-cookies` | `docs/plans/*.prompt.md` → `## Test Results` |
-| **Ship / Release specialists** | `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/document-release`, `/retro`, `/setup-deploy` | PR, repo docs, `.dev/state.md` |
+| **Planning specialists** | `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/autoplan`, `/cso` | `docs/plans/<plan-slug>.md` (source plan doc) + `docs/plans/<plan-slug>.prompt.md` (AI execution work file) |
+| **Design specialists** | `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review` | `DESIGN.md`, `docs/designs/<plan-slug>/`, `docs/design-reports/` |
+| **Debug / Review specialists** | `/investigate`, `/review` | Active plan `## Review Results` |
+| **QA / Test specialists** | `/qa`, `/qa-only`, `/browse`, `/connect-chrome`, `/setup-browser-cookies` | Active plan `## Test Results` + `docs/qa-reports/` |
+| **Ship / Release specialists** | `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/document-release`, `/retro`, `/setup-deploy` | PR, repo docs, `.dev/state.md`, `docs/benchmarks/`, `docs/retros/` |
 | **Session / Memory** | `/learn` | `.dev/state.md` or plan `### Handoff Notes` |
 | **Guardrails** | `/careful`, `/freeze`, `/guard`, `/unfreeze` | Session-scoped hooks only (no artifact) |
 | **Utility** | `/gstack-upgrade` | None (self-updates installed skill files) |
@@ -43,14 +43,18 @@ gstack uses two storage scopes: user-global (`~/.gstack/projects/$SLUG/`) and re
 
 | gstack stores | gstack path | GAL equivalent | GAL path |
 |---------------|-------------|----------------|----------|
-| Design doc (from `/office-hours`) | `~/.gstack/projects/$SLUG/design.md` | Active plan file created by skill | `docs/plans/<feature>.prompt.md` |
+| Design doc (from `/office-hours`) | `~/.gstack/projects/$SLUG/design.md` | Source plan doc | `docs/plans/<plan-slug>.md` |
+| AI execution work file | _(not modeled)_ | Per-task mutable checklist + execution state | `docs/plans/<plan-slug>.prompt.md` |
 | CEO/Design/Eng review results | Review Readiness Dashboard (in-memory + logged) | `## Review Results` section | Active plan file |
 | Test plan (from `/plan-eng-review`) | `~/.gstack/projects/$SLUG/test-plan.md` | `## Test Plan` section | Active plan file |
-| QA reports | `.gstack/qa-reports/` | `## Test Results` section + report file | Active plan file + `docs/qa-reports/` |
-| Design reports | `.gstack/design-reports/` | Design report | `docs/design-reports/` |
-| Design variants + approved mockup | `~/.gstack/projects/$SLUG/designs/approved.json` | Approved mockup | `docs/designs/<slug>/approved.json` |
+| QA reports | `.gstack/qa-reports/` | `## Test Results` section + report file | Active plan file + `docs/qa-reports/YYYYMMDD-<plan-slug>.md` |
+| Design reports | `.gstack/design-reports/` | Design audit report | `docs/design-reports/YYYYMMDD-<plan-slug>-rNN.md` |
+| Design variants + approved mockup | `~/.gstack/projects/$SLUG/designs/approved.json` | Approved mockup | `docs/designs/<plan-slug>/variant-approved.json` + `variant-approved.png` |
+| Finalized design HTML | _(not modeled)_ | Handoff HTML | `docs/designs/<plan-slug>/handoff-final.html` |
 | Session learnings | `~/.gstack/projects/$SLUG/learnings.jsonl` | Handoff notes / pattern notes | Active plan `### Handoff Notes` or `.dev/state.md` |
-| Retro snapshots | `.context/retros/` | Retro snapshot | `docs/retros/` |
+| Retro snapshots | `.context/retros/` | Retro snapshot | `docs/retros/YYYYMMDD.json` |
+| Benchmark baselines | _(not modeled)_ | Performance baseline | `docs/benchmarks/YYYYMMDD-HHmmss-<url-slug>.json` |
+| Canary baselines | _(not modeled)_ | Post-deploy monitor baseline | `docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json` |
 | Deploy config | `CLAUDE.md` (gstack section) | Deploy config | `CLAUDE.md` (GAL section) |
 | Greptile false-positive history | `~/.gstack/greptile-history.md` | FP history | `.dev/greptile-history.md` |
 
@@ -92,7 +96,7 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 |-------|-------|
 | **Role** | CEO / Founder — "Brian Chesky mode" |
 | **Mode** | Interactive — one scope decision at a time, `AskUserQuestion` for genuine tradeoffs |
-| **Input reads** | Active plan file `docs/plans/*.prompt.md` (reads `## Goal`, `## Context`, `## Scope`) |
+| **Input reads** | Active plan's AI execution work file `docs/plans/<plan-slug>.prompt.md` (reads `## Goal`, `## Context`, `## Scope`) |
 | **Operation** | Asks "what is the 10-star product hiding inside this request?" Four modes: SCOPE EXPANSION, SELECTIVE EXPANSION, HOLD SCOPE, SCOPE REDUCTION. Each expansion/reduction is an individual opt-in decision. Runs a 10-section structured review. |
 | **Output artifacts** | Updates active plan file with CEO review findings; updates Review Readiness Dashboard state |
 | **State written to plan** | Appends `## CEO Review` sub-section under `## Review Results` with: mode used, scope decisions resolved, open scope questions |
@@ -199,10 +203,10 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 | **Mode** | Interactive — comparison board in browser; iterative until user approves |
 | **Input reads** | Description from user; `DESIGN.md` (brand constraints if exists) |
 | **Operation** | Generates 3 visual design variants using GPT Image API. Opens comparison board at `localhost:PORT` with remix / regenerate / approve actions. Records taste preferences across sessions (biases future generations). |
-| **Output artifacts** | Variant PNGs + `approved.json` |
-| **GAL artifact path** | `docs/designs/<slug>/approved.json` (instead of `~/.gstack/projects/$SLUG/designs/`) |
-| **State written to plan** | Appends `## Design Variants` note in active plan referencing `docs/designs/<slug>/` |
-| **Feeds into** | `/design-html` (reads `approved.json`) |
+| **Output artifacts** | Variant PNGs + `variant-approved.json` + `variant-approved.png` |
+| **GAL artifact path** | `docs/designs/<plan-slug>/variant-approved.json` (instead of `~/.gstack/projects/$SLUG/designs/`) |
+| **State written to plan** | Appends `## Design Variants` note in active plan referencing `docs/designs/<plan-slug>/` |
+| **Feeds into** | `/design-html` (reads `variant-approved.json`) |
 
 ---
 
@@ -213,9 +217,9 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 |-------|-------|
 | **Role** | Design engineer — mockup to production HTML |
 | **Mode** | Interactive — live-reload server, surgical edits per user feedback |
-| **Input reads** | `approved.json` from `/design-shotgun`; framework detection from `package.json` |
+| **Input reads** | `variant-approved.json` from `/design-shotgun`; framework detection from `package.json` |
 | **Operation** | Uses GPT-4o vision to extract implementation spec from mockup. Generates self-contained HTML with [Pretext](https://github.com/chenglou/pretext) (15KB, inline). Spins up live-reload server. Smart API routing: `prepare()+layout()` for simple layouts / cards, `walkLineRanges()` for chat, `layoutNextLine()` for editorial, full engine for complex. Screenshots at 3 viewports. Iterates until "done". |
-| **Output artifacts** | `docs/designs/<slug>/finalized.html` (or framework component); screenshots |
+| **Output artifacts** | `docs/designs/<plan-slug>/handoff-final.html` (or framework component); screenshots |
 | **State written to plan** | None — implementation artifact, not a plan-state artifact |
 | **Feeds into** | Implementation phase (copy HTML into actual app code) |
 
@@ -410,7 +414,7 @@ Commands are ordered by sprint phase: Think → Plan → Build → Review → Te
 | **Mode** | One-shot (or comparative if baseline exists) |
 | **Input reads** | URL(s); optional previous baseline saved by earlier run |
 | **Operation** | Uses browse daemon for real Chromium measurements. Multiple runs averaged. Measures: page load time, Core Web Vitals (LCP, CLS, INP), resource counts, total transfer size. Saves baseline. If previous baseline exists: shows before/after comparison with regressions highlighted. |
-| **Output artifacts** | Performance baseline saved to `docs/benchmarks/<date>.json`; comparison report |
+| **Output artifacts** | Performance baseline saved to `docs/benchmarks/YYYYMMDD-HHmmss-<url-slug>.json`; comparison report |
 | **State written to plan** | Appends `## Performance` section if run as part of active plan work |
 
 ---

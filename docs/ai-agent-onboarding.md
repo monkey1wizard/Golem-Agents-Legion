@@ -102,7 +102,7 @@ If you are new to the repo, read in this order:
 | `skills/` | Canonical skill source reused across tools |
 | `commands/` | Slash-command entry points such as `/gal` and `gal-*` aliases |
 | `scripts/` | Machine setup, repo bootstrap, and dispatcher logic |
-| `docs/plans/` | Temporary execution memory for methodology changes inside this repo |
+| `docs/plans/` | Source plan docs (`<slug>.md`) and AI execution work files (`<slug>.prompt.md`) for methodology changes inside this repo |
 
 The long-lived architecture rationale belongs in `docs/`, not in `docs/plans/`.
 
@@ -119,7 +119,12 @@ An AI agent should understand that the aliases are UX affordances, not independe
 
 This repo follows its own methodology.
 
-That means changes to GAL itself may be tracked in `docs/plans/*.prompt.md`. These plan files are temporary task memory, not permanent product documentation.
+Changes to GAL itself are tracked using two complementary artifact types:
+
+- **Source plan doc** — `docs/plans/<plan-slug>.md`: the human-readable plan with scope, rationale, and requirements. This is what a human reads to understand what a change does and why.
+- **AI execution work file** — `docs/plans/<plan-slug>.prompt.md`: the mutable working artifact the agent operates against. It carries per-task checklists, execution state, `## Status`, `## Review Results`, `## Test Results`, and `### Handoff Notes`. This is the canonical state vector that `/gal status` reads.
+
+Both files share the same `plan-slug` as their correlation key. Specialist commands write back to the `.prompt.md` file. The source plan doc `.md` is not modified by specialist commands after creation.
 
 When reading a plan in this repo, interpret it as:
 

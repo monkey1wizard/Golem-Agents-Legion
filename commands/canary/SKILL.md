@@ -25,12 +25,14 @@ Ask the user for:
 
 ## Step 1 — Load Baseline (if exists)
 
-Read the most recent `docs/benchmarks/canary-*.json` for this URL. This provides:
+Read the most recent `docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json` for this URL. Match by `url-slug` — the same derivation rule as `/benchmark` (lowercase, hyphens, trimmed). This provides:
 - Pre-deploy screenshot hashes for visual comparison
 - Previous console error count
 - Previous p95 load times for key pages
 
 If no baseline: this run creates the baseline. Tell the user.
+
+**Note:** Canary baselines (`canary-YYYYMMDD-HHmmss-<url-slug>.json`) are a separate artifact family from `/benchmark` baselines (`YYYYMMDD-HHmmss-<url-slug>.json`). Do not mix them for comparison purposes.
 
 ## Step 2 — Define Key Pages
 
@@ -73,7 +75,7 @@ Do not continue silently if a P0 alert fires (page failure or data-loss console 
 
 ## Step 6 — Save Baseline
 
-Save current readings to `docs/benchmarks/canary-<date>.json`:
+Save current readings to `docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json` where `YYYYMMDD-HHmmss` is the current timestamp (e.g. `canary-20260401-143500-myapp-com.json`):
 ```json
 {
   "date": "<ISO date>",

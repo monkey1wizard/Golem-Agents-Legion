@@ -80,3 +80,11 @@ A `/gal` command should never replicate specialist execution logic. A specialist
 | --- | --- | --- |
 | Control plane | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` | `.dev/state.md`, `### Handoff Notes` |
 | Specialist | `/office-hours`, `/plan-eng-review`, `/review`, `/qa`, `/ship`, etc. | Plan `## Review Results`, `## Test Results`, `## Status`, `.dev/state.md` blockers |
+
+## Artifact Model
+
+When this document refers to "active plan file," it means the AI execution work file at `docs/plans/<plan-slug>.prompt.md`. This is the mutable artifact that carries `## Status`, `## Review Results`, `## Test Results`, `### Handoff Notes`, and other per-task state sections.
+
+The human-readable source plan doc lives at `docs/plans/<plan-slug>.md`. Both files share the same `plan-slug` as their correlation key. The control plane reads the execution work file (`.prompt.md`) for state projection; it does not write to the source plan doc.
+
+See `docs/per-repo-context.md` for the complete artifact taxonomy.

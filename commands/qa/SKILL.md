@@ -109,6 +109,6 @@ In the active plan file, append:
 
 Replace `CLEAR` with `FINDINGS-OPEN` if there are unresolved FAIL or BLOCKED items.
 
-Save a full report to `docs/qa-reports/<date>-<plan-slug>.md`.
+Save a full report to `docs/qa-reports/YYYYMMDD-<plan-slug>.md` where `YYYYMMDD` is today's date (e.g. `20260401-auth-refresh.md`).
 
 Tell the user: health score, fixed count, open issues count, and whether the branch is ready for `/ship`.

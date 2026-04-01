@@ -61,7 +61,11 @@ click <selector>
 Wait for any triggered navigation or network activity before returning.
 
 ### screenshot
-Take a viewport screenshot and save to `docs/screenshots/<slug>-<timestamp>.png`.
+Take a viewport screenshot and save it.
+
+**Naming rules:**
+- If there is an active plan: save to `docs/screenshots/<plan-slug>-NNN[-suffix].png` where `NNN` is a zero-padded sequence starting at `001`. Use a `suffix` only when the evidence workflow needs a semantic marker (e.g. `before`, `after`, `finding-001`).
+- If there is no active plan: save to `docs/screenshots/<slug>-YYYYMMDD-HHmmss.png`. If there is no stable slug, use a pure timestamp: `docs/screenshots/YYYYMMDD-HHmmss.png`.
 
 ### console
 Return all browser console messages since session start (info, warning, error).

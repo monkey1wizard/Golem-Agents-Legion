@@ -132,4 +132,15 @@ If any HIGH priority finding could not be fixed: write `<!-- DESIGN_REVIEW_LIVE:
 
 AI Slop Score: **low** = design feels specific to this product; **medium** = some generic patterns; **high** = could be any app.
 
-Tell the user: Design Score, AI Slop Score, fixes applied count, deferred count.
+## Step 7 — Save Design Report
+
+Save a full design report to `docs/design-reports/YYYYMMDD-<plan-slug>-rNN.md` where:
+- `YYYYMMDD` is today's date
+- `<plan-slug>` is the active plan slug (e.g. `auth-refresh`)
+- `rNN` is the review round, starting at `r01` and incrementing for each re-audit of the same plan
+
+Example: `docs/design-reports/20260401-auth-refresh-r01.md`
+
+Plan-bound screenshots taken during this audit follow the `<plan-slug>-NNN[-suffix].png` naming convention (e.g. `auth-refresh-001-before.png`, `auth-refresh-002-after.png`).
+
+Tell the user: Design Score, AI Slop Score, fixes applied count, deferred count, and the report path.

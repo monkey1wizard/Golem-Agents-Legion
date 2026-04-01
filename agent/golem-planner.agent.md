@@ -61,7 +61,13 @@ Forward produces task lists. Goal-backward produces success criteria that tasks 
 
 <plan_format>
 
-## Output: `docs/plans/<type>-<name>.prompt.md`
+## Output: `docs/plans/<type>-<name>.md` (source plan doc) + `docs/plans/<type>-<name>.prompt.md` (AI execution work file)
+
+**Artifact roles:**
+- `docs/plans/<type>-<name>.md` — human-readable source plan doc: scope, rationale, requirements, steps. Created once at plan creation time.
+- `docs/plans/<type>-<name>.prompt.md` — AI execution work file: per-task mutable checklist, execution state, `## Status`, `## Review Results`, `## Test Results`, `### Handoff Notes`. Created during implementation; this is what `/gal status` reads.
+
+**`plan-slug`** = the basename `<type>-<name>` (e.g. `feat-auth-refresh`). All derived artifacts — QA reports, design assets, benchmarks, screenshots — reference this slug.
 
 Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 
@@ -144,7 +150,9 @@ Flag anything that needs human input before proceeding. These become DISCUSS sta
 
 ## Step 6: Write Plan File
 
-Create the plan file at `docs/plans/<type>-<name>.prompt.md`. Mark as DRAFT.
+Create the source plan doc at `docs/plans/<type>-<name>.md`. Mark as DRAFT.
+
+The AI execution work file (`docs/plans/<type>-<name>.prompt.md`) is created when implementation begins, not at plan creation time. Section headings, instructions, and checklist items in the work file must be written in en-US.
 
 ## Step 7: Self-Check
 

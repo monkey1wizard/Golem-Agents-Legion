@@ -21,7 +21,75 @@ The target is not to rewrite the project's architecture docs. The target is to g
 | --- | --- |
 | `.dev/project.md` | High-density project summary and index into canonical project docs |
 | `.dev/state.md` | Repo-wide active plan index, blockers, cross-plan decisions, session continuity |
-| `docs/plans/*.prompt.md` | Temporary per-task execution memory |
+| `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements, steps) |
+| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, execution state, write-back target |
+
+## Artifact Taxonomy
+
+GAL artifacts fall into five layers. Each layer has a different lifecycle and naming contract.
+
+### Layer 1 — Repo-Level Durable State
+
+Stored in `.dev/` and at repo root.
+
+| Artifact | Path | Lifecycle |
+| --- | --- | --- |
+| Project summary | `.dev/project.md` | Persistent — updated by `/gal init` |
+| Repo state index | `.dev/state.md` | Persistent — updated by all workflow transitions |
+| Design governance | `DESIGN.md` | Persistent — updated by `/design-consultation` |
+| Operational notes | `CLAUDE.md` | Persistent — updated by `/setup-deploy` |
+
+### Layer 2 — Source Plan Docs
+
+Human-readable plan files that provide scope, rationale, and requirements. Created by `/office-hours` and updated by review specialists.
+
+| Naming contract | Example |
+| --- | --- |
+| `docs/plans/<plan-slug>.md` | `docs/plans/auth-refresh.md` |
+
+`plan-slug` is an en-US descriptive kebab-case identifier. It becomes the shared key for all derived artifacts.
+
+### Layer 3 — AI Execution Work Files
+
+`.prompt.md` is the AI execution file format. It contains per-task mutable checklist, execution steps, write-back targets, and mutable status. It is not a plan document — it is the working memory the agent operates against.
+
+| Naming contract | Example |
+| --- | --- |
+| `docs/plans/<plan-slug>.prompt.md` | `docs/plans/auth-refresh.prompt.md` |
+
+Section headings, instructions, checklist items, and execution notes in a `.prompt.md` file must be written in en-US. Non-English fragments are only permitted for literal product copy or quoted source text.
+
+### Layer 4 — Plan-Bound Design Artifacts
+
+Design assets scoped to a single plan. Created by `/design-shotgun` and `/design-html`.
+
+| Artifact | Path |
+| --- | --- |
+| Approved mockup spec | `docs/designs/<plan-slug>/variant-approved.json` |
+| Approved mockup image | `docs/designs/<plan-slug>/variant-approved.png` |
+| Finalized HTML handoff | `docs/designs/<plan-slug>/handoff-final.html` |
+
+`DESIGN.md` is **not** plan-bound. It is the repo-level design governance document. `docs/designs/<plan-slug>/` holds plan-scoped design assets only.
+
+### Layer 5 — Durable Reports and Evidence
+
+Report files produced by specialist commands. Named to make the plan, date, and round identifiable from the filename alone.
+
+| Report type | Naming contract | Example |
+| --- | --- | --- |
+| QA report | `docs/qa-reports/YYYYMMDD-<plan-slug>.md` | `docs/qa-reports/20260401-auth-refresh.md` |
+| QA report (audit only) | `docs/qa-reports/YYYYMMDD-<plan-slug>-report-only.md` | `docs/qa-reports/20260401-auth-refresh-report-only.md` |
+| Design audit report | `docs/design-reports/YYYYMMDD-<plan-slug>-rNN.md` | `docs/design-reports/20260401-auth-refresh-r01.md` |
+| Benchmark baseline | `docs/benchmarks/YYYYMMDD-HHmmss-<url-slug>.json` | `docs/benchmarks/20260401-143022-localhost-3000.json` |
+| Canary baseline | `docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json` | `docs/benchmarks/canary-20260401-143500-myapp-com.json` |
+| Research note | `docs/research/YYYYMMDD-<plan-slug>-<topic>.md` | `docs/research/20260401-auth-refresh-token-expiry.md` |
+| Retro snapshot | `docs/retros/YYYYMMDD.json` | `docs/retros/20260401.json` |
+
+**Screenshot naming:**
+- Plan-bound: `docs/screenshots/<plan-slug>-NNN[-suffix].png` where `NNN` starts at `001`. Use `suffix` only when the evidence workflow requires a semantic marker (`before`, `after`, `finding-001`).
+- Ad-hoc (no active plan): `docs/screenshots/<slug>-YYYYMMDD-HHmmss.png`. If no stable slug exists, use a pure timestamp.
+
+**Benchmark vs canary:** Benchmark baselines and canary baselines use different file prefixes and are never mixed for comparison. `/benchmark` compares against the most recent `YYYYMMDD-HHmmss-<url-slug>.json` with the same `url-slug`. `/canary` compares against the most recent `canary-YYYYMMDD-HHmmss-<url-slug>.json`.
 
 ## Skill Activation
 

@@ -53,9 +53,15 @@ Explore generatively. For each proposed feature or direction:
 
 ## Step 3 — Produce Plan File
 
-After the conversation, write a new plan file at `docs/plans/<feature-slug>.prompt.md`.
+After the conversation, write a new source plan doc at `docs/plans/<feature-slug>.md`.
 
-Use this structure:
+The `feature-slug` is an en-US descriptive kebab-case identifier (e.g. `auth-refresh`, `checkout-flow`). This slug becomes the shared key for all artifacts derived from this plan: QA reports, design assets, benchmarks, screenshots, and the AI execution work file.
+
+**Artifact roles:**
+- `docs/plans/<feature-slug>.md` — human-readable source plan doc (scope, rationale, requirements, steps)
+- `docs/plans/<feature-slug>.prompt.md` — AI execution work file (mutable checklist, execution state, write-back target). Created by the agent during implementation; not required at plan creation time.
+
+Use this structure for the source plan doc:
 
 ```markdown
 # Plan: <Feature Title>
@@ -103,9 +109,10 @@ In `.dev/state.md` under `## Active Plans`, add a row for the new plan:
 
 | Plan | File | Workflow State | Last Activity |
 | --- | --- | --- | --- |
-| <Feature Title> | `docs/plans/<feature-slug>.prompt.md` | DRAFT | <today> |
+| <Feature Title> | `docs/plans/<feature-slug>.md` | DRAFT | <today> |
 
 Tell the user:
 
 - What plan file was created and where it lives
+- The `feature-slug` that all derived artifacts should reference
 - Suggested next command: `/plan-eng-review` (required gate) or `/autoplan` (full review pipeline)
