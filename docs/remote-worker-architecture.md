@@ -4,7 +4,7 @@ GAL execution plane — dispatching text-oriented tasks from the main control PC
 
 ## Node Topology
 
-```
+```text
 Main PC (Control Plane)              Notebook (LAN Burst Worker)
 ┌─────────────────────────┐          ┌───────────────────────────┐
 │  /gal orchestrator      │          │  Start-GalWorker.ps1      │
@@ -23,13 +23,48 @@ MVP scope: Windows PC → Windows notebook only. Mac Mini endpoint is Phase 2.
 | **Notebook** | Burst worker — headless CLI execution | No — wake on demand | Research, review, repo scan, docs |
 | **Mac Mini** | Always-on async endpoint (Phase 2) | Yes | Long-running / overnight tasks |
 
+## Ownership Model
+
+The execution plane enforces two worktree classes and three state layers to prevent
+split-brain state across the multi-machine setup.
+
+### Worktree Classes
+
+**Primary Feature Worktree** — the worktree on Main PC where active development,
+review, and state convergence happen. This is the only writer of `.dev/state.md`,
+`.dev/project.md`, and `docs/plans/<plan-slug>.prompt.md`.
+
+**Disposable Remote Worker Worktree** — a linked worktree created by
+`Invoke-GalRemoteTask.ps1` on the worker node for a single bounded task. It produces
+temp artifacts and optionally canonical-path outputs (via `result.patch`), but it does
+not own canonical state.
+
+### State Layers And Write Rules
+
+| Layer | Artifacts | Primary Feature Worktree | Disposable Remote Worker Worktree |
+| --- | --- | --- | --- |
+| Repo-level canonical | `.dev/project.md`, `.dev/state.md` | Can write (sparingly) | No — never |
+| Plan-level execution | `docs/plans/<plan-slug>.prompt.md` | Yes — primary writer | No by default; patch-first only if explicitly permitted |
+| Remote runtime (ephemeral) | `status.json`, `summary.md`, `worker.log`, `result.patch` | No | Yes — sole owner, never committed to repo |
+| Durable outputs | `docs/research/`, `docs/qa-reports/`, etc. | Yes | Yes — via result.patch; Main PC reviews before applying |
+
+### State Convergence Flow
+
+After a remote task completes, the Main PC must close the loop:
+
+1. Retrieve artifacts with `Get-GalRemoteResult.ps1`
+2. Read `summary.md` and review `result.patch`
+3. Apply the patch if appropriate: `git apply result.patch`
+4. Update the active plan prompt (`## Status`, `## Analyze`, `## Review Results`, etc.)
+5. Update `.dev/state.md` only if repo-level blockers, active-plan index, or session continuity changed
+
 ## Task Contract
 
 ### Input: Task Spec
 
 A single Markdown file following the [task template](../templates/task.md):
 
-```
+```sh
 task-{YYYYMMDD}-{random6}.md
 ```
 
@@ -39,7 +74,7 @@ Placed in the task output directory on the worker, not committed to the repo.
 
 Each task runs in a **linked git worktree**:
 
-```
+```sh
 {repoPath}-worker-{taskId}/
 ```
 
@@ -49,7 +84,7 @@ Worktree is created before the task and removed after result collection. It is n
 
 All output lives in an **ephemeral task directory** on the worker:
 
-```
+```sh
 $env:TEMP\gal-worker\{taskId}\
   status.json      — machine-readable status + exit metadata
   summary.md       — human-readable task summary and key findings
@@ -75,7 +110,7 @@ Output artifacts are **not tracked by git** and are stored in temp on the worker
 
 ## Worktree Lifecycle
 
-```
+```text
 Invoke-GalRemoteTask                  Start-GalWorker
 ─────────────────────                 ────────────────
 1. Generate task ID

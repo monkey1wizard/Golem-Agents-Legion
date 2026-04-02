@@ -31,7 +31,7 @@ T2
 - [x] `.dev/state.md` 是 repo-level index 與 continuity artifact，不是 per-task log。
 - [x] `docs/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state，coding、debug、test、review、handoff 的細部進度應優先寫入此檔案。
 - [x] formal progress query 與 live remote-task query 必須分開定義：前者讀 canonical artifacts，後者讀 task-scoped temp artifacts。
-- [ ] plan section 的 remote write policy 必須以 section / command 為單位明確定義，而不是默許 remote worker 可任意寫入 plan。
+- [x] plan section 的 remote write policy 必須以 section / command 為單位明確定義，而不是默許 remote worker 可任意寫入 plan。
 
 ## Execution Partitioning Model
 
@@ -272,10 +272,10 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 
 ## Status
 
-Workflow: REVISE
-Step: 1 of 4
-Last activity: 2026-04-01 — 補上 state layers、worktree classes、query method、writer ownership 規則
-Next step: 同步 supporting docs，並完成一次真實的 Windows burst worker E2E 驗證
+Workflow: IMPLEMENT
+Step: 2 of 4
+Last activity: 2026-04-02 — P1 完成：ownership 規則同步至 remote-worker-architecture.md、per-repo-context.md、templates/task.md；P2 完成：Start-GalWorker timeout 支援（-TimeoutMinutes + Start-Job）、worktreePath 寫入 status.json、summary extraction 強化、Invoke-GalRemoteTask 孤立 worktree 清除、Get-GalRemoteResult cleanup 改以 status.json 驅動
+Next step: 完成一次真實的 Windows burst worker E2E 驗證（dispatch → execute → retrieve），結果記入 docs/runtime-verification.md
 
 ### Deviations
 

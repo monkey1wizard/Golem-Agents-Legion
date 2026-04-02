@@ -24,7 +24,7 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 | CLI | Machine Install | Notes |
 | --- | --- | --- |
 | Copilot CLI | `~/.copilot/agents/` + `~/.copilot/skills/` | Symlinks + baked `SKILL.md` via Setup-Machine |
-| Gemini CLI | `~/.gemini/skills/` + `settings.json` bridge | Bridge writes `AGENTS.md` to `context.fileName` |
+| Gemini CLI | `~/.agents/skills/` + `settings.json` bridge | Discovers GAL skills via `.agents`; bridge writes `AGENTS.md` to `context.fileName` |
 | Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native |
 | Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
 
@@ -61,13 +61,13 @@ Setup-Machine creates this effective topology.
 | Source | Copilot Target | Gemini Target | Codex Target | Notes |
 | --- | --- | --- | --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/` | — | — | Copilot-only custom agents |
-| `skills/*/` | `~/.copilot/skills/` | `~/.gemini/skills/` | — | Shared portable skill set (not duplicated to Codex) |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/skills/gal/` | `~/.agents/skills/gal/` | `/gal` (Copilot/Gemini) · `$gal` (Codex) |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/skills/gal-init/` | `~/.agents/skills/gal-init/` | `/gal-init` · `$gal-init` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/skills/gal-status/` | `~/.agents/skills/gal-status/` | `/gal-status` · `$gal-status` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/skills/gal-whats-next/` | `~/.agents/skills/gal-whats-next/` | `/gal-whats-next` · `$gal-whats-next` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/skills/gal-wrap-up/` | `~/.agents/skills/gal-wrap-up/` | `/gal-wrap-up` · `$gal-wrap-up` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/skills/<specialist>/` | `~/.agents/skills/<specialist>/` | All specialist skills |
+| `skills/*/` | `~/.copilot/skills/` | — | `~/.agents/skills/` | Shared portable skill set (Gemini + Codex both discover via `.agents`) |
+| `commands/gal/` | `~/.copilot/skills/gal/` | — | `~/.agents/skills/gal/` | `/gal` (Copilot/Gemini) · `$gal` (Codex) |
+| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | — | `~/.agents/skills/gal-init/` | `/gal-init` · `$gal-init` |
+| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | — | `~/.agents/skills/gal-status/` | `/gal-status` · `$gal-status` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | — | `~/.agents/skills/gal-whats-next/` | `/gal-whats-next` · `$gal-whats-next` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | — | `~/.agents/skills/gal-wrap-up/` | `/gal-wrap-up` · `$gal-wrap-up` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | — | `~/.agents/skills/<specialist>/` | All specialist skills |
 | `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` | — | Stable GAL_ROOT symlink (not needed for Codex) |
 
 ## Generated Files
@@ -112,10 +112,10 @@ The methodology stays synchronized through Git. Machine-specific differences liv
 After running Setup-Machine, verify:
 
 1. `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root.
-2. `~/.copilot/skills/gal/` and `~/.gemini/skills/gal/` are symlinked command skill directories.
+2. `~/.copilot/skills/gal/` and `~/.agents/skills/gal/` are symlinked command skill directories.
 3. All `commands/*/` skill directories exist in both tool skill trees.
 4. Generated `SKILL.md` files no longer contain `{{GAL_ROOT}}`.
-5. `~/.gemini/gal-context.md` exists and imports GAL command skills first.
+5. `~/.gemini/gal-context.md` exists and all import paths reference `.agents/skills`.
 
 ## Related Operational Sources
 

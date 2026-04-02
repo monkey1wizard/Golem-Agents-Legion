@@ -60,7 +60,9 @@ param(
 
     [int]$PollIntervalSeconds = 30,
 
-    [int]$TimeoutMinutes = 60
+    [int]$TimeoutMinutes = 60,
+
+    [string]$RemoteRepoPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -172,18 +174,35 @@ if (-not $KeepRemote) {
     Write-Host ""
     Write-Host "Cleaning up remote..."
 
-    # Infer worktree path from standard naming convention
-    $remoteWorktreePath = $RemoteOutputDir -replace "\\gal-worker\\$TaskId$", ""
-    # The worktree is adjacent to the repo: {repoPath}-worker-{taskId}
-    # We need the repo path, which was recorded in status.json worktree field.
-    # Since we don't have it directly, look for the worktree via git-worktree list.
-    # Simpler: derive from convention — the worktree name is embedded in the task ID.
-    # The control plane knows the repo path — derive worktree path from the output dir parent.
-    $worktreeInfoCmd = "git worktree list --porcelain | Select-String -Pattern 'worktree.*$TaskId' | Select-Object -First 1"
+    # Prefer the worktree path stored in status.json by Start-GalWorker
+    $wtPath = $null
+    if (Test-Path $localStatusPath) {
+        try {
+            $s = Get-Content $localStatusPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+            $wtPath = $s.worktreePath
+        } catch {}
+    }
 
-    # Unlock and remove worktree
-    $cleanupCmd = @"
-`$wt = (git worktree list --porcelain | Select-String 'worktree.*$TaskId' | Select-Object -First 1)?.Line?.Split(' ')[1]
+    if ($wtPath) {
+        # Direct path from status.json — most reliable
+        $cleanupCmd = @"
+`$wt = '$wtPath'
+if (Test-Path `$wt) {
+    git worktree unlock `"`$wt`" 2>`$null
+    git worktree remove --force `"`$wt`" 2>&1
+    Write-Host "  Worktree removed: `$wt"
+} else {
+    Write-Host "  Worktree already gone."
+}
+Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue
+Write-Host '  Output dir removed.'
+"@
+    }
+    elseif ($RemoteRepoPath) {
+        # Fallback: search git worktree list from the known repo path
+        $cleanupCmd = @"
+Set-Location '$RemoteRepoPath'
+`$wt = (git worktree list --porcelain | Select-String '$TaskId' | Select-Object -First 1)?.Line?.Split(' ')[1]
 if (`$wt) {
     git worktree unlock `"`$wt`" 2>`$null
     git worktree remove --force `"`$wt`" 2>&1
@@ -194,13 +213,18 @@ if (`$wt) {
 Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue
 Write-Host '  Output dir removed.'
 "@
+    }
+    else {
+        Write-Warning "Cannot determine remote worktree path. Pass -RemoteRepoPath for full cleanup."
+        $cleanupCmd = "Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
+    }
 
     ssh $sshTarget "pwsh -NoProfile -Command `"$cleanupCmd`""
 
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Remote cleanup encountered errors. Manual cleanup may be needed:"
-        Write-Warning "  ssh $sshTarget 'git worktree prune' (in repo directory)"
-        Write-Warning "  Remove-Item '$RemoteOutputDir' on remote"
+        Write-Warning "  ssh ${sshTarget} (run from repo): git worktree prune"
+        Write-Warning "  ssh ${sshTarget}: Remove-Item -Recurse -Force '$RemoteOutputDir'"
     }
 }
 

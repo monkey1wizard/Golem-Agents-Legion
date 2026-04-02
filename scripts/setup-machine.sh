@@ -4,12 +4,11 @@
 # Links:
 #   agent/*.agent.md  -> ~/.copilot/agents/*.agent.md
 #   skills/*/         -> ~/.copilot/skills/*/
-#   skills/*/         -> ~/.gemini/skills/*/ (Gemini CLI)
-#   skills/*/         -> ~/.agents/skills/*/ (Codex CLI)
-#   commands/gal/     -> ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/ + ~/.agents/skills/gal/ (baked dispatcher skill)
+#   skills/*/         -> ~/.agents/skills/*/ (Gemini CLI + Codex CLI shared)
+#   commands/gal/     -> ~/.copilot/skills/gal/ + ~/.agents/skills/gal/ (baked dispatcher skill)
 #   <repo root>       -> ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
 #   Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
-#   Generates ~/.gemini/gal-context.md (@file skill imports)
+#   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
@@ -37,7 +36,6 @@ GAL_SOURCE="$REPO_ROOT/commands/gal"
 GAL_ROOT_COPILOT="$COPILOT_ROOT/gal"
 GAL_ROOT_GEMINI="$GEMINI_ROOT/gal"
 GAL_SKILL_COPILOT="$SKILLS_TARGET/gal"
-GAL_SKILL_GEMINI="$GEMINI_SKILLS_TARGET/gal"
 GAL_SKILL_CODEX="$CODEX_SKILLS_TARGET/gal"
 SKILL_TEMPLATE="$GAL_SOURCE/SKILL.template.md"
 COMMAND_ALIAS_NAMES=()
@@ -190,36 +188,51 @@ for d in "${skill_dirs[@]}"; do
     fi
 done
 
-# --- Gemini Skill symlinks ---
-
-gemini_skill_ok=0
-gemini_skill_fail=0
+# --- Migration: remove .gemini/skills GAL symlinks (Gemini now discovers via .agents/skills) ---
 
 echo ""
-echo "=== Gemini Skills ($skill_count directories) ==="
+echo "=== Migration: .gemini/skills cleanup ==="
 
+gemini_migrate_ok=0
+all_gal_skill_names=("${COMMAND_SKILL_NAMES[@]}" "gal.bak")
 for d in "${skill_dirs[@]}"; do
-    name="$(basename "$d")"
+    all_gal_skill_names+=("$(basename "$d")")
+done
+for name in "${all_gal_skill_names[@]}"; do
     link_path="$GEMINI_SKILLS_TARGET/$name"
-
-    if $UNINSTALL; then
-        safe_unlink "$link_path"
-    else
-        if safe_link "$link_path" "$d"; then
-            ((gemini_skill_ok++)) || true
+    [ -e "$link_path" ] || continue
+    if is_symlink "$link_path"; then
+        target="$(readlink "$link_path")"
+        if [[ "$target" == *"$REPO_ROOT"* ]]; then
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove: $link_path"
+            else
+                rm -rf "$link_path"
+                echo "  [REMOVED] $link_path"
+                ((gemini_migrate_ok++)) || true
+            fi
+        fi
+    elif [ "$name" = "gal.bak" ]; then
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $link_path"
         else
-            ((gemini_skill_fail++)) || true
+            rm -rf "$link_path"
+            echo "  [REMOVED] $link_path (real dir)"
+            ((gemini_migrate_ok++)) || true
         fi
     fi
 done
+if ! $DRY_RUN && [ "$gemini_migrate_ok" -eq 0 ]; then
+    echo "  [OK] Nothing to migrate in .gemini/skills"
+fi
 
-# --- Codex Skill symlinks ---
+# --- Shared Skill symlinks (Gemini + Codex both discover via .agents/skills) ---
 
 codex_skill_ok=0
 codex_skill_fail=0
 
 echo ""
-echo "=== Codex Skills ($skill_count directories) ==="
+echo "=== Shared Skills - Gemini + Codex ($skill_count directories via .agents) ==="
 
 for d in "${skill_dirs[@]}"; do
     name="$(basename "$d")"
@@ -253,11 +266,11 @@ if $UNINSTALL; then
 else
     context_lines=""
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
-        context_lines+="@$GEMINI_SKILLS_TARGET/$command_skill_name/SKILL.md"$'\n'
+        context_lines+="@$CODEX_SKILLS_TARGET/$command_skill_name/SKILL.md"$'\n'
     done
     while IFS= read -r -d '' sd; do
         sname="$(basename "$sd")"
-        context_lines+="@$GEMINI_SKILLS_TARGET/$sname/SKILL.md"$'\n'
+        context_lines+="@$CODEX_SKILLS_TARGET/$sname/SKILL.md"$'\n'
     done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
     if $DRY_RUN; then
@@ -342,7 +355,7 @@ else
     done
 fi
 
-# --- GAL command skill symlinks (commands/gal*/ -> ~/.copilot/skills/gal*/ + ~/.gemini/skills/gal*/ + ~/.agents/skills/gal*/) ---
+# --- GAL command skill symlinks (commands/gal*/ -> ~/.copilot/skills/gal*/ + ~/.agents/skills/gal*/) ---
 
 echo ""
 echo "=== GAL command skill symlinks ==="
@@ -350,14 +363,12 @@ echo "=== GAL command skill symlinks ==="
 if $UNINSTALL; then
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         safe_unlink "$SKILLS_TARGET/$command_skill_name"
-        safe_unlink "$GEMINI_SKILLS_TARGET/$command_skill_name"
         safe_unlink "$CODEX_SKILLS_TARGET/$command_skill_name"
     done
 else
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
         safe_link "$SKILLS_TARGET/$command_skill_name" "$command_skill_source"
-        safe_link "$GEMINI_SKILLS_TARGET/$command_skill_name" "$command_skill_source"
         safe_link "$CODEX_SKILLS_TARGET/$command_skill_name" "$command_skill_source"
     done
 fi
@@ -398,9 +409,9 @@ if $UNINSTALL; then
 elif $DRY_RUN; then
     echo "Dry run complete. No changes made."
 else
-    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(gemini)=$gemini_skill_ok/$skill_count, skills(codex)=$codex_skill_ok/$skill_count, gal-root=$gal_root_ok/2"
+    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(shared)=$codex_skill_ok/$skill_count, gal-root=$gal_root_ok/2"
     echo "Note: If SKILL.template.md changes, re-run setup-machine.sh --replace to regenerate."
-    if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ] || [ "$gemini_skill_fail" -gt 0 ] || [ "$codex_skill_fail" -gt 0 ]; then
+    if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ] || [ "$codex_skill_fail" -gt 0 ]; then
         echo "Some links failed. Check warnings above."
     fi
 fi

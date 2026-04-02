@@ -119,4 +119,4 @@ Managed by `Setup-Machine.ps1` / `setup-machine.sh`. The scripts:
 1. Create `~/.copilot/gal/` and `~/.gemini/gal/` → GAL repo root symlinks.
 2. Scan all `commands/*/SKILL.template.md` files, replacing `{{GAL_ROOT}}` with the absolute path.
 3. Write baked `SKILL.md` files into each `commands/*/` directory.
-4. Symlink all command directories into `~/.copilot/skills/`, `~/.gemini/skills/`, and `~/.agents/skills/`.
+4. Symlink all command directories into `~/.copilot/skills/` and `~/.agents/skills/`.

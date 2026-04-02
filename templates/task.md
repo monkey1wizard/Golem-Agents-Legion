@@ -12,11 +12,16 @@
 
 [research | review | repo-scan | docs]
 
+## Endpoint Class
+
+[Main PC | Windows Burst Worker | Mac Mini Async Endpoint]
+
 ## Context
 
 [Relevant background the worker needs. Keep this minimal — the worker has access to the repo. Point to plan files, docs, or specific files rather than repeating their content here.]
 
 Key files to read:
+
 - `.dev/project.md` — project architecture and constraints
 - [path/to/relevant/plan.md] — if this task is tied to a plan
 - [other relevant files]
@@ -27,12 +32,14 @@ Key files to read:
 - [Other constraints, e.g. "Do not modify any source files", "Stay within the docs/ directory"]
 - Do not commit changes — produce a diff (result.patch) only
 - Do not interact with external services beyond what is needed for the task
+- Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file — these are canonical artifacts owned by the primary control plane and must never be modified directly by a remote worker
 
 ## Output Format
 
 ### summary.md
 
 Write a `summary.md` in the task output directory with:
+
 - What was done
 - Key findings (for research/review) or changes made (for docs)
 - Any blockers or open questions discovered
@@ -40,6 +47,7 @@ Write a `summary.md` in the task output directory with:
 ### result.patch
 
 If the task produces file changes:
+
 - Run `git diff HEAD` in the worktree and save to `result.patch`
 - If the task is read-only, `result.patch` may be empty
 

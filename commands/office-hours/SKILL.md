@@ -58,6 +58,7 @@ After the conversation, write a new source plan doc at `docs/plans/<feature-slug
 The `feature-slug` is an en-US descriptive kebab-case identifier (e.g. `auth-refresh`, `checkout-flow`). This slug becomes the shared key for all artifacts derived from this plan: QA reports, design assets, benchmarks, screenshots, and the AI execution work file.
 
 **Artifact roles:**
+
 - `docs/plans/<feature-slug>.md` — human-readable source plan doc (scope, rationale, requirements, steps). Created now.
 - `docs/plans/<feature-slug>.prompt.md` — AI execution work file (mutable checklist, execution state, write-back target). Also created now, initialized with empty section scaffolds so the planning chain has a canonical write target from the start.
 
@@ -87,20 +88,6 @@ Use this structure for the source plan doc:
 | Step | Description | Status |
 | --- | --- | --- |
 | 1 | ... | TODO |
-
-## Status
-
-Workflow: DRAFT
-Step: 0 of N
-Last activity: <today>
-Next step: Run `/plan-eng-review` or `/autoplan` to review the plan before implementation.
-
-### Deviations
-
-| Step | Plan Said | Actually Did | Why |
-| --- | --- | --- | --- |
-
-### Handoff Notes
 ```
 
 ## Step 3b — Initialize Execution Work File

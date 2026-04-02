@@ -73,22 +73,22 @@ Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank 
 
 The setup script creates these symlinks:
 
-| Source (repo) | Copilot Target | Gemini Target |
+| Source (repo) | Copilot Target | Shared Target (Gemini + Codex) |
 | --- | --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/` | — |
-| `skills/*/` | `~/.copilot/skills/` | `~/.gemini/skills/` |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/skills/gal/` |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/skills/gal-init/` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/skills/gal-status/` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/skills/gal-whats-next/` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/skills/gal-wrap-up/` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/skills/<specialist>/` |
-| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` |
+| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.agents/skills/gal/` |
+| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.agents/skills/gal-init/` |
+| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.agents/skills/gal-status/` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.agents/skills/gal-whats-next/` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.agents/skills/gal-wrap-up/` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.agents/skills/<specialist>/` |
+| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
 Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into both skill targets.
 
-Generates `~/.gemini/gal-context.md` with all GAL command skills first, then sorted `@file` skill imports.
+Generates `~/.gemini/gal-context.md` with all GAL command skills first, then sorted `@file` skill imports. All import paths reference `~/.agents/skills/`.
 
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.

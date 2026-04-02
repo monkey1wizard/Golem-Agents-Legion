@@ -6,12 +6,11 @@
         Links:
             - agent/*.agent.md  → ~/.copilot/agents/*.agent.md
             - skills/*/         → ~/.copilot/skills/*/
-            - skills/*/         → ~/.gemini/skills/*/ (Gemini CLI)
-            - skills/*/         → ~/.agents/skills/*/ (Codex CLI)
-            - commands/gal/     → ~/.copilot/skills/gal/ + ~/.gemini/skills/gal/ + ~/.agents/skills/gal/ (baked dispatcher skill)
+            - skills/*/         → ~/.agents/skills/*/ (Gemini CLI + Codex CLI shared)
+            - commands/gal/     → ~/.copilot/skills/gal/ + ~/.agents/skills/gal/ (baked dispatcher skill)
             - <repo root>       → ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
       - Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
-      - Generates ~/.gemini/gal-context.md (@file skill imports)
+      - Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
     Falls back to directory junctions for skill folders if symlinks fail.
@@ -58,7 +57,6 @@ $galSource       = Join-Path $repoRoot "commands\gal"
 $galRootCopilot  = Join-Path $copilotRoot "gal"
 $galRootGemini   = Join-Path $geminiRoot "gal"
 $galSkillCopilot = Join-Path $skillsTarget "gal"
-$galSkillGemini  = Join-Path $geminiSkillsTarget "gal"
 $galSkillCodex   = Join-Path $codexSkillsTarget "gal"
 $skillTemplate   = Join-Path $galSource "SKILL.template.md"
 $commandsSourceDir = Join-Path $repoRoot "commands"
@@ -72,7 +70,6 @@ $commandSkillDirs = @(
         Source        = $galSource
         Template      = $skillTemplate
         CopilotTarget = $galSkillCopilot
-        GeminiTarget  = $galSkillGemini
         CodexTarget   = $galSkillCodex
     }
 ) + ($commandAliasNames | ForEach-Object {
@@ -82,7 +79,6 @@ $commandSkillDirs = @(
         Source        = $source
         Template      = Join-Path $source "SKILL.template.md"
         CopilotTarget = Join-Path $skillsTarget $_
-        GeminiTarget  = Join-Path $geminiSkillsTarget $_
         CodexTarget   = Join-Path $codexSkillsTarget $_
     }
 })
@@ -228,29 +224,39 @@ foreach ($d in $skillDirs) {
     }
 }
 
-# --- Gemini Skill symlinks (directory-level: same skills, different target) ---
+# --- Migration: remove .gemini/skills GAL symlinks (Gemini now discovers via .agents/skills) ---
 
 Write-Host ""
-Write-Host "=== Gemini Skills ($($skillDirs.Count) directories) ==="
+Write-Host "=== Migration: .gemini/skills cleanup ==="
 
-$geminiSkillOk = 0
-$geminiSkillFail = 0
-
-foreach ($d in $skillDirs) {
-    $linkPath = Join-Path $geminiSkillsTarget $d.Name
-
-    if ($Uninstall) {
-        Remove-SafeLink $linkPath
-    }
-    else {
-        if (New-SafeSymlink $linkPath $d.FullName "Directory") { $geminiSkillOk++ } else { $geminiSkillFail++ }
+$geminiMigrateOk = 0
+$allGalSkillNames = @($skillDirs | ForEach-Object { $_.Name }) + $activeCommandSkillNames + @('gal.bak')
+foreach ($name in $allGalSkillNames) {
+    $linkPath = Join-Path $geminiSkillsTarget $name
+    if (-not (Test-Path $linkPath)) { continue }
+    $item = Get-Item $linkPath -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item) { continue }
+    $isReparsePoint = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+    $isGalLink = $isReparsePoint -and (($item.Target -join ';') -like "*$repoRoot*")
+    $isGalBak  = ($name -eq 'gal.bak')
+    if ($isGalLink -or $isGalBak) {
+        if ($DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $linkPath"
+        } else {
+            Remove-Item $linkPath -Recurse -Force
+            Write-Host "  [REMOVED] $linkPath"
+            $geminiMigrateOk++
+        }
     }
 }
+if (-not $DryRun -and $geminiMigrateOk -eq 0) {
+    Write-Host "  [OK] Nothing to migrate in .gemini/skills"
+}
 
-# --- Codex Skill symlinks (directory-level: same skills, different target) ---
+# --- Shared Skill symlinks (Gemini + Codex both discover via .agents/skills) ---
 
 Write-Host ""
-Write-Host "=== Codex Skills ($($skillDirs.Count) directories) ==="
+Write-Host "=== Shared Skills - Gemini + Codex ($($skillDirs.Count) directories via .agents) ==="
 
 $codexSkillOk = 0
 $codexSkillFail = 0
@@ -284,11 +290,11 @@ if ($Uninstall) {
 }
 else {
     $skillImports = $skillDirs | Sort-Object Name | ForEach-Object {
-        $skillMd = Join-Path $geminiSkillsTarget $_.Name "SKILL.md"
+        $skillMd = Join-Path $codexSkillsTarget $_.Name "SKILL.md"
         "@$skillMd"
     }
     $commandSkillImports = $commandSkillDirs | ForEach-Object {
-        "@" + (Join-Path $_.GeminiTarget "SKILL.md")
+        "@" + (Join-Path $_.CodexTarget "SKILL.md")
     }
     $allImports = $commandSkillImports + $skillImports
     $contextContent = ($allImports -join "`n") + "`n"
@@ -385,7 +391,7 @@ if ($Uninstall) {
     }
 }
 
-# --- GAL command skill symlinks (commands/gal*/ → ~/.copilot/skills/gal*/ + ~/.gemini/skills/gal*/ + ~/.agents/skills/gal*/) ---
+# --- GAL command skill symlinks (commands/gal*/ → ~/.copilot/skills/gal*/ + ~/.agents/skills/gal*/) ---
 
 Write-Host ""
 Write-Host "=== GAL command skill symlinks ==="
@@ -393,13 +399,11 @@ Write-Host "=== GAL command skill symlinks ==="
 if ($Uninstall) {
     foreach ($commandSkill in $commandSkillDirs) {
         Remove-SafeLink $commandSkill.CopilotTarget
-        Remove-SafeLink $commandSkill.GeminiTarget
         Remove-SafeLink $commandSkill.CodexTarget
     }
 } else {
     foreach ($commandSkill in $commandSkillDirs) {
         New-SafeSymlink $commandSkill.CopilotTarget $commandSkill.Source "Directory" | Out-Null
-        New-SafeSymlink $commandSkill.GeminiTarget  $commandSkill.Source "Directory" | Out-Null
         New-SafeSymlink $commandSkill.CodexTarget   $commandSkill.Source "Directory" | Out-Null
     }
 }
@@ -433,9 +437,9 @@ elseif ($DryRun) {
     Write-Host "Dry run complete. No changes made."
 }
 else {
-    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills(copilot)=$skillOk/$($skillDirs.Count), skills(gemini)=$geminiSkillOk/$($skillDirs.Count), skills(codex)=$codexSkillOk/$($skillDirs.Count), gal-root=$galRootOk/2"
+    Write-Host "Setup complete: agents=$agentOk/$($agentFiles.Count), skills(copilot)=$skillOk/$($skillDirs.Count), skills(shared)=$codexSkillOk/$($skillDirs.Count), gal-root=$galRootOk/2"
     Write-Host "Note: If SKILL.template.md changes, re-run Setup-Machine.ps1 -Replace to regenerate."
-    if ($agentFail -gt 0 -or $skillFail -gt 0 -or $geminiSkillFail -gt 0 -or $codexSkillFail -gt 0) {
+    if ($agentFail -gt 0 -or $skillFail -gt 0 -or $codexSkillFail -gt 0) {
         Write-Host "Some links failed. Check warnings above." -ForegroundColor Yellow
         Write-Host "Tip: Enable Developer Mode in Windows Settings > Privacy & Security > For Developers" -ForegroundColor Yellow
     }

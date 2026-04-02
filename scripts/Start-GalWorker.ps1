@@ -42,7 +42,9 @@ param(
     [string]$TaskSpec,
 
     [Parameter(Mandatory)]
-    [string]$OutputDir
+    [string]$OutputDir,
+
+    [int]$TimeoutMinutes = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -62,6 +64,7 @@ function Write-StatusJson([string]$Status, [int]$ExitCode = 0, [string]$ErrorMes
         startedAt    = $script:startedAt
         finishedAt   = (Get-Date -Format "o")
         engine       = "gemini-cli"
+        worktreePath = $WorktreePath
         errorMessage = $ErrorMessage
     }
     $payload | ConvertTo-Json | Set-Content -Path $statusPath -Encoding UTF8
@@ -88,21 +91,45 @@ Write-StatusJson "running"
 # ── Read task spec as prompt ──────────────────────────────────────────────────
 $taskPrompt = Get-Content -Path $TaskSpec -Raw
 
-# ── Run Gemini CLI non-interactively ──────────────────────────────────────────
-# - stdin is closed ($null |) to prevent any interactive consent prompts
-# - --yolo skips tool-use approval prompts
-# - output is captured to worker.log; summary is extracted from the final response
-Set-Location $WorktreePath
-
+# ── Run Gemini CLI non-interactively with timeout ─────────────────────────────
+# Runs inside a Start-Job so the process can be killed if it exceeds TimeoutMinutes.
+# stdin is closed ($null |) to prevent interactive consent prompts.
+# --yolo skips tool-use approval prompts.
+# Environment variables (e.g. GOOGLE_GEMINI_API_KEY) are inherited by child processes.
 $geminiExitCode = 0
 
+$geminiJob = Start-Job -ScriptBlock {
+    param($wt, $prompt, $log)
+    Set-Location $wt
+    $null | gemini --yolo -p $prompt --output-format stream-json *> $log
+    $LASTEXITCODE
+} -ArgumentList $WorktreePath, $taskPrompt, $logPath
+
+$timeoutSeconds = $TimeoutMinutes * 60
+$finished = Wait-Job $geminiJob -Timeout $timeoutSeconds
+
+if (-not $finished) {
+    Stop-Job $geminiJob
+    Remove-Job $geminiJob -Force
+    $geminiExitCode = -1
+    "`nTIMEOUT: Gemini CLI exceeded ${TimeoutMinutes}m — task killed" | Add-Content -Path $logPath
+    Write-StatusJson "timeout" -ExitCode -1 -ErrorMessage "Task exceeded ${TimeoutMinutes}m timeout — split the task or increase -TimeoutMinutes"
+    exit 1
+}
+
 try {
-    $null | gemini --yolo -p $taskPrompt --output-format stream-json *> $logPath
-    $geminiExitCode = $LASTEXITCODE
+    $jobOutput = Receive-Job $geminiJob -ErrorVariable jobErrors 2>$null
+    $geminiExitCode = if ($null -ne $jobOutput) { [int]($jobOutput | Select-Object -Last 1) } else { 0 }
+    if ($jobErrors) {
+        $jobErrors | ForEach-Object { "JOB ERROR: $_" | Add-Content -Path $logPath }
+    }
 }
 catch {
     $geminiExitCode = 1
-    "EXCEPTION: $_" | Add-Content -Path $logPath
+    "EXCEPTION receiving job result: $_" | Add-Content -Path $logPath
+}
+finally {
+    Remove-Job $geminiJob -Force -ErrorAction SilentlyContinue
 }
 
 # ── Generate result patch ─────────────────────────────────────────────────────
@@ -120,19 +147,55 @@ catch {
 }
 
 # ── Extract summary from log ──────────────────────────────────────────────────
-# Parse stream-json log: look for the last content block from the model
+# Tries three strategies to extract human-readable text from stream-json output:
+#   1. Top-level .text field
+#   2. .content.parts[].text (Gemini content block)
+#   3. .candidates[].content.parts[].text
+# Falls back to the last 20 non-empty log lines if no JSON text is found.
 $summaryContent = ""
 try {
     $logLines = Get-Content -Path $logPath -ErrorAction SilentlyContinue
-    # Collect all text parts from stream-json output
-    $textParts = $logLines | Where-Object { $_ -match '"text"\s*:' } | ForEach-Object {
-        try {
-            ($_ | ConvertFrom-Json -ErrorAction SilentlyContinue).text
-        } catch { $null }
-    } | Where-Object { $_ -ne $null }
+    if ($logLines) {
+        $textParts = [System.Collections.Generic.List[string]]::new()
 
-    if ($textParts) {
-        $summaryContent = $textParts -join ""
+        foreach ($line in $logLines) {
+            if ($line -notmatch '^\s*\{') { continue }
+            try {
+                $obj = $line | ConvertFrom-Json -ErrorAction SilentlyContinue
+                if (-not $obj) { continue }
+
+                # Strategy 1: top-level .text field
+                if ($obj.text) { $textParts.Add([string]$obj.text); continue }
+
+                # Strategy 2: .content.parts[].text
+                if ($obj.content -and $obj.content.parts) {
+                    foreach ($part in $obj.content.parts) {
+                        if ($part.text) { $textParts.Add([string]$part.text) }
+                    }
+                    continue
+                }
+
+                # Strategy 3: .candidates[].content.parts[].text
+                if ($obj.candidates) {
+                    foreach ($cand in $obj.candidates) {
+                        if ($cand.content -and $cand.content.parts) {
+                            foreach ($part in $cand.content.parts) {
+                                if ($part.text) { $textParts.Add([string]$part.text) }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        if ($textParts.Count -gt 0) {
+            $summaryContent = $textParts -join ""
+        }
+        else {
+            $lastLines = ($logLines | Where-Object { $_ -match '\S' } | Select-Object -Last 20) -join "`n"
+            $summaryContent = "(Could not parse stream-json — raw log tail)`n`n$lastLines"
+        }
     }
 }
 catch {

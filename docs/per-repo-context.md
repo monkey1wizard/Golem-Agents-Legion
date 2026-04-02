@@ -86,10 +86,31 @@ Report files produced by specialist commands. Named to make the plan, date, and 
 | Retro snapshot | `docs/retros/YYYYMMDD.json` | `docs/retros/20260401.json` |
 
 **Screenshot naming:**
+
 - Plan-bound: `docs/screenshots/<plan-slug>-NNN[-suffix].png` where `NNN` starts at `001`. Use `suffix` only when the evidence workflow requires a semantic marker (`before`, `after`, `finding-001`).
 - Ad-hoc (no active plan): `docs/screenshots/<slug>-YYYYMMDD-HHmmss.png`. If no stable slug exists, use a pure timestamp.
 
 **Benchmark vs canary:** Benchmark baselines and canary baselines use different file prefixes and are never mixed for comparison. `/benchmark` compares against the most recent `YYYYMMDD-HHmmss-<url-slug>.json` with the same `url-slug`. `/canary` compares against the most recent `canary-YYYYMMDD-HHmmss-<url-slug>.json`.
+
+### Remote Task Artifacts (Ephemeral — Not Canonical)
+
+Artifacts produced by the GAL remote execution plane are **not** part of the canonical
+artifact taxonomy above. They are stored exclusively in `$env:TEMP\gal-worker\{taskId}\`
+on the worker machine and are never committed to the repo.
+
+| Artifact | Worker Location | Lifecycle |
+| --- | --- | --- |
+| `status.json` | `$TEMP\gal-worker\{taskId}\` | Ephemeral — deleted after retrieval |
+| `summary.md` | `$TEMP\gal-worker\{taskId}\` | Ephemeral — deleted after retrieval |
+| `worker.log` | `$TEMP\gal-worker\{taskId}\` | Ephemeral — deleted after retrieval |
+| `result.patch` | Retrieved to `gal-results\{taskId}\` on Main PC | Reviewed and optionally applied; not committed |
+
+`result.patch` may contain changes to canonical-path output files (e.g., `docs/research/`).
+Those changes become canonical only after Main PC reviews and applies the patch.
+
+The `.dev/state.md` and `docs/plans/<plan-slug>.prompt.md` are **never** updated by the
+remote worker directly. State convergence always happens on Main PC in the primary feature
+worktree.
 
 ## Skill Activation
 

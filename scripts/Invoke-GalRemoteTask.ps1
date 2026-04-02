@@ -46,7 +46,9 @@ param(
     [Parameter(Mandatory)]
     [string]$TaskSpec,
 
-    [string]$RemoteScriptsPath = ""
+    [string]$RemoteScriptsPath = "",
+
+    [int]$TimeoutMinutes = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,6 +70,7 @@ Write-Host "GAL Remote Task: $taskId"
 Write-Host "  Worker:   $RemoteUser@$RemoteHost"
 Write-Host "  Repo:     $RemoteRepoPath"
 Write-Host "  TaskSpec: $taskSpecName"
+Write-Host "  Timeout:  ${TimeoutMinutes}m"
 Write-Host ""
 
 # ── Derive remote paths ───────────────────────────────────────────────────────
@@ -111,9 +114,12 @@ if ($LASTEXITCODE -ne 0) {
 
 # ── Invoke worker script on remote (background, detached) ────────────────────
 Write-Host "[4/4] Starting remote worker..."
-$workerCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp' -WindowStyle Hidden"
+$workerCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp','-TimeoutMinutes','$TimeoutMinutes' -WindowStyle Hidden"
 ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$workerCmd`""
 if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Failed to start remote worker. Cleaning up orphaned worktree..."
+    $cleanupCmd = "git -C '$RemoteRepoPath' worktree remove --force '$remoteWorktree' 2>&1"
+    ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$cleanupCmd`"" 2>&1 | Out-Null
     Write-Error "Failed to start remote worker process."
     exit 1
 }
@@ -127,4 +133,4 @@ Write-Host "  Remote output:  $remoteTemp"
 Write-Host "  Worktree:       $remoteWorktree"
 Write-Host ""
 Write-Host "Retrieve results when done:"
-Write-Host "  .\Get-GalRemoteResult.ps1 -RemoteHost $RemoteHost -RemoteUser $RemoteUser -TaskId $taskId -RemoteOutputDir '$remoteTemp'"
+Write-Host "  .\Get-GalRemoteResult.ps1 -RemoteHost $RemoteHost -RemoteUser $RemoteUser -TaskId $taskId -RemoteOutputDir '$remoteTemp' -RemoteRepoPath '$RemoteRepoPath' -Wait"
