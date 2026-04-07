@@ -118,8 +118,20 @@ $autoplan
 /gal init
 /office-hours
 /autoplan
+/gal pipeline        # 自動串接實作 → 測試 → 審查
+/ship
+```
+
+或是偏好手動控制：
+
+```text
+/gal init
+/office-hours
+/autoplan
 <實作>
-/gal wrap-up
+/review
+/qa
+/ship
 ```
 
 下次恢復工作時，先從這裡開始：
@@ -145,6 +157,7 @@ $autoplan
 | `/gal whats-next` | 想知道單一下一步 | `.dev/state.md`、活動執行計畫的狀態與結果 | 無 | 回傳一個推薦的下一步指令或任務 |
 | `/gal wrap-up` | 結束工作階段，或停在一個有意義的 checkpoint | `.dev/state.md`、活動計畫 | `### Handoff Notes`、`## Session Continuity` | 收斂可恢復的上下文 |
 | `/gal research` | 需要結構化調查 | 當前 repo 上下文 | 研究成果（依指示） | 進入研究工作流程 |
+| `/gal pipeline` | 一鍵執行實作 → 測試 → 審查 | 活動計畫 `## Test Plan`、`model-roles.local.md` | 計畫 `## Status`、`## Test Results`、`## Review Results` | 以不同廠 AI 串接三個 golem；遇到阻塞點自動停下 |
 
 ### 可發現性 Alias
 
@@ -156,6 +169,7 @@ $autoplan
 | gal-status | `/gal-status` | `$gal-status` |
 | gal-whats-next | `/gal-whats-next` | `$gal-whats-next` |
 | gal-wrap-up | `/gal-wrap-up` | `$gal-wrap-up` |
+| gal-pipeline | `/gal-pipeline` | `$gal-pipeline` |
 
 ## 專家指令目錄
 
@@ -224,6 +238,16 @@ $autoplan
 ## 典型流程
 
 ### 新功能
+
+```text
+/gal init
+/office-hours
+/autoplan
+/gal pipeline        # 實作 → 測試 → 審查（多廠 AI 串接）
+/ship
+```
+
+或逐步手動執行：
 
 ```text
 /gal init

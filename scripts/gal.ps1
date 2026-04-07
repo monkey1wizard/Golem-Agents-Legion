@@ -309,7 +309,7 @@ switch ($Command) {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
 
-        $subcommands = @('init','research')
+        $subcommands = @('init','research','pipeline')
         if ($subcommands -contains $intent) {
             $action = "Execute the $intent workflow step."
             $onComplete = 'Report result to user.'
@@ -322,6 +322,10 @@ switch ($Command) {
                 'research' {
                     $action = 'Activate the /gal research skill for structured investigation.'
                     $onComplete = 'Synthesize findings and surface RESEARCH_COMPLETE to the user.'
+                }
+                'pipeline' {
+                    $action = 'Follow the /gal-pipeline procedure to chain implement → test → review using model-roles for multi-vendor AI assignment.'
+                    $onComplete = 'Report combined verdict: implement/test/review status and whether the branch is ready for /ship.'
                 }
             }
 

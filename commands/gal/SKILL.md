@@ -22,8 +22,22 @@ GAL control-plane entry point. Route based on the subcommand provided.
 | `whats-next` | What do I do next? | Follow the `/gal-whats-next` procedure — do not run the script |
 | `wrap-up` | How do I close this session cleanly? | Follow the `/gal-wrap-up` procedure — do not run the script |
 | `research` | I need structured investigation | Run `gal.ps1 dispatch research [args]` — follow output block |
+| `pipeline` | Run implement → test → review automatically | Run `gal.ps1 dispatch pipeline` — follow output block |
 | `<golem-name>` | I want to consult a specific golem | Run `gal.ps1 dispatch <golem-name> [args]` — follow output block |
 | *(no args)* | Auto-detect and recommend | Read `.dev/state.md` and follow the `/gal-whats-next` procedure |
+
+## Natural Language Pipeline Trigger
+
+If the user's message contains any of the following intents, treat it as `/gal pipeline`:
+
+- "start implementation"
+- "implement and test"
+- "implement and review"
+- "run the pipeline"
+- "auto implement"
+- "開始實作"
+- "開始實作並自動執行"
+- "自動執行 review 和 test"
 
 ## Invoke (for script-dispatched subcommands)
 

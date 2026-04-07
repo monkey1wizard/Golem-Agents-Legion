@@ -118,8 +118,20 @@ Use the control plane like this:
 /gal init
 /office-hours
 /autoplan
+/gal pipeline        # chains implement → test → review automatically
+/ship
+```
+
+Or if you prefer manual control:
+
+```text
+/gal init
+/office-hours
+/autoplan
 <implement>
-/gal wrap-up
+/review
+/qa
+/ship
 ```
 
 When you resume later, start with:
@@ -145,6 +157,7 @@ These are the stable user-facing `/gal` commands.
 | `/gal whats-next` | You want a single next action | `.dev/state.md`, active execution plan status and results | Nothing | Returns one recommended next command or task |
 | `/gal wrap-up` | You are ending a session, or pausing at a meaningful checkpoint | `.dev/state.md`, active plan | `### Handoff Notes`, `## Session Continuity` | Converges resumable context |
 | `/gal research` | You need structured investigation | Current repo context | Research artifacts as directed | Enters research workflow |
+| `/gal pipeline` | Run implement → test → review in one command | Active plan `## Test Plan`, `model-roles.local.md` | Plan `## Status`, `## Test Results`, `## Review Results` | Chains three golems with different AI vendors; stops at blockers |
 
 ### Discoverability Aliases
 
@@ -156,6 +169,7 @@ These exist for slash-command autocomplete in Copilot/Gemini, and as named skill
 | gal-status | `/gal-status` | `$gal-status` |
 | gal-whats-next | `/gal-whats-next` | `$gal-whats-next` |
 | gal-wrap-up | `/gal-wrap-up` | `$gal-wrap-up` |
+| gal-pipeline | `/gal-pipeline` | `$gal-pipeline` |
 
 ## Specialist Command Catalog
 
@@ -224,6 +238,16 @@ These commands implement the work layer directly. They do not route through `/ga
 ## Typical Flow
 
 ### New feature
+
+```text
+/gal init
+/office-hours
+/autoplan
+/gal pipeline        # implement → test → review (multi-vendor AI)
+/ship
+```
+
+Or step by step:
 
 ```text
 /gal init
