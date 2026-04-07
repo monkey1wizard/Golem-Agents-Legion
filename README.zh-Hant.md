@@ -112,6 +112,99 @@ $autoplan
 
 這兩支 setup 腳本現在也會把 `mcp-servers.example.json` 的 canonical MCP catalog，搭配 `mcp-servers.local.json` 的本地覆蓋，合併到 VS Code、Gemini CLI 與 Codex CLI 各自擁有的 MCP 設定檔中。
 
+## 如何把 GAL 用在 Godot C Sharp
+
+GAL 不會另外新增一個 Godot 專屬 agent。做法是讓現有的規劃、實作、審查、QA 指令，透過 convention、skill 與 MCP 工具，能直接操作 Godot 4 C# repo。
+
+### 需要安裝什麼
+
+Godot C# 專案的預設工具組合是：
+
+- Godot 4.x with C# support
+- VS Code 的 C# tooling，提供 IntelliSense 與診斷
+- `Coding-Solo/godot-mcp`，負責啟動編輯器、執行專案、擷取 debug 輸出
+- `n24q02m/better-godot-mcp`，負責離線編輯 `.tscn` 與其他資源
+- `MingHuiLiu/godot4-runtime-mcp`，負責運行時場景樹、signal、log、screenshot 檢查
+
+完整分工與安裝方式見 [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md)。
+
+### GAL 已經補上的 Godot 知識
+
+目前 repo 中的 Godot 支援主要放在：
+
+- [conventions/csharp.md](conventions/csharp.md)，包含 Godot runtime 規則、`partial class`、signals、exports、lifecycle methods
+- [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md)，整理官方 Godot C# 文件
+- `skills/godot-*` 下面的 5 個 skill，分別處理 project ops、scene authoring、scripting、runtime debug、asset pipeline
+
+### 在 Godot Repo 裡怎麼開始
+
+進入目標 Godot C# repo 後：
+
+```text
+/gal init
+/office-hours
+/autoplan
+```
+
+如果你用的是 Codex CLI：
+
+```text
+$gal init
+$office-hours
+$autoplan
+```
+
+`/gal init` 應該會根據 `project.godot` 加上 `*.csproj` 判定這是一個 Godot C# repo，並把這件事寫進 `.dev/project.md`。
+
+### 建議的 Godot 工作流
+
+一般功能開發建議這樣跑：
+
+```text
+/gal init
+/office-hours
+/autoplan
+
+# 然後搭配 Godot skills / MCP 工具實作：
+# - godot-project-ops
+# - godot-scene-authoring
+# - godot-scripting
+# - godot-runtime-debug
+# - godot-asset-pipeline
+
+/review
+/qa
+/ship
+```
+
+### 工具怎麼選
+
+按責任分工使用：
+
+- build、import、export、CI 自動化：Godot CLI
+- 啟動 editor、執行專案、抓 debug 輸出：`godot-mcp`
+- 不啟動 editor 直接改 scene / resource：`better-godot-mcp`
+- 檢查 live nodes、signals、logs、runtime state：`godot4-runtime-mcp`
+
+### Godot CLI 範例
+
+```bash
+godot --headless --path <project> --build-solutions
+godot --headless --path <project> --import
+godot --headless --path <project> --export-release <preset> <output>
+godot --path <project> -e
+godot --path <project>
+```
+
+### 一個重要限制
+
+Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
+
+- Godot runtime code 應維持在專案實際支援的版本，通常是 `.NET 8 / C# 12`
+- 外部工具和 MCP server 可以使用較新的 runtime，因為 Godot 不會載入它們
+
+寫 gameplay code 時，請以 [conventions/csharp.md](conventions/csharp.md) 中的 Godot runtime section 為準。
+
 ### 建議的工作節奏
 
 控制平面的建議用法如下：
@@ -363,6 +456,8 @@ clone 後需填入你的環境特定佔位符：
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | `/gal` 讀寫合約的 canonical 定義 |
 | [docs/gstack-integration.md](docs/gstack-integration.md) | GAL 為何原生重新實作 gstack 語意 |
 | [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | 專家技能的實作藍圖 |
+| [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md) | 推薦的 Godot C# MCP 工具鏈與選用規則 |
+| [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md) | 官方 Godot C# 文件索引與真相來源 |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | 指令與執行平面的 live/manual 驗證狀態 |
 | [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch 模型與 alias 政策 |
 | [commands/commands.md](commands/commands.md) | 已安裝的指令表面與 alias 架構 |

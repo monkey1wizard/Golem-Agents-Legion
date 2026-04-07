@@ -112,6 +112,99 @@ There is no public `gal sync` step in the final model. Adapter generation is ins
 
 The setup scripts also merge a canonical MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into provider-owned config files for VS Code, Gemini CLI, and Codex CLI.
 
+## Using GAL With Godot C Sharp
+
+GAL does not add a new Godot-specific agent. It teaches the existing planning, implementation, review, and QA commands how to work against a Godot 4 C# repo through conventions, skills, and MCP tools.
+
+### What To Install
+
+For a Godot C# project, the default stack is:
+
+- Godot 4.x with C# support
+- VS Code C# tooling for IntelliSense and diagnostics
+- `Coding-Solo/godot-mcp` for editor launch, run control, and debug output
+- `n24q02m/better-godot-mcp` for offline `.tscn` and resource editing
+- `MingHuiLiu/godot4-runtime-mcp` for runtime scene-tree, signal, log, and screenshot inspection
+
+See [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md) for the tool split and installation notes.
+
+### What GAL Now Knows
+
+The repo now includes Godot-specific guidance in:
+
+- [conventions/csharp.md](conventions/csharp.md) for Godot runtime rules, `partial class`, signals, exports, and lifecycle methods
+- [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md) for official Godot C# documentation references
+- Godot skills under `skills/godot-*` for project ops, scene authoring, scripting, runtime debugging, and asset pipeline work
+
+### How To Start In A Godot Repo
+
+Inside the target Godot C# repo:
+
+```text
+/gal init
+/office-hours
+/autoplan
+```
+
+If you are using Codex CLI instead of slash commands:
+
+```text
+$gal init
+$office-hours
+$autoplan
+```
+
+`/gal init` should detect a Godot C# repo from `project.godot` plus `*.csproj` and write that into `.dev/project.md`.
+
+### Recommended Godot Workflow
+
+Use GAL like this for normal feature work:
+
+```text
+/gal init
+/office-hours
+/autoplan
+
+# Then implement with the Godot skills and tools:
+# - godot-project-ops
+# - godot-scene-authoring
+# - godot-scripting
+# - godot-runtime-debug
+# - godot-asset-pipeline
+
+/review
+/qa
+/ship
+```
+
+### Tool Selection Rules
+
+Use the tools by responsibility:
+
+- Build, import, export, and CI automation: Godot CLI
+- Launch the editor, run the project, capture debug output: `godot-mcp`
+- Edit scenes and resources without a running editor: `better-godot-mcp`
+- Inspect live nodes, signals, logs, and runtime state: `godot4-runtime-mcp`
+
+### Godot CLI Examples
+
+```bash
+godot --headless --path <project> --build-solutions
+godot --headless --path <project> --import
+godot --headless --path <project> --export-release <preset> <output>
+godot --path <project> -e
+godot --path <project>
+```
+
+### Important Constraint
+
+Godot gameplay code does not follow the same compatibility target as GAL's external tooling.
+
+- Godot runtime code should stay on the version the checked-in Godot project supports, typically `.NET 8 / C# 12`
+- External tools and MCP servers may use newer runtimes because Godot does not load them
+
+When writing gameplay code, follow the Godot runtime section in [conventions/csharp.md](conventions/csharp.md).
+
 ### Recommended Session Rhythm
 
 Use the control plane like this:
@@ -363,6 +456,8 @@ If you need provider-specific MCP differences, edit `mcp-servers.local.json` and
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | Canonical `/gal` read/write contracts |
 | [docs/gstack-integration.md](docs/gstack-integration.md) | Why GAL reimplements gstack semantics natively |
 | [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | Implementation blueprint for specialist skills |
+| [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md) | Recommended Godot C# MCP stack and tool-selection guide |
+| [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md) | Official Godot C# references and source-of-truth links |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Live/manual verification status for commands and execution-plane behavior |
 | [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch model and alias policy |
 | [commands/commands.md](commands/commands.md) | Installed command surface and alias architecture |

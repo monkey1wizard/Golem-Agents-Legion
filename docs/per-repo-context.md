@@ -112,6 +112,21 @@ The `.dev/state.md` and `docs/plans/<plan-slug>.prompt.md` are **never** updated
 remote worker directly. State convergence always happens on Main PC in the primary feature
 worktree.
 
+## Godot Project Detection
+
+When summarizing an existing repo into `.dev/project.md`, treat the following heuristics as strong evidence of a Godot codebase:
+
+- `project.godot` exists at the repo root or in the app root
+- A sibling or nested `*.csproj` exists beside the Godot project for C# gameplay code
+- `export_presets.cfg`, `.tscn`, `.tres`, `.res`, or `addons/` directories appear in the same project tree
+
+For Godot C# repos, record the split runtime model explicitly in `## Tech Stack`:
+
+- Godot runtime code: `.NET 8 / C# 12` or whatever the checked-in project targets
+- External tooling and MCP helpers: newer `.NET` versions may be acceptable when they run outside Godot
+
+If the repo clearly uses Godot MCP tooling, note it in `.dev/project.md` as a documentation hint only. Skills still activate from chat intent, not from a static allowlist.
+
 ## Skill Activation
 
 Skills are activated by chat intent and runtime routing — not by a static allowlist in `.dev/project.md`.

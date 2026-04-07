@@ -14,6 +14,18 @@
 | Testing | |
 | CI/CD | |
 
+### Godot Example
+
+If this is a Godot C# repo, record the split explicitly:
+
+| Layer | Technology |
+| --- | --- |
+| Language | C# (.NET 8 for Godot runtime code, newer .NET only for external tooling) |
+| Framework | Godot 4.x |
+| Database | N/A or project-specific |
+| Testing | `godot --headless --build-solutions`, `dotnet test`, runtime smoke tests |
+| CI/CD | Headless Godot export plus the repo's CI runner |
+
 ## Architecture
 
 [Brief description of architecture pattern: Clean Architecture, Vertical Slices, etc.]

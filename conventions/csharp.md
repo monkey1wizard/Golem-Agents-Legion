@@ -161,3 +161,81 @@ New class → What does it do?
 
 - Wrap major UI sections in `<ErrorBoundary>`
 - Follow Result pattern for logic errors
+
+---
+
+## Godot Runtime Rules
+
+When code is loaded by the Godot runtime, compatibility takes priority over the newest language features in this document.
+
+### Runtime Compatibility
+
+| Code kind | Target | Guidance |
+| --- | --- | --- |
+| Godot node scripts and editor plugins | Godot-supported runtime for the project (currently .NET 8 / C# 12 baseline) | Do not use language features newer than the runtime Godot can compile and load |
+| MCP servers, CLI tooling, and external automation | .NET 10 / C# 14 | Follow the rest of this document normally |
+
+If a repo mixes Godot game code and external tooling, treat them as separate compatibility zones.
+
+### Node Script Rules
+
+- Godot node types must be `public partial class` and import `using Godot;`
+- Do not use constructors or primary constructors on Godot node scripts; Godot instantiates these types itself
+- Initialize scene references in `_Ready()` instead of constructor logic
+- Keep Inspector-configurable data in `[Export]` members
+- Use explicit `override` methods for lifecycle hooks
+
+### Godot Attribute Mapping
+
+| GDScript concept | C# pattern | Notes |
+| --- | --- | --- |
+| `@export` | `[Export]` | Add `PropertyHint` when Inspector constraints matter |
+| `signal foo` | `[Signal] public delegate void FooEventHandler(...);` | Generated event name drops the `EventHandler` suffix |
+| `@onready` | Assign in `_Ready()` | Use `GetNode<T>()` or cached node references |
+| `await some_signal` | `await ToSignal(node, Node.SignalName.X)` | Prefer generated C# events for normal subscriptions |
+
+### Lifecycle Patterns
+
+- `_Ready()` for scene wiring and node lookup
+- `_Process(double delta)` for frame-based logic
+- `_PhysicsProcess(double delta)` for physics movement and collision work
+- `_EnterTree()` and `_ExitTree()` for registration and cleanup that must track tree membership
+
+### API and Collection Guidance
+
+- Use PascalCase Godot APIs in C#: `GetNode`, `QueueFree`, `MoveAndSlide`, `Input.IsActionPressed`
+- Use `GD.Print`, `GD.PushWarning`, and `GD.PushError` for Godot-facing diagnostics
+- Prefer `List<T>` and `Dictionary<TKey, TValue>` for internal app logic
+- Use `Godot.Collections.Array<T>`, `Godot.Collections.Dictionary`, and `Variant` when crossing the Godot API boundary
+- Prefer `StringName`-based signal and method identifiers when the API exposes them
+
+### Example Node Script
+
+```csharp
+using Godot;
+
+public partial class PlayerController : CharacterBody2D
+{
+    [Export]
+    public float Speed { get; set; } = 220.0f;
+
+    private Sprite2D _sprite = null!;
+
+    public override void _Ready()
+    {
+        _sprite = GetNode<Sprite2D>("Sprite2D");
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        var direction = Input.GetVector("move_left", "move_right", "move_up", "move_down");
+        Velocity = direction * Speed;
+        MoveAndSlide();
+
+        if (direction.X != 0)
+        {
+            _sprite.FlipH = direction.X < 0;
+        }
+    }
+}
+```
