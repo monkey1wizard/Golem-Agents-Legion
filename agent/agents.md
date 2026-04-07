@@ -103,7 +103,7 @@ Research Flow can run in parallel with Coding Flow. Research output feeds into p
 
 ## Curfew System
 
-All agents enforce a shutdown boundary defined in `conventions/curfew.md`:
+All agents enforce a shutdown boundary defined in `~/.copilot/gal/conventions/curfew.md`:
 
 ```text
 ... normal work ... ──── 22:00 ──── shutdown window ──── 23:00 ──── hard curfew
