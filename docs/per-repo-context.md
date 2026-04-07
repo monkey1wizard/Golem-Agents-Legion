@@ -127,6 +127,26 @@ For Godot C# repos, record the split runtime model explicitly in `## Tech Stack`
 
 If the repo clearly uses Godot MCP tooling, note it in `.dev/project.md` as a documentation hint only. Skills still activate from chat intent, not from a static allowlist.
 
+## AI-First Game Asset Workflow Detection
+
+When summarizing an existing repo into `.dev/project.md`, treat the following heuristics as strong evidence that the repo contains AI-first game asset production work:
+
+- `*.blend` for Blender-based 3D asset work
+- `*.xcf` for GIMP-based raster cleanup
+- `*.aseprite` or `*.ase` for sprite and pixel-art production
+- `*.svg` or `*.svgz`, especially with Inkscape metadata, for vector or UI asset export
+- `*.fig`, `figma-tokens.json`, or other clearly Figma-oriented design artifacts for UI or HUD work
+- `workflows/*.json`, `.comfy/`, or other ComfyUI workflow trees for AI generation pipelines
+
+If multiple graphics heuristics appear together, record the repo as using an AI-first game asset workflow rather than a generic graphics stack.
+
+In `.dev/project.md`, summarize the workflow by lane instead of by app list when possible:
+
+- 2D concept and illustration: ComfyUI -> GIMP
+- Sprite and pixel assets: ComfyUI -> Aseprite
+- UI and HUD assets: ComfyUI -> Figma -> Inkscape
+- 3D game assets: ComfyUI -> Blender
+
 ## Skill Activation
 
 Skills are activated by chat intent and runtime routing — not by a static allowlist in `.dev/project.md`.

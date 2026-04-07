@@ -112,6 +112,57 @@ $autoplan
 
 這兩支 setup 腳本現在也會把 `mcp-servers.example.json` 的 canonical MCP catalog，搭配 `mcp-servers.local.json` 的本地覆蓋，合併到 VS Code、Gemini CLI 與 Codex CLI 各自擁有的 MCP 設定檔中。
 
+## 如何把 GAL 用在 AI-First 遊戲素材生產
+
+GAL 也可以用來驅動一套以 AI 為核心的遊戲 2D / 3D assets 生產 workflow。
+
+重點不是把所有圖形工具等量整合，而是先用 ComfyUI 做生成與變體探索，再把資產送進最小但足夠的後段工具做整理、結構化與導出。
+
+### 支援的素材產線
+
+| 產線 | 預設流程 |
+| --- | --- |
+| 2D 概念與插畫素材 | ComfyUI -> GIMP |
+| Sprite 與像素素材 | ComfyUI -> Aseprite |
+| UI、icon 與 HUD 素材 | ComfyUI -> Figma -> Inkscape |
+| 3D 遊戲素材 | ComfyUI -> Blender |
+
+### 建議工具組合
+
+- `joenorton/comfyui-mcp-server` 作為生成層
+- `maorcc/gimp-mcp` 處理點陣清理與導出
+- `willibrandon/pixel-mcp` 處理 sprite、動畫與 spritesheet workflow
+- `grab/cursor-talk-to-figma-mcp` 處理 UI / HUD 版面與元件
+- `grumpydevorg/inkscape-mcps` 處理 SVG 清理與可預期導出
+- `ahujasid/blender-mcp` 處理一般 3D 遊戲素材
+
+### GAL 現在知道哪些內容
+
+目前 repo 中的遊戲素材 workflow 指引主要放在：
+
+- [docs/graphics-workflow.md](docs/graphics-workflow.md)，整理產線路由、handoff 規則與 output contract
+- [docs/graphics-mcp-setup.md](docs/graphics-mcp-setup.md)，整理 MCP stack 的安裝與分工
+- [docs/graphics-external-knowledge.md](docs/graphics-external-knowledge.md)，整理官方文件來源
+- `skills/graphics-workflow` 與 `skills/game-*` 下面的 workflow skills，分別處理路由、2D、pixel、UI、3D 與最終導出
+
+### 遊戲素材工作節奏
+
+```text
+/gal init
+/office-hours
+/autoplan
+
+# 然後搭配 game asset skills 實作：
+# - graphics-workflow
+# - game-2d-assets
+# - game-pixel-assets
+# - game-ui-assets
+# - game-3d-assets
+# - game-asset-export
+```
+
+請把 ComfyUI 視為預設入口，Blender、GIMP、Aseprite、Figma、Inkscape 則視為後段整理與導出工具，而不是另一個生成中心。
+
 ## 如何把 GAL 用在 Godot C Sharp
 
 GAL 不會另外新增一個 Godot 專屬 agent。做法是讓現有的規劃、實作、審查、QA 指令，透過 convention、skill 與 MCP 工具，能直接操作 Godot 4 C# repo。

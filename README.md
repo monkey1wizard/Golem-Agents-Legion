@@ -112,6 +112,57 @@ There is no public `gal sync` step in the final model. Adapter generation is ins
 
 The setup scripts also merge a canonical MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into provider-owned config files for VS Code, Gemini CLI, and Codex CLI.
 
+## Using GAL For AI-First Game Asset Production
+
+GAL can also drive an AI-first workflow for producing game-ready 2D and 3D assets.
+
+The intent is not to integrate every graphics app equally. The workflow starts from ComfyUI for generation and variation, then routes assets through the smallest useful finishing tool for the asset lane.
+
+### Supported Asset Lanes
+
+| Lane | Default Flow |
+| --- | --- |
+| 2D concept and illustration | ComfyUI -> GIMP |
+| Sprite and pixel assets | ComfyUI -> Aseprite |
+| UI, icon, and HUD assets | ComfyUI -> Figma -> Inkscape |
+| 3D game assets | ComfyUI -> Blender |
+
+### Recommended Tool Stack
+
+- `joenorton/comfyui-mcp-server` as the generation layer
+- `maorcc/gimp-mcp` for raster cleanup and export
+- `willibrandon/pixel-mcp` for sprite, animation, and spritesheet workflows
+- `grab/cursor-talk-to-figma-mcp` for UI and HUD layout work
+- `grumpydevorg/inkscape-mcps` for SVG cleanup and deterministic export
+- `ahujasid/blender-mcp` for general 3D asset work
+
+### What GAL Now Knows For Game Assets
+
+The repo now includes game-asset workflow guidance in:
+
+- [docs/graphics-workflow.md](docs/graphics-workflow.md) for lane routing, handoff rules, and output contracts
+- [docs/graphics-mcp-setup.md](docs/graphics-mcp-setup.md) for MCP stack setup
+- [docs/graphics-external-knowledge.md](docs/graphics-external-knowledge.md) for official documentation references
+- skills under `skills/graphics-workflow` and `skills/game-*` for lane-specific execution
+
+### Game Asset Session Rhythm
+
+```text
+/gal init
+/office-hours
+/autoplan
+
+# Then implement with the game asset skills:
+# - graphics-workflow
+# - game-2d-assets
+# - game-pixel-assets
+# - game-ui-assets
+# - game-3d-assets
+# - game-asset-export
+```
+
+Keep ComfyUI as the default entry point. Treat Blender, GIMP, Aseprite, Figma, and Inkscape as finishing and export tools, not as alternate generation centers.
+
 ## Using GAL With Godot C Sharp
 
 GAL does not add a new Godot-specific agent. It teaches the existing planning, implementation, review, and QA commands how to work against a Godot 4 C# repo through conventions, skills, and MCP tools.
