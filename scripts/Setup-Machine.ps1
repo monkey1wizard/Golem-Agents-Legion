@@ -12,6 +12,7 @@
       - Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
       - Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
       - Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
+    - Merges MCP server config from mcp-servers.example.json + mcp-servers.local.json into VS Code, Gemini, and Codex user config files
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
     Falls back to directory junctions for skill folders if symlinks fail.
@@ -50,10 +51,16 @@ $skillsTarget = Join-Path $copilotRoot "skills"
 $geminiRoot = Join-Path $env:USERPROFILE ".gemini"
 $geminiSkillsTarget = Join-Path $geminiRoot "skills"
 $geminiContextFile = Join-Path $geminiRoot "gal-context.md"
+$geminiSettingsFile = Join-Path $geminiRoot "settings.json"
 $vscodeSettingsFile = Join-Path $env:APPDATA "Code\User\settings.json"
+$vscodeMcpFile = Join-Path $env:APPDATA "Code\User\mcp.json"
 
 $codexSkillsRoot = Join-Path $env:USERPROFILE ".agents"
 $codexSkillsTarget = Join-Path $codexSkillsRoot "skills"
+$codexConfigFile = Join-Path $env:USERPROFILE ".codex\config.toml"
+
+$mcpManifestExampleFile = Join-Path $repoRoot "mcp-servers.example.json"
+$mcpManifestLocalFile = Join-Path $repoRoot "mcp-servers.local.json"
 
 $galSource       = Join-Path $repoRoot "commands\gal"
 $galRootCopilot  = Join-Path $copilotRoot "gal"
@@ -164,6 +171,252 @@ function Remove-SafeLink([string]$LinkPath) {
 
     (Get-Item $LinkPath -Force).Delete()
     Write-Host "  [REMOVED] $LinkPath"
+}
+
+function ConvertTo-OrderedMap([object]$InputObject) {
+    if ($null -eq $InputObject) { return $null }
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        $map = [ordered]@{}
+        foreach ($key in $InputObject.Keys) {
+            $map[$key] = ConvertTo-OrderedMap $InputObject[$key]
+        }
+        return $map
+    }
+
+    if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
+        $items = @()
+        foreach ($item in $InputObject) {
+            $items += ,(ConvertTo-OrderedMap $item)
+        }
+        return $items
+    }
+
+    if ($InputObject.PSObject -and $InputObject -isnot [string] -and $InputObject -isnot [ValueType]) {
+        $map = [ordered]@{}
+        foreach ($property in $InputObject.PSObject.Properties) {
+            $map[$property.Name] = ConvertTo-OrderedMap $property.Value
+        }
+        return $map
+    }
+
+    return $InputObject
+}
+
+function Merge-OrderedMap([System.Collections.IDictionary]$Base, [System.Collections.IDictionary]$Overlay) {
+    foreach ($key in $Overlay.Keys) {
+        if (
+            $Base.Contains($key) -and
+            $Base[$key] -is [System.Collections.IDictionary] -and
+            $Overlay[$key] -is [System.Collections.IDictionary]
+        ) {
+            $Base[$key] = Merge-OrderedMap $Base[$key] $Overlay[$key]
+        }
+        else {
+            $Base[$key] = $Overlay[$key]
+        }
+    }
+
+    return $Base
+}
+
+function Read-JsonOrderedMap([string]$Path) {
+    if (-not (Test-Path $Path)) {
+        return [ordered]@{}
+    }
+
+    $rawJson = Get-Content $Path -Raw -Encoding UTF8
+    if ([string]::IsNullOrWhiteSpace($rawJson)) {
+        return [ordered]@{}
+    }
+
+    try {
+        return ConvertTo-OrderedMap ($rawJson | ConvertFrom-Json)
+    }
+    catch {
+        Write-Host "  [WARN] Could not parse JSON file: $Path" -ForegroundColor Yellow
+        return $null
+    }
+}
+
+function Write-JsonOrderedMap([string]$Path, [System.Collections.IDictionary]$Data) {
+    $directory = Split-Path $Path -Parent
+    if (-not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, ($Data | ConvertTo-Json -Depth 20), $utf8NoBom)
+}
+
+function Read-KeyValueEnvFile([string]$Path) {
+    $values = [ordered]@{}
+    if (-not (Test-Path $Path)) {
+        return $values
+    }
+
+    foreach ($line in Get-Content $Path -Encoding UTF8) {
+        if ($line -match '^\s*#' -or $line -notmatch '=') { continue }
+
+        $parts = $line.Split('=', 2)
+        $key = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        if ([string]::IsNullOrWhiteSpace($key) -or [string]::IsNullOrWhiteSpace($value)) { continue }
+        $values[$key] = $value
+    }
+
+    return $values
+}
+
+function Get-ConfiguredValue([System.Collections.IDictionary]$Values, [string]$Name) {
+    if ($Values.Contains($Name) -and -not [string]::IsNullOrWhiteSpace([string]$Values[$Name])) {
+        return [string]$Values[$Name]
+    }
+
+    $userValue = [Environment]::GetEnvironmentVariable($Name, 'User')
+    if (-not [string]::IsNullOrWhiteSpace($userValue)) { return $userValue }
+
+    $processValue = [Environment]::GetEnvironmentVariable($Name, 'Process')
+    if (-not [string]::IsNullOrWhiteSpace($processValue)) { return $processValue }
+
+    return $null
+}
+
+function Split-ConfigList([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+    return @($Value -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues) {
+    $values = [ordered]@{}
+    foreach ($key in $LocalEnvValues.Keys) {
+        $values[$key] = $LocalEnvValues[$key]
+    }
+
+    if (-not $values.Contains('MCP_MEMORY_FILE_PATH')) {
+        $values['MCP_MEMORY_FILE_PATH'] = Join-Path $env:USERPROFILE 'mcp-memory.json'
+    }
+
+    if (-not $values.Contains('OBSIDIAN_VERIFY_SSL')) {
+        $values['OBSIDIAN_VERIFY_SSL'] = 'false'
+    }
+
+    if (-not $values.Contains('OBSIDIAN_ENABLE_CACHE')) {
+        $values['OBSIDIAN_ENABLE_CACHE'] = 'true'
+    }
+
+    if (-not $values.Contains('MCP_FILESYSTEM_PATHS')) {
+        $paths = @((Split-Path $repoRoot -Parent))
+        $obsidianVault = Get-ConfiguredValue $values 'OBSIDIAN_VAULT'
+        if (-not [string]::IsNullOrWhiteSpace($obsidianVault)) {
+            $paths += $obsidianVault
+        }
+        $values['MCP_FILESYSTEM_PATHS'] = (($paths | Select-Object -Unique) -join ',')
+    }
+
+    return $values
+}
+
+function Resolve-McpString([string]$Value, [System.Collections.IDictionary]$Values) {
+    if ($Value -match '^\$\{([A-Z0-9_]+)\}$') {
+        $resolved = Get-ConfiguredValue $Values $Matches[1]
+        if ($null -ne $resolved) { return $resolved }
+    }
+
+    return [regex]::Replace($Value, '\$\{([A-Z0-9_]+)\}', {
+        param($match)
+        $resolved = Get-ConfiguredValue $Values $match.Groups[1].Value
+        if ($null -ne $resolved) { return $resolved }
+        return $match.Value
+    })
+}
+
+function Resolve-McpNode([object]$Node, [System.Collections.IDictionary]$Values, [switch]$ExpandArrayPlaceholder) {
+    if ($null -eq $Node) { return $null }
+
+    if ($Node -is [string]) {
+        if ($ExpandArrayPlaceholder -and $Node -match '^\$\{([A-Z0-9_]+)\[\]\}$') {
+            return @(Split-ConfigList (Get-ConfiguredValue $Values $Matches[1]))
+        }
+        return Resolve-McpString $Node $Values
+    }
+
+    if ($Node -is [System.Collections.IDictionary]) {
+        $map = [ordered]@{}
+        foreach ($key in $Node.Keys) {
+            $map[$key] = Resolve-McpNode $Node[$key] $Values
+        }
+        return $map
+    }
+
+    if ($Node -is [System.Collections.IEnumerable] -and -not ($Node -is [string])) {
+        $items = @()
+        foreach ($item in $Node) {
+            $resolvedItem = Resolve-McpNode $item $Values -ExpandArrayPlaceholder:$ExpandArrayPlaceholder
+            if ($ExpandArrayPlaceholder -and $resolvedItem -is [System.Collections.IEnumerable] -and -not ($resolvedItem -is [string])) {
+                $items += @($resolvedItem)
+            }
+            else {
+                $items += ,$resolvedItem
+            }
+        }
+        return $items
+    }
+
+    return $Node
+}
+
+function Resolve-McpConfig([System.Collections.IDictionary]$Config, [System.Collections.IDictionary]$Values) {
+    $resolved = [ordered]@{}
+    foreach ($key in $Config.Keys) {
+        $resolved[$key] = Resolve-McpNode $Config[$key] $Values -ExpandArrayPlaceholder:($key -eq 'args')
+    }
+    return $resolved
+}
+
+function Test-McpProviderReady([System.Collections.IDictionary]$ProviderEntry, [System.Collections.IDictionary]$Values) {
+    if (-not $ProviderEntry.Contains('requiredEnv')) { return $true }
+
+    foreach ($name in @($ProviderEntry['requiredEnv'])) {
+        if ([string]::IsNullOrWhiteSpace((Get-ConfiguredValue $Values ([string]$name)))) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function ConvertTo-TomlString([string]$Value) {
+    $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
+    return '"' + $escaped + '"'
+}
+
+function ConvertTo-TomlArray([object[]]$Values) {
+    return '[' + (($Values | ForEach-Object { ConvertTo-TomlString ([string]$_) }) -join ', ') + ']'
+}
+
+function ConvertTo-CodexMcpSection([string]$ServerName, [System.Collections.IDictionary]$Config) {
+    $lines = @("[mcp_servers.$ServerName]")
+
+    if ($Config.Contains('url')) {
+        $lines += 'url = ' + (ConvertTo-TomlString ([string]$Config['url']))
+    }
+    else {
+        $lines += 'command = ' + (ConvertTo-TomlString ([string]$Config['command']))
+        if ($Config.Contains('args') -and @($Config['args']).Count -gt 0) {
+            $lines += 'args = ' + (ConvertTo-TomlArray @($Config['args']))
+        }
+    }
+
+    if ($Config.Contains('env') -and $Config['env'] -is [System.Collections.IDictionary] -and $Config['env'].Count -gt 0) {
+        $lines += ''
+        $lines += "[mcp_servers.$ServerName.env]"
+        foreach ($envKey in ($Config['env'].Keys | Sort-Object)) {
+            $lines += $envKey + ' = ' + (ConvertTo-TomlString ([string]$Config['env'][$envKey]))
+        }
+    }
+
+    return ($lines -join "`r`n")
 }
 
 # --- Ensure target directories ---
@@ -313,8 +566,6 @@ else {
 
 # --- Gemini settings.json: context.fileName bridge ---
 
-$geminiSettingsFile = Join-Path $geminiRoot "settings.json"
-
 Write-Host ""
 Write-Host "=== Gemini settings.json bridge ==="
 
@@ -400,6 +651,144 @@ else {
             $utf8NoBom = New-Object System.Text.UTF8Encoding $false
             [System.IO.File]::WriteAllText($vscodeSettingsFile, ($settings | ConvertTo-Json -Depth 10), $utf8NoBom)
             Write-Host "  [OK] $vscodeSettingsFile (chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
+        }
+    }
+}
+
+# --- MCP config bridge ---
+
+Write-Host ""
+Write-Host "=== MCP config bridge ==="
+
+if ($Uninstall) {
+    Write-Host "  [SKIP] MCP config files not modified during uninstall (user-owned files)"
+}
+elseif ($DryRun) {
+    Write-Host "  [DRY RUN] Would merge MCP servers into: $vscodeMcpFile"
+    Write-Host "  [DRY RUN] Would merge MCP servers into: $geminiSettingsFile"
+    Write-Host "  [DRY RUN] Would merge MCP servers into: $codexConfigFile"
+}
+else {
+    if (-not (Test-Path $mcpManifestLocalFile)) {
+        Write-JsonOrderedMap $mcpManifestLocalFile ([ordered]@{ servers = [ordered]@{} })
+        Write-Host "  [OK] Created local MCP override file: $mcpManifestLocalFile"
+    }
+
+    $manifest = Read-JsonOrderedMap $mcpManifestExampleFile
+    if ($null -ne $manifest -and (Test-Path $mcpManifestLocalFile)) {
+        $localManifest = Read-JsonOrderedMap $mcpManifestLocalFile
+        if ($null -ne $localManifest) {
+            $manifest = Merge-OrderedMap $manifest $localManifest
+        }
+        else {
+            $manifest = $null
+        }
+    }
+
+    if ($null -ne $manifest -and $manifest.Contains('servers') -and $manifest['servers'] -is [System.Collections.IDictionary]) {
+        $mcpVariables = Get-McpVariableMap (Read-KeyValueEnvFile (Join-Path $repoRoot 'config.local.env'))
+
+        $vscodeMcp = Read-JsonOrderedMap $vscodeMcpFile
+        if ($null -ne $vscodeMcp) {
+            if (-not $vscodeMcp.Contains('servers') -or $vscodeMcp['servers'] -isnot [System.Collections.IDictionary]) {
+                $vscodeMcp['servers'] = [ordered]@{}
+            }
+
+            $vscodeChanged = $false
+            foreach ($serverName in $manifest['servers'].Keys) {
+                $server = $manifest['servers'][$serverName]
+                if (-not ($server.Contains('providers') -and $server['providers'].Contains('vscode'))) { continue }
+
+                $provider = $server['providers']['vscode']
+                if ($provider['enabled'] -ne $true) { continue }
+                if (-not (Test-McpProviderReady $provider $mcpVariables)) {
+                    Write-Host "  [WARN] Skipping VS Code MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
+                    continue
+                }
+
+                $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+                if ($vscodeMcp['servers'].Contains($providerKey)) { continue }
+
+                $vscodeMcp['servers'][$providerKey] = Resolve-McpConfig $provider['config'] $mcpVariables
+                $vscodeChanged = $true
+                Write-Host "  [ADD] VS Code MCP server: $providerKey"
+            }
+
+            if ($vscodeChanged) {
+                Write-JsonOrderedMap $vscodeMcpFile $vscodeMcp
+                Write-Host "  [OK] $vscodeMcpFile"
+            }
+        }
+
+        $geminiSettings = Read-JsonOrderedMap $geminiSettingsFile
+        if ($null -ne $geminiSettings) {
+            if (-not $geminiSettings.Contains('mcpServers') -or $geminiSettings['mcpServers'] -isnot [System.Collections.IDictionary]) {
+                $geminiSettings['mcpServers'] = [ordered]@{}
+            }
+
+            $geminiChanged = $false
+            foreach ($serverName in $manifest['servers'].Keys) {
+                $server = $manifest['servers'][$serverName]
+                if (-not ($server.Contains('providers') -and $server['providers'].Contains('gemini'))) { continue }
+
+                $provider = $server['providers']['gemini']
+                if ($provider['enabled'] -ne $true) { continue }
+                if (-not (Test-McpProviderReady $provider $mcpVariables)) {
+                    Write-Host "  [WARN] Skipping Gemini MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
+                    continue
+                }
+
+                $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+                if ($geminiSettings['mcpServers'].Contains($providerKey)) { continue }
+
+                $geminiSettings['mcpServers'][$providerKey] = Resolve-McpConfig $provider['config'] $mcpVariables
+                $geminiChanged = $true
+                Write-Host "  [ADD] Gemini MCP server: $providerKey"
+            }
+
+            if ($geminiChanged) {
+                Write-JsonOrderedMap $geminiSettingsFile $geminiSettings
+                Write-Host "  [OK] $geminiSettingsFile"
+            }
+        }
+
+        $codexConfigDir = Split-Path $codexConfigFile -Parent
+        if (-not (Test-Path $codexConfigDir)) {
+            New-Item -ItemType Directory -Path $codexConfigDir -Force | Out-Null
+        }
+
+        $codexRaw = if (Test-Path $codexConfigFile) { Get-Content $codexConfigFile -Raw -Encoding UTF8 } else { '' }
+        $codexSections = @()
+
+        foreach ($serverName in $manifest['servers'].Keys) {
+            $server = $manifest['servers'][$serverName]
+            if (-not ($server.Contains('providers') -and $server['providers'].Contains('codex'))) { continue }
+
+            $provider = $server['providers']['codex']
+            if ($provider['enabled'] -ne $true) { continue }
+            if (-not (Test-McpProviderReady $provider $mcpVariables)) {
+                Write-Host "  [WARN] Skipping Codex MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
+                continue
+            }
+
+            $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+            $pattern = '(?m)^\[mcp_servers\.' + [regex]::Escape($providerKey) + '\]\s*$'
+            if ($codexRaw -match $pattern) { continue }
+
+            $resolvedConfig = Resolve-McpConfig $provider['config'] $mcpVariables
+            $codexSections += ConvertTo-CodexMcpSection $providerKey $resolvedConfig
+            Write-Host "  [ADD] Codex MCP server: $providerKey"
+        }
+
+        if ($codexSections.Count -gt 0) {
+            $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+            $newCodexRaw = $codexRaw.TrimEnd("`r", "`n")
+            if (-not [string]::IsNullOrWhiteSpace($newCodexRaw)) {
+                $newCodexRaw += "`r`n`r`n"
+            }
+            $newCodexRaw += ($codexSections -join "`r`n`r`n") + "`r`n"
+            [System.IO.File]::WriteAllText($codexConfigFile, $newCodexRaw, $utf8NoBom)
+            Write-Host "  [OK] $codexConfigFile"
         }
     }
 }

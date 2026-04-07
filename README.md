@@ -110,6 +110,8 @@ There is no public `gal sync` step in the final model. Adapter generation is ins
 
 `Setup-Machine.ps1` and `setup-machine.sh` also merge a VS Code user setting so Copilot Chat ignores `~/.agents/skills`. This keeps Gemini/Codex using the shared `.agents` install while preventing duplicate skill entries in VS Code.
 
+The setup scripts also merge a canonical MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into provider-owned config files for VS Code, Gemini CLI, and Codex CLI.
+
 ### Recommended Session Rhythm
 
 Use the control plane like this:
@@ -320,9 +322,14 @@ The control plane works because specialist commands write predictable sections b
 <repo>/.dev/              repo-local state and continuity
 docs/plans/<slug>.md      human-readable source plan doc
 docs/plans/<slug>.prompt.md  AI execution work file (mutable state)
+mcp-servers.example.json  tracked MCP source of truth
+mcp-servers.local.json    local MCP enable/override layer (gitignored)
 ~/.copilot/skills/        installed Copilot skills
 ~/.gemini/skills/         legacy Gemini runtime dir (cleaned up by setup)
 ~/.agents/skills/         shared Gemini + Codex skills (VS Code should ignore this path)
+%APPDATA%/Code/User/mcp.json   VS Code MCP config merged by setup
+~/.gemini/settings.json   Gemini settings + mcpServers merged by setup
+~/.codex/config.toml      Codex config + [mcp_servers.*] merged by setup
 ```
 
 The methodology is portable. The adapters are disposable.
@@ -338,8 +345,15 @@ Several files still contain environment-specific placeholders you must set after
 | `<LOCAL_SEARCH_PROJECT>` | Path to your local search project clone | Local-first and knowledge-management skills |
 | `<GAL_SKILLS>` | Path where skills are installed | Some helper skills |
 | `<TEMP_DIR>` | Temp output directory | PDF skill |
+| `<MCP_FILESYSTEM_PATHS>` | Optional comma-separated filesystem roots for the filesystem MCP | MCP manifest merge |
+| `<MCP_MEMORY_FILE_PATH>` | Path to the persistent MCP memory JSON file | MCP manifest merge |
+| `<CONTEXT7_API_KEY>` | Optional Context7 API key for runtimes that need it | MCP manifest merge |
+| `<OBSIDIAN_API_KEY>` | Obsidian Local REST API key | Obsidian MCP |
+| `<OBSIDIAN_BASE_URL>` | Obsidian Local REST API base URL | Obsidian MCP |
 
 For model routing, copy [model-roles.example.md](model-roles.example.md) to `model-roles.local.md` and customize it.
+
+If you need provider-specific MCP differences, edit `mcp-servers.local.json` and rerun Setup-Machine. Use `config.local.env` for local secrets and path values referenced by the manifest.
 
 ## Important Docs
 

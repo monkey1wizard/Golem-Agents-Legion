@@ -1,6 +1,10 @@
 ---
 name: mcp-builder
 description: Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK).
+mcpDependencies:
+  optional:
+    - context7
+    - fetch
 license: Complete terms in LICENSE.txt
 ---
 
@@ -9,6 +13,13 @@ license: Complete terms in LICENSE.txt
 ## Overview
 
 Create MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. The quality of an MCP server is measured by how well it enables LLMs to accomplish real-world tasks.
+
+When current documentation is needed, prefer MCP tools over generic recollection:
+
+- Use `context7` for library, framework, SDK, and package documentation
+- Use `fetch` for raw MCP spec pages, GitHub READMEs, and general web documentation
+
+If these MCPs are unavailable, fall back to direct web retrieval.
 
 ---
 
@@ -58,17 +69,17 @@ Key pages to review:
 - **MCP Best Practices**: [📋 View Best Practices](./reference/mcp_best_practices.md) - Core guidelines
 
 **For TypeScript (recommended):**
-- **TypeScript SDK**: Use WebFetch to load `https://raw.githubusercontent.com/modelcontextprotocol/typescript-sdk/main/README.md`
+- **TypeScript SDK**: Prefer `context7` if the SDK is indexed there; otherwise use `fetch` to load `https://raw.githubusercontent.com/modelcontextprotocol/typescript-sdk/main/README.md`
 - [⚡ TypeScript Guide](./reference/node_mcp_server.md) - TypeScript patterns and examples
 
 **For Python:**
-- **Python SDK**: Use WebFetch to load `https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md`
+- **Python SDK**: Prefer `context7` if the SDK is indexed there; otherwise use `fetch` to load `https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md`
 - [🐍 Python Guide](./reference/python_mcp_server.md) - Python patterns and examples
 
 #### 1.4 Plan Your Implementation
 
 **Understand the API:**
-Review the service's API documentation to identify key endpoints, authentication requirements, and data models. Use web search and WebFetch as needed.
+Review the service's API documentation to identify key endpoints, authentication requirements, and data models. Use `context7` for package docs when possible, and use `fetch` for raw web pages and specs when needed.
 
 **Tool Selection:**
 Prioritize comprehensive API coverage. List endpoints to implement, starting with the most common operations.

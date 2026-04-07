@@ -1,10 +1,21 @@
 ---
 name: webapp-testing
 description: Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.
+mcpDependencies:
+  optional:
+    - puppeteer
+    - chrome-devtools
 license: Complete terms in LICENSE.txt
 ---
 
 # Web Application Testing
+
+If browser MCP tools are available, prefer them first for reconnaissance and simple interactions:
+
+- Use `chrome-devtools` for inspecting the live page, console output, network behavior, and accessibility snapshots
+- Use `puppeteer` for quick navigation, clicks, fills, and repeatable browser actions that do not need custom scripting
+
+Switch to native Playwright scripts when you need reusable automation, multi-page orchestration, helper-script integration, or behavior the MCP tools cannot express cleanly.
 
 To test local web applications, write native Python Playwright scripts.
 

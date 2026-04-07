@@ -1,11 +1,24 @@
 ---
 name: doc-coauthoring
 description: Guide users through a structured workflow for co-authoring documentation. Use when user wants to write documentation, proposals, technical specs, decision docs, or similar structured content. This workflow helps users efficiently transfer context, refine content through iteration, and verify the doc works for readers. Trigger when user mentions writing docs, creating proposals, drafting specs, or similar documentation tasks.
+mcpDependencies:
+  optional:
+    - fetch
+    - filesystem
+    - context7
 ---
 
 # Doc Co-Authoring Workflow
 
 This skill provides a structured workflow for guiding users through collaborative document creation. Act as an active guide, walking users through three stages: Context Gathering, Refinement & Structure, and Reader Testing.
+
+When MCP tools are available, use them deliberately during context gathering:
+
+- Use `fetch` for shared web docs, specs, tickets, or wiki pages
+- Use `filesystem` for local project docs the user points at
+- Use `context7` when the document depends on current library, framework, SDK, or API documentation
+
+If one of these MCPs is unavailable, continue the workflow and ask the user for the missing material directly rather than blocking.
 
 ## When to Offer This Workflow
 
@@ -67,7 +80,7 @@ Advise them not to worry about organizing it - just get it all out. Offer multip
 - Point to team channels or threads to read
 - Link to shared documents
 
-**If integrations are available** (e.g., Slack, Teams, Google Drive, SharePoint, or other MCP servers), mention that these can be used to pull in context directly.
+**If integrations are available** (e.g., Slack, Teams, Google Drive, SharePoint, or other MCP servers), mention that these can be used to pull in context directly. Prefer MCP-based retrieval before asking the user to manually paste long documents.
 
 **If no integrations are detected and in Claude.ai or Claude app:** Suggest they can enable connectors in their Claude settings to allow pulling context from messaging apps and document storage directly.
 

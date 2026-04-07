@@ -1,6 +1,11 @@
 ---
 name: skill-creator
 description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+mcpDependencies:
+  optional:
+    - context7
+    - fetch
+    - filesystem
 ---
 
 # Skill Creator
@@ -57,7 +62,13 @@ Start by understanding the user's intent. The current conversation might already
 
 Proactively ask questions about edge cases, input/output formats, example files, success criteria, and dependencies. Wait to write test prompts until you've got this part ironed out.
 
-Check available MCPs - if useful for research (searching docs, finding similar skills, looking up best practices), research in parallel via subagents if available, otherwise inline. Come prepared with context to reduce burden on the user.
+Check available MCPs first. If useful for research, use them deliberately instead of relying on memory alone:
+
+- Use `context7` for current library, framework, or SDK documentation
+- Use `fetch` for web pages, READMEs, and public documentation not covered by Context7
+- Use `filesystem` when the user points to local customization files, examples, or reference repos
+
+If the needed MCPs are not available, continue with subagents or inline research and state the fallback briefly.
 
 ### Write the SKILL.md
 

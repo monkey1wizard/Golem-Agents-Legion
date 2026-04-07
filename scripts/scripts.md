@@ -12,7 +12,7 @@ Machine setup and adapter sync scripts.
 | `init-repo.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/ → ~/.copilot/ + ~/.gemini/, bake command skills, generate `gal-context.md` |
+| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/, bake command skills, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
 | `setup-machine.sh` | macOS | Same for Mac |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
@@ -90,5 +90,13 @@ All `commands/` subdirectories are picked up dynamically — adding a new comman
 Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into both skill targets.
 
 Generates `~/.gemini/gal-context.md` with all GAL command skills first, then sorted `@file` skill imports. All import paths reference `~/.agents/skills/`.
+
+Setup-Machine also merges the tracked MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into:
+
+- VS Code `mcp.json`
+- Gemini `settings.json` `mcpServers`
+- Codex `config.toml` `[mcp_servers.*]`
+
+The merge strategy is additive: existing provider-owned entries are preserved, and only missing servers are added.
 
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.

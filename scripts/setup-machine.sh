@@ -10,6 +10,7 @@
 #   Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
 #   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
 #   Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
+#   Merges MCP server config from mcp-servers.example.json + mcp-servers.local.json into VS Code, Gemini, and Codex user config files
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
@@ -32,12 +33,18 @@ GEMINI_CONTEXT_FILE="$GEMINI_ROOT/gal-context.md"
 
 if [[ "${OSTYPE:-}" == darwin* ]]; then
     VSCODE_SETTINGS_FILE="$HOME/Library/Application Support/Code/User/settings.json"
+    VSCODE_MCP_FILE="$HOME/Library/Application Support/Code/User/mcp.json"
 else
     VSCODE_SETTINGS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/Code/User/settings.json"
+    VSCODE_MCP_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/Code/User/mcp.json"
 fi
 
 CODEX_SKILLS_ROOT="$HOME/.agents"
 CODEX_SKILLS_TARGET="$CODEX_SKILLS_ROOT/skills"
+CODEX_CONFIG_FILE="$HOME/.codex/config.toml"
+
+MCP_MANIFEST_EXAMPLE="$REPO_ROOT/mcp-servers.example.json"
+MCP_MANIFEST_LOCAL="$REPO_ROOT/mcp-servers.local.json"
 
 GAL_SOURCE="$REPO_ROOT/commands/gal"
 GAL_ROOT_COPILOT="$COPILOT_ROOT/gal"
@@ -365,6 +372,238 @@ PY
         echo "  [OK] $VSCODE_SETTINGS_FILE (created; chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
     else
         echo "  [WARN] python3 not found and $VSCODE_SETTINGS_FILE already exists — add chat.agentSkillsLocations manually"
+    fi
+fi
+
+# --- MCP config bridge ---
+
+echo ""
+echo "=== MCP config bridge ==="
+
+if $UNINSTALL; then
+    echo "  [SKIP] MCP config files not modified during uninstall (user-owned files)"
+elif $DRY_RUN; then
+    echo "  [DRY RUN] Would merge MCP servers into: $VSCODE_MCP_FILE"
+    echo "  [DRY RUN] Would merge MCP servers into: $GEMINI_SETTINGS_FILE"
+    echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
+else
+    if [ ! -f "$MCP_MANIFEST_LOCAL" ]; then
+        printf '{\n  "servers": {}\n}\n' > "$MCP_MANIFEST_LOCAL"
+        echo "  [OK] Created local MCP override file: $MCP_MANIFEST_LOCAL"
+    fi
+
+    if command -v python3 &>/dev/null; then
+        if python3 - "$REPO_ROOT" "$MCP_MANIFEST_EXAMPLE" "$MCP_MANIFEST_LOCAL" "$VSCODE_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" <<'PY'
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1])
+manifest_example = Path(sys.argv[2])
+manifest_local = Path(sys.argv[3])
+vscode_mcp = Path(sys.argv[4])
+gemini_settings = Path(sys.argv[5])
+codex_config = Path(sys.argv[6])
+
+
+def read_json(path: Path):
+    if not path.exists():
+        return {}
+    raw = path.read_text(encoding="utf-8").strip()
+    if not raw:
+        return {}
+    return json.loads(raw)
+
+
+def deep_merge(base, overlay):
+    if isinstance(base, dict) and isinstance(overlay, dict):
+        merged = dict(base)
+        for key, value in overlay.items():
+            if key in merged:
+                merged[key] = deep_merge(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+    return overlay
+
+
+def read_env_file(path: Path):
+    values = {}
+    if not path.exists():
+        return values
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key and value:
+            values[key] = value
+    return values
+
+
+def get_value(values, name):
+    return values.get(name) or os.environ.get(name)
+
+
+def split_config_list(value):
+    if not value:
+        return []
+    return [item for item in re.split(r"\s*,\s*", value) if item]
+
+
+def resolve_string(value, values):
+    match = re.fullmatch(r"\$\{([A-Z0-9_]+)\}", value)
+    if match:
+        resolved = get_value(values, match.group(1))
+        if resolved is not None:
+            return resolved
+    return re.sub(r"\$\{([A-Z0-9_]+)\}", lambda m: get_value(values, m.group(1)) or m.group(0), value)
+
+
+def resolve_node(node, values, expand_args=False):
+    if isinstance(node, str):
+        match = re.fullmatch(r"\$\{([A-Z0-9_]+)\[\]\}", node)
+        if expand_args and match:
+            return split_config_list(get_value(values, match.group(1)))
+        return resolve_string(node, values)
+    if isinstance(node, list):
+        items = []
+        for item in node:
+            resolved = resolve_node(item, values, expand_args=expand_args)
+            if expand_args and isinstance(resolved, list):
+                items.extend(resolved)
+            else:
+                items.append(resolved)
+        return items
+    if isinstance(node, dict):
+        return {key: resolve_node(value, values, expand_args=(key == "args")) for key, value in node.items()}
+    return node
+
+
+def provider_ready(provider, values):
+    for key in provider.get("requiredEnv", []):
+        if not get_value(values, key):
+            return False
+    return True
+
+
+def toml_string(value):
+    escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def toml_array(values):
+    return "[" + ", ".join(toml_string(value) for value in values) + "]"
+
+
+def codex_section(name, config):
+    lines = [f"[mcp_servers.{name}]"]
+    if "url" in config:
+        lines.append(f"url = {toml_string(config['url'])}")
+    else:
+        lines.append(f"command = {toml_string(config['command'])}")
+        if config.get("args"):
+            lines.append(f"args = {toml_array(config['args'])}")
+    if config.get("env"):
+        lines.append("")
+        lines.append(f"[mcp_servers.{name}.env]")
+        for env_key in sorted(config["env"]):
+            lines.append(f"{env_key} = {toml_string(config['env'][env_key])}")
+    return "\n".join(lines)
+
+
+manifest = read_json(manifest_example)
+manifest = deep_merge(manifest, read_json(manifest_local))
+servers = manifest.get("servers", {})
+
+local_env = read_env_file(repo_root / "config.local.env")
+if "MCP_MEMORY_FILE_PATH" not in local_env:
+    local_env["MCP_MEMORY_FILE_PATH"] = str(Path.home() / "mcp-memory.json")
+if "OBSIDIAN_VERIFY_SSL" not in local_env:
+    local_env["OBSIDIAN_VERIFY_SSL"] = "false"
+if "OBSIDIAN_ENABLE_CACHE" not in local_env:
+    local_env["OBSIDIAN_ENABLE_CACHE"] = "true"
+if "MCP_FILESYSTEM_PATHS" not in local_env:
+    defaults = [str(repo_root.parent)]
+    if local_env.get("OBSIDIAN_VAULT"):
+        defaults.append(local_env["OBSIDIAN_VAULT"])
+    local_env["MCP_FILESYSTEM_PATHS"] = ",".join(dict.fromkeys(defaults))
+
+vscode_data = read_json(vscode_mcp)
+vscode_data.setdefault("servers", {})
+vscode_changed = False
+for server_name, server in servers.items():
+    provider = server.get("providers", {}).get("vscode")
+    if not provider or not provider.get("enabled"):
+        continue
+    if not provider_ready(provider, local_env):
+        print(f"  [WARN] Skipping VS Code MCP server '{server_name}' because required env is missing")
+        continue
+    key = provider.get("key", server_name)
+    if key in vscode_data["servers"]:
+        continue
+    vscode_data["servers"][key] = resolve_node(provider["config"], local_env)
+    vscode_changed = True
+    print(f"  [ADD] VS Code MCP server: {key}")
+if vscode_changed:
+    vscode_mcp.parent.mkdir(parents=True, exist_ok=True)
+    vscode_mcp.write_text(json.dumps(vscode_data, indent=2) + "\n", encoding="utf-8")
+    print(f"  [OK] {vscode_mcp}")
+
+gemini_data = read_json(gemini_settings)
+gemini_data.setdefault("mcpServers", {})
+gemini_changed = False
+for server_name, server in servers.items():
+    provider = server.get("providers", {}).get("gemini")
+    if not provider or not provider.get("enabled"):
+        continue
+    if not provider_ready(provider, local_env):
+        print(f"  [WARN] Skipping Gemini MCP server '{server_name}' because required env is missing")
+        continue
+    key = provider.get("key", server_name)
+    if key in gemini_data["mcpServers"]:
+        continue
+    gemini_data["mcpServers"][key] = resolve_node(provider["config"], local_env)
+    gemini_changed = True
+    print(f"  [ADD] Gemini MCP server: {key}")
+if gemini_changed:
+    gemini_settings.parent.mkdir(parents=True, exist_ok=True)
+    gemini_settings.write_text(json.dumps(gemini_data, indent=2) + "\n", encoding="utf-8")
+    print(f"  [OK] {gemini_settings}")
+
+codex_raw = codex_config.read_text(encoding="utf-8") if codex_config.exists() else ""
+codex_sections = []
+for server_name, server in servers.items():
+    provider = server.get("providers", {}).get("codex")
+    if not provider or not provider.get("enabled"):
+        continue
+    if not provider_ready(provider, local_env):
+        print(f"  [WARN] Skipping Codex MCP server '{server_name}' because required env is missing")
+        continue
+    key = provider.get("key", server_name)
+    if re.search(rf"(?m)^\[mcp_servers\.{re.escape(key)}\]\s*$", codex_raw):
+        continue
+    codex_sections.append(codex_section(key, resolve_node(provider["config"], local_env)))
+    print(f"  [ADD] Codex MCP server: {key}")
+if codex_sections:
+    codex_config.parent.mkdir(parents=True, exist_ok=True)
+    prefix = codex_raw.rstrip()
+    if prefix:
+        prefix += "\n\n"
+    codex_config.write_text(prefix + "\n\n".join(codex_sections) + "\n", encoding="utf-8")
+    print(f"  [OK] {codex_config}")
+PY
+        then
+            :
+        else
+            echo "  [WARN] Could not merge MCP config files"
+        fi
+    else
+        echo "  [WARN] python3 not found — skipping MCP config merge"
     fi
 fi
 

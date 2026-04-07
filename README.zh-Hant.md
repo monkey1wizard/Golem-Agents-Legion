@@ -110,6 +110,8 @@ $autoplan
 
 `Setup-Machine.ps1` 與 `setup-machine.sh` 也會合併一個 VS Code 使用者設定，讓 Copilot Chat 忽略 `~/.agents/skills`。這樣 Gemini / Codex 仍可使用共享的 `.agents` 安裝路徑，同時避免 VS Code 內出現重複技能。
 
+這兩支 setup 腳本現在也會把 `mcp-servers.example.json` 的 canonical MCP catalog，搭配 `mcp-servers.local.json` 的本地覆蓋，合併到 VS Code、Gemini CLI 與 Codex CLI 各自擁有的 MCP 設定檔中。
+
 ### 建議的工作節奏
 
 控制平面的建議用法如下：
@@ -320,9 +322,14 @@ $autoplan
 <repo>/.dev/              repo 本地狀態與連續性
 docs/plans/<slug>.md      人類可讀的計畫文件
 docs/plans/<slug>.prompt.md  AI 執行工作檔案（可變狀態）
+mcp-servers.example.json  受版本控制的 MCP 真相來源
+mcp-servers.local.json    本地 MCP 啟停 / 覆蓋層（gitignored）
 ~/.copilot/skills/        已安裝的 Copilot skills
 ~/.gemini/skills/         舊版 Gemini runtime 目錄（setup 會清理）
 ~/.agents/skills/         Gemini + Codex 共用 skills（VS Code 應忽略這個路徑）
+%APPDATA%/Code/User/mcp.json   由 setup 合併的 VS Code MCP 設定
+~/.gemini/settings.json   由 setup 合併的 Gemini settings + mcpServers
+~/.codex/config.toml      由 setup 合併的 Codex config + [mcp_servers.*]
 ```
 
 方法論是可攜帶的。轉接器是用完即棄的。
@@ -338,8 +345,15 @@ clone 後需填入你的環境特定佔位符：
 | `<LOCAL_SEARCH_PROJECT>` | 本地搜尋專案 clone 路徑 | Local-first 與知識管理技能 |
 | `<GAL_SKILLS>` | Skills 安裝路徑 | 部分輔助技能 |
 | `<TEMP_DIR>` | 暫存輸出目錄 | PDF 技能 |
+| `<MCP_FILESYSTEM_PATHS>` | filesystem MCP 可讀取的根目錄清單（逗號分隔，可省略） | MCP manifest merge |
+| `<MCP_MEMORY_FILE_PATH>` | 持久化 MCP memory JSON 檔路徑 | MCP manifest merge |
+| `<CONTEXT7_API_KEY>` | 需要時提供給特定 runtime 的 Context7 API key | MCP manifest merge |
+| `<OBSIDIAN_API_KEY>` | Obsidian Local REST API key | Obsidian MCP |
+| `<OBSIDIAN_BASE_URL>` | Obsidian Local REST API base URL | Obsidian MCP |
 
 模型路由設定請複製 [model-roles.example.md](model-roles.example.md) 為 `model-roles.local.md` 後自訂。
+
+如果你需要 provider-specific 的 MCP 差異，請編輯 `mcp-servers.local.json` 後重新執行 Setup-Machine。manifest 會引用 `config.local.env` 裡的本地 secrets 與路徑值。
 
 ## 重要文件
 

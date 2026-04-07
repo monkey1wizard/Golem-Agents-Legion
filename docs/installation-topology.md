@@ -24,8 +24,8 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 | CLI | Machine Install | Notes |
 | --- | --- | --- |
 | Copilot CLI | `~/.copilot/agents/` + `~/.copilot/skills/` | Symlinks + baked `SKILL.md` via Setup-Machine |
-| Gemini CLI | `~/.agents/skills/` + `settings.json` bridge | Discovers GAL skills via `.agents`; bridge writes `AGENTS.md` to `context.fileName` |
-| Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native |
+| Gemini CLI | `~/.agents/skills/` + `settings.json` bridge | Discovers GAL skills via `.agents`; bridge writes `AGENTS.md` to `context.fileName`; Setup-Machine also merges `mcpServers` |
+| Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native; Setup-Machine also appends `[mcp_servers.*]` |
 | Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
 
 ### Repo-Layer Adapter Outputs
@@ -53,6 +53,40 @@ To add a new CLI runtime to GAL:
 2. **Repo layer**: determine the CLI's canonical instruction file. If it is `AGENTS.md`, no code change needed — the repo adapter generator already writes it. Otherwise add a `Build-AdapterContent` / `build_adapter` call to both Sync-DevContext scripts.
 3. **Settings bridge pattern**: if the CLI reads a configurable filename list (like Gemini's `context.fileName`), add a settings-write/merge step to Setup-Machine.
 4. **Slash-command layer**: research the CLI's plugin or skill packaging model separately — do not block the other layers on it.
+
+## MCP Management
+
+GAL now manages a repo-tracked MCP source of truth separately from skill installation.
+
+| File | Scope | Role |
+| --- | --- | --- |
+| `mcp-servers.example.json` | tracked | Canonical MCP catalog and provider defaults |
+| `mcp-servers.local.json` | local only | Optional enable/override layer for the current machine |
+| `config.local.env` | local only | Secrets, paths, and local values referenced by the manifest |
+
+Setup-Machine uses a merge strategy, not overwrite:
+
+- VS Code: merges missing servers into `Code/User/mcp.json`
+- Gemini CLI: merges missing servers into `~/.gemini/settings.json` under `mcpServers`
+- Codex CLI: appends missing `[mcp_servers.<name>]` sections to `~/.codex/config.toml`
+
+The provider config files remain user-owned. GAL only fills gaps from the manifest.
+
+### Provider Differences
+
+The same server may use different keys or transports per runtime.
+
+- VS Code uses `mcp.json` with `servers.<name>` entries
+- Gemini CLI uses `settings.json` with `mcpServers.<name>` entries
+- Codex CLI uses `config.toml` with `[mcp_servers.<name>]` tables
+
+This is why MCP is managed as a separate manifest layer rather than being embedded into skills.
+
+### Current Policy
+
+- Shared core servers such as Context7, fetch, filesystem, memory, Microsoft Learn, puppeteer, and image fetch are configured across VS Code, Gemini, and Codex when feasible.
+- Provider-specific or auth-sensitive servers such as GitHub MCP, Chrome DevTools MCP, and Obsidian MCP can stay enabled only on the runtimes where the config is already validated.
+- Claude Code is intentionally out of scope for the current merge flow.
 
 ## Layer 1.5: Tool Installation Surface
 

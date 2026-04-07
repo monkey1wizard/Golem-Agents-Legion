@@ -1,11 +1,17 @@
 ---
 name: defuddle
 description: Extract clean markdown content from web pages using Defuddle CLI, removing clutter and navigation to save tokens. Use instead of WebFetch when the user provides a URL to read or analyze, for online documentation, articles, blog posts, or any standard web page.
+mcpDependencies:
+  optional:
+    - fetch
+    - imagefetch
 ---
 
 # Defuddle
 
 Use Defuddle CLI to extract clean readable content from web pages. Prefer over WebFetch for standard web pages — it removes navigation, ads, and clutter, reducing token usage.
+
+If Defuddle is unavailable, the page is not a standard article page, or you need raw page retrieval rather than article extraction, fall back to the `fetch` MCP when it is available. If the task depends on understanding page images, prefer `imagefetch` over plain fetch.
 
 If not installed: `npm install -g defuddle`
 
