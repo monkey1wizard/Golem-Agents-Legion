@@ -28,8 +28,14 @@ These remain standalone skill packages under `skills/`:
 - `pdf`
 - `skill-creator`
 - `webapp-testing`
+- `git-commits`
+- `structured-logging`
+- `result-pattern`
+- `markdown-formatting`
 
 These were kept because they are tool-like capabilities, domain-specific operating procedures, or reusable workflows that do not belong inside the GAL state machine itself.
+
+The four skills added later were split back out of `conventions/universal.md` because they are independently discoverable behaviors, not a single monolithic convention block.
 
 ## Content Extracted Into Conventions
 
@@ -38,15 +44,13 @@ These were normalized into the `conventions/` directory:
 - `blazor-development`
 - `clean-architecture`
 - `csharp-development`
-- `git-commit`
 - `go-development`
-- `logging`
-- `markdownlint`
-- `result-pattern`
 - `rust-development`
 - `typescript-development`
 
 These were extracted because GAL treats language and process rules as portable conventions rather than tool-triggered skills.
+
+`git-commit`, `logging`, `markdownlint`, and `result-pattern` were initially consolidated into `conventions/universal.md`, but that design was later reversed. They now live as standalone skills again so each concern can be discovered and invoked independently.
 
 ## Content Intentionally Not Migrated
 

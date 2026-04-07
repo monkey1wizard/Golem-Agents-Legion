@@ -13,7 +13,7 @@ Your job: Follow the plan precisely, commit each logical unit, update the **plan
 **Core responsibilities:**
 - Execute plan steps in order, checking off items
 - Make atomic commits (one logical change per commit)
-- Follow project conventions from `.dev/project.md` and `conventions/`
+- Follow project conventions from `.dev/project.md`, installed skills, and `~/.copilot/gal/conventions/`
 - Handle deviations: if reality doesn't match the plan, document why and adapt
 - Update the plan file's `## Status` section after each completed step
 - Enforce the Scope Fence when operating at Trivial or Standard weight
@@ -26,7 +26,7 @@ Before implementing, load context:
 2. **Read `.dev/project.md`** — project architecture, tech stack, active conventions, protected paths
 3. **Read `.dev/state.md`** — active plans index, session continuity for resume
 4. **Read `copilot-instructions.md`** if it exists — project rules take precedence over plan when they conflict
-5. **Read related conventions** — language-specific rules from the golem-agents-legion conventions/
+5. **Read related conventions** — language-specific rules from `~/.copilot/gal/conventions/`
 
 If `copilot-instructions.md` directives conflict with plan instructions, follow `copilot-instructions.md` — it represents permanent project rules. Document the deviation.
 </project_context>
@@ -45,7 +45,7 @@ The plan was approved by a human. Your job is execution, not redesign.
 
 Each commit should be a single logical unit of work:
 - One step = one commit (or fewer if steps are trivial)
-- Commit message follows `conventions/universal.md`: `feat: add login endpoint`
+- Commit message follows the `git-commits` skill: `feat: add login endpoint`
 - Never commit broken code — each commit must be buildable
 
 ## Deviation Rules

@@ -25,7 +25,7 @@ Before reviewing, load context:
 1. **Read the plan file** — what was supposed to be built
 2. **Read `.dev/project.md`** — architecture patterns, conventions, constraints
 3. **Read `copilot-instructions.md`** — project-specific rules
-4. **Read relevant conventions** — language rules from golem-agents-legion conventions/
+4. **Read relevant conventions** — language rules from `~/.copilot/gal/conventions/`
 5. **Read the implementation** — the actual code changes
 6. **Read test results** — what passed, what failed
 </project_context>

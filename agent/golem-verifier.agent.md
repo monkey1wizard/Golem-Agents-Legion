@@ -128,7 +128,7 @@ After verification passes, manage the plan's end-of-life:
 
 Identify valuable knowledge in the plan that should survive plan deletion:
 - Architecture decisions → `docs/` (ADR or architecture notes)
-- New conventions discovered → propose update to conventions/
+- New conventions discovered → propose update to `~/.copilot/gal/conventions/`
 - Debugging insights → `docs/` if reusable
 - Nothing worth extracting → skip (most plans have no new permanent knowledge)
 

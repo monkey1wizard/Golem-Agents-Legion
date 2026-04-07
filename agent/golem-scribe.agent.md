@@ -29,7 +29,7 @@ Your job: Collect today's work across ALL repos and activities, write a structur
 
 <curfew_enforcement>
 
-## Curfew Rules (referenced from conventions/curfew.md)
+## Curfew Rules (referenced from `~/.copilot/gal/conventions/curfew.md`)
 
 This agent is the ONLY agent permitted to operate between 22:00–23:00 when today's diary has not been written.
 
