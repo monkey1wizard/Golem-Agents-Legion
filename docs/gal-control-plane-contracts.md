@@ -21,7 +21,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | Field | Value |
 | --- | --- |
 | **User question answered** | Where are we right now? |
-| **Reads** | `.dev/state.md`, all active plan files (`## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`) |
+| **Reads** | `.dev/state.md` Active Plans index, then all active execution plan files (`docs/plans/<plan-slug>.prompt.md`: `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`) |
 | **Writes** | Nothing — read-only projection |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Active plans · Current position · Review & test status · Blockers · Session continuity · Specialist readiness |
@@ -32,7 +32,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | Field | Value |
 | --- | --- |
 | **User question answered** | What do I do right now? |
-| **Reads** | `.dev/state.md`, active plan `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes` |
+| **Reads** | `.dev/state.md` Active Plans index, then active execution plan `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes` |
 | **Writes** | Nothing — read-only recommendation |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Current position (one sentence) · Single next action (command or task) · File to open first |
@@ -86,5 +86,7 @@ A `/gal` command should never replicate specialist execution logic. A specialist
 When this document refers to "active plan file," it means the AI execution work file at `docs/plans/<plan-slug>.prompt.md`. This is the mutable artifact that carries `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`, and other per-task state sections.
 
 The human-readable source plan doc lives at `docs/plans/<plan-slug>.md`. Both files share the same `plan-slug` as their correlation key. The control plane reads the execution work file (`.prompt.md`) for state projection; it does not write to the source plan doc.
+
+If `.dev/state.md` is missing, the repo is uninitialized. If `.dev/state.md` exists but the active plan entry or the plan `## Status` section is malformed, that is a repo-state error, not an init case.
 
 See `docs/per-repo-context.md` for the complete artifact taxonomy.

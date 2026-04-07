@@ -9,12 +9,15 @@ Project the full recorded GAL state for this repo.
 
 ## Step 1 — Read
 
-Read these files:
+**Use a file-reading tool** to read `.dev/state.md` (relative to the current repo root / working directory). Do not assume its content from context — actually read the file.
 
-1. `.dev/state.md` — active plans, global decisions, blockers, session continuity
-2. Each plan file listed in the Active Plans table — `## Status`, `## Review Results`, `## Test Results`, `## Open Questions`, `## Tasks`, `## Analyze`, `### Handoff Notes`
+- If the tool returns a file-not-found error → output **Repo not initialized — run `/gal init`.**
+- If the file exists but starts with `# State Template` or `# Project State` → output **`.dev/state.md` contains the raw init template. Run `/gal init` (or `/gal init -Force` if `.dev/` already exists) to generate a proper state file.**
+- If the file contains a valid `## Active Plans` table → continue below.
 
-If `.dev/state.md` does not exist: output **Repo not initialized — run `/gal init`.**
+Then **read each execution plan file** listed in the Active Plans table (`docs/plans/<plan-slug>.prompt.md`) — sections: `## Status`, `## Review Results`, `## Test Results`, `## Open Questions`, `## Tasks`, `## Analyze`, `### Handoff Notes`.
+
+If `.dev/state.md` exists and is valid but the Active Plans table does not point to a readable plan file, or the active plan has no parseable `## Status` → output **Repo is initialized, but GAL state is malformed — inspect `.dev/state.md` Active Plans and the active `.prompt.md` file.**
 
 ## Step 2 — Project
 

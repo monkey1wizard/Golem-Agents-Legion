@@ -49,9 +49,9 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | 路徑 | 用途 |
 | --- | --- |
 | `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
-| `.dev/state.md` | 活動計畫、阻塞點、工作階段連續性 |
+| `.dev/state.md` | 活動計畫索引、阻塞點、工作階段連續性 |
 | `docs/plans/<plan-slug>.md` | 人類可讀的計畫文件（範圍、理由、需求） |
-| `docs/plans/<plan-slug>.prompt.md` | AI 執行工作檔案——可變清單、執行狀態、回寫目標 |
+| `docs/plans/<plan-slug>.prompt.md` | AI 執行工作檔案——可變清單、workflow 狀態、執行狀態、回寫目標 |
 | `DESIGN.md` | Repo 層級設計治理（設計系統，非計畫專屬） |
 | `CLAUDE.md` | Repo 本地操作備注，如部署設定與設計參考 |
 | `docs/designs/<plan-slug>/` | 計畫綁定的設計資產：`variant-approved.json`、`variant-approved.png`、`handoff-final.html` |
@@ -108,6 +108,28 @@ $autoplan
 
 最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
 
+### 建議的工作節奏
+
+控制平面的建議用法如下：
+
+```text
+/gal init
+/office-hours
+/autoplan
+<實作>
+/gal wrap-up
+```
+
+下次恢復工作時，先從這裡開始：
+
+```text
+/gal status
+# 或
+/gal whats-next
+```
+
+`/gal wrap-up` 應該在結束工作階段前執行；另外在任何你之後可能需要無痛續接的 checkpoint 後，也建議執行一次，例如完成 `T-001`、準備切換上下文、或準備交接給另一個 model / session 之前。
+
 ## 控制平面指令
 
 這些是穩定的使用者端 `/gal` 指令。
@@ -117,9 +139,9 @@ $autoplan
 | 指令 | 使用時機 | 讀取 | 寫入 | 結果 |
 | --- | --- | --- | --- | --- |
 | `/gal init` | 為 repo 初始化 GAL 管理 | 現有 repo 文件與結構 | `.dev/project.md`、`.dev/state.md` | Repo 進入 GAL 管理狀態 |
-| `/gal status` | 需要完整狀態投影 | `.dev/state.md`、活動計畫檔案 | 無 | 回報活動計畫、審查/測試狀態、阻塞點、連續性與準備度 |
-| `/gal whats-next` | 想知道單一下一步 | `.dev/state.md`、計畫狀態與結果 | 無 | 回傳一個推薦的下一步指令或任務 |
-| `/gal wrap-up` | 結束工作階段 | `.dev/state.md`、活動計畫 | `### Handoff Notes`、`## Session Continuity` | 收斂可恢復的上下文 |
+| `/gal status` | 需要完整狀態投影 | `.dev/state.md`、活動執行計畫檔（`.prompt.md`） | 無 | 回報活動計畫、審查/測試狀態、阻塞點、連續性與準備度 |
+| `/gal whats-next` | 想知道單一下一步 | `.dev/state.md`、活動執行計畫的狀態與結果 | 無 | 回傳一個推薦的下一步指令或任務 |
+| `/gal wrap-up` | 結束工作階段，或停在一個有意義的 checkpoint | `.dev/state.md`、活動計畫 | `### Handoff Notes`、`## Session Continuity` | 收斂可恢復的上下文 |
 | `/gal research` | 需要結構化調查 | 當前 repo 上下文 | 研究成果（依指示） | 進入研究工作流程 |
 
 ### 可發現性 Alias
@@ -206,6 +228,7 @@ $autoplan
 /office-hours
 /autoplan
 <實作>
+/gal wrap-up
 /review
 /qa
 /ship
@@ -242,6 +265,12 @@ $autoplan
 | `## Ship` | `/ship` | `/gal status`、`/gal whats-next`、`/land-and-deploy` |
 | `## Deploy` | `/land-and-deploy` | `/gal status`、`/canary` |
 | `### Handoff Notes` | `/gal wrap-up` | `/gal status`、`/gal whats-next` |
+
+### 狀態判定疑難排解
+
+- 如果 `.dev/state.md` 不存在，表示 repo 尚未初始化。
+- 如果 `.dev/state.md` 存在，GAL 應該從 `docs/plans/<plan-slug>.prompt.md` 的 `## Status` 讀取活動 workflow。
+- 如果 `.dev/state.md` 已存在但 GAL 仍無法投影狀態，應視為 state 結構異常，不是要重新執行 `/gal init`。
 
 ## 架構摘要
 

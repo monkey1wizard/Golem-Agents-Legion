@@ -52,8 +52,161 @@ write_dispatch() {
 }
 
 get_wf_state() {
-  [[ -f .dev/state.md ]] || { echo ""; return; }
-  grep -E '^Workflow:' .dev/state.md | head -n1 | sed 's/^Workflow:[[:space:]]*//' || true
+  local workflow
+  get_state_context
+  workflow="$STATE_WORKFLOW"
+  echo "$workflow"
+}
+
+trim() {
+  sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+
+unwrap_markdown_code() {
+  local value
+  value="$(printf '%s' "$1" | trim)"
+  value="${value#\`}"
+  value="${value%\`}"
+  printf '%s' "$value"
+}
+
+resolve_plan_path() {
+  local candidate absolute prompt
+  candidate="$(unwrap_markdown_code "$1")"
+  [[ -n "$candidate" ]] || return 1
+  candidate="${candidate//\\//}"
+
+  if [[ "$candidate" = /* || "$candidate" =~ ^[A-Za-z]:/ ]]; then
+    absolute="$candidate"
+  else
+    absolute="$(pwd)/$candidate"
+  fi
+
+  if [[ "$absolute" == *.prompt.md ]]; then
+    printf '%s\n' "$absolute"
+    return 0
+  fi
+
+  if [[ "$absolute" == *.md ]]; then
+    prompt="${absolute%.md}.prompt.md"
+    if [[ -f "$prompt" ]]; then
+      printf '%s\n' "$prompt"
+      return 0
+    fi
+  fi
+
+  printf '%s\n' "$absolute"
+}
+
+get_active_plan_path() {
+  [[ -f .dev/state.md ]] || return 0
+
+  local in_active_plans=0 header_seen=0 line cell resolved
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^##[[:space:]]+Active[[:space:]]+Plans ]]; then
+      in_active_plans=1
+      continue
+    fi
+
+    if (( in_active_plans )) && [[ "$line" =~ ^##[[:space:]]+ ]]; then
+      break
+    fi
+
+    (( in_active_plans )) || continue
+    [[ "$line" == \|* ]] || continue
+    [[ "$line" =~ ^\|[[:space:]]*--- ]] && continue
+
+    IFS='|' read -r -a raw_cells <<<"$line"
+    local cells=()
+    for cell in "${raw_cells[@]}"; do
+      cell="$(printf '%s' "$cell" | trim)"
+      [[ -n "$cell" ]] && cells+=("$cell")
+    done
+
+    (( ${#cells[@]} >= 2 )) || continue
+
+    if (( ! header_seen )); then
+      if printf '%s\n' "${cells[@]}" | grep -Fxq 'Plan' && printf '%s\n' "${cells[@]}" | grep -Fxq 'Workflow State'; then
+        header_seen=1
+      fi
+      continue
+    fi
+
+    for cell in "${cells[@]}"; do
+      resolved="$(resolve_plan_path "$cell")" || continue
+      if [[ "$resolved" == *.prompt.md || "$resolved" == *.md ]]; then
+        printf '%s\n' "$resolved"
+        return 0
+      fi
+    done
+  done < .dev/state.md
+}
+
+get_plan_status_field() {
+  local plan_path="$1" field_name="$2"
+  [[ -n "$plan_path" && -f "$plan_path" ]] || return 0
+
+  awk -v field="$field_name" '
+    /^##[[:space:]]+Status/ { in_status=1; next }
+    in_status && /^##[[:space:]]+/ { exit }
+    in_status && $0 ~ ("^" field ":[[:space:]]*") {
+      sub("^" field ":[[:space:]]*", "", $0)
+      print
+      exit
+    }
+  ' "$plan_path"
+}
+
+normalize_workflow_state() {
+  local value upper
+  value="$(printf '%s' "$1" | trim)"
+  [[ -n "$value" ]] || return 0
+  upper="$(printf '%s' "$value" | tr '[:lower:]' '[:upper:]')"
+  case "$upper" in
+    ENG-REVIEWED|APPROVED) echo IMPLEMENT ;;
+    *) echo "$upper" ;;
+  esac
+}
+
+get_state_context() {
+  STATE_KIND=""
+  STATE_WORKFLOW=""
+  STATE_WORKFLOW_RAW=""
+  STATE_ACTIVE_PLAN=""
+  STATE_ERROR=""
+
+  if [[ ! -f .dev/state.md ]]; then
+    STATE_KIND="uninitialized"
+    return 0
+  fi
+
+  STATE_ACTIVE_PLAN="$(get_active_plan_path)"
+  if [[ -z "$STATE_ACTIVE_PLAN" ]]; then
+    STATE_KIND="idle"
+    STATE_WORKFLOW="IDLE"
+    STATE_WORKFLOW_RAW="IDLE"
+    return 0
+  fi
+
+  if [[ ! -f "$STATE_ACTIVE_PLAN" ]]; then
+    STATE_KIND="state-error"
+    STATE_ERROR="Active plan file not found: $STATE_ACTIVE_PLAN"
+    return 0
+  fi
+
+  STATE_WORKFLOW_RAW="$(get_plan_status_field "$STATE_ACTIVE_PLAN" Workflow)"
+  STATE_WORKFLOW="$(normalize_workflow_state "$STATE_WORKFLOW_RAW")"
+  if [[ -z "$STATE_WORKFLOW" ]]; then
+    STATE_KIND="state-error"
+    STATE_ERROR="Could not resolve workflow state from $STATE_ACTIVE_PLAN ## Status."
+    return 0
+  fi
+
+  if [[ "$STATE_WORKFLOW" == IDLE ]]; then
+    STATE_KIND="idle"
+  else
+    STATE_KIND="active"
+  fi
 }
 
 resolve_golem() {
@@ -126,11 +279,14 @@ case "$command" in
         write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
         ;;
       "")
-        state="$(get_wf_state)"
-        if [[ -z "$state" ]]; then
+        get_state_context
+        state="$STATE_WORKFLOW"
+        if [[ "$STATE_KIND" == uninitialized ]]; then
           write_dispatch COMMAND suggest ACTION "No .dev/state.md found. Run /gal init to initialize this repository." ON_COMPLETE "Run /gal init"
-        elif [[ "$state" == "IDLE" ]]; then
-          write_dispatch COMMAND suggest ACTION "Workflow is IDLE. Use /office-hours or /autoplan to create a plan, or /gal status for details." ON_COMPLETE "Run /gal status or /office-hours"
+        elif [[ "$STATE_KIND" == idle ]]; then
+          write_dispatch COMMAND suggest ACTION "Repo is initialized but no active workflow is recorded. Use /office-hours or /autoplan to create a plan, or /gal status for details." ON_COMPLETE "Run /gal status or /office-hours"
+        elif [[ "$STATE_KIND" == state-error ]]; then
+          write_dispatch COMMAND suggest ACTION "Repo is initialized, but GAL could not resolve workflow state from the active plan. Inspect .dev/state.md Active Plans and $STATE_ACTIVE_PLAN ## Status." ON_COMPLETE "Fix repo state, then run /gal status"
         else
           golem="$(dispatch_for_state "$state")"
           if [[ -n "$golem" ]]; then
@@ -150,10 +306,13 @@ case "$command" in
           elif [[ "$cls" == domain ]]; then
             mode=consult
           else
-            state="$(get_wf_state)"
+            get_state_context
+            state="$STATE_WORKFLOW"
             bound="$(golem_bound_state "$resolved")"
             mode=consult
-            if [[ "$resolved" == "golem-reviewer" ]]; then
+            if [[ "$STATE_KIND" != active ]]; then
+              mode=consult
+            elif [[ "$resolved" == "golem-reviewer" ]]; then
               [[ "$state" == "REVIEW" || "$state" == "CROSS_REVIEW" ]] && mode=bound
             elif [[ -n "$bound" && "$state" == "$bound" ]]; then
               mode=bound

@@ -35,6 +35,175 @@ function Get-StatePath {
     return Join-Path (Get-Location).Path ".dev\state.md"
 }
 
+function Unwrap-MarkdownCode([string]$Value) {
+    if ($null -eq $Value) { return $null }
+    $trimmed = $Value.Trim()
+    if ($trimmed.Length -ge 2 -and $trimmed.StartsWith('`') -and $trimmed.EndsWith('`')) {
+        return $trimmed.Substring(1, $trimmed.Length - 2)
+    }
+    return $trimmed
+}
+
+function Resolve-PlanPath([string]$Value) {
+    $candidate = Unwrap-MarkdownCode $Value
+    if ([string]::IsNullOrWhiteSpace($candidate)) { return $null }
+
+    $candidate = $candidate -replace '/', '\'
+    $absolutePath = if ([System.IO.Path]::IsPathRooted($candidate)) {
+        $candidate
+    } else {
+        Join-Path (Get-Location).Path $candidate
+    }
+
+    if ($absolutePath -match '\.prompt\.md$') {
+        return $absolutePath
+    }
+
+    if ($absolutePath -match '\.md$') {
+        $promptPath = $absolutePath -replace '\.md$', '.prompt.md'
+        if (Test-Path $promptPath) {
+            return $promptPath
+        }
+    }
+
+    if (Test-Path $absolutePath) {
+        return $absolutePath
+    }
+
+    return $absolutePath
+}
+
+function Get-ActivePlanPath {
+    $statePath = Get-StatePath
+    if (-not (Test-Path $statePath)) { return $null }
+
+    $inActivePlans = $false
+    $headerSeen = $false
+
+    foreach ($line in Get-Content $statePath) {
+        if ($line -match '^##\s+Active Plans\b') {
+            $inActivePlans = $true
+            continue
+        }
+
+        if ($inActivePlans -and $line -match '^##\s+') {
+            break
+        }
+
+        if (-not $inActivePlans) { continue }
+        if ($line -notmatch '^\|') { continue }
+        if ($line -match '^\|\s*---') { continue }
+
+        $cells = $line.Trim().Trim('|').Split('|') | ForEach-Object { $_.Trim() }
+        if ($cells.Count -lt 2) { continue }
+
+        if (-not $headerSeen) {
+            if ($cells -contains 'Plan' -and $cells -contains 'Workflow State') {
+                $headerSeen = $true
+            }
+            continue
+        }
+
+        foreach ($cell in $cells) {
+            $resolved = Resolve-PlanPath $cell
+            if ($resolved -and $resolved -match '\.(prompt\.md|md)$') {
+                return $resolved
+            }
+        }
+    }
+
+    return $null
+}
+
+function Get-PlanStatusField([string]$PlanPath, [string]$FieldName) {
+    if ([string]::IsNullOrWhiteSpace($PlanPath) -or -not (Test-Path $PlanPath)) { return $null }
+
+    $inStatus = $false
+    $pattern = '^{0}:\s*(.+)$' -f [regex]::Escape($FieldName)
+
+    foreach ($line in Get-Content $PlanPath) {
+        if ($line -match '^##\s+Status\b') {
+            $inStatus = $true
+            continue
+        }
+
+        if ($inStatus -and $line -match '^##\s+') {
+            break
+        }
+
+        if ($inStatus -and $line -match $pattern) {
+            return $Matches[1].Trim()
+        }
+    }
+
+    return $null
+}
+
+function Normalize-WorkflowState([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
+
+    $normalized = $Value.Trim().ToUpperInvariant()
+    switch ($normalized) {
+        'ENG-REVIEWED' { return 'IMPLEMENT' }
+        'APPROVED'     { return 'IMPLEMENT' }
+        default        { return $normalized }
+    }
+}
+
+function Get-StateContext {
+    $statePath = Get-StatePath
+    if (-not (Test-Path $statePath)) {
+        return [pscustomobject]@{
+            Kind = 'uninitialized'
+            WorkflowState = $null
+            WorkflowStateRaw = $null
+            ActivePlanPath = $null
+            Error = $null
+        }
+    }
+
+    $activePlanPath = Get-ActivePlanPath
+    if (-not $activePlanPath) {
+        return [pscustomobject]@{
+            Kind = 'idle'
+            WorkflowState = 'IDLE'
+            WorkflowStateRaw = 'IDLE'
+            ActivePlanPath = $null
+            Error = $null
+        }
+    }
+
+    if (-not (Test-Path $activePlanPath)) {
+        return [pscustomobject]@{
+            Kind = 'state-error'
+            WorkflowState = $null
+            WorkflowStateRaw = $null
+            ActivePlanPath = $activePlanPath
+            Error = "Active plan file not found: $activePlanPath"
+        }
+    }
+
+    $workflowRaw = Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Workflow'
+    $workflowState = Normalize-WorkflowState $workflowRaw
+    if (-not $workflowState) {
+        return [pscustomobject]@{
+            Kind = 'state-error'
+            WorkflowState = $null
+            WorkflowStateRaw = $workflowRaw
+            ActivePlanPath = $activePlanPath
+            Error = "Could not resolve workflow state from $activePlanPath `## Status`."
+        }
+    }
+
+    return [pscustomobject]@{
+        Kind = if ($workflowState -eq 'IDLE') { 'idle' } else { 'active' }
+        WorkflowState = $workflowState
+        WorkflowStateRaw = $workflowRaw
+        ActivePlanPath = $activePlanPath
+        Error = $null
+    }
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 
@@ -48,14 +217,6 @@ function Write-Dispatch([hashtable]$Fields) {
         }
     }
     Write-Host "--- END DISPATCH ---"
-}
-
-function Get-WFState {
-    $statePath = Join-Path (Get-Location).Path ".dev\state.md"
-    if (-not (Test-Path $statePath)) { return $null }
-    $line = Get-Content $statePath | Where-Object { $_ -match '^Workflow:' } | Select-Object -First 1
-    if ($line -match '^Workflow:\s*(\S+)') { return $Matches[1] }
-    return $null
 }
 
 function Resolve-Golem([string]$Name) {
@@ -125,14 +286,15 @@ switch ($Command) {
 
         $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
         if ($resolved) {
-            $state = Get-WFState
+            $context = Get-StateContext
+            $state = $context.WorkflowState
             if ($utilityGolems -contains $resolved) {
                 $mode = 'utility'
             } elseif ($domainGolems -contains $resolved) {
                 $mode = 'consult'
             } else {
                 $boundStates = $workflowBindings[$resolved]
-                $mode = if ($boundStates -and $boundStates -contains $state) { 'bound' } else { 'consult' }
+                $mode = if ($context.Kind -eq 'active' -and $boundStates -and $boundStates -contains $state) { 'bound' } else { 'consult' }
             }
             $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
             Write-Dispatch @{
@@ -153,8 +315,9 @@ switch ($Command) {
         }
 
         # Auto-detect from state
-        $state = Get-WFState
-        if (-not $state) {
+        $context = Get-StateContext
+        $state = $context.WorkflowState
+        if ($context.Kind -eq 'uninitialized') {
             Write-Dispatch @{
                 COMMAND = 'suggest'
                 ACTION  = 'No .dev/state.md found. Run /gal init to initialize this repository.'
@@ -162,15 +325,23 @@ switch ($Command) {
             }
             break
         }
-        if ($state -eq 'IDLE') {
+        if ($context.Kind -eq 'idle') {
             Write-Dispatch @{
                 COMMAND = 'suggest'
-                ACTION  = "Workflow is IDLE. Use /office-hours or /autoplan to create a plan, or /gal status for details."
+                ACTION  = "Repo is initialized but no active workflow is recorded. Use /office-hours or /autoplan to create a plan, or /gal status for details."
                 ON_COMPLETE = 'Run /gal status or /office-hours'
             }
             break
         }
-            $golem = $dispatchByState[$state]
+        if ($context.Kind -eq 'state-error') {
+            Write-Dispatch @{
+                COMMAND = 'suggest'
+                ACTION  = "Repo is initialized, but GAL could not resolve workflow state from the active plan. Inspect .dev/state.md Active Plans and $($context.ActivePlanPath) `## Status`."
+                ON_COMPLETE = 'Fix repo state, then run /gal status'
+            }
+            break
+        }
+        $golem = $dispatchByState[$state]
         if ($golem) {
             $agentPath = Join-Path $repoRoot ("agent\{0}.agent.md" -f $golem)
             Write-Dispatch @{

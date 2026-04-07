@@ -1,10 +1,3 @@
-# Project Context Template
-
-Template for `<repo>/.dev/project.md` — portable project context.
-
-## File Template
-
-```markdown
 # [Project Name]
 
 ## What This Is
@@ -15,11 +8,11 @@ Template for `<repo>/.dev/project.md` — portable project context.
 
 | Layer | Technology |
 | --- | --- |
-| Language | [e.g., C# 14 / .NET 10] |
-| Framework | [e.g., .NET MAUI] |
-| Database | [e.g., SQLite + Cloud Firestore] |
-| Testing | [e.g., xUnit + FluentAssertions + NSubstitute] |
-| CI/CD | [e.g., GitHub Actions] |
+| Language | [Language / framework / major libs / infrastructure] |
+| Framework | |
+| Database | |
+| Testing | |
+| CI/CD | |
 
 ## Architecture
 
@@ -29,15 +22,14 @@ Template for `<repo>/.dev/project.md` — portable project context.
 
 | Layer | Namespace | Depends On |
 | --- | --- | --- |
-| Domain | Project.Domain | Nothing |
-| Application | Project.Application | Domain |
-| Infrastructure | Project.Infrastructure | Application, Domain |
-| Presentation | Project.Presentation | Application |
+| Domain | | Nothing |
+| Application | | Domain |
+| Infrastructure | | Application, Domain |
+| Presentation | | Application |
 
 ## Constraints
 
 - [Constraint 1] — [reason]
-- [Constraint 2] — [reason]
 
 ## Protected Paths
 
@@ -51,38 +43,19 @@ Template for `<repo>/.dev/project.md` — portable project context.
 
 ## Source Documents
 
-[Index of canonical docs in this repo. Agents read project.md first; only follow these links when the summary is insufficient.]
+[Index of canonical docs...]
 
 | Document | Path | Last Verified |
 | --- | --- | --- |
-| [README] | [README.md] | [YYYY-MM-DD] |
-| [Architecture] | [docs/architecture.md] | [YYYY-MM-DD] |
 
 ## Verified Facts
 
-[Facts confirmed by code inspection — not just what docs claim.]
-
 - [Tech stack: confirmed by inspecting .csproj / package.json]
-- [Test framework: confirmed by running `dotnet test`]
 
 ## Suspected Drift
-
-[Places where docs and code may disagree. Record rather than silently assume correct.]
 
 - [docs/api.md says endpoint X exists, but not found in codebase]
 
 ## Documentation Gaps
 
-[Known areas with no documentation. Prioritize creating these.]
-
 - [No ADR for database choice]
-- [No docs on deployment process]
-```
-
-## Usage Rules
-
-1. **One per repo** — lives at `<repo>/.dev/project.md`
-2. **Portable** — no tool-specific syntax, any AI can read it
-3. **Concise** — context window is precious, don't bloat
-4. **Summary + index, not duplication** — point to canonical docs, don't copy their content
-6. **Record drift and gaps** — better to document uncertainty than ignore it

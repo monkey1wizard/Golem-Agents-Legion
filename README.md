@@ -49,9 +49,9 @@ These files are the durable state model.
 | Path | Purpose |
 | --- | --- |
 | `.dev/project.md` | Repo summary, stack, goals, constraints |
-| `.dev/state.md` | Active plans, blockers, session continuity |
+| `.dev/state.md` | Active plan index, blockers, session continuity |
 | `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements) |
-| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, execution state, write-back target |
+| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, workflow state, execution status, write-back target |
 | `DESIGN.md` | Repo-level design governance (design system, not plan-specific) |
 | `CLAUDE.md` | Repo-local operational notes such as deploy config and design references |
 | `docs/designs/<plan-slug>/` | Plan-bound design assets: `variant-approved.json`, `variant-approved.png`, `handoff-final.html` |
@@ -108,6 +108,28 @@ $autoplan
 
 There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
 
+### Recommended Session Rhythm
+
+Use the control plane like this:
+
+```text
+/gal init
+/office-hours
+/autoplan
+<implement>
+/gal wrap-up
+```
+
+When you resume later, start with:
+
+```text
+/gal status
+# or
+/gal whats-next
+```
+
+`/gal wrap-up` is required before ending a work session, and recommended after any meaningful checkpoint you may need to resume cleanly later — for example after finishing `T-001`, before a context switch, or before handing work to another model or session.
+
 ## Control-Plane Commands
 
 These are the stable user-facing `/gal` commands.
@@ -117,9 +139,9 @@ These are the stable user-facing `/gal` commands.
 | Command | When To Use | Reads | Writes | Outcome |
 | --- | --- | --- | --- | --- |
 | `/gal init` | Bootstrap a repo for GAL | Existing repo docs and structure | `.dev/project.md`, `.dev/state.md` | Repo is ready for GAL-managed work |
-| `/gal status` | You need full state projection | `.dev/state.md`, active plan files | Nothing | Reports active plans, review/test status, blockers, continuity, readiness |
-| `/gal whats-next` | You want a single next action | `.dev/state.md`, active plan status and results | Nothing | Returns one recommended next command or task |
-| `/gal wrap-up` | You are ending a session | `.dev/state.md`, active plan | `### Handoff Notes`, `## Session Continuity` | Converges resumable context |
+| `/gal status` | You need full state projection | `.dev/state.md`, active execution plan files (`.prompt.md`) | Nothing | Reports active plans, review/test status, blockers, continuity, readiness |
+| `/gal whats-next` | You want a single next action | `.dev/state.md`, active execution plan status and results | Nothing | Returns one recommended next command or task |
+| `/gal wrap-up` | You are ending a session, or pausing at a meaningful checkpoint | `.dev/state.md`, active plan | `### Handoff Notes`, `## Session Continuity` | Converges resumable context |
 | `/gal research` | You need structured investigation | Current repo context | Research artifacts as directed | Enters research workflow |
 
 ### Discoverability Aliases
@@ -206,6 +228,7 @@ These commands implement the work layer directly. They do not route through `/ga
 /office-hours
 /autoplan
 <implement>
+/gal wrap-up
 /review
 /qa
 /ship
@@ -242,6 +265,12 @@ The control plane works because specialist commands write predictable sections b
 | `## Ship` | `/ship` | `/gal status`, `/gal whats-next`, `/land-and-deploy` |
 | `## Deploy` | `/land-and-deploy` | `/gal status`, `/canary` |
 | `### Handoff Notes` | `/gal wrap-up` | `/gal status`, `/gal whats-next` |
+
+### Troubleshooting State Detection
+
+- If `.dev/state.md` is missing, the repo is not initialized yet.
+- If `.dev/state.md` exists, GAL should read the active workflow from `docs/plans/<plan-slug>.prompt.md` `## Status`.
+- If GAL cannot project state even though `.dev/state.md` exists, treat that as a malformed state issue, not a signal to re-run `/gal init`.
 
 ## Architecture Summary
 
