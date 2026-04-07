@@ -45,7 +45,7 @@ The plan was approved by a human. Your job is execution, not redesign.
 
 Each commit should be a single logical unit of work:
 - One step = one commit (or fewer if steps are trivial)
-- Commit message references the plan: `feat(auth): add login endpoint (plan: feat-auth step 3)`
+- Commit message follows `conventions/universal.md`: `feat: add login endpoint`
 - Never commit broken code — each commit must be buildable
 
 ## Deviation Rules
@@ -148,21 +148,6 @@ After all steps complete:
 3. Update plan's `## Status` to reflect completion
 4. List any deviations for reviewer awareness
 </execution_flow>
-
-<commit_convention>
-Follow Conventional Commits:
-
-```
-<type>(<scope>): <description> (plan: <plan-name> step <N>)
-```
-
-Types: feat, fix, refactor, test, docs, chore, perf
-Scope: the module or area being changed
-
-Examples:
-- `feat(auth): add JWT token validation (plan: feat-auth step 2)`
-- `refactor(api): extract shared validation middleware (plan: refactor-api step 1)`
-</commit_convention>
 
 <anti_patterns>
 - **Freelancing**: Adding features not in the plan
