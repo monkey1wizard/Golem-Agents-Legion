@@ -9,6 +9,7 @@
 #   <repo root>       -> ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
 #   Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
 #   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
+#   Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
@@ -28,6 +29,12 @@ SKILLS_TARGET="$COPILOT_ROOT/skills"
 GEMINI_ROOT="$HOME/.gemini"
 GEMINI_SKILLS_TARGET="$GEMINI_ROOT/skills"
 GEMINI_CONTEXT_FILE="$GEMINI_ROOT/gal-context.md"
+
+if [[ "${OSTYPE:-}" == darwin* ]]; then
+    VSCODE_SETTINGS_FILE="$HOME/Library/Application Support/Code/User/settings.json"
+else
+    VSCODE_SETTINGS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/Code/User/settings.json"
+fi
 
 CODEX_SKILLS_ROOT="$HOME/.agents"
 CODEX_SKILLS_TARGET="$CODEX_SKILLS_ROOT/skills"
@@ -306,6 +313,58 @@ else
         echo "  [OK] $GEMINI_SETTINGS_FILE (created; install jq for merge support on future runs)"
     else
         echo "  [WARN] jq not found and $GEMINI_SETTINGS_FILE already exists — skipping bridge (install jq and rerun)"
+    fi
+fi
+
+# --- VS Code settings.json: disable duplicate .agents skill discovery ---
+
+echo ""
+echo "=== VS Code settings bridge ==="
+
+if $UNINSTALL; then
+    echo "  [SKIP] VS Code settings.json not modified during uninstall (user-owned file)"
+elif $DRY_RUN; then
+    echo "  [DRY RUN] Would set chat.agentSkillsLocations[\"~/.agents/skills\"]=false in: $VSCODE_SETTINGS_FILE"
+else
+    vscode_settings_dir="$(dirname "$VSCODE_SETTINGS_FILE")"
+    mkdir -p "$vscode_settings_dir"
+
+    if command -v python3 &>/dev/null; then
+        if python3 - "$VSCODE_SETTINGS_FILE" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+if os.path.exists(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+else:
+    data = {}
+
+locations = data.get("chat.agentSkillsLocations")
+if locations is None:
+    locations = {}
+    data["chat.agentSkillsLocations"] = locations
+elif not isinstance(locations, dict):
+    raise TypeError("chat.agentSkillsLocations is not an object")
+
+locations["~/.agents/skills"] = False
+
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+PY
+        then
+            echo "  [OK] $VSCODE_SETTINGS_FILE (chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
+        else
+            echo "  [WARN] Could not merge $VSCODE_SETTINGS_FILE — add chat.agentSkillsLocations manually"
+        fi
+    elif [ ! -f "$VSCODE_SETTINGS_FILE" ]; then
+        printf '{\n  "chat.agentSkillsLocations": {\n    "~/.agents/skills": false\n  }\n}\n' > "$VSCODE_SETTINGS_FILE"
+        echo "  [OK] $VSCODE_SETTINGS_FILE (created; chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
+    else
+        echo "  [WARN] python3 not found and $VSCODE_SETTINGS_FILE already exists — add chat.agentSkillsLocations manually"
     fi
 fi
 

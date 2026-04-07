@@ -9,6 +9,7 @@ Usage: gal <command> [args]
 Commands:
   init [targetPath] [projectName]    Initialize .dev/ and docs/plans/
   dispatch [subcommand|golem] [text] Route to subcommand or golem via /gal skill
+  state-dump                         Dump .dev/state.md + active plan files for LLM skills
 
 Script-dispatched subcommands: init, research
 Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up
@@ -258,6 +259,42 @@ dispatch_for_state() {
 case "$command" in
   init)
     "$script_dir/init-repo.sh" "$@"
+    ;;
+  state-dump)
+    echo "--- GAL STATE DUMP ---"
+    get_state_context
+    echo "KIND: $STATE_KIND"
+    echo "WORKFLOW: $STATE_WORKFLOW"
+    echo "WORKFLOW_RAW: $STATE_WORKFLOW_RAW"
+    echo "ACTIVE_PLAN: $STATE_ACTIVE_PLAN"
+    [[ -n "$STATE_ERROR" ]] && echo "ERROR: $STATE_ERROR"
+
+    if [[ -f .dev/state.md ]]; then
+      echo ""
+      echo "--- FILE: .dev/state.md ---"
+      cat .dev/state.md
+      echo "--- END FILE ---"
+    fi
+
+    if [[ -n "$STATE_ACTIVE_PLAN" && -f "$STATE_ACTIVE_PLAN" ]]; then
+      rel_path="$STATE_ACTIVE_PLAN"
+      cwd="$(pwd)"
+      rel_path="${rel_path#"$cwd"/}"
+      echo ""
+      echo "--- FILE: $rel_path ---"
+      cat "$STATE_ACTIVE_PLAN"
+      echo "--- END FILE ---"
+    fi
+
+    if [[ -f .dev/project.md ]]; then
+      echo ""
+      echo "--- FILE: .dev/project.md ---"
+      cat .dev/project.md
+      echo "--- END FILE ---"
+    fi
+
+    echo ""
+    echo "--- END STATE DUMP ---"
     ;;
   dispatch)
     intent="${1:-}"

@@ -108,6 +108,8 @@ $autoplan
 
 最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
 
+`Setup-Machine.ps1` 與 `setup-machine.sh` 也會合併一個 VS Code 使用者設定，讓 Copilot Chat 忽略 `~/.agents/skills`。這樣 Gemini / Codex 仍可使用共享的 `.agents` 安裝路徑，同時避免 VS Code 內出現重複技能。
+
 ### 建議的工作節奏
 
 控制平面的建議用法如下：
@@ -272,6 +274,21 @@ $autoplan
 - 如果 `.dev/state.md` 存在，GAL 應該從 `docs/plans/<plan-slug>.prompt.md` 的 `## Status` 讀取活動 workflow。
 - 如果 `.dev/state.md` 已存在但 GAL 仍無法投影狀態，應視為 state 結構異常，不是要重新執行 `/gal init`。
 
+### VS Code 技能重複疑難排解
+
+- VS Code 目前會同時掃描 `~/.copilot/skills` 與 `~/.agents/skills`。
+- GAL 會刻意把 Gemini / Codex 共用技能安裝在 `~/.agents/skills`，所以若沒有額外設定，VS Code 可能把 `/gal-status` 之類的技能列出兩次。
+- 重新執行 `scripts/Setup-Machine.ps1` 或 `scripts/setup-machine.sh`，即可讓安裝腳本自動合併建議的 VS Code 設定。
+- 如果你要手動修復既有安裝，請在 VS Code 使用者 `settings.json` 加入：
+
+```json
+"chat.agentSkillsLocations": {
+  "~/.agents/skills": false
+}
+```
+
+- 這只會讓 VS Code 忽略重複來源，不會移除 `~/.agents/skills`，因此 Gemini CLI 與 Codex CLI 仍可正常使用。
+
 ## 架構摘要
 
 ```text
@@ -280,8 +297,8 @@ $autoplan
 docs/plans/<slug>.md      人類可讀的計畫文件
 docs/plans/<slug>.prompt.md  AI 執行工作檔案（可變狀態）
 ~/.copilot/skills/        已安裝的 Copilot skills
-~/.gemini/skills/         已安裝的 Gemini skills
-~/.agents/skills/         已安裝的 Codex skills
+~/.gemini/skills/         舊版 Gemini runtime 目錄（setup 會清理）
+~/.agents/skills/         Gemini + Codex 共用 skills（VS Code 應忽略這個路徑）
 ```
 
 方法論是可攜帶的。轉接器是用完即棄的。

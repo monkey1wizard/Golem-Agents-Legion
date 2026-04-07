@@ -14,10 +14,28 @@ Close out the current work session and leave the repo in a resumable state.
 - Reports which artifacts changed and are ready to commit
 - Leaves a clear signal that can be read by `/gal whats-next` in a future session
 
-## Step 1 — Read Active State
+## Step 1 — Collect Active State
 
-Read:
+Run this command in the terminal to collect all state files:
 
+**Windows:**
+```
+{{GAL_ROOT}}\scripts\gal.ps1 state-dump
+```
+
+**macOS / Linux:**
+```
+{{GAL_ROOT}}/scripts/gal.sh state-dump
+```
+
+The output is a structured dump. Check the `KIND:` line:
+
+- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
+- `KIND: state-error` → output the `ERROR:` line and suggest inspecting `.dev/state.md`.
+- `KIND: idle` → output **No active session to wrap up.**
+- `KIND: active` → proceed to Step 2 using the file contents from the dump.
+
+From the dump, extract:
 1. `.dev/state.md` — active plan reference and current session continuity
 2. The active plan file — full `## Status`, `### Handoff Notes`, `## Review Results`, `## Test Results`
 

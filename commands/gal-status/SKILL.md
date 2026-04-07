@@ -7,21 +7,30 @@ description: "GAL — full state projection. Shows active plans, workflow positi
 
 Project the full recorded GAL state for this repo.
 
-## Step 1 — Read
+## Step 1 — Collect State
 
-**Use a file-reading tool** to read `.dev/state.md` (relative to the current repo root / working directory). Do not assume its content from context — actually read the file.
+Run this command in the terminal to collect all state files:
 
-- If the tool returns a file-not-found error → output **Repo not initialized — run `/gal init`.**
-- If the file exists but starts with `# State Template` or `# Project State` → output **`.dev/state.md` contains the raw init template. Run `/gal init` (or `/gal init -Force` if `.dev/` already exists) to generate a proper state file.**
-- If the file contains a valid `## Active Plans` table → continue below.
+**Windows:**
+```
+C:\Code\Golem-Agents-Legion\scripts\gal.ps1 state-dump
+```
 
-Then **read each execution plan file** listed in the Active Plans table (`docs/plans/<plan-slug>.prompt.md`) — sections: `## Status`, `## Review Results`, `## Test Results`, `## Open Questions`, `## Tasks`, `## Analyze`, `### Handoff Notes`.
+**macOS / Linux:**
+```
+C:\Code\Golem-Agents-Legion/scripts/gal.sh state-dump
+```
 
-If `.dev/state.md` exists and is valid but the Active Plans table does not point to a readable plan file, or the active plan has no parseable `## Status` → output **Repo is initialized, but GAL state is malformed — inspect `.dev/state.md` Active Plans and the active `.prompt.md` file.**
+The output is a structured dump. Check the `KIND:` line:
+
+- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
+- `KIND: state-error` → output the `ERROR:` line from the dump and suggest inspecting `.dev/state.md`.
+- `KIND: idle` → output **Repo is initialized but no active plan. Use `/office-hours` to start sprint planning.**
+- `KIND: active` → proceed to Step 2 using the file contents from the dump.
 
 ## Step 2 — Project
 
-Output the following sections in order:
+Using the file contents from the `--- FILE: ... ---` blocks in the dump output, produce the following sections in order:
 
 ### Active Plans
 

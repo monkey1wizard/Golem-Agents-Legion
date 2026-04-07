@@ -11,6 +11,7 @@
             - <repo root>       → ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
       - Generates commands/gal/SKILL.md from SKILL.template.md (baked absolute paths)
       - Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
+      - Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
     Falls back to directory junctions for skill folders if symlinks fail.
@@ -49,6 +50,7 @@ $skillsTarget = Join-Path $copilotRoot "skills"
 $geminiRoot = Join-Path $env:USERPROFILE ".gemini"
 $geminiSkillsTarget = Join-Path $geminiRoot "skills"
 $geminiContextFile = Join-Path $geminiRoot "gal-context.md"
+$vscodeSettingsFile = Join-Path $env:APPDATA "Code\User\settings.json"
 
 $codexSkillsRoot = Join-Path $env:USERPROFILE ".agents"
 $codexSkillsTarget = Join-Path $codexSkillsRoot "skills"
@@ -345,6 +347,60 @@ if ($Uninstall) {
         $utf8NoBom = New-Object System.Text.UTF8Encoding $false
         [System.IO.File]::WriteAllText($geminiSettingsFile, ($settings | ConvertTo-Json -Depth 10), $utf8NoBom)
         Write-Host "  [OK] $geminiSettingsFile (context.fileName includes AGENTS.md and GEMINI.md)"
+    }
+}
+
+# --- VS Code settings.json: disable duplicate .agents skill discovery ---
+
+Write-Host ""
+Write-Host "=== VS Code settings bridge ==="
+
+if ($Uninstall) {
+    Write-Host "  [SKIP] VS Code settings.json not modified during uninstall (user-owned file)"
+}
+elseif ($DryRun) {
+    Write-Host "  [DRY RUN] Would set chat.agentSkillsLocations['~/.agents/skills']=false in: $vscodeSettingsFile"
+}
+else {
+    if (Test-Path $vscodeSettingsFile) {
+        $rawJson = Get-Content $vscodeSettingsFile -Raw -Encoding UTF8
+        try   { $settings = $rawJson | ConvertFrom-Json }
+        catch { Write-Host "  [WARN] Could not parse $vscodeSettingsFile as JSON — add chat.agentSkillsLocations manually" -ForegroundColor Yellow; $settings = $null }
+    } else {
+        $settingsDir = Split-Path $vscodeSettingsFile -Parent
+        if (-not (Test-Path $settingsDir)) {
+            New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
+        }
+        $settings = [PSCustomObject]@{}
+    }
+
+    if ($null -ne $settings) {
+        if (-not (Get-Member -InputObject $settings -Name 'chat.agentSkillsLocations' -MemberType NoteProperty)) {
+            Add-Member -InputObject $settings -MemberType NoteProperty -Name 'chat.agentSkillsLocations' -Value ([PSCustomObject]@{})
+        }
+
+        $skillLocations = $settings.'chat.agentSkillsLocations'
+        if ($skillLocations -is [System.Collections.IDictionary]) {
+            $skillLocations['~/.agents/skills'] = $false
+        }
+        elseif ($skillLocations -is [PSCustomObject]) {
+            if (Get-Member -InputObject $skillLocations -Name '~/.agents/skills' -MemberType NoteProperty) {
+                $skillLocations.'~/.agents/skills' = $false
+            }
+            else {
+                Add-Member -InputObject $skillLocations -MemberType NoteProperty -Name '~/.agents/skills' -Value $false
+            }
+        }
+        else {
+            Write-Host "  [WARN] chat.agentSkillsLocations is not an object in $vscodeSettingsFile — skipping" -ForegroundColor Yellow
+            $skillLocations = $null
+        }
+
+        if ($null -ne $skillLocations) {
+            $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+            [System.IO.File]::WriteAllText($vscodeSettingsFile, ($settings | ConvertTo-Json -Depth 10), $utf8NoBom)
+            Write-Host "  [OK] $vscodeSettingsFile (chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
+        }
     }
 }
 

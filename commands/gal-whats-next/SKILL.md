@@ -7,22 +7,36 @@ description: "GAL — what to do next. Reads current plan state, review and test
 
 Determine what to do right now based on the current recorded GAL state.
 
-## Step 1 — Read State
+## Step 1 — Collect State
 
-Read these files in order:
+Run this command in the terminal to collect all state files:
 
+**Windows:**
+```
+C:\Code\Golem-Agents-Legion\scripts\gal.ps1 state-dump
+```
+
+**macOS / Linux:**
+```
+C:\Code\Golem-Agents-Legion/scripts/gal.sh state-dump
+```
+
+The output is a structured dump. Check the `KIND:` line:
+
+- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
+- `KIND: state-error` → output the `ERROR:` line from the dump and suggest inspecting `.dev/state.md`.
+- `KIND: idle` → output **No active plan. Use `/office-hours` to start sprint planning.**
+- `KIND: active` → proceed to Step 2 using the file contents from the dump.
+
+From the dump output, extract these data points:
 1. `.dev/state.md` — active plans table, blockers, session continuity
-2. The active execution plan file from the Active Plans table (`docs/plans/<plan-slug>.prompt.md`) — `## Status` section (workflow state, current step, next step)
+2. Active plan `## Status` — workflow state, current step, next step
 3. Active plan `## Review Results` — any BLOCKING findings
 4. Active plan `## Test Results` — pass / fail / pending
 5. Active plan `### Handoff Notes` — interrupted work context
 6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
 7. Active plan `## Tasks` — task completion state
 8. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
-
-If `.dev/state.md` does not exist: output **Repo not initialized — run `/gal init`.**
-
-If `.dev/state.md` exists but the Active Plans table or the active plan `## Status` cannot be read cleanly, output **Repo is initialized, but GAL state is malformed — inspect `.dev/state.md` Active Plans and the active `.prompt.md` file.**
 
 ## Step 2 — Decide
 

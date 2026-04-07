@@ -108,6 +108,8 @@ $autoplan
 
 There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
 
+`Setup-Machine.ps1` and `setup-machine.sh` also merge a VS Code user setting so Copilot Chat ignores `~/.agents/skills`. This keeps Gemini/Codex using the shared `.agents` install while preventing duplicate skill entries in VS Code.
+
 ### Recommended Session Rhythm
 
 Use the control plane like this:
@@ -272,6 +274,21 @@ The control plane works because specialist commands write predictable sections b
 - If `.dev/state.md` exists, GAL should read the active workflow from `docs/plans/<plan-slug>.prompt.md` `## Status`.
 - If GAL cannot project state even though `.dev/state.md` exists, treat that as a malformed state issue, not a signal to re-run `/gal init`.
 
+### Troubleshooting Duplicate Skills In VS Code
+
+- VS Code currently scans both `~/.copilot/skills` and `~/.agents/skills`.
+- GAL intentionally installs shared Gemini/Codex skills under `~/.agents/skills`, so an unconfigured VS Code instance can show duplicate entries such as `/gal-status`.
+- Re-run `scripts/Setup-Machine.ps1` or `scripts/setup-machine.sh` to let the installer merge the recommended VS Code setting automatically.
+- If you need to repair an existing install by hand, add this to your VS Code user `settings.json`:
+
+```json
+"chat.agentSkillsLocations": {
+  "~/.agents/skills": false
+}
+```
+
+- This only tells VS Code to ignore the duplicate path. It does not remove `~/.agents/skills`, so Gemini CLI and Codex CLI keep working.
+
 ## Architecture Summary
 
 ```text
@@ -280,7 +297,8 @@ The control plane works because specialist commands write predictable sections b
 docs/plans/<slug>.md      human-readable source plan doc
 docs/plans/<slug>.prompt.md  AI execution work file (mutable state)
 ~/.copilot/skills/        installed Copilot skills
-~/.gemini/skills/         installed Gemini skills
+~/.gemini/skills/         legacy Gemini runtime dir (cleaned up by setup)
+~/.agents/skills/         shared Gemini + Codex skills (VS Code should ignore this path)
 ```
 
 The methodology is portable. The adapters are disposable.
