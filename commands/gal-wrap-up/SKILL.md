@@ -16,26 +16,15 @@ Close out the current work session and leave the repo in a resumable state.
 
 ## Step 1 — Collect Active State
 
-Run this command in the terminal to collect all state files:
+Read `.dev/state.md` in the current repo.
 
-**Windows:**
-```
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 state-dump
-```
+- If `.dev/state.md` is missing, output **Repo not initialized — run `/gal init`.**
+- If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active session to wrap up.**
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
+- If the active plan file is missing or its `## Status` section does not expose a `Workflow:` field, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
-**macOS / Linux:**
-```
-C:\Code\Golem-Agents-Legion/scripts/gal.sh state-dump
-```
+From `.dev/state.md` and the active plan file, extract:
 
-The output is a structured dump. Check the `KIND:` line:
-
-- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
-- `KIND: state-error` → output the `ERROR:` line and suggest inspecting `.dev/state.md`.
-- `KIND: idle` → output **No active session to wrap up.**
-- `KIND: active` → proceed to Step 2 using the file contents from the dump.
-
-From the dump, extract:
 1. `.dev/state.md` — active plan reference and current session continuity
 2. The active plan file — full `## Status`, `### Handoff Notes`, `## Review Results`, `## Test Results`
 
@@ -54,7 +43,7 @@ If previous Handoff Notes exist and are now stale, replace them entirely. Keep o
 
 In `.dev/state.md` under `## Session Continuity`, update all fields:
 
-```
+```text
 Last session: [today's date, approximate time]
 Stopped at: [one-line description of the last completed action]
 Next step: [exact action to take when resuming]
@@ -71,7 +60,7 @@ Tell the user:
 
 Suggest the git commit:
 
-```
+```bash
 git add .dev/state.md docs/plans/<active-plan>.prompt.md
 git commit -m "chore: session wrap-up — <one-line summary of stopped-at>"
 ```

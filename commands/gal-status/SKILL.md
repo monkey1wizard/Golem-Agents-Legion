@@ -9,32 +9,21 @@ Project the full recorded GAL state for this repo.
 
 ## Step 1 — Collect State
 
-Run this command in the terminal to collect all state files:
+Read `.dev/state.md` in the current repo.
 
-**Windows:**
-```
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 state-dump
-```
-
-**macOS / Linux:**
-```
-C:\Code\Golem-Agents-Legion/scripts/gal.sh state-dump
-```
-
-The output is a structured dump. Check the `KIND:` line:
-
-- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
-- `KIND: state-error` → output the `ERROR:` line from the dump and suggest inspecting `.dev/state.md`.
-- `KIND: idle` → output **Repo is initialized but no active plan. Use `/office-hours` to start sprint planning.**
-- `KIND: active` → proceed to Step 2 using the file contents from the dump.
+- If `.dev/state.md` is missing, output **Repo not initialized — run `/gal init`.**
+- If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **Repo is initialized but no active plan. Use `/office-hours` to start sprint planning.**
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
+- If the active plan file is missing or its `## Status` section does not expose a `Workflow:` field, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
 ## Step 2 — Project
 
-Using the file contents from the `--- FILE: ... ---` blocks in the dump output, produce the following sections in order:
+Using the file contents from `.dev/state.md` and the active plan file, produce the following sections in order:
 
 ### Active Plans
 
 For each row in `.dev/state.md` Active Plans table:
+
 - Plan name and file path
 - Workflow state and current step
 - Last activity date
@@ -42,6 +31,7 @@ For each row in `.dev/state.md` Active Plans table:
 ### Current Position
 
 From the primary active plan:
+
 - Workflow state (DRAFT / PLAN / IMPLEMENT / TEST / REVIEW / VERIFY / DONE)
 - Current step and total steps
 - What the plan's `## Status` says the next step is
@@ -50,6 +40,7 @@ From the primary active plan:
 ### Review & Test Status
 
 For each active plan with results filled in:
+
 - **Test Results**: Pass / Fail / Pending — one-line summary from `## Test Results`
 - **Review Results**: verdict and any BLOCKING findings from `## Review Results`
 
@@ -73,6 +64,7 @@ If the section is empty or not present: **None.**
 ### Session Continuity
 
 From `.dev/state.md` `## Session Continuity`:
+
 - Last session
 - Stopped at
 - Next step

@@ -9,26 +9,15 @@ Determine what to do right now based on the current recorded GAL state.
 
 ## Step 1 — Collect State
 
-Run this command in the terminal to collect all state files:
+Read `.dev/state.md` in the current repo.
 
-**Windows:**
-```
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 state-dump
-```
+- If `.dev/state.md` is missing, output **Repo not initialized — run `/gal init`.**
+- If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/office-hours` to start sprint planning.**
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
+- If the active plan file is missing or its `## Status` section does not expose a `Workflow:` field, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
-**macOS / Linux:**
-```
-C:\Code\Golem-Agents-Legion/scripts/gal.sh state-dump
-```
+From `.dev/state.md` and the active plan file, extract these data points:
 
-The output is a structured dump. Check the `KIND:` line:
-
-- `KIND: uninitialized` → output **Repo not initialized — run `/gal init`.**
-- `KIND: state-error` → output the `ERROR:` line from the dump and suggest inspecting `.dev/state.md`.
-- `KIND: idle` → output **No active plan. Use `/office-hours` to start sprint planning.**
-- `KIND: active` → proceed to Step 2 using the file contents from the dump.
-
-From the dump output, extract these data points:
 1. `.dev/state.md` — active plans table, blockers, session continuity
 2. Active plan `## Status` — workflow state, current step, next step
 3. Active plan `## Review Results` — any BLOCKING findings

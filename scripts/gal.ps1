@@ -14,7 +14,6 @@ function Show-Usage {
     Write-Host "Commands:"
     Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
     Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
-    Write-Host "  state-dump                          Dump .dev/state.md + active plan files for LLM skills"
     Write-Host ""
     Write-Host "Script-dispatched subcommands: init, research"
     Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
@@ -254,55 +253,6 @@ $utilityGolems = @('golem-debugger','golem-scribe')
 switch ($Command) {
     "init" {
         & (Join-Path $scriptRoot "Init-Repo.ps1") @Arguments
-        break
-    }
-    "state-dump" {
-        # Deterministic file dump for LLM skills — outputs all relevant state files
-        # so the LLM never needs to decide whether to call a file-reading tool.
-        Write-Host "--- GAL STATE DUMP ---"
-
-        $context = Get-StateContext
-        Write-Host "KIND: $($context.Kind)"
-        Write-Host "WORKFLOW: $($context.WorkflowState)"
-        Write-Host "WORKFLOW_RAW: $($context.WorkflowStateRaw)"
-        Write-Host "ACTIVE_PLAN: $($context.ActivePlanPath)"
-        if ($context.Error) {
-            Write-Host "ERROR: $($context.Error)"
-        }
-
-        # Dump .dev/state.md
-        $statePath = Get-StatePath
-        if (Test-Path $statePath) {
-            Write-Host ""
-            Write-Host "--- FILE: .dev/state.md ---"
-            Get-Content $statePath | ForEach-Object { Write-Host $_ }
-            Write-Host "--- END FILE ---"
-        }
-
-        # Dump active plan file
-        if ($context.ActivePlanPath -and (Test-Path $context.ActivePlanPath)) {
-            $relPath = $context.ActivePlanPath
-            $cwd = (Get-Location).Path
-            if ($relPath.StartsWith($cwd)) {
-                $relPath = $relPath.Substring($cwd.Length).TrimStart('\', '/')
-            }
-            Write-Host ""
-            Write-Host "--- FILE: $relPath ---"
-            Get-Content $context.ActivePlanPath | ForEach-Object { Write-Host $_ }
-            Write-Host "--- END FILE ---"
-        }
-
-        # Dump .dev/project.md if it exists
-        $projectPath = Join-Path (Get-Location).Path ".dev\project.md"
-        if (Test-Path $projectPath) {
-            Write-Host ""
-            Write-Host "--- FILE: .dev/project.md ---"
-            Get-Content $projectPath | ForEach-Object { Write-Host $_ }
-            Write-Host "--- END FILE ---"
-        }
-
-        Write-Host ""
-        Write-Host "--- END STATE DUMP ---"
         break
     }
     "dispatch" {
