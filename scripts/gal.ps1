@@ -31,8 +31,26 @@ function ConvertTo-Slug([string]$Value) {
     return $slug
 }
 
+function Get-RepoContextRoot {
+    $current = (Get-Location).Path
+
+    while ($true) {
+        $statePath = Join-Path $current ".dev\state.md"
+        if (Test-Path $statePath) {
+            return $current
+        }
+
+        $parent = Split-Path $current -Parent
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $current) {
+            return (Get-Location).Path
+        }
+
+        $current = $parent
+    }
+}
+
 function Get-StatePath {
-    return Join-Path (Get-Location).Path ".dev\state.md"
+    return Join-Path (Get-RepoContextRoot) ".dev\state.md"
 }
 
 function Unwrap-MarkdownCode([string]$Value) {
@@ -49,10 +67,11 @@ function Resolve-PlanPath([string]$Value) {
     if ([string]::IsNullOrWhiteSpace($candidate)) { return $null }
 
     $candidate = $candidate -replace '/', '\'
+    $repoContextRoot = Get-RepoContextRoot
     $absolutePath = if ([System.IO.Path]::IsPathRooted($candidate)) {
         $candidate
     } else {
-        Join-Path (Get-Location).Path $candidate
+        Join-Path $repoContextRoot $candidate
     }
 
     if ($absolutePath -match '\.prompt\.md$') {

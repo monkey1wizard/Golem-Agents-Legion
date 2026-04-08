@@ -25,8 +25,36 @@ to_slug() {
   echo "$value"
 }
 
+get_repo_context_root() {
+  local current parent
+  current="$(pwd)"
+
+  while true; do
+    if [[ -f "$current/.dev/state.md" ]]; then
+      printf '%s\n' "$current"
+      return 0
+    fi
+
+    parent="$(dirname "$current")"
+    if [[ -z "$parent" || "$parent" == "$current" ]]; then
+      printf '%s\n' "$(pwd)"
+      return 0
+    fi
+
+    current="$parent"
+  done
+}
+
+get_state_path() {
+  local repo_root
+  repo_root="$(get_repo_context_root)"
+  printf '%s/.dev/state.md\n' "$repo_root"
+}
+
 require_state() {
-  if [[ ! -f .dev/state.md ]]; then
+  local state_path
+  state_path="$(get_state_path)"
+  if [[ ! -f "$state_path" ]]; then
     echo "Missing .dev/state.md in current directory. Run gal init first." >&2
     exit 1
   fi
@@ -71,15 +99,16 @@ unwrap_markdown_code() {
 }
 
 resolve_plan_path() {
-  local candidate absolute prompt
+  local candidate absolute prompt repo_root
   candidate="$(unwrap_markdown_code "$1")"
   [[ -n "$candidate" ]] || return 1
   candidate="${candidate//\\//}"
+  repo_root="$(get_repo_context_root)"
 
   if [[ "$candidate" = /* || "$candidate" =~ ^[A-Za-z]:/ ]]; then
     absolute="$candidate"
   else
-    absolute="$(pwd)/$candidate"
+    absolute="$repo_root/$candidate"
   fi
 
   if [[ "$absolute" == *.prompt.md ]]; then
@@ -99,7 +128,9 @@ resolve_plan_path() {
 }
 
 get_active_plan_path() {
-  [[ -f .dev/state.md ]] || return 0
+  local state_path
+  state_path="$(get_state_path)"
+  [[ -f "$state_path" ]] || return 0
 
   local in_active_plans=0 header_seen=0 line cell resolved
   while IFS= read -r line; do
@@ -139,7 +170,7 @@ get_active_plan_path() {
         return 0
       fi
     done
-  done < .dev/state.md
+  done < "$state_path"
 }
 
 get_plan_status_field() {
@@ -175,7 +206,10 @@ get_state_context() {
   STATE_ACTIVE_PLAN=""
   STATE_ERROR=""
 
-  if [[ ! -f .dev/state.md ]]; then
+  local state_path
+  state_path="$(get_state_path)"
+
+  if [[ ! -f "$state_path" ]]; then
     STATE_KIND="uninitialized"
     return 0
   fi

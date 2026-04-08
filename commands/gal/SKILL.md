@@ -24,7 +24,7 @@ GAL control-plane entry point. Route based on the subcommand provided.
 | `research` | I need structured investigation | Run `gal.ps1 dispatch research [args]` — follow output block |
 | `pipeline` | Run implement → test → review automatically | Run `gal.ps1 dispatch pipeline` — follow output block |
 | `<golem-name>` | I want to consult a specific golem | Run `gal.ps1 dispatch <golem-name> [args]` — follow output block |
-| *(no args)* | Auto-detect and recommend | Read `.dev/state.md` and follow the `/gal-whats-next` procedure |
+| *(no args)* | Auto-detect and recommend | Locate the nearest ancestor repo root containing `.dev/state.md`, then follow the `/gal-whats-next` procedure |
 
 ## Natural Language Pipeline Trigger
 
@@ -67,4 +67,6 @@ For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load 
 - `status` → load the installed `gal-status` skill procedure
 - `whats-next` → load the installed `gal-whats-next` skill procedure
 - `wrap-up` → load the installed `gal-wrap-up` skill procedure
+
+Treat those delegated skill procedures as the single source of truth for substantive control-plane behavior.
 

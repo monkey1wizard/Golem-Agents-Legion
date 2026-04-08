@@ -9,9 +9,9 @@ Determine what to do right now based on the current recorded GAL state.
 
 ## Step 1 — Collect State
 
-Read `.dev/state.md` in the current repo.
+Starting from the current working directory or opened workspace folder, walk upward to the nearest ancestor directory that contains `.dev/state.md`. Treat that ancestor as the repo root and read `.dev/state.md` there.
 
-- If `.dev/state.md` is missing, output **Repo not initialized — run `/gal init`.**
+- If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/office-hours` to start sprint planning.**
 - If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
 - If the active plan file is missing or its `## Status` section does not expose a `Workflow:` field, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
