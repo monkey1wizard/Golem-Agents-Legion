@@ -72,6 +72,11 @@ Workflow: DRAFT
 Step: 0 of N
 Last activity: YYYY-MM-DD — plan created
 Next step: [assess risk weight, select review pack]
+Current Task: —
+Task Base Commit: —
+Task Final Commit: —
+Test Retry Count: 0
+Review Retry Count: 0
 
 ### Deviations
 

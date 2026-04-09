@@ -26,7 +26,7 @@ Before reviewing, load context:
 2. **Read `.dev/project.md`** — architecture patterns, conventions, constraints
 3. **Read `copilot-instructions.md`** — project-specific rules
 4. **Read relevant conventions** — language rules from `~/.copilot/gal/conventions/`
-5. **Read the implementation** — the actual code changes
+5. **Read the implementation** — when invoked from `/gal pipeline`, read only the commit range `Task Base Commit..Task Final Commit` from `## Status`; in standalone mode read the full branch diff
 6. **Read test results** — what passed, what failed
 </project_context>
 
@@ -124,7 +124,46 @@ Go through each review dimension:
 
 ## Step 4: Persist Findings to Plan
 
-Write the review to the plan file's `## Review Results` section:
+Write the review to the plan file's `## Review Results` section.
+
+**When invoked from `/gal pipeline` (task-scoped mode):** write a subsection keyed by the current task and date:
+
+```markdown
+### [T-NNN] YYYY-MM-DD
+
+Reviewed: YYYY-MM-DD
+Commit range: <Task Base Commit>..<Task Final Commit>
+Verdict: APPROVE / REQUEST_CHANGES / BLOCK
+
+#### BLOCKING
+- **[B-01]** [Category]: [Finding] — [File:Line]
+  - Impact: [What goes wrong]
+  - Fix: [Suggested remediation]
+  - Resolution: [How it was fixed, or OPEN]
+
+#### WARNING
+- **[W-01]** [Category]: [Finding] — [File:Line]
+
+#### INFO
+- **[I-01]** [Category]: [Suggestion] — [File:Line]
+
+#### Summary
+- Blocking: N (resolved: N, open: N)
+- Warning: N
+- Info: N
+```
+
+**Resolved BLOCKINGs:** Any BLOCKING finding that has been fixed must have its `Resolution` field updated from `OPEN` to a description of the fix. No OPEN BLOCKING may remain in a completed task's subsection — `/gal whats-next` scans `## Review Results` for `OPEN` BLOCKINGs and will treat them as active blockers.
+
+**STAFF_REVIEW marker (after final task):** When all plan tasks are complete and this is the last task's review pass, write the following at the **root level** of `## Review Results`, outside any task subsection:
+
+```markdown
+<!-- STAFF_REVIEW: CLEAR -->
+```
+
+This root-level marker is required for `/ship` readiness dashboard compatibility.
+
+**When invoked standalone (full-plan mode):** write to the root `## Review Results` section using the existing flat format:
 
 ```markdown
 ## Review Results
@@ -151,6 +190,8 @@ Verdict: APPROVE / REQUEST_CHANGES / BLOCK
 ```
 
 This persists findings across sessions — the verifier reads this section to confirm all blocking issues are resolved.
+
+**Review Retry Count (pipeline mode):** After a BLOCKING review round, the pipeline increments `Review Retry Count` in `## Status`. When `Review Retry Count` reaches 3, the pipeline stops before a fourth attempt and requires human intervention. You do not manage this counter directly — just report findings accurately.
 
 ## Step 5: Update Plan Status
 

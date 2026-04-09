@@ -114,6 +114,7 @@ Read the plan file. Extract:
 - Steps with their verification criteria
 - Context files to read
 - Success criteria
+- If invoked with `TASK_SCOPE: T-NNN`, extract only that task's scope (see below)
 
 ## Step 2: Verify Prerequisites
 
@@ -124,12 +125,12 @@ Before writing code:
 
 ## Step 3: Execute Steps
 
-For each step in the plan:
+For each step in the plan (or, in TASK_SCOPE mode, only the scoped task):
 
 1. **Read** — Load context files mentioned in the step
 2. **Implement** — Write the code changes
 3. **Verify** — Run the step's verification criteria
-4. **Commit** — Atomic commit with descriptive message
+4. **Commit** — Atomic commit with descriptive message following `feat(T-NNN): ...` format
 5. **Update plan status** — Mark step complete in plan's `## Status`
 
 ## Step 4: Handle Deviations
@@ -148,6 +149,40 @@ After all steps complete:
 3. Update plan's `## Status` to reflect completion
 4. List any deviations for reviewer awareness
 </execution_flow>
+
+<task_scope_mode>
+
+## TASK_SCOPE Mode (used by /gal pipeline)
+
+When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This is a hard boundary — do not start work on adjacent tasks.
+
+### On Entry
+
+1. Read the task description for `T-NNN` from `## Tasks` in the plan file
+2. Run `git rev-parse HEAD` to capture the current commit hash
+3. Write it to the plan's `## Status` as `Task Base Commit: <hash>`
+4. Set `Current Task: T-NNN` in `## Status`
+
+### During Implementation
+
+- Work only on changes required by `T-NNN`
+- Make atomic commits with message format: `feat(T-NNN): <description>` (or `fix`, `refactor`, etc. as appropriate)
+- Never modify files outside the scope of `T-NNN` unless strictly required by a dependency
+- Scope Fence rules still apply — stop if a Trivial/Standard-weight prohibited operation is needed
+
+### On Completion
+
+1. Ensure `git status` is clean — no uncommitted changes
+2. Run `git rev-parse HEAD` to capture the final commit hash
+3. Write it to the plan's `## Status` as `Task Final Commit: <hash>`
+4. Update `## Status`: set `Last activity: YYYY-MM-DD — T-NNN implementation complete`
+5. **Do NOT** mark `T-NNN` as complete in `## Tasks` — the pipeline marks completion only after test + review pass
+6. Report ready for test phase — pipeline will advance
+
+### Hard Commit Gate
+
+The pipeline will not advance to the test phase until `git status` is clean and `Task Final Commit` is recorded. If the worktree is dirty after implementation, stop and resolve before reporting complete.
+</task_scope_mode>
 
 <anti_patterns>
 - **Freelancing**: Adding features not in the plan

@@ -1,21 +1,32 @@
 ---
 name: gal-pipeline
-description: "Auto-chain pipeline. Runs implement → test → review in sequence using model-roles for multi-vendor AI assignment. Each phase uses a different AI vendor per model-roles.local.md."
+description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, with a mandatory git commit gate between tasks, and a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, curfew, or a user-specified stop boundary."
 ---
 
 # /gal-pipeline
 
-Run the full implementation pipeline in one command: implement → test → review. Each phase is dispatched to a different AI vendor per `model-roles.local.md`.
+Run the full implementation pipeline task by task: for each `T-NNN` task in the active plan, run implement → commit → test → review in sequence, then advance to the next task. Each phase uses a different AI vendor per `model-roles.local.md`. After all tasks complete, run a final verifier pass.
 
 ## Role
 
-Pipeline orchestrator. Your job is to chain three golem phases in sequence, advancing only when each phase succeeds, and stopping to surface blockers when they arise.
+Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + test + review gate is fully clean, and stopping only when a genuine human-required condition is encountered.
 
 ## When to Use
 
-- After `/autoplan` (or `/plan-eng-review`) has produced a `## Test Plan`
-- When you want full implement → test → review without manual intervention
+- After `/autoplan` (or `/plan-eng-review`) has produced a `## Tasks` section and a `## Test Plan`
+- When you want full task-by-task automation without manual intervention
 - When the user says "start implementation", "run the pipeline", "implement and test", or similar
+
+## Syntax
+
+```
+/gal pipeline [from T-NNN] [stop-at T-NNN]
+```
+
+- **No arguments**: start from the first unchecked task, run until all tasks complete
+- **`from T-NNN`**: start from the specified task (skip earlier unchecked tasks)
+- **`stop-at T-NNN`**: after completing `T-NNN`, stop before starting the next task and prompt the user
+- **Resume**: if `Current Task` is set in `## Status`, resume from that task (overridden by explicit `from`)
 
 ## Model Assignment
 
@@ -26,75 +37,166 @@ Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
 | Implement | `golem-implementer` | CODER | Writes the code |
 | Test | `golem-tester` | TESTER | Must not read implementation — writes tests from spec only |
 | Review | `golem-reviewer` | REVIEWER | Must differ from CODER — fresh eyes on bugs and architecture |
+| Verify | `golem-verifier` | VERIFIER | Must differ from CODER — goal-backward plan verification |
+
+---
 
 ## Step 1 — Read Plan and Verify Prerequisites
 
 Read the active plan file from `.dev/state.md`.
 
 Verify:
+- `## Tasks` exists with at least one `T-NNN` task
 - `## Test Plan` exists in the plan file (required for golem-tester)
-- Workflow state is `IMPLEMENT` or earlier (do not re-run if already `REVIEW`-complete)
-- No unresolved `BLOCKING` items in `## Review Results`
+- No unresolved `BLOCKING` items in `## Review Results` at the root level
+- Workflow state is not already `DONE`
+
+If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task.
 
 If prerequisites are not met: tell the user what is missing and stop.
 
-## Step 2 — Implement (CODER model)
+---
+
+## Step 2 — Task Loop
+
+Repeat for each unchecked `T-NNN` task (in order, respecting `from` / `stop-at`):
+
+### 2a — Curfew Check
+
+Before starting a new task, check the current time against the curfew policy in `conventions/curfew.md`.
+
+- If curfew is active: do not start the next task. Offer `/gal wrap-up` once (do not auto-run it). Wait for explicit user confirmation before proceeding. Stop here.
+- If curfew is not active: continue.
+
+### 2b — Update Cursor
+
+Update plan `## Status`:
+```
+Current Task: T-NNN
+Task Base Commit: —
+Task Final Commit: —
+Test Retry Count: 0
+Review Retry Count: 0
+Workflow: IMPLEMENT
+```
+
+### 2c — Implement (CODER model)
 
 Run:
 ```
 C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-implementer
 ```
 
-Follow the dispatch block exactly. Adopt `golem-implementer` in `bound` mode and execute the plan.
+Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
+1. Record `Task Base Commit` in `## Status` before any changes
+2. Implement only the work required by `T-NNN`
+3. Record `Task Final Commit` in `## Status` when done
+4. Ensure `git status` is clean before reporting complete
 
-When implementation is complete:
-- Confirm `## Status` in the plan shows `Workflow: IMPLEMENT` with all steps done
-- Update plan `## Status`: set `Workflow: TEST`
+**Hard Commit Gate:** If `git status` is not clean or `Task Final Commit` is not recorded, do not proceed. Stop and surface the issue.
 
-## Step 3 — Test (TESTER model — different vendor from CODER)
+### 2d — Test (TESTER model — different vendor from CODER)
+
+Update plan `## Status`: set `Workflow: TEST`
 
 Run:
 ```
 C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-tester
 ```
 
-Follow the dispatch block exactly. Adopt `golem-tester` in `bound` mode.
+Invoke in task-scoped mode for `T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
 
-`golem-tester` reads only the plan spec and public API — never the implementation code.
+Check result:
+- **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
+- **Any tests FAIL**:
+  - Increment `Test Retry Count` in `## Status`
+  - If `Test Retry Count` < 3: dispatch implementer to fix failing tests (TASK_SCOPE: T-NNN, fix mode), then re-run tester
+  - If `Test Retry Count` = 3: **STOP**. Surface failures. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
 
-When testing is complete, check `## Test Results`:
-- If **all tests pass**: update plan `## Status`: set `Workflow: REVIEW` — proceed to Step 4
-- If **any tests FAIL**: surface the failures to the user and **stop**. Do not proceed to review. Tell the user to fix the failures and re-run `/gal pipeline` or `/gal golem-implementer`.
-
-## Step 4 — Review (REVIEWER model — different vendor from CODER and TESTER)
+### 2e — Review (REVIEWER model — different vendor from CODER and TESTER)
 
 Run:
 ```
 C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-reviewer
 ```
 
-Follow the dispatch block exactly. Adopt `golem-reviewer` in `bound` mode.
+Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
 
-When review is complete, check `## Review Results`:
-- If **BLOCKING findings exist**: surface them to the user and **stop**. List each `[B-NN]` item with its suggested fix.
-- If **WARNING or INFO only (no BLOCKING)**: proceed to Step 5.
+Check result:
+- **APPROVE (no BLOCKING)**: proceed to 2f
+- **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
+  - Increment `Review Retry Count` in `## Status`
+  - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues (TASK_SCOPE: T-NNN, fix mode), update `Task Final Commit`, then re-run reviewer
+  - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
 
-## Step 5 — Final Gate
+**Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
 
-Report the combined verdict to the user:
+### 2f — Mark Task Complete
+
+All gates passed for `T-NNN`:
+1. Mark `T-NNN` as complete in `## Tasks` (check the checkbox)
+2. Update plan `## Status`:
+   ```
+   Last activity: YYYY-MM-DD — T-NNN complete (commit: <Task Final Commit>)
+   ```
+3. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
+4. Otherwise: advance to the next unchecked task and return to 2a.
+
+---
+
+## Step 3 — Post-Loop Verifier
+
+After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-level goal-backward verification pass.
+
+**IMPORTANT:** Invoke `golem-verifier` for **Steps 1–4 only** (produce a VERIFIED / GAPS_FOUND / BLOCKED verdict). Do **NOT** trigger Step 5 (lifecycle ending: ABSORBED marking + plan file deletion) — that remains a post-`/ship` action.
+
+Run:
+```
+C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-verifier
+```
+
+Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan ABSORBED or delete the plan file."
+
+Check result:
+- **VERIFIED**: proceed to Step 4 (final gate)
+- **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before running `/ship`.
+- **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before running `/ship`.
+
+---
+
+## Step 4 — Final Gate
+
+Report the combined verdict:
 
 ```
 --- PIPELINE COMPLETE ---
 
-Implement:  ✓ done  (<N> commits)
-Test:       ✓ <N> passed / <N> failed
-Review:     ✓ APPROVE  (or ✗ REQUEST_CHANGES — <N> BLOCKING)
+Tasks completed: N of N
+  T-001  ✓ implement · test · review
+  T-002  ✓ implement · test · review
+  ...
 
-Overall: READY FOR SHIP  (or: BLOCKED — see above)
+Verifier: VERIFIED
+
+Overall: READY FOR SHIP
 ```
 
-If overall READY: tell the user to run `/ship` as the next step.
-If overall BLOCKED: list the blockers clearly and stop.
+Tell the user to run `/ship` as the next step.
+
+If any task or verifier is blocked, report with detail:
+
+```
+--- PIPELINE BLOCKED ---
+
+Task:    T-NNN
+Phase:   [IMPLEMENT | TEST | REVIEW]
+Reason:  [description]
+Retry Count: N of 3
+
+Action required: [what the user needs to do]
+```
+
+---
 
 ## Non-Script Fallback
 
@@ -102,9 +204,24 @@ If the script cannot be run (e.g. macOS / Linux), run:
 ```
 C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch golem-implementer
 ```
-(and equivalent for tester and reviewer)
+(and equivalent for tester, reviewer, verifier)
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
 - `agent/golem-implementer.agent.md`
 - `agent/golem-tester.agent.md`
 - `agent/golem-reviewer.agent.md`
+- `agent/golem-verifier.agent.md`
+
+---
+
+## Stop Conditions Reference
+
+| Condition | Action |
+| --- | --- |
+| BLOCKING security vuln or Protected Path | STOP immediately — human required |
+| `Test Retry Count` reaches 3 | STOP before 4th attempt — human required |
+| `Review Retry Count` reaches 3 | STOP before 4th attempt — human required |
+| Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
+| Curfew active before next task | STOP — offer wrap-up once, wait for confirmation |
+| `stop-at T-NNN` reached | STOP — prompt user before continuing |
+| All tasks + verifier VERIFIED | Natural completion — READY FOR SHIP |

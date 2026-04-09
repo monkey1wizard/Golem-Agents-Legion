@@ -124,7 +124,34 @@ Run all tests. Report:
 
 ## Step 6: Persist Results to Plan
 
-Write the test summary to the plan file's `## Test Results` section:
+Write the test summary to the plan file's `## Test Results` section.
+
+**When invoked from `/gal pipeline` (task-scoped mode):** write a subsection keyed by the current task and date:
+
+```markdown
+### [T-NNN] YYYY-MM-DD
+
+Run: YYYY-MM-DD
+Total: N | Passed: N | Failed: N | Skipped: N
+
+#### Coverage of Success Criteria
+
+| Criteria | Tested? | Result |
+| --- | --- | --- |
+| [from plan] | Yes/No | PASS/FAIL |
+
+#### Failed Tests
+
+- `TestName` — [reason for failure]
+
+#### Not Tested
+
+- [What was skipped and why]
+```
+
+Each test round must cover the full relevant regression surface, not only code introduced by the current task. Previous task functionality that is touched or could be affected by the current task must also be verified.
+
+**When invoked standalone (full-plan mode):** write to the root `## Test Results` section using the existing flat format:
 
 ```markdown
 ## Test Results
@@ -149,6 +176,8 @@ Total: N | Passed: N | Failed: N | Skipped: N
 ```
 
 This persists results across sessions — the verifier reads this section to confirm quality.
+
+**Test Retry Count (pipeline mode):** After a failed test round, the pipeline increments `Test Retry Count` in `## Status`. When `Test Retry Count` reaches 3, the pipeline stops before a fourth attempt and requires human intervention. You do not manage this counter directly — just report pass/fail accurately.
 </process>
 
 <anti_patterns>

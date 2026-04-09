@@ -264,7 +264,7 @@ Use the control plane like this:
 /gal init
 /office-hours
 /autoplan
-/gal pipeline        # chains implement → test → review automatically
+/gal pipeline        # iterates T-NNN tasks: implement → commit → test → review, final verifier
 /ship
 ```
 
@@ -303,7 +303,7 @@ These are the stable user-facing `/gal` commands.
 | `/gal whats-next` | You want a single next action | `.dev/state.md`, active execution plan status and results | Nothing | Returns one recommended next command or task |
 | `/gal wrap-up` | You are ending a session, or pausing at a meaningful checkpoint | `.dev/state.md`, active plan | `### Handoff Notes`, `## Session Continuity` | Converges resumable context |
 | `/gal research` | You need structured investigation | Current repo context | Research artifacts as directed | Enters research workflow |
-| `/gal pipeline` | Run implement → test → review in one command | Active plan `## Test Plan`, `model-roles.local.md` | Plan `## Status`, `## Test Results`, `## Review Results` | Chains three golems with different AI vendors; stops at blockers |
+| `/gal pipeline` | Task-driven autopilot: iterate every T-NNN task (implement → commit → test → review), with a final verifier pass. Optional `from T-NNN` / `stop-at T-NNN` boundaries. | Active plan `## Tasks`, `## Test Plan`, `model-roles.local.md` | Plan `## Status` (Current Task, Task Base/Final Commit, retry counts), `## Test Results`, `## Review Results` | Iterates all tasks automatically; stops only on security blocker, retry ceiling (3), curfew, stop-at boundary, or verifier gap |
 
 ### Discoverability Aliases
 
@@ -389,7 +389,7 @@ These commands implement the work layer directly. They do not route through `/ga
 /gal init
 /office-hours
 /autoplan
-/gal pipeline        # implement → test → review (multi-vendor AI)
+/gal pipeline        # task-by-task: implement → commit → test → review (multi-vendor AI)
 /ship
 ```
 
