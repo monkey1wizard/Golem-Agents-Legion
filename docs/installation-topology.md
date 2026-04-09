@@ -141,6 +141,31 @@ machine A                      machine B
 
 The methodology stays synchronized through Git. Machine-specific differences live in local tool configuration and model routing, not in duplicated copies of the methodology.
 
+## Mac Mini Async Endpoint Baseline
+
+The Mac Mini is planned as an always-on async endpoint, not as a second control plane.
+
+Confirmed installed tooling on the Mac Mini:
+
+- Gemini CLI
+- Copilot CLI
+- VS Code
+- Codex CLI
+
+Execution-plane implications:
+
+- Gemini CLI is the only runtime currently intended to participate in automated remote dispatch.
+- Copilot CLI, VS Code, and Codex CLI are available for interactive or manual work on the Mac Mini, but they are outside the current headless worker contract.
+- The Mac worker path should use a bash entrypoint (`Start-GalWorker.sh`) rather than requiring PowerShell on macOS.
+- For Apple Silicon local inference, prefer MLX-LM as the LOCAL lane. Ollama can remain an optional compatibility layer, but it is not the preferred baseline for the Mac Mini plan.
+- The Mac Mini may additionally host Discord / Telegram bridge services for out-of-home task intake, but those bridges must feed the same bounded task contract instead of inventing a second workflow.
+
+Suggested Apple Silicon local model allocation:
+
+- Gemma 4: general background summarization, classification, and low-risk pre-processing
+- Breeze 2: Traditional Chinese / Taiwan-specific wording, note cleanup, personal knowledge-base assistance, and private-text triage
+- Gemini CLI: stronger headless worker path for tasks that need repo-aware output or more stable bounded execution
+
 ## Verification Checklist
 
 After running Setup-Machine, verify:

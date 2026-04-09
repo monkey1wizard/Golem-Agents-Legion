@@ -13,7 +13,7 @@ Main PC (Control Plane)              Notebook (LAN Burst Worker)
 └─────────────────────────┘          └───────────────────────────┘
 ```
 
-MVP scope: Windows PC → Windows notebook only. Mac Mini endpoint is Phase 2.
+Current validated path remains Windows PC → Windows notebook. The Mac Mini async endpoint keeps the same task/result contract, but it will use a bash worker adapter (`Start-GalWorker.sh`) instead of the Windows PowerShell worker.
 
 ## Node Roles
 
@@ -21,7 +21,7 @@ MVP scope: Windows PC → Windows notebook only. Mac Mini endpoint is Phase 2.
 | --- | --- | --- | --- |
 | **Main PC** | Control plane — submits tasks, receives results | Yes | All interactive work |
 | **Notebook** | Burst worker — headless CLI execution | No — wake on demand | Research, review, repo scan, docs |
-| **Mac Mini** | Always-on async endpoint (Phase 2) | Yes | Long-running / overnight tasks |
+| **Mac Mini** | Always-on async endpoint (Phase 2) | Yes | Long-running / overnight tasks, remote human-triggered bounded tasks via Discord / Telegram intake |
 
 ## Ownership Model
 
@@ -85,7 +85,8 @@ Worktree is created before the task and removed after result collection. It is n
 All output lives in an **ephemeral task directory** on the worker:
 
 ```sh
-$env:TEMP\gal-worker\{taskId}\
+Windows: $env:TEMP\gal-worker\{taskId}\
+macOS:   /tmp/gal-worker/{taskId}/
   status.json      — machine-readable status + exit metadata
   summary.md       — human-readable task summary and key findings
   worker.log       — raw stdout/stderr from the Gemini CLI run
@@ -111,7 +112,7 @@ Output artifacts are **not tracked by git** and are stored in temp on the worker
 ## Worktree Lifecycle
 
 ```text
-Invoke-GalRemoteTask                  Start-GalWorker
+Invoke-GalRemoteTask                  Start-GalWorker(.ps1 | .sh)
 ─────────────────────                 ────────────────
 1. Generate task ID
 2. Create remote temp dir
@@ -137,8 +138,36 @@ Get-GalRemoteResult
 
 - **Protocol**: OpenSSH (`ssh`, `scp`)
 - **Auth**: SSH key — password auth is not supported for headless dispatch
-- **Remote shell**: PowerShell (`pwsh`) — the worker must have PowerShell 7+
+- **Remote shell**: endpoint-specific
+  - Windows burst worker: PowerShell (`pwsh`)
+  - Mac Mini async endpoint: `bash` (optionally launched from login shell)
 - **Assumption**: The repo is already cloned on the worker at a known path
+
+## Endpoint Profiles
+
+Control plane routing should resolve an endpoint profile before dispatch. The minimum fields are:
+
+| Field | Purpose |
+| --- | --- |
+| `os` | `windows` or `macos` |
+| `shell` | `pwsh` or `bash` |
+| `tempRoot` | Where task artifacts live on that endpoint |
+| `workerEntry` | `Start-GalWorker.ps1` or `Start-GalWorker.sh` |
+| `repoPath` | Absolute path to the repo clone on that endpoint |
+| `timeoutPolicy` | Default timeout for that endpoint class |
+
+The endpoint profile is responsible for shell/path selection only. It must not create a second task contract.
+
+## Async Intake Adapters
+
+Mac Mini can also host remote human-facing intake adapters such as Discord or Telegram when the user is away from the main workstation.
+
+Rules:
+
+- Discord / Telegram are intake channels only, not alternate execution planes.
+- They must translate user requests into bounded task specs or queue items that still pass through the same control-plane policy.
+- They must not write canonical state directly.
+- They must not bypass endpoint selection, patch review, or state convergence rules.
 
 ## Worker Engine
 
@@ -159,6 +188,13 @@ Get-GalRemoteResult
 | other | Unknown failure | Write failed status with raw exit code |
 
 Gemini CLI auth / consent may still attempt to read stdin in some flows. The worker script closes stdin explicitly (`$null | gemini ...`) and treats exit code 41 as a hard failure requiring human re-auth on the worker before the next task.
+
+Mac Mini may also have Copilot CLI, VS Code, and Codex CLI installed, but those tools are not part of the automated worker contract. For remote execution, Gemini CLI remains the only canonical headless engine. Apple Silicon local inference is a separate lane and can prefer MLX-LM without changing the remote task/result contract.
+
+Suggested LOCAL lane split on the Mac Mini:
+
+- Gemma 4: general summarization, classification, pre-processing, and low-risk background drafting
+- Breeze 2: Traditional Chinese / Taiwan-specific wording, note cleanup, tagging assistance, and private-text organization
 
 ## Task Types (MVP Scope)
 
@@ -195,7 +231,7 @@ Not implemented in this version. Do not add these without a separate plan:
 - Branch return (patch-first only)
 - Mac Mini routing
 - Multi-engine abstraction
-- Discord-triggered dispatch
+- Direct Discord / Telegram-triggered execution that bypasses the control plane
 - Agent callbacks (ACP / hooks)
 - Sandbox isolation beyond git worktree
 - Parallel tasks on the same worker

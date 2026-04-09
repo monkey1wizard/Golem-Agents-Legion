@@ -24,6 +24,7 @@ T2
 - [ ] 使用者不需要手動指定 endpoint、tier 或 golem 就能派工。
 - [ ] 遠端派工已能承接由 GAL 專家指令（specialist commands）產生的 task artifact 與結果回寫需求。
 - [ ] 任務提交、執行、回收 contract 已完成 live verification。MVP 至少涵蓋 spec、status、summary、worker log、patch。
+- [ ] Mac Mini 可作為外出時的 Discord / Telegram async intake endpoint，但訊息入口只能轉譯成同一份 task contract，不可形成第二套 workflow。
 - [x] branch return 不屬於 MVP 必要條件，僅能在 patch-first 流程穩定後再列入後續擴充。
 - [x] 第一個 worker class 鎖定為 Windows LAN + SSH + PowerShell + Gemini CLI。
 - [ ] Mac Mini 已能以相同 contract 加入為 async endpoint。
@@ -133,6 +134,27 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 | `/plan-eng-review`, `/office-hours`, `/ship`, `/gal wrap-up` | Main PC only | 這些命令直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
 | `## Status`, `## Tasks`, `## Analyze` 的常規更新 | Primary Feature Worktree only | 屬於主要 workflow state，不預設由 remote worker 持有 |
 
+### Mac Mini Resource Allocation
+
+| Runtime / Tool | 在 Mac Mini 的角色 | 是否屬於目前 remote contract |
+| --- | --- | --- |
+| Gemini CLI | Mac Mini async endpoint 的唯一 headless worker engine | 是 |
+| `Start-GalWorker.sh` | Mac 專用 worker adapter，負責產生與 Windows 相同的 artifacts | 是 |
+| Discord / Telegram bridge | 外出時的人類遠端入口，將請求轉成 bounded task spec | 否，屬於 intake layer |
+| Copilot CLI、VS Code、Codex CLI | 已安裝於 Mac Mini，供互動式或手動操作使用 | 否 |
+| MLX-LM + Gemma 4 / Breeze 2 | Apple Silicon 本機推理 lane，承接 LOCAL / private 類任務 | 否 |
+| OpenClaw | 不安裝，不納入規劃 | 否 |
+
+Mac Mini 的設計原則是「同一份 task/result contract，不同 worker adapter」。目前 execution plane 不把 Copilot CLI、VS Code 或 Codex CLI 納入自動 dispatch；自動化任務仍以 Gemini CLI 為唯一 headless engine。Discord / Telegram 若作為外出入口，也只能把請求送進同一條 bounded task path，而不是直接繞過 control plane 執行任意命令。
+
+### Local AI Allocation
+
+| Model / Lane | 適合承接的工作 | 不應承接的工作 |
+| --- | --- | --- |
+| Gemma 4 | 通用摘要、分類、草稿整理、多語內容壓縮、低風險的背景前處理 | 需要 repo-wide correctness 的最終判斷、正式 review 結論、canonical state 寫回 |
+| Breeze 2 | 台灣繁中語氣修正、筆記整理、私有資料初步歸類、Obsidian 類在地中文任務 | 高風險架構判斷、複雜跨檔推理、正式測試/安全審核 |
+| Gemini CLI | headless remote worker、需要較高穩定性的 research / review / docs 任務 | 不應與 LOCAL lane 混為同一層 contract |
+
 ### How To Do It
 
 1. 在 primary feature worktree 中，先確保 `.dev/project.md`、`.dev/state.md`、source plan、active plan prompt 已建立且足以描述目前工作。
@@ -140,8 +162,8 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 3. Main PC 再由 `/gal` 或相應 specialist command 判斷任務是否值得 offload。
 4. Main PC 產生單一 task spec，內容只描述目標、限制、輸出要求與必要讀取檔案。task spec 應足以讓 worker 執行 bounded task，而不是把 plan ownership 一併交出去。
 5. Control plane 依任務特性選 endpoint：Main PC、Windows burst worker、或未來的 Mac Mini async endpoint。
-6. 若選 remote endpoint，Main PC 透過 SSH/SCP 把 task spec 送到遠端 temp 目錄，並在 remote 端建立 disposable worktree。
-7. 遠端 endpoint 在 linked git worktree 中執行單次任務，輸出 `status.json`、`summary.md`、`worker.log`、`result.patch`；若 task type 允許，也可在 canonical 路徑產生 patch-first outputs。
+6. 若選 remote endpoint，Main PC 透過 SSH/SCP 與 endpoint profile（OS、shell、temp root、worker entry、repo path）把 task spec 送到遠端 temp 目錄，並在 remote 端建立 disposable worktree。
+7. 遠端 endpoint 在 linked git worktree 中執行單次任務，Windows 使用 `Start-GalWorker.ps1`，Mac Mini 使用 `Start-GalWorker.sh`；兩者都必須輸出 `status.json`、`summary.md`、`worker.log`、`result.patch`。若 task type 允許，也可在 canonical 路徑產生 patch-first outputs。
 8. 遠端 worker 不直接擁有 `.dev/state.md`；對 plan prompt 也採 default deny，除非後續 policy 對特定 section / command 明確開放。
 9. Main PC 回收 artifacts，檢查狀態、閱讀 summary、審核 patch，必要時重派或拆小任務。
 10. Main PC 在 primary feature worktree 中完成最後的 state convergence：更新 plan prompt、必要時更新 `.dev/state.md`、再決定是否整合 patch。
@@ -155,7 +177,9 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 | formal progress query 與 live remote-task query 的分流 | 本 plan 已開始定義，但尚未經 supporting docs 驗證 | 查正式進度與查即時任務狀態時不再混淆 |
 | `/gal` 自動決定 offload | 尚未實作 | 由 control plane 依 task type 自動選 endpoint |
 | 多 endpoint registry / health check | 尚未實作 | 可列出 notebook、sub PC、Mac Mini 的可用性與角色 |
-| Mac Mini async endpoint | 僅文件佔位 | 實際可接單、回報狀態、回收結果 |
+| Mac Mini async endpoint | SSH 可連入；Gemini CLI、Copilot CLI、VS Code、Codex CLI 已安裝；bash worker 與 endpoint profile abstraction 尚未實作 | 實際可接單、回報狀態、回收結果 |
+| Mac Mini local inference lane | 方向已確認改用 MLX-LM，不使用 OpenClaw；尚未接到 control-plane policy | LOCAL / private 任務可由 Apple Silicon 本機推理承接，但不與 Gemini headless contract 混用 |
+| Discord / Telegram remote intake | 尚未實作 | 外出時可把 bounded task 送到 Mac Mini，再由 control plane 決定是本機處理、排隊，或轉回主工作流 |
 
 ## Phases
 
@@ -201,11 +225,17 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 - **Scope**
 	- 讓 Mac Mini 成為 always-on async endpoint。
 	- 沿用 P1 / P2 / P3 contract，不重新定義 workflow。
+	- 新增 `Start-GalWorker.sh`，以 bash 取代 PowerShell 作為 Mac worker entrypoint。
+	- 在 control plane 引入 endpoint profile abstraction，至少包含 OS、shell、temp root、worker entry、repo path、timeout policy。
+	- 鎖定 Gemini CLI 為 Mac Mini 的唯一 headless worker engine；Copilot CLI、VS Code、Codex CLI 只視為互動式工具，不納入 MVP remote dispatch。
+	- 定義 Discord / Telegram 作為外出時的 async intake adapter，但它們只能把人類請求轉成同一份 task contract，不可變成第二套 side channel。
+	- 把 MLX-LM 定位為 Apple Silicon LOCAL lane，而不是 execution plane 的第二套 worker contract。
+	- 為 Gemma 4 與 Breeze 2 分配 LOCAL lane 工作：Gemma 4 偏通用摘要/分類；Breeze 2 偏繁中在地化整理、筆記與私有資料前處理。
 	- 定義主要節點、備援節點與 endpoint health 檢查。
 
 - **Files**: `docs/remote-worker-architecture.md`, `docs/installation-topology.md`, `model-roles.example.md`, `scripts/scripts.md`
-- **Repo State**: `installation-topology.md` 與 `model-roles.example.md` 已有佔位，但 endpoint 尚未上線。
-- **Verify**: 同一 contract 可讓 Windows burst worker 與 Mac Mini async endpoint 執行不同類型的任務。
+- **Repo State**: Mac Mini 已確認安裝 Gemini CLI、Copilot CLI、VS Code、Codex CLI，但 bash worker、endpoint profile abstraction 與 live verification 尚未完成。
+- **Verify**: 同一 contract 可讓 Windows burst worker 與 Mac Mini async endpoint 執行不同類型的任務；Mac worker 需以 bash 產出與 Windows 相同的 artifacts；Discord / Telegram intake 只能送出 bounded tasks，不可直接形成另一套執行面。
 
 ## Files to Create or Modify
 
@@ -218,6 +248,7 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 | `templates/task.md` | 已存在 | 補上 endpoint-neutral task spec 約束 |
 | `scripts/Invoke-GalRemoteTask.ps1` | 已存在 | 完成 live validation，未來支援 endpoint selection abstraction |
 | `scripts/Start-GalWorker.ps1` | 已存在 | 補強 summary extraction、timeout、錯誤可觀測性 |
+| `scripts/Start-GalWorker.sh` | 尚未建立 | 實作 Mac bash worker，輸出與 Windows worker 完全相同的 artifact contract |
 | `scripts/Get-GalRemoteResult.ps1` | 已存在 | 補強回收與 cleanup 的穩定性驗證 |
 | `scripts/scripts.md` | 已存在 | 補上多 endpoint 操作方式 |
 | `model-roles.example.md` | 已存在 | 補上 Main PC / burst worker / async endpoint 的角色映射 |
@@ -243,6 +274,8 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 - [ ] disposable remote worker 不直接成為 `.dev/state.md` owner，且不默許直接寫入 active plan prompt。
 - [ ] orchestrator 可根據 task 特性決定是否 offload，並解釋為何選 Main PC、Windows worker 或 Mac Mini。
 - [ ] Mac Mini 可在相同 contract 下承接長時間背景任務。
+- [ ] 外出時可透過 Discord / Telegram 把 bounded task 送到 Mac Mini，且該入口仍遵守 control-plane policy。
+- [ ] Gemma 4 與 Breeze 2 的 LOCAL lane 任務邊界清楚，不會與 Gemini headless contract 混淆。
 
 ## Success Criteria
 
@@ -251,6 +284,7 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 - [ ] Windows burst worker 可穩定承接 bounded text-oriented 任務，且不污染 canonical state。
 - [ ] 查 repo 正式進度、查單一 plan 進度、查 live remote-task 狀態三者的方法清楚且不互相混淆。
 - [ ] Main PC、Windows sub PC / notebook、Mac Mini 可納入同一控制平面，但保有清楚責任邊界。
+- [ ] 外出情境下的 Discord / Telegram 遠端入口是 intake layer，不會變成 control plane 之外的 side channel。
 
 ## Risks and Open Questions
 
@@ -261,6 +295,8 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 - 遠端可見權限如何控制，避免敏感資訊過度暴露。
 - 哪些 plan sections 若未來真的要允許 remote patch-first 回寫，才能在不造成 split-brain state 的前提下成立。
 - endpoint registry 應放在什麼層級管理，才能不把 per-machine 細節硬編進 control plane。
+- Discord / Telegram bridge 應該直接掛在 Mac Mini，還是先進一層 task inbox / queue，再交給 control plane 判斷。
+- Gemma 4 與 Breeze 2 應採 CLI、服務模式，還是輕量 daemon，才能兼顧 Apple Silicon 效能與維運成本。
 
 ## Approval
 
@@ -274,8 +310,8 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 
 Workflow: IMPLEMENT
 Step: 2 of 4
-Last activity: 2026-04-02 — P1 完成：ownership 規則同步至 remote-worker-architecture.md、per-repo-context.md、templates/task.md；P2 完成：Start-GalWorker timeout 支援（-TimeoutMinutes + Start-Job）、worktreePath 寫入 status.json、summary extraction 強化、Invoke-GalRemoteTask 孤立 worktree 清除、Get-GalRemoteResult cleanup 改以 status.json 驅動
-Next step: 完成一次真實的 Windows burst worker E2E 驗證（dispatch → execute → retrieve），結果記入 docs/runtime-verification.md
+Last activity: 2026-04-09 — 補充 Mac Mini 還承擔外出情境的 Discord / Telegram async intake；Apple Silicon LOCAL lane 明確規劃 Gemma 4 與 Breeze 2 的任務分工；plan 與長期筆記已同步這些決策
+Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profile abstraction、`Start-GalWorker.sh` 與 Discord / Telegram intake adapter，讓 Mac Mini 能以同一 contract 進入 live verification
 
 ### Deviations
 
@@ -296,13 +332,19 @@ Next step: 完成一次真實的 Windows burst worker E2E 驗證（dispatch → 
 3. `docs/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state。
 4. formal progress query 讀 canonical artifacts；live remote-task query 讀 task-scoped temp artifacts。
 5. remote worker 允許對某些 canonical docs 採 patch-first，但不預設擁有 `.dev/state.md` 或 plan sections。
+6. Mac Mini 採 bash worker adapter，仍服從同一份 artifact contract；Gemini CLI 是唯一 headless engine。
+7. Copilot CLI、VS Code、Codex CLI 雖已安裝於 Mac Mini，但目前不納入 automated remote dispatch。
+8. MLX-LM 屬於 Apple Silicon LOCAL lane，不與 execution plane 的 Gemini contract 混為同一層。
+9. Discord / Telegram 在規劃中只作為遠端人類入口，必須轉譯成 bounded task spec 再交給 control plane。
+10. Gemma 4 與 Breeze 2 屬於 LOCAL lane 模型，不直接成為 remote worker engine。
 
-目前 repo 已有 contract 文件與 Windows worker 腳本，尚未完成的核心工作是三件事：
+目前 repo 已有 contract 文件與 Windows worker 腳本，尚未完成的核心工作是四件事：
 
 1. 完成一次真實的 Windows burst worker 端到端驗證。
 2. 把 endpoint selection 與 specialist command offload matrix 從人工作業提升為 control-plane policy。
-3. 同步 supporting docs，讓 `per-repo-context`、`remote-worker-architecture`、`runtime-verification` 對上述 ownership 規則保持一致。
-4. 讓 Mac Mini 以相同 contract 加入，而不是再發明另一套 async workflow。
+3. 落地 endpoint profile abstraction，讓 Windows 與 Mac 可共用 dispatch/retrieve 流程，但各自選用正確的 shell 與 worker entry。
+4. 實作 `Start-GalWorker.sh`，讓 Mac Mini 以 bash 產出與 Windows 相同的 artifacts。
+5. 持續同步 supporting docs，讓 `per-repo-context`、`remote-worker-architecture`、`runtime-verification` 對上述 ownership 規則保持一致。
 
 ## Test Results
 
