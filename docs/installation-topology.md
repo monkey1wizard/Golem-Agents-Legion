@@ -28,6 +28,8 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 | Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native; Setup-Machine also appends `[mcp_servers.*]` |
 | Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
 
+Setup-Machine also performs a small search-tool preflight for `rg` (ripgrep). If `rg` is missing, the Windows script offers to install it via `winget`; the Unix script offers the first supported package-manager install path it detects. If ripgrep appears to be installed already but the current shell cannot resolve it yet, Setup-Machine warns that a new terminal is required.
+
 ### Repo-Layer Adapter Outputs
 
 | Output File | CLI(s) | Content Strategy |

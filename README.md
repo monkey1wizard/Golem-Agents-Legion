@@ -110,6 +110,8 @@ There is no public `gal sync` step in the final model. Adapter generation is ins
 
 `Setup-Machine.ps1` and `setup-machine.sh` also merge a VS Code user setting so Copilot Chat ignores `~/.agents/skills`. This keeps Gemini/Codex using the shared `.agents` install while preventing duplicate skill entries in VS Code.
 
+`Setup-Machine.ps1` now checks whether `rg` (ripgrep) is available. On Windows it refreshes `PATH`, warns if ripgrep is already installed but the current shell cannot see it yet, and otherwise offers to install ripgrep via `winget`. The Unix setup script follows the same pattern with the first supported package manager it finds.
+
 The setup scripts also merge a canonical MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into provider-owned config files for VS Code, Gemini CLI, and Codex CLI.
 
 ## Using GAL For AI-First Game Asset Production

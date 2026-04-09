@@ -173,6 +173,93 @@ function Remove-SafeLink([string]$LinkPath) {
     Write-Host "  [REMOVED] $LinkPath"
 }
 
+function Test-CommandAvailable([string]$Name) {
+    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+function Get-PathEntries([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+    return @($Value -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Refresh-ProcessPath {
+    $entries = New-Object System.Collections.Generic.List[string]
+    foreach ($scope in @('Process', 'User', 'Machine')) {
+        foreach ($entry in Get-PathEntries ([Environment]::GetEnvironmentVariable('Path', $scope))) {
+            if (-not $entries.Contains($entry)) {
+                [void]$entries.Add($entry)
+            }
+        }
+    }
+
+    [Environment]::SetEnvironmentVariable('Path', ($entries -join ';'), 'Process')
+}
+
+function Test-WingetPackageInstalled([string]$PackageId) {
+    if (-not (Test-CommandAvailable 'winget')) { return $false }
+
+    $output = & winget list --id $PackageId -e --accept-source-agreements 2>$null | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    return $output -match [regex]::Escape($PackageId)
+}
+
+function Ensure-Ripgrep {
+    if ($Uninstall) { return }
+
+    Write-Host ""
+    Write-Host "=== ripgrep (rg) ==="
+
+    if (Test-CommandAvailable 'rg') {
+        Write-Host "  [OK] rg available"
+        return
+    }
+
+    Refresh-ProcessPath
+    if (Test-CommandAvailable 'rg') {
+        Write-Host "  [OK] rg available after PATH refresh"
+        return
+    }
+
+    $packageId = 'BurntSushi.ripgrep.MSVC'
+    if (Test-WingetPackageInstalled $packageId) {
+        Write-Host "  [WARN] ripgrep appears installed, but the current shell still cannot resolve rg. Open a new terminal and rerun your command." -ForegroundColor Yellow
+        return
+    }
+
+    if (-not (Test-CommandAvailable 'winget')) {
+        Write-Host "  [WARN] rg not found and winget is unavailable. Install ripgrep manually, then reopen the terminal." -ForegroundColor Yellow
+        return
+    }
+
+    if ($DryRun) {
+        Write-Host "  [DRY RUN] rg missing. Would ask to install $packageId via winget."
+        return
+    }
+
+    $answer = Read-Host "  [PROMPT] ripgrep (rg) was not found. Install it now via winget? [Y/n]"
+    if ($answer -match '^(n|no)$') {
+        Write-Host "  [SKIP] ripgrep installation skipped"
+        return
+    }
+
+    try {
+        & winget install --id $packageId -e --accept-package-agreements --accept-source-agreements
+    }
+    catch {
+        Write-Host "  [WARN] ripgrep installation failed: $_" -ForegroundColor Yellow
+        return
+    }
+
+    Refresh-ProcessPath
+    if (Test-CommandAvailable 'rg') {
+        Write-Host "  [OK] ripgrep installed and available"
+    }
+    else {
+        Write-Host "  [WARN] ripgrep was installed, but this shell still cannot resolve rg. Open a new terminal and rerun your command." -ForegroundColor Yellow
+    }
+}
+
 function ConvertTo-OrderedMap([object]$InputObject) {
     if ($null -eq $InputObject) { return $null }
 
@@ -418,6 +505,8 @@ function ConvertTo-CodexMcpSection([string]$ServerName, [System.Collections.IDic
 
     return ($lines -join "`r`n")
 }
+
+Ensure-Ripgrep
 
 # --- Ensure target directories ---
 

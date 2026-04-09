@@ -133,6 +133,65 @@ safe_unlink() {
     echo "  [REMOVED] $link_path"
 }
 
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+ensure_ripgrep() {
+    $UNINSTALL && return 0
+
+    echo ""
+    echo "=== ripgrep (rg) ==="
+
+    if command_exists rg; then
+        echo "  [OK] rg available"
+        return 0
+    fi
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] rg missing. Would prompt to install ripgrep if a supported package manager is available."
+        return 0
+    fi
+
+    local answer=""
+    if [[ "${OSTYPE:-}" == darwin* ]] && command_exists brew; then
+        read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via Homebrew? [Y/n] " answer
+        case "${answer,,}" in
+            n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
+        esac
+        brew install ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
+    elif command_exists apt-get; then
+        read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via apt-get? [Y/n] " answer
+        case "${answer,,}" in
+            n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
+        esac
+        sudo apt-get update && sudo apt-get install -y ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
+    elif command_exists dnf; then
+        read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via dnf? [Y/n] " answer
+        case "${answer,,}" in
+            n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
+        esac
+        sudo dnf install -y ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
+    elif command_exists pacman; then
+        read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via pacman? [Y/n] " answer
+        case "${answer,,}" in
+            n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
+        esac
+        sudo pacman -Sy --noconfirm ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
+    else
+        echo "  [WARN] rg not found and no supported package manager was detected. Install ripgrep manually, then reopen the terminal."
+        return 0
+    fi
+
+    if command_exists rg; then
+        echo "  [OK] ripgrep installed and available"
+    else
+        echo "  [WARN] ripgrep was installed, but this shell still cannot resolve rg. Open a new terminal and rerun your command."
+    fi
+}
+
+ensure_ripgrep
+
 # --- Ensure target directories ---
 
 if ! $UNINSTALL; then
