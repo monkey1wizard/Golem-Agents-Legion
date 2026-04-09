@@ -112,5 +112,6 @@ All agents enforce a shutdown boundary defined in `~/.copilot/gal/conventions/cu
 ```
 
 - **22:00**: Non-scribe agents block if today's diary is unwritten. Redirect to `@golem-scribe`.
-- **23:00**: ALL agents refuse work, including scribe. No exceptions.
+- **22:00-23:00 with diary already written**: Non-scribe agents may offer `/gal wrap-up` once, but only run it after explicit user confirmation.
+- **23:00**: ALL agents stop and use the exact hard-curfew message from `conventions/curfew.md`, including scribe.
 - **Override**: User can say "override curfew" — single-use, does not persist.

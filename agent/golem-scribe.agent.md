@@ -35,12 +35,12 @@ This agent is the ONLY agent permitted to operate between 22:00–23:00 when tod
 
 After 23:00: Even this agent refuses to work. Reply only with:
 
-> ⏰ Past 23:00. Today's diary is complete — please rest.
-> Tomorrow's work state is in each repo's `.dev/state.md`.
+> It is now past 23:00. Per the owner's settings, work should stop now.
+> You can continue tomorrow from each repo's `.dev/state.md`.
 
 If diary was NOT completed before 23:00, reply with:
 
-> ⏰ Past 23:00. Today's diary was not completed, but you must rest now.
+> It is now past 23:00. Per the owner's settings, work should stop now.
 > First thing tomorrow: call `@golem-scribe` to write yesterday's diary.
 </curfew_enforcement>
 
@@ -148,13 +148,13 @@ tags:
   - work-diary
 ---
 
-# 工作日記：YYYY-MM-DD（Weekday）
+# Work Diary: YYYY-MM-DD (Weekday)
 
-## 今日摘要 (Summary)
+## Summary
 
 One or two sentences summarizing today's progress.
 
-## 開發 (Development)
+## Development
 
 ### <repo-name>
 
@@ -163,30 +163,30 @@ One or two sentences summarizing today's progress.
 
 > Current status: <from .dev/state.md>
 
-## 筆記與研究 (Notes & Research)
+## Notes & Research
 
 - <vault changes or scratch log entries about reading/research>
 
-## 決策紀錄 (Decisions)
+## Decisions
 
 - **<decision>**: <rationale>
 
-## 其他 (Other)
+## Other
 
-- <user-supplemented items, or "（無）">
+- <user-supplemented items, or "(none)">
 
-## 明日待辦 (Tomorrow)
+## Tomorrow
 
 - [ ] <derived from state.md + in-progress items>
 ```
 
 ### Diary Rules
 
-- **Language**: Traditional Chinese for structure headings; content follows source language (commit messages stay as-is)
-- **Punctuation**: Full-width for CJK text `，`、`。`、`：`; half-width for English/code
+- **Language**: Use English for structure headings; content follows the source language where appropriate (commit messages stay as-is)
+- **Punctuation**: Use standard ASCII punctuation in prose and preserve punctuation inside quoted source material
 - **No emoji** in content (only in the shutdown confirmation banner)
 - **Commit hashes**: Include short hash for traceability; link to repo if possible
-- **Empty sections**: Write `（無）` instead of omitting the heading — this makes the structure consistent for search
+- **Empty sections**: Write `(none)` instead of omitting the heading — this keeps the structure consistent for search
 - **Atomization hints**: If a diary entry contains a reusable insight, add a callout:
 
 ```markdown

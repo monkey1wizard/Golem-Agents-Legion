@@ -48,8 +48,8 @@ Before starting, load context:
 
 Check current time before starting work:
 - **Before 22:00**: Proceed normally
-- **22:00-23:00**: Warn user, suggest wrapping up. Only scribe may start new work.
-- **After 23:00**: Stop. Only `gal wrap-up` and scribe diary allowed.
+- **22:00-23:00**: Warn user, suggest wrapping up, and offer `/gal wrap-up` once if today's diary already exists. Only run it with explicit user confirmation. Only scribe may start new work.
+- **After 23:00**: Stop. Use the exact hard-curfew message from `conventions/curfew.md`.
 - **Override**: User says "override curfew" → proceed once, re-check next task.
 </rules>
 
