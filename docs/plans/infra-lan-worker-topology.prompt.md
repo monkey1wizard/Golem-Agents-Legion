@@ -261,6 +261,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 - `docs/gstack-integration.md` — GAL 採用 gstack-style specialist semantics 的整合模型
 - `docs/command-dispatch-architecture.md` — control plane 與 dispatcher 的角色邊界
 - `docs/research/lan-worker-feasibility.md` — LAN worker 可行性研究與 MVP scope cut 建議
+- `docs/research/20260409-infra-lan-worker-topology-mempalace-shared-memory.md` — MemPalace 是否能成為 GAL 跨 runtime 共用長期記憶層的架構評估
 
 ## Test Cases
 
