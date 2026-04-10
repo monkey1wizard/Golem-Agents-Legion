@@ -118,11 +118,16 @@ fi
 echo -e "$project_content" > "$project_target"
 cp "$state_template" "$state_target"
 
+"$script_dir/sync-dev-context.sh" "$target_path"
+
 echo "Initialized repo context in: $target_path"
 echo "- Created: .dev/project.md"
 echo "- Created: .dev/state.md"
 echo "- Ensured: docs/plans/"
-echo "- Next: review .dev/project.md, fill in summary fields, set exact Active Skills, then run gal sync"
+echo "- Generated: .github/copilot-instructions.md"
+echo "- Generated: GEMINI.md"
+echo "- Generated: AGENTS.md"
+echo "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if [[ ${#source_docs[@]} -gt 0 ]]; then
   echo ""

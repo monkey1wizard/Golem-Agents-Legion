@@ -124,11 +124,16 @@ $stateContent = Get-Content -Path $stateTemplatePath -Raw
 Set-Content -Path $projectTargetPath -Value $projectContent
 Set-Content -Path $stateTargetPath -Value $stateContent
 
+& (Join-Path $scriptRoot "Sync-DevContext.ps1") -TargetPath $resolvedTarget
+
 Write-Host "Initialized repo context in: $resolvedTarget"
 Write-Host "- Created: .dev/project.md"
 Write-Host "- Created: .dev/state.md"
 Write-Host "- Ensured: docs/plans/"
-Write-Host "- Next: review .dev/project.md, fill in summary fields, set exact Active Skills, then run gal sync"
+Write-Host "- Generated: .github/copilot-instructions.md"
+Write-Host "- Generated: GEMINI.md"
+Write-Host "- Generated: AGENTS.md"
+Write-Host "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if ($sourceDocs.Count -gt 0) {
     Write-Host ""

@@ -8,11 +8,11 @@ Machine setup and adapter sync scripts.
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
-| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/` |
+| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, then generate `.github/copilot-instructions.md`, `GEMINI.md`, and `AGENTS.md` |
 | `init-repo.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/, bake command skills, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
+| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/, bake command skills, generate Gemini custom commands, clean stale Gemini/shared installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
 | `setup-machine.sh` | macOS | Same for Mac |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
@@ -73,23 +73,25 @@ Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank 
 
 The setup script creates these symlinks:
 
-| Source (repo) | Copilot Target | Shared Target (Gemini + Codex) |
-| --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | — |
-| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.agents/skills/gal/` |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.agents/skills/gal-init/` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.agents/skills/gal-status/` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.agents/skills/gal-whats-next/` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.agents/skills/gal-wrap-up/` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.agents/skills/<specialist>/` |
-| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) |
+| Source (repo) | Copilot Target | Gemini / Shared Target | Codex Target |
+| --- | --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/` | — | — |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` |
+| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.codex/skills/gal/` |
+| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.codex/skills/gal-init/` |
+| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.codex/skills/gal-status/` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.codex/skills/gal-whats-next/` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.codex/skills/gal-wrap-up/` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.codex/skills/<specialist>/` |
+| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | — |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
-Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into both skill targets.
+Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into Copilot and Codex skill targets while generating Gemini native command files from the same baked content.
 
-Generates `~/.gemini/gal-context.md` with all GAL command skills first, then sorted `@file` skill imports. All import paths reference `~/.agents/skills/`.
+For Gemini CLI, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` files so Gemini exposes native slash commands without colliding with Agent Skills.
+
+Generates `~/.gemini/gal-context.md` with sorted non-command `@file` skill imports. All import paths reference `~/.agents/skills/`.
 
 Setup-Machine also merges the tracked MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into:
 

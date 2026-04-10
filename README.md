@@ -108,7 +108,7 @@ $autoplan
 
 There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
 
-`Setup-Machine.ps1` and `setup-machine.sh` also merge a VS Code user setting so Copilot Chat ignores `~/.agents/skills`. This keeps Gemini/Codex using the shared `.agents` install while preventing duplicate skill entries in VS Code.
+`Setup-Machine.ps1` and `setup-machine.sh` also merge a VS Code user setting so Copilot Chat ignores `~/.agents/skills`. This keeps the shared reusable-skill install from showing up twice in VS Code while Gemini uses native commands from `~/.gemini/commands` and Codex uses command skills from `~/.codex/skills`.
 
 `Setup-Machine.ps1` now checks whether `rg` (ripgrep) is available. On Windows it refreshes `PATH`, warns if ripgrep is already installed but the current shell cannot see it yet, and otherwise offers to install ripgrep via `winget`. The Unix setup script follows the same pattern with the first supported package manager it finds.
 
@@ -309,7 +309,7 @@ These are the stable user-facing `/gal` commands.
 
 ### Discoverability Aliases
 
-These exist for slash-command autocomplete in Copilot/Gemini, and as named skills in Codex.
+After `Setup-Machine`, these exist as slash commands in Copilot and Gemini, and as named skills in Codex. Gemini reads generated native commands from `~/.gemini/commands`, while Codex reads the same command directories from `~/.codex/skills`.
 
 | Alias | Copilot / Gemini | Codex CLI |
 | --- | --- | --- |
@@ -449,7 +449,7 @@ The control plane works because specialist commands write predictable sections b
 ### Troubleshooting Duplicate Skills In VS Code
 
 - VS Code currently scans both `~/.copilot/skills` and `~/.agents/skills`.
-- GAL intentionally installs shared Gemini/Codex skills under `~/.agents/skills`, so an unconfigured VS Code instance can show duplicate entries such as `/gal-status`.
+- GAL intentionally installs shared reusable skills under `~/.agents/skills`, so an unconfigured VS Code instance can show duplicate skill entries.
 - Re-run `scripts/Setup-Machine.ps1` or `scripts/setup-machine.sh` to let the installer merge the recommended VS Code setting automatically.
 - If you need to repair an existing install by hand, add this to your VS Code user `settings.json`:
 
@@ -459,7 +459,7 @@ The control plane works because specialist commands write predictable sections b
 }
 ```
 
-- This only tells VS Code to ignore the duplicate path. It does not remove `~/.agents/skills`, so Gemini CLI and Codex CLI keep working.
+- This only tells VS Code to ignore the duplicate path. It does not remove `~/.agents/skills`, so shared reusable skills keep working for Gemini CLI and Codex CLI.
 
 ## Architecture Summary
 
@@ -472,7 +472,9 @@ mcp-servers.example.json  tracked MCP source of truth
 mcp-servers.local.json    local MCP enable/override layer (gitignored)
 ~/.copilot/skills/        installed Copilot skills
 ~/.gemini/skills/         legacy Gemini runtime dir (cleaned up by setup)
-~/.agents/skills/         shared Gemini + Codex skills (VS Code should ignore this path)
+~/.gemini/commands/       generated Gemini native slash commands
+~/.agents/skills/         shared reusable skills (VS Code should ignore this path)
+~/.codex/skills/          installed Codex command skills
 %APPDATA%/Code/User/mcp.json   VS Code MCP config merged by setup
 ~/.gemini/settings.json   Gemini settings + mcpServers merged by setup
 ~/.codex/config.toml      Codex config + [mcp_servers.*] merged by setup

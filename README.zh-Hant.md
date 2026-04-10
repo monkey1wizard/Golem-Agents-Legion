@@ -108,7 +108,7 @@ $autoplan
 
 最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
 
-`Setup-Machine.ps1` 與 `setup-machine.sh` 也會合併一個 VS Code 使用者設定，讓 Copilot Chat 忽略 `~/.agents/skills`。這樣 Gemini / Codex 仍可使用共享的 `.agents` 安裝路徑，同時避免 VS Code 內出現重複技能。
+`Setup-Machine.ps1` 與 `setup-machine.sh` 也會合併一個 VS Code 使用者設定，讓 Copilot Chat 忽略 `~/.agents/skills`。這樣 VS Code 不會重複列出共享的 reusable skills，同時 Gemini 會改用 `~/.gemini/commands` 的原生指令，Codex 會改用 `~/.codex/skills` 的 command skills。
 
 這兩支 setup 腳本現在也會把 `mcp-servers.example.json` 的 canonical MCP catalog，搭配 `mcp-servers.local.json` 的本地覆蓋，合併到 VS Code、Gemini CLI 與 Codex CLI 各自擁有的 MCP 設定檔中。
 
@@ -307,7 +307,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ### 可發現性 Alias
 
-這些 alias 在 Copilot / Gemini 中用於 slash 指令自動補全，在 Codex 中則以同名 skill 出現。
+執行 `Setup-Machine` 後，這些 alias 會在 Copilot / Gemini 中作為 slash 指令可用，在 Codex 中則以同名 skill 出現。Gemini 會從 `~/.gemini/commands` 讀取原生指令，Codex 則會從 `~/.codex/skills` 讀取同一批 command 目錄。
 
 | Alias | Copilot / Gemini | Codex CLI |
 | --- | --- | --- |
@@ -447,7 +447,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 ### VS Code 技能重複疑難排解
 
 - VS Code 目前會同時掃描 `~/.copilot/skills` 與 `~/.agents/skills`。
-- GAL 會刻意把 Gemini / Codex 共用技能安裝在 `~/.agents/skills`，所以若沒有額外設定，VS Code 可能把 `/gal-status` 之類的技能列出兩次。
+- GAL 會刻意把共享 reusable skills 安裝在 `~/.agents/skills`，所以若沒有額外設定，VS Code 可能把部分技能列出兩次。
 - 重新執行 `scripts/Setup-Machine.ps1` 或 `scripts/setup-machine.sh`，即可讓安裝腳本自動合併建議的 VS Code 設定。
 - 如果你要手動修復既有安裝，請在 VS Code 使用者 `settings.json` 加入：
 
@@ -457,7 +457,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 }
 ```
 
-- 這只會讓 VS Code 忽略重複來源，不會移除 `~/.agents/skills`，因此 Gemini CLI 與 Codex CLI 仍可正常使用。
+- 這只會讓 VS Code 忽略重複來源，不會移除 `~/.agents/skills`，因此共享 reusable skills 在 Gemini CLI 與 Codex CLI 仍可正常使用。
 
 ## 架構摘要
 
@@ -470,7 +470,9 @@ mcp-servers.example.json  受版本控制的 MCP 真相來源
 mcp-servers.local.json    本地 MCP 啟停 / 覆蓋層（gitignored）
 ~/.copilot/skills/        已安裝的 Copilot skills
 ~/.gemini/skills/         舊版 Gemini runtime 目錄（setup 會清理）
-~/.agents/skills/         Gemini + Codex 共用 skills（VS Code 應忽略這個路徑）
+~/.gemini/commands/       生成的 Gemini 原生 slash 指令
+~/.agents/skills/         共用 reusable skills（VS Code 應忽略這個路徑）
+~/.codex/skills/          已安裝的 Codex command skills
 %APPDATA%/Code/User/mcp.json   由 setup 合併的 VS Code MCP 設定
 ~/.gemini/settings.json   由 setup 合併的 Gemini settings + mcpServers
 ~/.codex/config.toml      由 setup 合併的 Codex config + [mcp_servers.*]

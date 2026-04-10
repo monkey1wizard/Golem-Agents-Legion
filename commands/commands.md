@@ -7,7 +7,7 @@ See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md
 
 ## Architecture
 
-Command skills are installed into Copilot, Gemini, and Codex skill directories via `Setup-Machine`.
+Command skills are installed into Copilot skill directories and Codex skill directories, while Gemini native slash commands are generated into `~/.gemini/commands/` via `Setup-Machine`. Shared reusable non-command skills remain in `.agents/skills`.
 
 Codex note: installed GAL skills are available as Codex skills, but Codex explicit invocation uses `/skills` or `$skill-name`, not custom `/slash-command` syntax. Example: use `$gal status`, not `/gal status`.
 
@@ -15,8 +15,8 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 
 | Layer | Path | Content |
 | --- | --- | --- |
-| Canonical dispatcher | `~/.copilot/skills/gal/SKILL.md`, `~/.gemini/skills/gal/SKILL.md`, `~/.agents/skills/gal/SKILL.md` | Main entry point — generated from `commands/gal/SKILL.template.md` |
-| Discoverability aliases | `~/.copilot/skills/gal-*/SKILL.md`, `~/.gemini/skills/gal-*/SKILL.md`, `~/.agents/skills/gal-*/SKILL.md` | Alias entries — generated from `commands/gal-*/SKILL.template.md` |
+| Canonical dispatcher | `~/.copilot/skills/gal/SKILL.md`, `~/.gemini/commands/gal.toml`, `~/.codex/skills/gal/SKILL.md` | Main entry point — generated from `commands/gal/SKILL.template.md` |
+| Discoverability aliases | `~/.copilot/skills/gal-*/SKILL.md`, `~/.gemini/commands/gal-*.toml`, `~/.codex/skills/gal-*/SKILL.md` | Alias entries — generated from `commands/gal-*/SKILL.template.md` |
 | GAL references | `~/.copilot/gal/`, `~/.gemini/gal/` → repo symlink | templates/, workflows/, conventions/, agent/ |
 | Workspace context | `.dev/project.md`, `.dev/state.md` | Per-repo state |
 
@@ -29,6 +29,7 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 - **Baked absolute paths** — `Setup-Machine.ps1` and `setup-machine.sh` replace `{{GAL_ROOT}}` with the absolute repo path before installation.
 - **Runtime-agnostic procedures** — shared command templates refer to installed skill names rather than a Copilot-only path.
 - **One repo symlink** — `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root.
+- **Split command surfaces** — Gemini gets native slash commands from `~/.gemini/commands/`; Codex gets named command skills from `~/.codex/skills/`; shared reusable skills stay in `.agents/skills`.
 
 ## Command Surface
 
@@ -119,4 +120,5 @@ Managed by `Setup-Machine.ps1` / `setup-machine.sh`. The scripts:
 1. Create `~/.copilot/gal/` and `~/.gemini/gal/` → GAL repo root symlinks.
 2. Scan all `commands/*/SKILL.template.md` files, replacing `{{GAL_ROOT}}` with the absolute path.
 3. Write baked `SKILL.md` files into each `commands/*/` directory.
-4. Symlink all command directories into `~/.copilot/skills/` and `~/.agents/skills/`.
+4. Symlink all command directories into `~/.copilot/skills/` and `~/.codex/skills/`.
+5. Generate Gemini native command files in `~/.gemini/commands/` from the baked `SKILL.md` content.

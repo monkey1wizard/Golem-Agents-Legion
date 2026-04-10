@@ -24,8 +24,8 @@ This matrix is the canonical reference for how each CLI runtime integrates with 
 | CLI | Machine Install | Notes |
 | --- | --- | --- |
 | Copilot CLI | `~/.copilot/agents/` + `~/.copilot/skills/` | Symlinks + baked `SKILL.md` via Setup-Machine |
-| Gemini CLI | `~/.agents/skills/` + `settings.json` bridge | Discovers GAL skills via `.agents`; bridge writes `AGENTS.md` to `context.fileName`; Setup-Machine also merges `mcpServers` |
-| Codex CLI | `~/.agents/skills/` | Needed for `$gal` and other Codex skills; `AGENTS.md` guidance stays native; Setup-Machine also appends `[mcp_servers.*]` |
+| Gemini CLI | `~/.gemini/commands/` + `~/.agents/skills/` + `settings.json` bridge | Native GAL slash commands are generated into `.gemini/commands`; reusable non-command skills are shared from `.agents/skills`; bridge writes `AGENTS.md` and `GEMINI.md` to `context.fileName`; Setup-Machine also merges `mcpServers` |
+| Codex CLI | `~/.codex/skills/` + `~/.agents/skills/` | GAL command skills live in `.codex/skills`; reusable non-command skills are shared from `.agents/skills`; `AGENTS.md` guidance stays native; Setup-Machine also appends `[mcp_servers.*]` |
 | Claude Code CLI | `~/.claude/` *(future)* | Deferred until confirmed usage |
 
 Setup-Machine also performs a small search-tool preflight for `rg` (ripgrep). If `rg` is missing, the Windows script offers to install it via `winget`; the Unix script offers the first supported package-manager install path it detects. If ripgrep appears to be installed already but the current shell cannot resolve it yet, Setup-Machine warns that a new terminal is required.
@@ -43,8 +43,8 @@ Setup-Machine also performs a small search-tool preflight for `rg` (ripgrep). If
 | CLI | Status | Location |
 | --- | --- | --- |
 | Copilot CLI | Available | `~/.copilot/skills/<command>/` |
-| Gemini CLI | No native slash-command runtime | — |
-| Codex CLI | Available via `/skills` or `$skill` mention, not custom `/slash-command` syntax | `.agents/skills/` |
+| Gemini CLI | Available via native custom commands | `~/.gemini/commands/<command>.toml` |
+| Codex CLI | Available via `/skills` or `$skill` mention, not custom `/slash-command` syntax | `~/.codex/skills/<command>/` |
 | Claude Code CLI | Deferred | MCP tools |
 
 ### Adding a New CLI
@@ -54,7 +54,7 @@ To add a new CLI runtime to GAL:
 1. **Machine layer**: determine if the CLI has a global config dir; if yes, add a symlink or config step to both Setup-Machine scripts.
 2. **Repo layer**: determine the CLI's canonical instruction file. If it is `AGENTS.md`, no code change needed — the repo adapter generator already writes it. Otherwise add a `Build-AdapterContent` / `build_adapter` call to both Sync-DevContext scripts.
 3. **Settings bridge pattern**: if the CLI reads a configurable filename list (like Gemini's `context.fileName`), add a settings-write/merge step to Setup-Machine.
-4. **Slash-command layer**: research the CLI's plugin or skill packaging model separately — do not block the other layers on it.
+4. **Command surface layer**: if the CLI supports native commands, generate them from the same canonical command templates instead of maintaining a second workflow source.
 
 ## MCP Management
 
@@ -99,13 +99,8 @@ Setup-Machine creates this effective topology.
 | Source | Copilot Target | Gemini Target | Codex Target | Notes |
 | --- | --- | --- | --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/` | — | — | Copilot-only custom agents |
-| `skills/*/` | `~/.copilot/skills/` | — | `~/.agents/skills/` | Shared portable skill set (Gemini + Codex both discover via `.agents`) |
-| `commands/gal/` | `~/.copilot/skills/gal/` | — | `~/.agents/skills/gal/` | `/gal` (Copilot/Gemini) · `$gal` (Codex) |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | — | `~/.agents/skills/gal-init/` | `/gal-init` · `$gal-init` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | — | `~/.agents/skills/gal-status/` | `/gal-status` · `$gal-status` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | — | `~/.agents/skills/gal-whats-next/` | `/gal-whats-next` · `$gal-whats-next` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | — | `~/.agents/skills/gal-wrap-up/` | `/gal-wrap-up` · `$gal-wrap-up` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | — | `~/.agents/skills/<specialist>/` | All specialist skills |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` | Shared portable reusable skill set |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.codex/skills/<command>/` | One canonical command template, emitted into each runtime's native command surface |
 | `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` | — | Stable GAL_ROOT symlink (not needed for Codex) |
 
 ## Generated Files
@@ -115,7 +110,8 @@ Setup-Machine also generates a small set of runtime files:
 | Generated File | Purpose |
 | --- | --- |
 | `commands/*/SKILL.md` | Baked command skill with absolute GAL_ROOT (generated from each `SKILL.template.md`) |
-| `~/.gemini/gal-context.md` | Aggregated `@file` imports so Gemini can load GAL consistently |
+| `~/.gemini/commands/*.toml` | Native Gemini slash commands generated from the baked command skill content |
+| `~/.gemini/gal-context.md` | Aggregated `@file` imports for reusable non-command skills so Gemini can load shared GAL guidance without duplicating discovered command skills |
 
 These files are generated because the tools need runtime-specific absolute paths, while the templates in the repo remain portable.
 
@@ -175,8 +171,8 @@ Suggested Apple Silicon local model allocation:
 After running Setup-Machine, verify:
 
 1. `~/.copilot/gal/` and `~/.gemini/gal/` point to the GAL repo root.
-2. `~/.copilot/skills/gal/` and `~/.agents/skills/gal/` are symlinked command skill directories.
-3. All `commands/*/` skill directories exist in both tool skill trees.
+2. `~/.copilot/skills/gal/`, `~/.gemini/commands/gal.toml`, and `~/.codex/skills/gal/` exist.
+3. Shared `.agents/skills/` contains reusable skills only, not GAL command aliases.
 4. Generated `SKILL.md` files no longer contain `{{GAL_ROOT}}`.
 5. `~/.gemini/gal-context.md` exists and all import paths reference `.agents/skills`.
 
