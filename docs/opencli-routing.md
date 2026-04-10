@@ -5,6 +5,8 @@ This document defines when GAL should use OpenCLI, when it should use MCP tools 
 OpenCLI is an optional research-side plugin for structured retrieval.
 It is not an MCP server, not part of the `/gal` control plane, and not a required dependency for GAL-managed work.
 
+This is a lane-specific routing guide, not a repo-wide universal tool rule. Other GAL skills may be MCP-first, local-first, or mixed by design.
+
 ## Positioning
 
 | Layer | What it does | OpenCLI fit |
@@ -46,6 +48,8 @@ It is not an MCP server, not part of the `/gal` control plane, and not a require
 - Use MCP browser tools first when exploring a new site or debugging a broken adapter.
 - Do not route repo-local code or git tasks to OpenCLI.
 - Do not treat OpenCLI as a required dependency for `/gal`, `/gal research`, or any control-plane command.
+- Do not generalize OpenCLI-first into a repo-wide rule for unrelated skills.
+- If neither OpenCLI nor its documented fallback can satisfy the task, stop with an explicit no-tool message instead of pretending the retrieval succeeded.
 
 ## Recommended Query Pattern
 
@@ -96,6 +100,7 @@ The upstream project remains the source of truth, and `opencli list` remains the
 - If GAL guidance conflicts with upstream OpenCLI behavior, verify with `opencli list` and the upstream adapters index.
 - If a new source becomes common in GAL research workflows, add it to the Common Source Routing table above.
 - If OpenCLI becomes a frequent dependency across repos, promote the associated skill guidance, not the control plane.
+- Keep the exception model explicit: some skills are intentionally MCP-first or local-first and should stay that way.
 
 ## Related Docs
 

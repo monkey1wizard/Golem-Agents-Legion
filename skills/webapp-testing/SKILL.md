@@ -10,12 +10,25 @@ license: Complete terms in LICENSE.txt
 
 # Web Application Testing
 
+## Preferred Tool Order
+
+1. Use browser MCP tools first for reconnaissance, live inspection, and simple interactions.
+2. Switch to native Playwright scripts when you need reusable automation or flows the MCP tools cannot express cleanly.
+3. Treat this as an explicit MCP-first exception to generic CLI-first patterns.
+
 If browser MCP tools are available, prefer them first for reconnaissance and simple interactions:
 
 - Use `chrome-devtools` for inspecting the live page, console output, network behavior, and accessibility snapshots
 - Use `puppeteer` for quick navigation, clicks, fills, and repeatable browser actions that do not need custom scripting
 
 Switch to native Playwright scripts when you need reusable automation, multi-page orchestration, helper-script integration, or behavior the MCP tools cannot express cleanly.
+
+## No-Tool Behavior
+
+If neither browser MCP tools nor runnable Playwright automation are available, stop and report that browser automation capability is missing.
+
+- Do not fake UI verification from static assumptions.
+- Do not claim an interaction path was tested if no runnable browser path existed.
 
 To test local web applications, write native Python Playwright scripts.
 

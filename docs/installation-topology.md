@@ -92,6 +92,18 @@ This is why MCP is managed as a separate manifest layer rather than being embedd
 
 Optional external CLI sidecars such as OpenCLI are documented separately in [opencli-routing.md](opencli-routing.md). They are skill-layer or execution-layer dependencies, not MCP manifest entries.
 
+### External Tool Availability
+
+GAL treats optional external CLIs and MCP servers as skill-layer routing choices, not as one global runtime mandate.
+
+- Setup-Machine provisions GAL's adapters and MCP manifest wiring, but it does not guarantee that every optional external CLI sidecar is installed.
+- Each external-tool skill should document a preferred path, a fallback path, and an explicit no-tool behavior.
+- If a CLI is unavailable and the skill has a documented MCP or workspace fallback, the agent should use that fallback.
+- If neither the preferred path nor the documented fallback is available, the agent should stop with a clear blocker unless the omitted step is a non-critical read-only check.
+- Write paths and safety-critical validation should not silently degrade to a weaker substitute.
+
+This keeps installer behavior minimal while making runtime tool failure explicit and predictable.
+
 ## Layer 1.5: Tool Installation Surface
 
 Setup-Machine creates this effective topology.

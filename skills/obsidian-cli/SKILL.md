@@ -1,11 +1,20 @@
 ---
 name: obsidian-cli
 description: Interact with Obsidian vaults using the Obsidian CLI to read, create, search, and manage notes, tasks, properties, and more. Also supports plugin and theme development with commands to reload plugins, run JavaScript, capture errors, take screenshots, and inspect the DOM. Use when the user asks to interact with their Obsidian vault, manage notes, search vault content, perform vault operations from the command line, or develop and debug Obsidian plugins and themes.
+cliDependencies:
+   required:
+      - obsidian
 ---
 
 # Obsidian CLI
 
 Use the `obsidian` CLI to interact with a running Obsidian instance. **Requires Obsidian to be open.**
+
+## Preferred Tool Order
+
+1. Use the `obsidian` CLI when the task requires vault-aware reads, writes, task updates, or plugin-development operations.
+2. Skip only non-critical read-only sanity checks when Obsidian is closed and the result is not required to complete the user request.
+3. Block write operations rather than falling back to direct file edits, because this skill depends on Obsidian's own indexing and graph updates.
 
 ## Environment
 
@@ -39,6 +48,14 @@ When a CLI command is needed but Obsidian is not running, **do NOT silently skip
 2. **Pause and wait** for the user to confirm Obsidian is open before retrying.
 3. If the operation is purely **read-only and non-critical** (e.g., checking backlinks as a sanity check), the step may be **skipped** with a note that it was omitted. Clearly state what was skipped.
 4. **Never silently fall back to file tools** for write operations — the CLI ensures Obsidian's index and graph stay in sync.
+
+## No-Tool Behavior
+
+If Obsidian is closed and the task depends on a write, state the exact command you intended to run and pause for the user to open Obsidian.
+
+- Non-critical read-only checks may be skipped, but the omission must be called out explicitly.
+- Write paths, index-sensitive checks, and plugin workflows should stop until the CLI becomes available again.
+- Do not claim the vault is updated when the CLI path was unavailable.
 
 ## Command reference
 

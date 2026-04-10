@@ -17,6 +17,7 @@ Use this skill when the task is primarily about scenes, nodes, resources, and sc
 1. Use `better-godot-mcp` for deterministic offline `.tscn` edits.
 2. Use `godot-mcp` when editor feedback or run-loop validation matters.
 3. Use direct file edits only when the MCP path is unavailable and the scene format is fully understood.
+4. Treat this as an explicit MCP-first exception to generic CLI-first patterns.
 
 ## Common Patterns
 
@@ -49,6 +50,14 @@ Need editor-driven validation or live run feedback?
 Need runtime inspection of the scene tree?
     -> Switch to godot-runtime-debug
 ```
+
+## No-Tool Behavior
+
+If the required Godot MCP path is unavailable, do not guess at scene edits that depend on editor semantics or structured resource operations.
+
+- Use direct file edits only when the `.tscn` change is deterministic and fully understood.
+- If the task depends on MCP-owned operations and no safe direct-edit path exists, report the blocker explicitly.
+- Do not claim a scene change was validated when no runnable editor or MCP path was available.
 
 ## Output Requirements
 

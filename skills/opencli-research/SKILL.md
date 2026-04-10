@@ -1,6 +1,9 @@
 ---
 name: opencli-research
 description: Use OpenCLI for low-token, structured external retrieval when an existing site adapter matches the task. Prefer for repeatable research queries such as YouTube transcript, NotebookLM source access, Wikipedia summary, Hacker News search, and similar structured data retrieval tasks.
+cliDependencies:
+  required:
+    - opencli
 mcpDependencies:
   optional:
     - fetch
@@ -14,6 +17,13 @@ Use OpenCLI as an optional research-side plugin for structured retrieval.
 
 OpenCLI is a CLI runtime, not an MCP server.
 Use it when the task maps cleanly to an existing OpenCLI adapter and the goal is to reduce model context size by retrieving stable structured output.
+
+## Preferred Tool Order
+
+1. Use OpenCLI when an existing adapter already matches the source and fields you need.
+2. Use MCP `fetch` or `imagefetch` when the task is still web retrieval but OpenCLI is unavailable or not the right fit.
+3. Use MCP browser tools when the task depends on interaction, DOM inspection, screenshots, or adapter debugging.
+4. Use workspace file and symbol tools for repo-local code understanding instead of forcing OpenCLI into the wrong lane.
 
 ## Availability Check
 
@@ -35,6 +45,14 @@ If OpenCLI is unavailable or the required adapter cannot reach the needed data:
 3. If the task is repo-local code understanding, use workspace file/symbol tools instead.
 
 Do not silently pretend OpenCLI succeeded when it did not.
+
+## No-Tool Behavior
+
+If neither OpenCLI nor the documented MCP or workspace fallback can satisfy the task, stop and say which capability is missing.
+
+- Ask the user for a URL, source artifact, or permission to switch to a manual path when that would still move the task forward.
+- Do not fabricate adapter output.
+- Do not describe the task as completed when the retrieval path was unavailable.
 
 ## Preferred Usage Pattern
 

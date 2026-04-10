@@ -503,6 +503,8 @@ For model routing, copy [model-roles.example.md](model-roles.example.md) to `mod
 
 If you need provider-specific MCP differences, edit `mcp-servers.local.json` and rerun Setup-Machine. Use `config.local.env` for local secrets and path values referenced by the manifest.
 
+Optional external CLIs such as OpenCLI or Defuddle remain skill-layer dependencies. GAL does not impose a universal CLI-first rule; each skill defines its preferred tool order, fallback path, and no-tool behavior.
+
 ## Important Docs
 
 | Path | Purpose |

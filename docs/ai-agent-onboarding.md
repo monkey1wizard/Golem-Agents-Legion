@@ -197,6 +197,40 @@ Then read only the relevant files for that category instead of scanning the whol
 | Per-repo context model | `docs/per-repo-context.md`, `templates/project.md`, `templates/state.md`, `templates/plan.md` |
 | Project purpose / orientation | `README.md`, this file |
 
+## Skill Authoring: Tool Routing
+
+When a skill depends on external tooling, keep the durable rule in canonical docs and the task-specific routing in the skill itself.
+
+- Repo-wide principle: see `docs/design-principles.md` and `docs/installation-topology.md`.
+- Lane-specific routing: keep it inside the relevant `skills/*/SKILL.md` file.
+- Do not impose a universal CLI-first rule on skills that are intentionally MCP-first or local-first.
+
+For external-tool skills, prefer this structure when it applies:
+
+1. `## Preferred Tool Order`
+2. `## Availability Check`
+3. `## Fallback Strategy`
+4. `## No-Tool Behavior`
+
+Optional frontmatter fields may declare dependencies explicitly:
+
+```yaml
+cliDependencies:
+  required:
+    - opencli
+mcpDependencies:
+  optional:
+    - fetch
+```
+
+Use that structure to make three things obvious to future agents and maintainers:
+
+- what the primary tool path is
+- what the fallback path is
+- what should happen when neither path exists
+
+Never silently assume a missing external tool succeeded. Explicit blockers are preferable to fake success.
+
 ## Short Summary
 
 If you only remember one thing, remember this:

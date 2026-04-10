@@ -34,6 +34,17 @@ This is why the repo optimizes for portability and explicit state, not for tool-
 5. Temporary task memory should collapse back into canonical docs once work is complete.
 6. Human operators remain the orchestrator, and agents are specialists rather than autonomous owners of process.
 
+## Tool Routing Principle
+
+GAL uses skill-level tool routing, not a repo-wide hard rule such as universal CLI-first or universal MCP-first.
+
+- Each skill should declare the preferred tool order for its task shape.
+- CLI-first is correct when a stable command already matches the work and preserves the required outcome.
+- MCP-first is correct when the task depends on interactivity, live state, inspection, or domain-specific editors.
+- Local-first or workspace-first is correct when the task is repo-local or knowledge-local by design.
+- External-tool skills should define three things explicitly: the preferred tool, the fallback path, and the no-tool behavior when neither path is available.
+- Missing tools must never be treated as silent success.
+
 ## Borrowed Concepts, Not Borrowed Implementations
 
 GAL borrows patterns from other systems without depending on their runtime models or codebases.
