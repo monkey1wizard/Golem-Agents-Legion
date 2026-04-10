@@ -84,12 +84,14 @@ If you are new to the repo, read in this order:
 1. `README.md` for the high-level architecture and purpose
 2. `docs/design-principles.md` for the durable architecture rationale
 3. `docs/installation-topology.md` for setup and runtime layout
-4. `docs/command-dispatch-architecture.md` for command-surface semantics
-5. `docs/per-repo-context.md` for `.dev/`, plans, and working-memory rules
-6. `workflows/coding.md` for the primary state machine and tier model
-7. `agent/agents.md` for the golem classification and responsibilities
-8. `model-roles.md` for role-to-model routing
-9. `scripts/scripts.md` and `commands/commands.md` for current operational behavior
+4. `docs/opencli-routing.md` for optional OpenCLI versus MCP routing guidance
+5. `docs/opencli-coverage.md` when you already know OpenCLI is the right lane and need the local command inventory
+6. `docs/command-dispatch-architecture.md` for command-surface semantics
+7. `docs/per-repo-context.md` for `.dev/`, plans, and working-memory rules
+8. `workflows/coding.md` for the primary state machine and tier model
+9. `agent/agents.md` for the golem classification and responsibilities
+10. `model-roles.md` for role-to-model routing
+11. `scripts/scripts.md` and `commands/commands.md` for current operational behavior
 
 ### Core Directories
 
@@ -191,6 +193,7 @@ Then read only the relevant files for that category instead of scanning the whol
 | Command behavior | `commands/commands.md`, `commands/gal/`, `scripts/gal.ps1`, `scripts/gal.sh` |
 | Installation behavior | `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`, `scripts/scripts.md` |
 | Architecture rationale | `docs/design-principles.md`, `docs/installation-topology.md`, `docs/command-dispatch-architecture.md` |
+| Optional external tool routing | `docs/opencli-routing.md`, `docs/opencli-coverage.md` |
 | Per-repo context model | `docs/per-repo-context.md`, `templates/project.md`, `templates/state.md`, `templates/plan.md` |
 | Project purpose / orientation | `README.md`, this file |
 

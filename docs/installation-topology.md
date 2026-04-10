@@ -90,6 +90,8 @@ This is why MCP is managed as a separate manifest layer rather than being embedd
 - Provider-specific or auth-sensitive servers such as GitHub MCP, Chrome DevTools MCP, and Obsidian MCP can stay enabled only on the runtimes where the config is already validated.
 - Claude Code is intentionally out of scope for the current merge flow.
 
+Optional external CLI sidecars such as OpenCLI are documented separately in [opencli-routing.md](opencli-routing.md). They are skill-layer or execution-layer dependencies, not MCP manifest entries.
+
 ## Layer 1.5: Tool Installation Surface
 
 Setup-Machine creates this effective topology.
