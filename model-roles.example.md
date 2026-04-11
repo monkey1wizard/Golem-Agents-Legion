@@ -21,8 +21,7 @@ Reviewer work should be higher-level than tester work when possible.
 
 | Role | Machine A | Machine B | Notes |
 | --- | --- | --- | --- |
-| PLANNER | Copilot (Claude Sonnet 4.6) | Async plan agent | Drafts executable plans |
-| ARCHITECT | Claude Opus 4.6 | Different model from PLANNER | Adversarial plan review |
+| ARCHITECT | Claude Opus 4.6 | Different model from the planning author when practical | Adversarial plan review |
 | DESIGNER | GPT-5.4 | Different model from CODER | Visual design, UX flow, accessibility, design-system review |
 | RESEARCHER | GPT-5.4 | Frontier model for research flow | Owns RESEARCH and SYNTHESIZE |
 | CODER | Copilot Agent Mode | VS Code Copilot | Main implementation agent |

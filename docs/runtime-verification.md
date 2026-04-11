@@ -17,7 +17,7 @@ GAL 的 live/manual 驗證清單。這份文件會在 plan 檔清理後繼續保
 | 能力 | Runtime | 狀態 | 最後驗證 | 備註 |
 | --- | --- | --- | --- | --- |
 | `/gal status` 可投影 active plans、review/test 狀態、blockers、continuity、readiness | Copilot chat command | 待驗證 | — | 需要有真實 `.dev/state.md` 與 active plan 資料的 repo |
-| `/gal whats-next` 可依記錄中的 workflow state 推導單一下一步 | Copilot chat command | 待驗證 | — | 需要至少一份帶有真實 workflow state 的 active plan |
+| `/gal whats-next` 可依 active plan 的 artifact 與 phase marker 推導單一下一步 | Copilot chat command | 待驗證 | — | 需要至少一份可讀的 active plan |
 | `/gal wrap-up` 可正確更新 handoff 與 session continuity | Copilot chat command | 待驗證 | — | 需要針對 live plan 與 `.dev/state.md` 驗證寫回結果 |
 | `/plan-eng-review` 可對 active plan 寫入結構化 engineering review | Copilot chat command | 待驗證 | — | 需要 active plan fixture 與輸出檢查 |
 | `/review` 可對指定 code changes 寫入結構化 code review | Copilot chat command | 待驗證 | — | 需要 target diff 與 active plan fixture |

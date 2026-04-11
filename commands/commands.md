@@ -89,11 +89,10 @@ ON_COMPLETE: <next-step hint>
 
 | Golem | Class | Default Mode |
 | --- | --- | --- |
-| golem-planner | Workflow | bound / consult |
-| golem-implementer | Workflow | bound / consult |
-| golem-tester | Workflow | bound / consult |
-| golem-reviewer | Workflow | bound / consult |
-| golem-verifier | Workflow | bound / consult |
+| golem-implementer | Pipeline | consult |
+| golem-tester | Pipeline | consult |
+| golem-reviewer | Pipeline | consult |
+| golem-verifier | Pipeline | consult |
 | golem-architect | Domain | consult |
 | golem-analyst | Domain | consult |
 | golem-designer | Domain | consult |

@@ -157,7 +157,7 @@ get_active_plan_path() {
     (( ${#cells[@]} >= 2 )) || continue
 
     if (( ! header_seen )); then
-      if printf '%s\n' "${cells[@]}" | grep -Fxq 'Plan' && printf '%s\n' "${cells[@]}" | grep -Fxq 'Workflow State'; then
+      if printf '%s\n' "${cells[@]}" | grep -Fxq 'Plan' && { printf '%s\n' "${cells[@]}" | grep -Fxq 'Workflow State' || printf '%s\n' "${cells[@]}" | grep -Fxq 'Plan Phase'; }; then
         header_seen=1
       fi
       continue
@@ -186,17 +186,6 @@ get_plan_status_field() {
       exit
     }
   ' "$plan_path"
-}
-
-normalize_workflow_state() {
-  local value upper
-  value="$(printf '%s' "$1" | trim)"
-  [[ -n "$value" ]] || return 0
-  upper="$(printf '%s' "$value" | tr '[:lower:]' '[:upper:]')"
-  case "$upper" in
-    ENG-REVIEWED|APPROVED) echo IMPLEMENT ;;
-    *) echo "$upper" ;;
-  esac
 }
 
 get_state_context() {
@@ -229,18 +218,8 @@ get_state_context() {
   fi
 
   STATE_WORKFLOW_RAW="$(get_plan_status_field "$STATE_ACTIVE_PLAN" Workflow)"
-  STATE_WORKFLOW="$(normalize_workflow_state "$STATE_WORKFLOW_RAW")"
-  if [[ -z "$STATE_WORKFLOW" ]]; then
-    STATE_KIND="state-error"
-    STATE_ERROR="Could not resolve workflow state from $STATE_ACTIVE_PLAN ## Status."
-    return 0
-  fi
-
-  if [[ "$STATE_WORKFLOW" == IDLE ]]; then
-    STATE_KIND="idle"
-  else
-    STATE_KIND="active"
-  fi
+  STATE_WORKFLOW="$(printf '%s' "$STATE_WORKFLOW_RAW" | trim | tr '[:lower:]' '[:upper:]')"
+  STATE_KIND="active"
 }
 
 resolve_golem() {
@@ -248,7 +227,7 @@ resolve_golem() {
   local full="$name"
   [[ "$name" != golem-* ]] && full="golem-$name"
   case "$full" in
-    golem-planner|golem-architect|golem-analyst|golem-implementer|\
+    golem-architect|golem-analyst|golem-implementer|\
     golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
     golem-scribe|golem-librarian|golem-designer|golem-researcher) echo "$full" ;;
     *) echo "" ;;
@@ -259,33 +238,7 @@ golem_class() {
   case "$1" in
     golem-debugger|golem-scribe) echo utility ;;
     golem-architect|golem-analyst|golem-librarian|golem-designer|golem-researcher) echo domain ;;
-    *) echo workflow ;;
-  esac
-}
-
-golem_bound_state() {
-  case "$1" in
-    golem-planner)     echo PLAN ;;
-    golem-implementer) echo IMPLEMENT ;;
-    golem-tester)      echo TEST ;;
-    golem-reviewer)    echo REVIEW ;;
-    golem-verifier)    echo VERIFY ;;
-    golem-architect)   echo DISCUSS ;;
-    *) echo "" ;;
-  esac
-}
-
-dispatch_for_state() {
-  local state="$1"
-  case "$state" in
-    PLAN)         echo golem-planner ;;
-    DISCUSS)      echo golem-architect ;;
-    IMPLEMENT)    echo golem-implementer ;;
-    TEST)         echo golem-tester ;;
-    REVIEW)       echo golem-reviewer ;;
-    CROSS_REVIEW) echo golem-reviewer ;;
-    VERIFY)       echo golem-verifier ;;
-    *) echo "" ;;
+    *) echo pipeline ;;
   esac
 }
 
@@ -297,7 +250,7 @@ case "$command" in
     intent="${1:-}"
     sub_text="${*:2}"
     case "$intent" in
-      init|research)
+      init|research|pipeline)
         action="Execute the $intent workflow step."
         on_complete="Report result to user."
         case "$intent" in
@@ -308,6 +261,10 @@ case "$command" in
           research)
             action="Activate the /gal research skill for structured investigation."
             on_complete="Synthesize findings and surface RESEARCH_COMPLETE to the user."
+            ;;
+          pipeline)
+            action="Follow the /gal-pipeline procedure to chain implement → test → review using model-roles for multi-vendor AI assignment."
+            on_complete="Report combined verdict: implement/test/review status and whether the branch is ready for /ship."
             ;;
         esac
         write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
@@ -320,15 +277,9 @@ case "$command" in
         elif [[ "$STATE_KIND" == idle ]]; then
           write_dispatch COMMAND suggest ACTION "Repo is initialized but no active workflow is recorded. Use /office-hours or /autoplan to create a plan, or /gal status for details." ON_COMPLETE "Run /gal status or /office-hours"
         elif [[ "$STATE_KIND" == state-error ]]; then
-          write_dispatch COMMAND suggest ACTION "Repo is initialized, but GAL could not resolve workflow state from the active plan. Inspect .dev/state.md Active Plans and $STATE_ACTIVE_PLAN ## Status." ON_COMPLETE "Fix repo state, then run /gal status"
+          write_dispatch COMMAND suggest ACTION "Repo is initialized, but the active plan reference is invalid. Inspect .dev/state.md Active Plans and $STATE_ACTIVE_PLAN." ON_COMPLETE "Fix repo state, then run /gal status"
         else
-          golem="$(dispatch_for_state "$state")"
-          if [[ -n "$golem" ]]; then
-            agent_path="$repo_root/agent/${golem}.agent.md"
-            write_dispatch ROLE "$golem" MODE bound READ "$agent_path" ACTION "Workflow state is $state. Activate $golem in bound mode." ON_COMPLETE "Update .dev/state.md and suggest next step."
-          else
-            write_dispatch COMMAND suggest ACTION "Workflow state '$state' has no default golem. Use '/gal <golem-name>' to invoke directly."
-          fi
+          write_dispatch COMMAND suggest ACTION "Active plan detected at $STATE_ACTIVE_PLAN. Use /gal whats-next to choose the next specialist command from plan artifacts, not dispatcher state." ON_COMPLETE "Run /gal whats-next"
         fi
         ;;
       *)
@@ -337,25 +288,13 @@ case "$command" in
           cls="$(golem_class "$resolved")"
           if [[ "$cls" == utility ]]; then
             mode=utility
-          elif [[ "$cls" == domain ]]; then
-            mode=consult
           else
-            get_state_context
-            state="$STATE_WORKFLOW"
-            bound="$(golem_bound_state "$resolved")"
             mode=consult
-            if [[ "$STATE_KIND" != active ]]; then
-              mode=consult
-            elif [[ "$resolved" == "golem-reviewer" ]]; then
-              [[ "$state" == "REVIEW" || "$state" == "CROSS_REVIEW" ]] && mode=bound
-            elif [[ -n "$bound" && "$state" == "$bound" ]]; then
-              mode=bound
-            fi
           fi
           action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
           write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
         else
-          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research) or a golem name."
+          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research/pipeline) or a golem name."
         fi
         ;;
     esac

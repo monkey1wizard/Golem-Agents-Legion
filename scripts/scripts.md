@@ -28,7 +28,7 @@ AI slash commands map onto the same subcommands, with `/gal` as the canonical en
 | Command | Purpose |
 | --- | --- |
 | `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` |
-| `/gal status` | Show current workflow state, active plan, review and test status, blockers, and specialist readiness |
+| `/gal status` | Show current plan progress, active plan, review and test status, blockers, and specialist readiness |
 | `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
 | `/gal wrap-up` | Close the session cleanly — converge handoff artifacts, update `.dev/state.md`, prompt for commit |
 | `/gal research` | Enter structured investigation mode |
@@ -48,14 +48,14 @@ Shell usage examples:
 .\scripts\gal.ps1 init
 .\scripts\gal.ps1 dispatch
 .\scripts\gal.ps1 dispatch init
-.\scripts\gal.ps1 dispatch golem-planner
+.\scripts\gal.ps1 dispatch golem-architect
 ```
 
 ```bash
 ./scripts/gal.sh init
 ./scripts/gal.sh dispatch
 ./scripts/gal.sh dispatch init
-./scripts/gal.sh dispatch golem-planner
+./scripts/gal.sh dispatch golem-architect
 ```
 
 ### Init-Repo: Adopt-Existing Mode

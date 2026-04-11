@@ -11,7 +11,7 @@ Build the complete GAL system from scratch.
 | Phase | Name | Status | Summary |
 | --- | --- | --- | --- |
 | 1 | Bootstrap Repo | ✅ Done | Initial repo structure, agent files, conventions, templates, scripts |
-| 1.5 | Golem Agents | ✅ Done | 10 agent definitions (planner through librarian) |
+| 1.5 | Golem Agents | ✅ Done | 11 agent definitions (architect through librarian) |
 | 2 | Skills Migration | ✅ Done | 12 custom skills copied, Setup-Machine scripts, symlink verification |
 | 3 | Conventions + Templates | ✅ Done | 6 convention files extracted from skills, agent template created |
 | 4 | Design Sync | ✅ Done | All bootstrap design decisions extracted to implementation files |

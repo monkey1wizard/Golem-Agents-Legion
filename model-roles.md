@@ -9,7 +9,6 @@ Default principle: formal cross-checks should use a different model from the one
 
 | Role | Purpose | Key Trait |
 | --- | --- | --- |
-| PLANNER | Analyze requirements, produce plan files | Broad reasoning, architecture awareness |
 | ARCHITECT | Adversarial plan review — trade-offs, over-engineering, bugs | Critical thinking, minimalism, direct communication |
 | ANALYST | Business logic review — ROI, domain correctness, user impact | Commercial awareness, domain expertise |
 | DESIGNER | Review visual design, UX flow, accessibility, and design-system consistency | Experience design judgment, user empathy |
@@ -23,7 +22,7 @@ Default principle: formal cross-checks should use a different model from the one
 
 ## Routing Rules
 
-1. **PLAN review is a different-model check** — `PLANNER` and `ARCHITECT` must be different models.
+1. **Planning review should be a different-model check** — the model that critiques a plan should differ from the one that drafted it whenever practical.
 2. **CODER and TESTER must be different models** — independent verification
 3. **REVIEWER should differ from CODER** — fresh perspective catches blind spots
 4. **REVIEWER should also differ from TESTER when practical** — review is a higher-level check than test generation
@@ -50,11 +49,12 @@ Entry to IMPLEMENT: **all required reviewers APPROVE**. If analyst is not in pac
 ## Typical Workflow (Single Developer)
 
 ```text
-1. PLAN    → Use a frontier-class model (interactive or async), then cross-check it with a different model for Strategic weight
-2. IMPLEMENT → Use a standard coding agent — follow the approved plan
-3. TEST    → Use a DIFFERENT model — feed it plan + public interfaces only; this is usually basic unit/integration coverage
-4. REVIEW  → Use a DIFFERENT model again — bugs, security, architecture; this should be a higher-level check than TEST
-5. VERIFY  → Run full test suite, confirm all plan items implemented
+1. `/office-hours` → Use a frontier-class model (interactive or async) to produce the initial plan
+2. Plan reviews → Use different models for architect, design, or business critiques when practical
+3. IMPLEMENT → Use a standard coding agent — follow the approved plan
+4. TEST → Use a DIFFERENT model — feed it plan + public interfaces only; this is usually basic unit/integration coverage
+5. REVIEW → Use a DIFFERENT model again — bugs, security, architecture; this should be a higher-level check than TEST
+6. VERIFY → Run full test suite, confirm all plan items implemented
 ```
 
 ---

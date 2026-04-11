@@ -25,7 +25,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | **Writes** | Nothing — read-only projection |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Active plans · Current position · Review & test status · Blockers · Session continuity · Specialist readiness |
-| **Specialist boundary** | Projects specialist workflow state; does not execute specialist operations |
+| **Specialist boundary** | Projects specialist artifacts and plan progress markers; does not execute specialist operations |
 
 ### `/gal whats-next`
 
@@ -37,7 +37,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Current position (one sentence) · Single next action (command or task) · File to open first |
 | **Specialist boundary** | Recommends which specialist command to invoke but does not invoke it |
-| **Decision inputs** | Workflow state, test results, review verdicts, blockers, session continuity |
+| **Decision inputs** | Plan artifacts, progress markers, test results, review verdicts, blockers, session continuity |
 
 ### `/gal wrap-up`
 
@@ -48,7 +48,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | **Writes** | Active plan `### Handoff Notes` · `.dev/state.md` `## Session Continuity` |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Summary of what was written · Suggested git commit command |
-| **Specialist boundary** | Converges continuity artifacts; does not advance workflow state |
+| **Specialist boundary** | Converges continuity artifacts; does not advance specialist execution itself |
 
 ### `/gal research`
 

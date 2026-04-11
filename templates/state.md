@@ -4,7 +4,7 @@
 
 ## Active Plans
 
-| Plan | File | Workflow State | Last Activity |
+| Plan | File | Plan Phase | Last Activity |
 | --- | --- | --- | --- |
 
 ## Global Decisions

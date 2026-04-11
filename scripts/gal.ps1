@@ -117,7 +117,7 @@ function Get-ActivePlanPath {
         if ($cells.Count -lt 2) { continue }
 
         if (-not $headerSeen) {
-            if ($cells -contains 'Plan' -and $cells -contains 'Workflow State') {
+            if ($cells -contains 'Plan' -and (($cells -contains 'Workflow State') -or ($cells -contains 'Plan Phase'))) {
                 $headerSeen = $true
             }
             continue
@@ -158,17 +158,6 @@ function Get-PlanStatusField([string]$PlanPath, [string]$FieldName) {
     return $null
 }
 
-function Normalize-WorkflowState([string]$Value) {
-    if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
-
-    $normalized = $Value.Trim().ToUpperInvariant()
-    switch ($normalized) {
-        'ENG-REVIEWED' { return 'IMPLEMENT' }
-        'APPROVED'     { return 'IMPLEMENT' }
-        default        { return $normalized }
-    }
-}
-
 function Get-StateContext {
     $statePath = Get-StatePath
     if (-not (Test-Path $statePath)) {
@@ -202,21 +191,9 @@ function Get-StateContext {
         }
     }
 
-    $workflowRaw = Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Workflow'
-    $workflowState = Normalize-WorkflowState $workflowRaw
-    if (-not $workflowState) {
-        return [pscustomobject]@{
-            Kind = 'state-error'
-            WorkflowState = $null
-            WorkflowStateRaw = $workflowRaw
-            ActivePlanPath = $activePlanPath
-            Error = "Could not resolve workflow state from $activePlanPath `## Status`."
-        }
-    }
-
     return [pscustomobject]@{
-        Kind = if ($workflowState -eq 'IDLE') { 'idle' } else { 'active' }
-        WorkflowState = $workflowState
+        Kind = 'active'
+        WorkflowState = if ([string]::IsNullOrWhiteSpace($workflowRaw)) { $null } else { $workflowRaw.Trim().ToUpperInvariant() }
         WorkflowStateRaw = $workflowRaw
         ActivePlanPath = $activePlanPath
         Error = $null
@@ -239,31 +216,13 @@ function Write-Dispatch([hashtable]$Fields) {
 }
 
 function Resolve-Golem([string]$Name) {
-    $known = @('golem-planner','golem-architect','golem-analyst','golem-implementer',
+    $known = @('golem-architect','golem-analyst','golem-implementer',
                'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
                'golem-scribe','golem-librarian','golem-designer','golem-researcher')
     # accept with or without 'golem-' prefix
     $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
     if ($known -contains $full) { return $full }
     return $null
-}
-
-$dispatchByState = @{
-    'PLAN'         = 'golem-planner'
-    'DISCUSS'      = 'golem-architect'
-    'IMPLEMENT'    = 'golem-implementer'
-    'TEST'         = 'golem-tester'
-    'REVIEW'       = 'golem-reviewer'
-    'CROSS_REVIEW' = 'golem-reviewer'
-    'VERIFY'       = 'golem-verifier'
-}
-
-$workflowBindings = @{
-    'golem-planner'     = @('PLAN')
-    'golem-implementer' = @('IMPLEMENT')
-    'golem-tester'      = @('TEST')
-    'golem-reviewer'    = @('REVIEW', 'CROSS_REVIEW')
-    'golem-verifier'    = @('VERIFY')
 }
 
 $domainGolems  = @('golem-architect','golem-analyst','golem-librarian','golem-designer','golem-researcher')
@@ -309,15 +268,10 @@ switch ($Command) {
 
         $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
         if ($resolved) {
-            $context = Get-StateContext
-            $state = $context.WorkflowState
             if ($utilityGolems -contains $resolved) {
                 $mode = 'utility'
-            } elseif ($domainGolems -contains $resolved) {
-                $mode = 'consult'
             } else {
-                $boundStates = $workflowBindings[$resolved]
-                $mode = if ($context.Kind -eq 'active' -and $boundStates -and $boundStates -contains $state) { 'bound' } else { 'consult' }
+                $mode = 'consult'
             }
             $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
             Write-Dispatch @{
@@ -332,7 +286,7 @@ switch ($Command) {
         if ($intent -and $subcommands -notcontains $intent) {
             Write-Dispatch @{
                 COMMAND = 'error'
-                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/research) or a golem name."
+                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/research/pipeline) or a golem name."
             }
             break
         }
@@ -359,26 +313,15 @@ switch ($Command) {
         if ($context.Kind -eq 'state-error') {
             Write-Dispatch @{
                 COMMAND = 'suggest'
-                ACTION  = "Repo is initialized, but GAL could not resolve workflow state from the active plan. Inspect .dev/state.md Active Plans and $($context.ActivePlanPath) `## Status`."
+                ACTION  = "Repo is initialized, but the active plan reference is invalid. Inspect .dev/state.md Active Plans and $($context.ActivePlanPath)."
                 ON_COMPLETE = 'Fix repo state, then run /gal status'
             }
             break
         }
-        $golem = $dispatchByState[$state]
-        if ($golem) {
-            $agentPath = Join-Path $repoRoot ("agent\{0}.agent.md" -f $golem)
-            Write-Dispatch @{
-                ROLE        = $golem
-                MODE        = 'bound'
-                READ        = $agentPath
-                ACTION      = "Workflow state is $state. Activate $golem in bound mode."
-                ON_COMPLETE = 'Update .dev/state.md and suggest next step.'
-            }
-        } else {
-            Write-Dispatch @{
-                COMMAND = 'suggest'
-                ACTION  = "Workflow state '$state' has no default golem. Use '/gal <golem-name>' to invoke directly."
-            }
+        Write-Dispatch @{
+            COMMAND = 'suggest'
+            ACTION  = "Active plan detected at $($context.ActivePlanPath). Use /gal whats-next to choose the next specialist command from plan artifacts, not dispatcher state."
+            ON_COMPLETE = 'Run /gal whats-next'
         }
         break
     }

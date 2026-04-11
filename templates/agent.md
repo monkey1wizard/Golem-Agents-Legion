@@ -67,9 +67,9 @@ Check current time before starting work:
 
 ## Classification Reference
 
-| Category | Bound to State Machine | Examples |
+| Category | Activation | Examples |
 | --- | --- | --- |
-| Workflow | Yes (specific state) | planner, implementer, tester, reviewer, verifier |
+| Pipeline | Specialist workflow or `/gal pipeline` | implementer, tester, reviewer, verifier |
 | Utility | No (any tier) | debugger, scribe |
 | Domain | No (cross-workflow) | architect, analyst |
 

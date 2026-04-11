@@ -51,7 +51,7 @@ These files are the durable state model.
 | `.dev/project.md` | Repo summary, stack, goals, constraints |
 | `.dev/state.md` | Active plan index, blockers, session continuity |
 | `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements) |
-| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, workflow state, execution status, write-back target |
+| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, phase markers, execution status, write-back target |
 | `DESIGN.md` | Repo-level design governance (design system, not plan-specific) |
 | `CLAUDE.md` | Repo-local operational notes such as deploy config and design references |
 | `docs/designs/<plan-slug>/` | Plan-bound design assets: `variant-approved.json`, `variant-approved.png`, `handoff-final.html` |
@@ -518,7 +518,7 @@ Optional external CLIs such as OpenCLI or Defuddle remain skill-layer dependenci
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Live/manual verification status for commands and execution-plane behavior |
 | [docs/command-dispatch-architecture.md](docs/command-dispatch-architecture.md) | Dispatch model and alias policy |
 | [commands/commands.md](commands/commands.md) | Installed command surface and alias architecture |
-| [workflows/coding.md](workflows/coding.md) | Original coding workflow state machine reference |
+| [workflows/coding.md](workflows/coding.md) | Command-driven coding flow, lifecycle rules, and review expectations |
 
 ## What GAL No Longer Treats As Public Workflow
 

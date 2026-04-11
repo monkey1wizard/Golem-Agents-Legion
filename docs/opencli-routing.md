@@ -11,7 +11,7 @@ This is a lane-specific routing guide, not a repo-wide universal tool rule. Othe
 
 | Layer | What it does | OpenCLI fit |
 | --- | --- | --- |
-| Control plane | Routes workflow state and specialist commands | Not here |
+| Control plane | Routes control-plane questions and specialist commands | Not here |
 | MCP layer | Makes general-purpose tools visible across runtimes | Not here |
 | Skill layer | Teaches agents how to use optional tools safely | Primary fit |
 | Research/data retrieval | Fetches structured external information with low token overhead | Primary fit |

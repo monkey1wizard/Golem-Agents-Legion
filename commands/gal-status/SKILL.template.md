@@ -14,7 +14,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **Repo is initialized but no active plan. Use `/office-hours` to start sprint planning.**
 - If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
-- If the active plan file is missing or its `## Status` section does not expose a `Workflow:` field, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
+- If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
 ## Step 2 — Project
 
@@ -25,14 +25,14 @@ Using the file contents from `.dev/state.md` and the active plan file, produce t
 For each row in `.dev/state.md` Active Plans table:
 
 - Plan name and file path
-- Workflow state and current step
+- Plan phase marker and current step
 - Last activity date
 
 ### Current Position
 
 From the primary active plan:
 
-- Workflow state (DRAFT / PLAN / IMPLEMENT / TEST / REVIEW / VERIFY / DONE)
+- Plan phase marker from `## Status > Workflow` if present; otherwise show *Not set*
 - Current step and total steps
 - What the plan's `## Status` says the next step is
 - Any deviations recorded in the Deviations table
@@ -72,12 +72,12 @@ From `.dev/state.md` `## Session Continuity`:
 
 ### Specialist Readiness
 
-Based on the current workflow state, list the commands that are appropriate to invoke next:
+Based on the current plan artifacts and progress markers, list the commands that are appropriate to invoke next:
 
-| Workflow State | Appropriate Commands |
+| Signal | Appropriate Commands |
 | --- | --- |
-| DRAFT / PLAN | `/plan-eng-review`, `/plan-ceo-review`, `/autoplan`, `/office-hours` |
-| IMPLEMENT | `/review`, `/investigate`, `/careful`, `/design-consultation` |
-| TEST | `/qa`, `/qa-only` |
-| REVIEW | `/review`, `/design-review`, `/investigate` |
-| Any | `/gal whats-next`, `/gal wrap-up`, `/learn`, `/browse` |
+| Draft plan, no eng review yet | `/plan-eng-review`, `/plan-ceo-review`, `/autoplan`, `/office-hours` |
+| Tasks initialized, work remaining | `/gal pipeline`, `/review`, `/investigate`, `/careful`, `/design-consultation` |
+| Review clean, QA not yet run | `/qa`, `/qa-only` |
+| Blocking review findings or failed tests | `/investigate`, return to implementation, then `/review` |
+| Ready to hand off or pause | `/gal whats-next`, `/gal wrap-up`, `/learn`, `/browse` |

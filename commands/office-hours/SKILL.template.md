@@ -132,7 +132,7 @@ If any unresolved assumptions or ambiguities surfaced during the conversation, w
 
 In `.dev/state.md` under `## Active Plans`, add a row for the new plan:
 
-| Plan | File | Workflow State | Last Activity |
+| Plan | File | Plan Phase | Last Activity |
 | --- | --- | --- | --- |
 | <Feature Title> | `docs/plans/<feature-slug>.prompt.md` | DRAFT | <today> |
 

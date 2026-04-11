@@ -48,7 +48,7 @@ Use these as the stable user-facing entry points:
 
 ## Dispatcher Contract
 
-`gal dispatch` emits a structured block for script-dispatched subcommands (`init`, `research`, golem names).
+`gal dispatch` emits a structured block for script-dispatched subcommands (`init`, `research`, `pipeline`, golem names).
 
 ```text
 --- GAL DISPATCH ---
@@ -68,32 +68,24 @@ Rules:
 - `READ` is optional and may appear multiple times.
 - The AI should execute the block, not reinterpret it into a separate workflow.
 
-## State-Aware Routing
+## Invocation Modes
 
-The dispatcher decides between three execution modes.
+The dispatcher uses lightweight invocation modes only.
 
 | Mode | Meaning |
 | --- | --- |
-| `bound` | The requested golem matches the current workflow state and is being activated in-state |
-| `consult` | The golem is being consulted without advancing workflow state |
-| `utility` | The golem is independent of workflow state |
+| `consult` | The golem is being consulted without any dispatcher-owned state transition |
+| `utility` | The golem is an independent helper |
 
 ## Direct Golem Invocation Policy
 
-Explicit golem targeting is valid, but it does not bypass workflow gates.
+Explicit golem targeting is valid, but it does not replace specialist command procedures.
 
 | Golem Class | Direct Invocation Policy |
 | --- | --- |
 | Domain | Allowed as consult |
 | Utility | Allowed at any time |
-| Workflow | Allowed only as consult unless dispatcher binds it to the current workflow state |
-
-## Reviewer State Compatibility
-
-Current canonical docs use `REVIEW` as the reviewer state.
-The dispatcher also accepts legacy `CROSS_REVIEW` values for backward compatibility while routing both to `golem-reviewer`.
-
-New docs and new state files should use `REVIEW`.
+| Pipeline | Allowed as consult; full execution authority comes from `/gal pipeline` or another specialist workflow |
 
 ## Source Of Truth
 

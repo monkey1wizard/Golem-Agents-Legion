@@ -47,7 +47,7 @@ In `.dev/state.md` under `## Session Continuity`, update all fields:
 Last session: [today's date, approximate time]
 Stopped at: [one-line description of the last completed action]
 Next step: [exact action to take when resuming]
-Context: [active plan name, workflow state, any key state needed to restore]
+Context: [active plan name, current phase marker if any, any key state needed to restore]
 ```
 
 ## Step 4 — Report and Suggest Commit

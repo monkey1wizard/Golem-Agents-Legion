@@ -1,43 +1,42 @@
 # Agents
 
-Specialist agent definitions for the Coding Flow state machine.
+Specialist agent definitions for GAL's command-driven execution model.
 These are `.agent.md` files for VS Code Copilot custom agents.
 
 ## Specialist Classifications
 
-| Classification | Bound to State Machine? | Agents |
+| Classification | How It Is Activated | Agents |
 | --- | --- | --- |
-| **Workflow** | Yes — bound to specific states | planner, implementer, tester, reviewer, verifier |
-| **Utility** | No — callable at any tier | debugger, scribe |
-| **Domain** | No — bound to workflow, not single state | architect, analyst, designer, researcher, librarian (cross-workflow capable) |
+| **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, reviewer, verifier |
+| **Utility** | Callable at any tier | debugger, scribe |
+| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, librarian |
 
-## Why GAL Uses 12 Agents
+## Why GAL Uses 11 Agents
 
 GAL keeps these roles separate on purpose.
 
 - Smaller prompts keep responsibilities legible and reduce context waste.
 - Independent tester/reviewer/verifier roles make verification more credible than one mega-agent doing everything.
-- Routing means only the needed subset is active for a task; the system does not expect all 12 roles every time.
-- Domain and utility roles remain reusable across workflows without forcing state transitions.
+- Pipeline roles stay narrow and execution-focused.
+- Domain and utility roles remain reusable across workflows without requiring a dispatcher-owned state machine.
 
-## Agents → Workflow States
+## Agents And Responsibilities
 
-| Agent | Classification | Workflow State | Purpose |
+| Agent | Classification | Invocation | Purpose |
 | --- | --- | --- | --- |
-| [golem-planner](golem-planner.agent.md) | Workflow | PLAN | Analyze requirements, produce plan files |
-| [golem-architect](golem-architect.agent.md) | Domain | DISCUSS / consult | Adversarial plan review — trade-offs, over-engineering, bugs |
-| [golem-analyst](golem-analyst.agent.md) | Domain | DISCUSS (conditional) | Business logic review — ROI, domain correctness, user impact |
-| [golem-designer](golem-designer.agent.md) | Domain | DISCUSS / REVIEW / consult | Review visual design, UX flow, accessibility, and design-system consistency |
-| [golem-researcher](golem-researcher.agent.md) | Domain | RESEARCH / SYNTHESIZE | Local-first research and structured synthesis with source attribution |
-| [golem-implementer](golem-implementer.agent.md) | Workflow | IMPLEMENT | Execute approved plans with atomic commits |
-| [golem-tester](golem-tester.agent.md) | Workflow | TEST | Write tests from spec only (never reads implementation) |
-| [golem-reviewer](golem-reviewer.agent.md) | Workflow | REVIEW | Review for bugs, security, architecture, conventions |
-| [golem-verifier](golem-verifier.agent.md) | Workflow | VERIFY | Goal-backward verification + plan lifecycle ending |
-| [golem-debugger](golem-debugger.agent.md) | Utility | *(any)* | Scientific method bug investigation |
-| [golem-scribe](golem-scribe.agent.md) | Utility | *(any)* | End-of-day diary + shutdown enforcer |
-| [golem-librarian](golem-librarian.agent.md) | Domain | *(any)* | Obsidian vault writes — inbox processing, knowledge extraction |
+| [golem-architect](golem-architect.agent.md) | Domain | Consult / review pack | Adversarial plan review — trade-offs, over-engineering, bugs |
+| [golem-analyst](golem-analyst.agent.md) | Domain | Consult / conditional review pack | Business logic review — ROI, domain correctness, user impact |
+| [golem-designer](golem-designer.agent.md) | Domain | Consult / design review workflows | Review visual design, UX flow, accessibility, and design-system consistency |
+| [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research` or direct consult | Local-first research and structured synthesis with source attribution |
+| [golem-implementer](golem-implementer.agent.md) | Pipeline | `/gal pipeline` | Execute approved plans with atomic commits |
+| [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` | Write tests from spec only (never reads implementation) |
+| [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or review workflows | Review for bugs, security, architecture, conventions |
+| [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
+| [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation |
+| [golem-scribe](golem-scribe.agent.md) | Utility | Any time | End-of-day diary + shutdown enforcer |
+| [golem-librarian](golem-librarian.agent.md) | Domain | Consult / vault workflows | Obsidian vault writes — inbox processing, knowledge extraction |
 
-## DISCUSS: Full Review Pack
+## Strategic Review Pack
 
 Strategic weight uses a **composable review pack** — not a fixed dual-review. The pack is assembled per task:
 
@@ -48,15 +47,15 @@ Strategic weight uses a **composable review pack** — not a fixed dual-review. 
 
 Entry to IMPLEMENT requires **all pack members APPROVE**. If analyst is not in the pack, analyst approval is not needed.
 
-Trivial and Standard skip DISCUSS entirely. Standard gets architect-lite by default (structure risk only).
+Trivial and Standard skip the full review pack. Standard gets architect-lite by default (structure risk only).
 
 ## Direct Agent Invocation
 
 | Type | Allowed? | Rule |
 | --- | --- | --- |
 | **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `/gal [ask architect]` |
-| **Utility** | Yes | Independent of workflow state. e.g., `/gal [run debugger]`, `/gal [run scribe]` |
-| **Workflow-bound** | Consult-only unless already bound | Explicit targeting is allowed for consultation, but state transitions still go through workflow control. |
+| **Utility** | Yes | Independent helper. e.g., `/gal [run debugger]`, `/gal [run scribe]` |
+| **Pipeline** | Consult-only by direct invocation | Full execution authority comes from `/gal pipeline` or another specialist workflow, not dispatcher state. |
 | **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
 
 Typical direct use examples:

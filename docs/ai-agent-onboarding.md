@@ -88,7 +88,7 @@ If you are new to the repo, read in this order:
 5. `docs/opencli-coverage.md` when you already know OpenCLI is the right lane and need the local command inventory
 6. `docs/command-dispatch-architecture.md` for command-surface semantics
 7. `docs/per-repo-context.md` for `.dev/`, plans, and working-memory rules
-8. `workflows/coding.md` for the primary state machine and tier model
+8. `workflows/coding.md` for the command-driven coding flow and tier model
 9. `agent/agents.md` for the golem classification and responsibilities
 10. `model-roles.md` for role-to-model routing
 11. `scripts/scripts.md` and `commands/commands.md` for current operational behavior
@@ -97,7 +97,7 @@ If you are new to the repo, read in this order:
 
 | Path | Why it matters |
 | --- | --- |
-| `workflows/` | Defines allowed workflow states and transitions |
+| `workflows/` | Defines command flow, lifecycle rules, and review expectations |
 | `agent/` | Defines what each golem is responsible for and what it must not do |
 | `conventions/` | Holds architecture, language, and process rules that implementations should follow |
 | `templates/` | Defines the canonical shape of plans, state, and project summaries |

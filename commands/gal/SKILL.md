@@ -55,7 +55,7 @@ The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no infe
 | --- | --- |
 | `COMMAND` | Execute this workflow action: `init` / `error` / `suggest` |
 | `ROLE` | Adopt this golem. Mutually exclusive with `COMMAND`. |
-| `MODE` | `bound` = act with full authority · `consult` = advise only · `utility` = no restrictions |
+| `MODE` | `consult` = advise or execute only within the requested scope · `utility` = independent helper with no workflow coupling |
 | `READ` | Read this file before acting (may appear multiple times) |
 | `ACTION` | The specific instruction to execute |
 | `ON_COMPLETE` | What to do after finishing |
@@ -69,4 +69,6 @@ For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load 
 - `wrap-up` → load the installed `gal-wrap-up` skill procedure
 
 Treat those delegated skill procedures as the single source of truth for substantive control-plane behavior.
+
+Direct golem invocation is consult-first. Pipeline golems (`golem-implementer`, `golem-tester`, `golem-reviewer`, `golem-verifier`) are activated as execution roles by `/gal pipeline`, not by workflow-state auto-dispatch.
 

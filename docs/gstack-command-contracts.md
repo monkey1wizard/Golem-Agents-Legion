@@ -19,7 +19,7 @@ This document defines, for each gstack command:
 
 ## 1. Semantic Division Matrix
 
-Two layers, zero overlap. The rule: if an operation **governs the GAL workflow state machine** (what phase to enter, what to do next, how to persist session continuity), it is control-plane. If it **executes within a plan phase** (reads a plan, produces work, writes back to the plan), it is a specialist.
+Two layers, zero overlap. The rule: if an operation **governs GAL's control-plane projection** (what to do next, how to persist session continuity, how to read canonical artifacts), it is control-plane. If it **executes within a plan phase** (reads a plan, produces work, writes back to the plan), it is a specialist.
 
 | Layer | Commands | Canonical Artifact |
 |-------|----------|--------------------|
