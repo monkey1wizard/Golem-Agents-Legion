@@ -6,6 +6,7 @@ GAL 是一套 AI 工作系統，是為了協助使用者能夠更有步驟的開
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：明確狀態（`.dev/state.md`）、verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
+- [GitHub Spec Kit](https://github.com/github/spec-kit) 啟發了 portable command-kit 的可攜架構：repo 內的 Markdown-native artifacts、可安裝到不同 agent/runtime 的指令表面，以及 `Setup-Machine` 的 symlink 策略。
 - [gstack](https://github.com/garrytan/gstack) 提供 specialist workflow semantics 與指令語彙。GAL 以 GAL-native skills 重新實作這些語意，作為可插拔的規劃模組（詳見 [mod/gstack.md](mod/gstack.md)）。
 
 ## 快速開始
@@ -43,7 +44,7 @@ GAL 的核心是 11 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 
 ### Domain Agents
 
-Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調用。
+Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調用。architect、analyst、designer 是 GAL-native 的對話型 fallback：偏籠統、可在 chat 中完成，沒有 gstack 時也能提供相近類型的工作。若 gstack 已安裝，這些 lane 的 review 輸出品質由 gstack provider 補強。
 
 | Agent | 職責 |
 | --- | --- |
@@ -157,7 +158,7 @@ GAL 的開發工作流是 artifact-driven 的：控制平面讀取 plan artifact
 
 | 階段 | 入口訊號 | 指令 | 主要 Artifacts |
 | --- | --- | --- | --- |
-| 草擬 plan | 無活動 plan | 規劃模組或手動建立 | `docs/plans/<slug>.md` + `.prompt.md`、`.dev/state.md` |
+| 草擬 plan | 無活動 plan | `/planning`、`/deep-planning` 或手動建立 | `docs/plans/<slug>.md`、`.dev/plans/<slug>.prompt.md`、`.dev/state.md` |
 | 審查 plan | 草案存在、尚未鎖定 | 審查指令 | `## Open Questions`、`## Tasks`、`## Test Plan`、`## Review Results` |
 | 實作 | Tasks 存在且有剩餘工作 | `/gal pipeline` 或手動 | `## Status`、`## Tasks`、code changes |
 | Code review 與 QA | 實作到達有意義的 checkpoint | `/review`、`/qa` | `## Analyze`、`## Review Results`、`## Test Results` |
@@ -200,7 +201,8 @@ Plan 是暫時的工作檔案，不是永久紀錄。`docs/plans/` 是 staging a
 | `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
 | `.dev/state.md` | 活動計畫索引、阻塞點、工作階段連續性 |
 | `docs/plans/<plan-slug>.md` | 人類可讀的計畫文件 |
-| `docs/plans/<plan-slug>.prompt.md` | AI 執行工作檔案 |
+| `.dev/plans/<plan-slug>.prompt.md` | AI 執行工作檔案 |
+| `docs/design/` | designer agent 輸出（設計提案、修改書、補充說明） |
 | `DESIGN.md` | Repo 層級設計治理 |
 | `CLAUDE.md` | Repo 本地操作備注 |
 | `docs/designs/<plan-slug>/` | 計畫綁定的設計資產 |
@@ -236,9 +238,9 @@ Plan 是暫時的工作檔案，不是永久紀錄。`docs/plans/` 是 staging a
 
 ## 指令入口
 
-GAL 的完整 specialist 指令索引、各指令的讀寫 artifact、upstream gstack 語意映射，集中在 [mod/gstack.md](mod/gstack.md)。
+GAL 的完整 specialist 指令索引（含 GAL-native planning 指令與 specialist commands），集中在 [command-index.md](command-index.md)。
 
-指令的精確合約與寫回欄位見 [docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md)。
+gstack provider 的規劃流程教學見 [mod/gstack.md](mod/gstack.md)。指令的精確合約與寫回欄位見 [docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md)。
 
 ## 研究工作流
 
@@ -276,9 +278,9 @@ GAL 支援可插拔的工作流擴充模組。
 
 跨機器的遠端任務派發與結果收集。詳見 [mod/remote-worker.md](mod/remote-worker.md)。
 
-### gstack 規劃模組
+### gstack（可選 specialist provider）
 
-gstack 提供結構化的 feature 規劃流程：從 `/office-hours` 發起 feature、經 CEO / Design / Eng review 管線，產出可被 pipeline 消費的 plan artifacts。這是 Standard 與 Strategic weight 最常見的 plan on-ramp，但不是唯一的——你也可以手動建立符合 artifact 格式的 plan file。
+GAL 有 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為 GAL-native 規劃入口，不需要 gstack 也能完成完整規劃流程。gstack 作為可插拔的 specialist provider，提升 planning review 品質：從 `/office-hours` 發起 feature、經 CEO / Design / Eng review 管線，產出高品質的 plan artifacts。安裝 gstack 後，review 結果透過 provider routing 回寫到 GAL 的 canonical artifacts。
 
 詳見 [mod/gstack.md](mod/gstack.md)。
 
@@ -300,14 +302,15 @@ gstack 提供結構化的 feature 規劃流程：從 `/office-hours` 發起 feat
 | --- | --- |
 | [docs/ai-agent-onboarding.md](../docs/ai-agent-onboarding.md) | AI 代理與維護者的閱讀順序 |
 | [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) | `/gal` 讀寫合約的 canonical 定義 |
-| [docs/gstack-integration.md](../docs/gstack-integration.md) | GAL 為何原生重新實作 gstack 語意 |
+| [docs/gstack-integration.md](../docs/gstack-integration.md) | gstack provider 整合設計與 GAL 分層 |
 | [docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) | 專家技能的實作藍圖 |
 | [docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) | Dispatch 模型與 alias 政策 |
 | [docs/installation-topology.md](../docs/installation-topology.md) | 安裝層拓撲與 MCP 合併邏輯 |
 | [workflows/coding.md](../workflows/coding.md) | 開發工作流狀態機參考 |
 | [workflows/research.md](../workflows/research.md) | 研究工作流狀態機參考 |
 | [agent/agents.md](../agent/agents.md) | Agent 定義、分類與啟用原則 |
-| [mod/gstack.md](mod/gstack.md) | gstack 工作流模組：指令索引、語意映射與規劃流程 |
+| [command-index.md](command-index.md) | GAL 指令索引：control plane 與 specialist commands |
+| [mod/gstack.md](mod/gstack.md) | gstack 可選 provider 模組：規劃流程與語意映射 |
 | [devguide.md](devguide.md) | 維護者決策地圖 |
 
 ## 參考
