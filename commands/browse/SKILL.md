@@ -1,6 +1,6 @@
 ---
 name: browse
-description: "Playwright/Chromium capability primitive. Provides goto, snapshot, fill, click, screenshot, console log, and session handoff. Used internally by /qa, /design-review, and /canary — not a standalone workflow command."
+description: "Playwright/Chromium capability primitive. Provides goto, snapshot, fill, click, screenshot, console log, and session handoff. Used internally by /qa, /qa-only, /design-review, and /land-and-deploy — not a standalone workflow command."
 ---
 
 # /browse
@@ -15,9 +15,9 @@ Reliable browser driver. Get the page into the right state for the calling comma
 
 Called internally by:
 - `/qa` — real browser testing
+- `/qa-only` — report-only browser testing
 - `/design-review` — live-site screenshots
-- `/canary` — smoke tests against deployed environment
-- `/benchmark` — performance tracing
+- `/land-and-deploy` — production verification after deploy
 
 Do not use directly unless you need raw browser access outside the above workflows.
 

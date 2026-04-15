@@ -1,81 +1,49 @@
 ---
 name: gstack-upgrade
-description: "Upgrade GAL to the latest version. Pulls the latest Golem-Agents-Legion repo and re-runs Setup-Machine.ps1 (Windows) or setup-machine.sh (macOS/Linux) to rebake all SKILL.md files from templates."
+description: "Compatibility shim. Redirects to the upstream gstack upgrade command from the user's ~/gstack installation instead of updating GAL."
 ---
 
 # /gstack-upgrade
 
-Update GAL skills to the latest version.
+Compatibility shim for upstream gstack maintenance.
 
 ## Role
 
-Upgrade coordinator. Keep your installed skills current with the latest Golem-Agents-Legion release.
+Upgrade coordinator. If upstream gstack is installed on this machine, hand control to its own upgrade command instead of updating GAL here.
 
 ## When to Use
 
-- When a new version of Golem-Agents-Legion is available
-- When skills feel out of date or missing features
+- When the user explicitly asks to upgrade upstream gstack
+- When the machine has a `~/gstack` install and the user wants its command surface refreshed
 - Periodically as part of machine maintenance
 
-## How GAL Upgrades Work
+## What This Command Does
 
-Unlike gstack (which has a binary installer), GAL upgrades work through Git:
+This command is not GAL's self-updater anymore. It is a compatibility shim that points the user at the upstream gstack install.
 
-1. Pull the latest `Golem-Agents-Legion` repository
-2. Re-run the setup script to rebake SKILL.md files from templates
+If upstream gstack is not installed at `~/gstack`, stop and tell the user to use GAL's own repo update workflow instead.
 
-No binary to compile. The setup scripts handle all installation.
+## Step 1 — Find Upstream gstack
 
-## Step 1 — Find Your GAL Installation
+Look for an upstream install at:
+- `~/gstack/`
+- `~/gstack/gstack-upgrade/`
 
-GAL is typically installed at:
-- `~/Golem-Agents-Legion/` — default clone location
-- Or wherever you cloned it during setup
+If the install is missing: stop and tell the user that no upstream gstack install was found.
 
-If you're not sure where it is:
-- Windows: `Get-ChildItem ~\Golem-Agents-Legion -ErrorAction SilentlyContinue`
-- macOS/Linux: `ls ~/Golem-Agents-Legion`
+## Step 2 — Delegate To Upstream
 
-## Step 2 — Pull Latest Changes
+Use the upstream `gstack-upgrade` command or its local command folder from the `~/gstack` install.
 
-```bash
-cd ~/Golem-Agents-Legion
-git pull origin main
-```
+Do not invent a GAL-native upgrade procedure here.
 
-Check the git log to see what changed:
-```bash
-git log --oneline -10
-```
+If the host runtime needs a concrete path, use the upstream install under `~/gstack/` and follow its own upgrade instructions there.
 
-## Step 3 — Re-Run Setup Script
+## Step 3 — Verify
 
-**Windows (PowerShell):**
-```powershell
-cd ~/Golem-Agents-Legion
-.\scripts\Setup-Machine.ps1
-```
+After the upstream upgrade completes, confirm that the upstream gstack command surface is available again.
 
-**macOS/Linux:**
-```bash
-cd ~/Golem-Agents-Legion
-./scripts/setup-machine.sh
-```
-
-The setup script:
-- Rebakes all SKILL.md files from SKILL.template.md files
-- Updates VS Code / Copilot skill symlinks or copies
-- Does not overwrite local customizations in `config.local.env`
-
-## Step 4 — Verify
-
-After setup completes, check that the updated skills are available:
-- Reload VS Code (or the editor using GAL)
-- Run `/gal status` to confirm the control plane is responsive
-
-## What Changed
-
-After pulling, check `CHANGELOG.md` or `git log --oneline` for new commands or behavior changes.
+If the user wanted to update GAL itself, point them to the GAL repo update workflow instead of using `/gstack-upgrade`.
 
 ## No Plan Artifacts
 

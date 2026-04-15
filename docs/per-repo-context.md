@@ -22,7 +22,7 @@ The target is not to rewrite the project's architecture docs. The target is to g
 | `.dev/project.md` | High-density project summary and index into canonical project docs |
 | `.dev/state.md` | Repo-wide active plan index, blockers, cross-plan decisions, session continuity |
 | `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements, steps) |
-| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, execution state, write-back target |
+| `.dev/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, execution state, write-back target |
 
 ## Artifact Taxonomy
 
@@ -41,7 +41,7 @@ Stored in `.dev/` and at repo root.
 
 ### Layer 2 — Source Plan Docs
 
-Human-readable plan files that provide scope, rationale, and requirements. Created by `/office-hours` and updated by review specialists.
+Human-readable plan files that provide scope, rationale, and requirements. Created and refined by `/planning` and `/deep-planning`.
 
 | Naming contract | Example |
 | --- | --- |
@@ -55,7 +55,7 @@ Human-readable plan files that provide scope, rationale, and requirements. Creat
 
 | Naming contract | Example |
 | --- | --- |
-| `docs/plans/<plan-slug>.prompt.md` | `docs/plans/auth-refresh.prompt.md` |
+| `.dev/plans/<plan-slug>.prompt.md` | `.dev/plans/auth-refresh.prompt.md` |
 
 Section headings, instructions, checklist items, and execution notes in a `.prompt.md` file must be written in en-US. Non-English fragments are only permitted for literal product copy or quoted source text.
 
@@ -80,17 +80,12 @@ Report files produced by specialist commands. Named to make the plan, date, and 
 | QA report | `docs/qa-reports/YYYYMMDD-<plan-slug>.md` | `docs/qa-reports/20260401-auth-refresh.md` |
 | QA report (audit only) | `docs/qa-reports/YYYYMMDD-<plan-slug>-report-only.md` | `docs/qa-reports/20260401-auth-refresh-report-only.md` |
 | Design audit report | `docs/design-reports/YYYYMMDD-<plan-slug>-rNN.md` | `docs/design-reports/20260401-auth-refresh-r01.md` |
-| Benchmark baseline | `docs/benchmarks/YYYYMMDD-HHmmss-<url-slug>.json` | `docs/benchmarks/20260401-143022-localhost-3000.json` |
-| Canary baseline | `docs/benchmarks/canary-YYYYMMDD-HHmmss-<url-slug>.json` | `docs/benchmarks/canary-20260401-143500-myapp-com.json` |
 | Research note | `docs/research/YYYYMMDD-<plan-slug>-<topic>.md` | `docs/research/20260401-auth-refresh-token-expiry.md` |
-| Retro snapshot | `docs/retros/YYYYMMDD.json` | `docs/retros/20260401.json` |
 
 **Screenshot naming:**
 
 - Plan-bound: `docs/screenshots/<plan-slug>-NNN[-suffix].png` where `NNN` starts at `001`. Use `suffix` only when the evidence workflow requires a semantic marker (`before`, `after`, `finding-001`).
 - Ad-hoc (no active plan): `docs/screenshots/<slug>-YYYYMMDD-HHmmss.png`. If no stable slug exists, use a pure timestamp.
-
-**Benchmark vs canary:** Benchmark baselines and canary baselines use different file prefixes and are never mixed for comparison. `/benchmark` compares against the most recent `YYYYMMDD-HHmmss-<url-slug>.json` with the same `url-slug`. `/canary` compares against the most recent `canary-YYYYMMDD-HHmmss-<url-slug>.json`.
 
 ### Remote Task Artifacts (Ephemeral — Not Canonical)
 
@@ -108,7 +103,7 @@ on the worker machine and are never committed to the repo.
 `result.patch` may contain changes to canonical-path output files (e.g., `docs/research/`).
 Those changes become canonical only after Main PC reviews and applies the patch.
 
-The `.dev/state.md` and `docs/plans/<plan-slug>.prompt.md` are **never** updated by the
+The `.dev/state.md` and `.dev/plans/<plan-slug>.prompt.md` are **never** updated by the
 remote worker directly. State convergence always happens on Main PC in the primary feature
 worktree.
 

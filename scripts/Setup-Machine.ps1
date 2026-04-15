@@ -75,7 +75,12 @@ $galSkillCodex   = Join-Path $codexSkillsTarget "gal"
 $skillTemplate   = Join-Path $galSource "SKILL.template.md"
 $commandsSourceDir = Join-Path $repoRoot "commands"
 $commandAliasNames = Get-ChildItem $commandsSourceDir -Directory |
-    Where-Object { $_.Name -ne 'gal' } |
+    Where-Object {
+        $_.Name -ne 'gal' -and (
+            (Test-Path (Join-Path $_.FullName 'SKILL.template.md')) -or
+            (Test-Path (Join-Path $_.FullName 'SKILL.md'))
+        )
+    } |
     Select-Object -ExpandProperty Name
 
 $commandSkillDirs = @(
@@ -188,6 +193,28 @@ function Test-GalManagedFile([string]$Path) {
     catch {
         return $false
     }
+}
+
+function Test-GalCommandLink([string]$Path) {
+    if (-not (Test-Path $Path)) { return $false }
+
+    $item = Get-Item $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item) { return $false }
+
+    $isReparsePoint = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+    if (-not $isReparsePoint) { return $false }
+
+    $targets = @($item.Target)
+    if ($targets.Count -eq 0) { return $false }
+
+    foreach ($target in $targets) {
+        if ([string]::IsNullOrWhiteSpace([string]$target)) { continue }
+        if ([string]$target -like "*$repoRoot*commands*") {
+            return $true
+        }
+    }
+
+    return $false
 }
 
 function Get-SkillFrontmatterDescription([string]$RawContent) {
@@ -1071,6 +1098,41 @@ else {
     }
 
     Write-Host "  [NOTE] Reload active Gemini sessions with /commands reload or restart Gemini CLI to pick up updated GAL commands."
+}
+
+# --- Migration: remove obsolete command artifacts from installed locations ---
+
+Write-Host ""
+Write-Host "=== Migration: obsolete command cleanup ==="
+
+foreach ($skillsDir in @($skillsTarget, $geminiSkillsTarget, $sharedSkillsTarget, $codexSkillsTarget)) {
+    $obsoleteCommandLinks = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -notin $activeCommandSkillNames -and (Test-GalCommandLink $_.FullName)
+    }
+
+    foreach ($d in $obsoleteCommandLinks) {
+        if ($DryRun) {
+            Write-Host "  [DRY RUN] Would remove obsolete command link: $($d.FullName)"
+        }
+        else {
+            Remove-Item $d.FullName -Recurse -Force
+            Write-Host "  [REMOVED] Obsolete command link: $($d.FullName)"
+        }
+    }
+}
+
+$obsoleteGeminiCommands = Get-ChildItem $geminiCommandsTarget -Filter '*.toml' -File -ErrorAction SilentlyContinue | Where-Object {
+    $_.BaseName -notin $activeCommandSkillNames -and (Test-GalManagedFile $_.FullName)
+}
+
+foreach ($commandFile in $obsoleteGeminiCommands) {
+    if ($DryRun) {
+        Write-Host "  [DRY RUN] Would remove obsolete Gemini command: $($commandFile.FullName)"
+    }
+    else {
+        Remove-Item $commandFile.FullName -Force
+        Write-Host "  [REMOVED] Obsolete Gemini command: $($commandFile.FullName)"
+    }
 }
 
 # --- Migration: remove legacy gal-* dirs from installed locations ---

@@ -131,7 +131,7 @@ No active research. Waiting for a research question or topic.
 
 The Research Flow can feed into the Coding Flow:
 
-1. **Pre-plan research**: Investigate before creating a plan. Research output becomes input to `/office-hours` or the current planning author.
+1. **Pre-plan research**: Investigate before creating a plan. Research output becomes input to `/planning`, `/deep-planning`, or the current planning author.
 2. **Mid-IMPLEMENT research**: Uncover unknowns during implementation. Research output goes to `docs/research/` and is referenced in the plan.
 3. **Post-VERIFY extraction**: Verifier identifies knowledge worth extracting → triggers librarian for vault writes.
 

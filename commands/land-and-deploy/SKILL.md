@@ -1,6 +1,6 @@
 ---
 name: land-and-deploy
-description: "Deploy pipeline — merges an approved PR, waits for CI, waits for deploy to complete, then runs a canary health check against production. Requires /setup-deploy to have run once."
+description: "Deploy pipeline — merges an approved PR, waits for CI, waits for deploy to complete, then runs a lightweight production verification pass. Requires /setup-deploy to have run once."
 ---
 
 # /land-and-deploy
@@ -62,9 +62,9 @@ Run the deploy command from config. Wait for deploy completion. Report status.
 
 If deploy fails: report the error output and recommend rollback.
 
-## Step 6 — Canary Health Check
+## Step 6 — Production Verification Pass
 
-After deploy completes, run a quick canary pass:
+After deploy completes, run a quick production verification pass:
 1. Use `/browse goto <production-url>`
 2. Check the health endpoint if configured
 3. Check for console errors on key pages
@@ -89,4 +89,4 @@ In the active plan file, append:
 
 Tell the user: production URL, deploy timestamp, health check result.
 
-Suggest: `/canary` for ongoing production monitoring, or `/retro` to reflect.
+Suggest: `/learn` if the deploy surfaced a reusable operational lesson.

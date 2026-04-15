@@ -23,14 +23,16 @@ Read the active plan's `## Review Results` section. Check:
 
 | Gate | Status | Action |
 | --- | --- | --- |
-| `<!-- ENG_REVIEW: CLEAR -->` | Required | If missing: ask "Eng Review not found. Run `/plan-eng-review` first, or proceed anyway?" |
+| `<!-- ENG_REVIEW: CLEAR -->` | Required | If missing: ask "Engineering review not found. Run the engineering review lane first, or proceed anyway?" |
 | `<!-- QA: CLEAR -->` | Recommended | If missing: warn, continue unless user says stop |
 | `<!-- STAFF_REVIEW: CLEAR -->` | Recommended | If missing: warn, continue unless user says stop |
+| `<!-- DESIGN_REVIEW_LIVE: FINDINGS-OPEN -->` | Conditional | If the change touches customer-facing UI: warn and confirm before proceeding |
+| `<!-- SECURITY_REVIEW: FINDINGS-OPEN -->` | Conditional | If the change touches auth, data, input handling, or public API surface: warn and confirm before proceeding |
 | Open `## Open Questions` | Warning | Count unresolved `OQ-NNN` items — list them if any remain |
 | Incomplete `## Tasks` | Warning | Count unchecked `T-NNN` items — list remaining tasks |
 | `<!-- ANALYZE: DRIFT-OPEN -->` | Warning | If present: warn that diff has drifted from plan scope |
 
-Security, CEO, and Design reviews are informational — note their state but do not block.
+Design and security audits are conditional review-stage checks. Note their state, warn when they are missing for relevant scope, and do not treat them as universal hard gates.
 
 ## Step 2 — Sync Main
 

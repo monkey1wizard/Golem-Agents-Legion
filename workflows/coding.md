@@ -1,7 +1,7 @@
 # Coding Flow
 
 The primary development workflow is command-driven, not dispatcher-state-driven.
-Every AI agent follows the same artifact model: plans live in `docs/plans/`, repo continuity lives in `.dev/state.md`, and specialist commands write back to the active plan.
+Every AI agent follows the same artifact model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist commands write back to the active execution prompt.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -11,9 +11,9 @@ Not every change needs the same process. **Risk weight** determines how many gua
 
 | Weight | When | Recommended Flow | Plan? | Architect | Designer | Analyst | Reviewer |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Trivial** | Typo fix, obvious bug, single-file edit | Direct implement, optional review and QA | No | No (consult OK) | No | No | No |
-| **Standard** | Small feature, known-cause bug fix, 2–3 files | `/office-hours` → `/plan-eng-review` → implement → `/review` → `/qa` → `/ship` | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
-| **Strategic** | New feature, arch change, high-risk, cross-cutting | `/office-hours` → review pack or `/autoplan` → implement → `/review` → `/qa` → `/ship` | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
+| **Trivial** | Typo fix, obvious bug, single-file edit | Direct implement, optional `/review`, optional `/qa` | No | No (consult OK) | No | No | No |
+| **Standard** | Small feature, known-cause bug fix, 2–3 files | `/planning` → `/plan-to-prompt` → engineering review lane → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
+| **Strategic** | New feature, arch change, high-risk, cross-cutting | `/planning` → `/deep-planning` → `/plan-to-prompt` → full review pack → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
 
 **Upgrade rule**: Any change can escalate to Strategic mid-flight if complexity exceeds expectations. Stop, refine the plan, and engage the full review pack.
 
@@ -25,13 +25,15 @@ GAL's coding flow is expressed as artifact-producing command phases.
 
 | Phase | Entry Signal | Commands | Main Artifacts |
 | --- | --- | --- | --- |
-| **Draft plan** | No active plan, or an existing plan needs reset | `/office-hours` | `docs/plans/<slug>.md`, `docs/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
-| **Reviewed plan** | Draft exists, buildability not yet locked | `/plan-eng-review` required, `/plan-ceo-review` and `/plan-design-review` as needed, `/autoplan` for chained review | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
+| **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
+| **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via provider or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
 | **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, code changes |
-| **Code review and QA** | Implementation reached a meaningful checkpoint | `/review`, `/qa`, `/qa-only` | `## Analyze`, `## Review Results`, `## Test Results` |
+| **Review-stage audits** | Implementation reached a meaningful checkpoint | `/review`, conditional `/design-review`, conditional `/cso`, `/qa`, `/qa-only` | `## Analyze`, `## Review Results`, `## Test Results` |
 | **Wrap-up or ship** | Work is paused or ready to land | `/gal wrap-up`, `/ship`, `/land-and-deploy` | `### Handoff Notes`, `.dev/state.md`, `## Ship`, `## Deploy` |
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan artifacts such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
+
+`/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and drift in the diff; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Review Pack (Strategic)
 
@@ -94,6 +96,12 @@ The implementer's instruction set includes a **Trivial/Standard prohibited opera
 
 Standard weight's reviewer is mandatory (not optional), but checks only two dimensions: **correctness + architecture**. This catches Scope Fence violations the implementer missed without the overhead of a full OWASP scan.
 
+## Session Safety Mode
+
+`/guard` is a high-risk-only safety mode. Use it when the work touches production systems, live data, shared risky config, or any task where you want `/careful` plus a strict edit boundary from `/freeze` in one command.
+
+For normal feature work, `/careful` is the lighter default. `/guard` should not be treated as a universal readiness step.
+
 ## Protected Paths
 
 Each repo's `.dev/project.md` contains a `## Protected Paths` section listing architecture-critical files. Touching any protected path during Trivial or Standard work **automatically triggers a Strategic upgrade**.
@@ -104,18 +112,20 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 
 ### Lifecycle
 
-1. **`/office-hours` creates the plan pair** → `docs/plans/<type>-<slug>.md` and `docs/plans/<type>-<slug>.prompt.md`
-2. **The execution plan self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
-3. **Implementation updates progress** during execution (not `.dev/state.md`)
-4. **Testing writes results** → plan `## Test Results`
-5. **Review writes findings** → plan `## Review Results` and `## Analyze`
-6. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
-7. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
+1. **`/planning` creates the source plan** → `docs/plans/<type>-<slug>.md`
+2. **`/deep-planning` refines the source plan when needed** → keeps scope and rationale review-ready
+3. **`/plan-to-prompt` materializes the execution prompt** → `.dev/plans/<type>-<slug>.prompt.md`
+4. **The execution prompt self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
+5. **Implementation updates progress** during execution (not `.dev/state.md`)
+6. **Testing and review write results** → execution prompt `## Test Results`, `## Review Results`, `## Analyze`
+7. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
+8. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
 
 ### Plan Filename Convention
 
 ```text
-docs/plans/<type>-<slug>.prompt.md
+docs/plans/<type>-<slug>.md
+.dev/plans/<type>-<slug>.prompt.md
 ```
 
 Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`

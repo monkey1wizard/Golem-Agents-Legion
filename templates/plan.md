@@ -53,60 +53,13 @@
 
 ## Open Questions
 
-- [ ] OQ-001 — [Open question description] *(raised by: office-hours)*
+- [ ] OQ-001 — [Open question description] *(raised by: planning)*
 
 <!-- Format: - [ ] OQ-NNN — description *(raised by: command)* -->
-<!-- Resolved: - [x] OQ-NNN — description *(raised by: command, resolved by: plan-eng-review)* -->
+<!-- Resolved: - [x] OQ-NNN — description *(raised by: command, resolved by: engineering-review-lane)* -->
 
 ## Approval
 
 - Human approval: [pending]
 - Architect verdict: [pending]
 - Other required reviewers: [pending]
-
----
-
-## Status
-
-Workflow: DRAFT
-Step: 0 of N
-Last activity: YYYY-MM-DD — plan created
-Next step: [assess risk weight, select review pack]
-Current Task: —
-Task Base Commit: —
-Task Final Commit: —
-Test Retry Count: 0
-Review Retry Count: 0
-
-### Deviations
-
-| Step | Plan Said | Actually Did | Why |
-| --- | --- | --- | --- |
-
-### Handoff Notes
-
-[Context from /gal wrap-up — key insights, unresolved questions, current hypothesis]
-
-## Tasks
-
-[Written by /plan-eng-review after Eng Review is CLEAR. Implementation updates completion state only — do not rewrite task semantics.]
-
-<!-- Format: - [ ] T-NNN — task description (Verify: how to confirm done) -->
-
-## Analyze
-
-[Written by /review — verdict: CLEAR | DRIFT-OPEN | NOT-RUN]
-
-<!-- Sole writer: /review. /ship, /gal status, /gal whats-next consume verdict only — they do not recalculate drift. -->
-
-## Test Results
-
-[Written by tester specialist after TEST phase]
-
-## Review Results
-
-[Written by reviewer specialist after REVIEW phase]
-
-## Debug Log
-
-[Written by debugger specialist if debugging occurs during this plan]

@@ -18,7 +18,7 @@ T2
 ## Requirements
 
 - [x] 本計畫是 GAL control plane 的 execution-plane 子計畫。
-- [x] 在任何 remote dispatch 發生前，必要的 canonical artifacts 必須先存在：`.dev/project.md`、`.dev/state.md`、`docs/plans/<plan-slug>.md`、`docs/plans/<plan-slug>.prompt.md`。
+- [x] 在任何 remote dispatch 發生前，必要的 canonical artifacts 必須先存在：`.dev/project.md`、`.dev/state.md`、`docs/plans/<plan-slug>.md`、`.dev/plans/<plan-slug>.prompt.md`。
 - [x] 必須明確區分兩種 worktree class：primary feature worktree 與 disposable remote worker worktree。
 - [ ] 遠端執行面已服從 `/gal` orchestrator 的 task contract 與 policy 決策。
 - [ ] 使用者不需要手動指定 endpoint、tier 或 golem 就能派工。
@@ -30,7 +30,7 @@ T2
 - [ ] Mac Mini 已能以相同 contract 加入為 async endpoint。
 - [x] 遠端 worker 不得維護第二套平行狀態系統。執行期資料應落在 temp / ephemeral artifact，而非 repo tracked state。
 - [x] `.dev/state.md` 是 repo-level index 與 continuity artifact，不是 per-task log。
-- [x] `docs/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state，coding、debug、test、review、handoff 的細部進度應優先寫入此檔案。
+- [x] `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state，coding、debug、test、review、handoff 的細部進度應優先寫入此檔案。
 - [x] formal progress query 與 live remote-task query 必須分開定義：前者讀 canonical artifacts，後者讀 task-scoped temp artifacts。
 - [x] plan section 的 remote write policy 必須以 section / command 為單位明確定義，而不是默許 remote worker 可任意寫入 plan。
 
@@ -41,7 +41,7 @@ T2
 | Layer | Artifacts | 用途 | 查詢方式 |
 | --- | --- | --- | --- |
 | Repo-level canonical state | `.dev/project.md`, `.dev/state.md` | repo 摘要、active plans、blockers、session continuity | 先讀 `.dev/state.md` 判斷目前 repo-level 位置 |
-| Plan-level execution state | `docs/plans/<plan-slug>.md`, `docs/plans/<plan-slug>.prompt.md` | 單一 feature / task 的範圍、workflow step、分析、測試、review、handoff | 讀 active plan 的 `.prompt.md` 取得詳細進度 |
+| Plan-level execution state | `docs/plans/<plan-slug>.md`, `.dev/plans/<plan-slug>.prompt.md` | 單一 feature / task 的範圍、workflow step、分析、測試、review、handoff | 讀 active plan 的 `.prompt.md` 取得詳細進度 |
 | Remote runtime artifacts | `task.md`, `status.json`, `summary.md`, `worker.log`, `result.patch` | 單次 remote task 的執行中狀態與回收結果 | 讀 task-scoped temp artifacts，而不是 `.dev/state.md` |
 
 ### Worktree Classes
@@ -66,7 +66,7 @@ T2
 | `.dev/project.md` | 少量、明確的 repo-level 更新 | 否 | 通常由 `/gal init` 或明確的 repo-level 文件工作更新 |
 | `.dev/state.md` | 可更新，但只限 active-plan index、blockers、session continuity、next step 改變時 | 否 | repo-level index，不是 per-task log |
 | `docs/plans/<plan-slug>.md` | 可更新 | 預設否 | source plan，不是 live runtime 狀態 |
-| `docs/plans/<plan-slug>.prompt.md` | 是，為主要 writer | 預設否；僅在後續 policy 明確允許時才可透過 patch-first 提案 | 詳細 per-task state 的正式來源 |
+| `.dev/plans/<plan-slug>.prompt.md` | 是，為主要 writer | 預設否；僅在後續 policy 明確允許時才可透過 patch-first 提案 | 詳細 per-task state 的正式來源 |
 | `docs/research/`, `docs/qa-reports/`, `docs/design-reports/` 等 durable outputs | 是 | 是，限 patch-first 任務 | remote 可產生這些檔案，但由 Main PC 審核整合 |
 | `status.json`, `summary.md`, `worker.log` | 否 | 是 | 僅存在 task-scoped temp，不屬於 canonical state |
 
@@ -94,7 +94,7 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 
 #### Query 2: 某個 feature / plan 做到哪裡？
 
-1. 讀 `docs/plans/<plan-slug>.prompt.md`。
+1. 讀 `.dev/plans/<plan-slug>.prompt.md`。
 2. 以 `## Status`、`## Tasks`、`## Analyze`、`## Test Results`、`## Review Results`、`### Handoff Notes` 為主。
 3. source plan `.md` 只提供 scope / rationale，不是主要的 live progress 檔案。
 
@@ -131,7 +131,7 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 | --- | --- | --- |
 | `/gal research`, bounded repo scan, docs rewrite | 可 offload | remote 直接產生 canonical-path outputs，Main PC 以 patch-first 整合 |
 | `/review`, `/qa` | 條件式 | remote 可執行 bounded analysis 或 test run，但正式 `## Review Results` / `## Test Results` 預設由 Main PC 回寫 |
-| `/plan-eng-review`, `/office-hours`, `/ship`, `/gal wrap-up` | Main PC only | 這些命令直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
+| engineering review lane, discovery-style planning provider, `/ship`, `/gal wrap-up` | Main PC only | 這些流程直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
 | `## Status`, `## Tasks`, `## Analyze` 的常規更新 | Primary Feature Worktree only | 屬於主要 workflow state，不預設由 remote worker 持有 |
 
 ### Mac Mini Resource Allocation
@@ -330,7 +330,7 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 
 1. `primary feature worktree` 與 `disposable remote worker worktree` 是兩種不同 ownership class。
 2. `.dev/state.md` 是 repo-level index / continuity，不是 per-task log。
-3. `docs/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state。
+3. `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state。
 4. formal progress query 讀 canonical artifacts；live remote-task query 讀 task-scoped temp artifacts。
 5. remote worker 允許對某些 canonical docs 採 patch-first，但不預設擁有 `.dev/state.md` 或 plan sections。
 6. Mac Mini 採 bash worker adapter，仍服從同一份 artifact contract；Gemini CLI 是唯一 headless engine。

@@ -97,7 +97,7 @@ Use this split when deciding where to write new information:
 - Permanent architecture or operating rules: `README.md`, `docs/`, `workflows/`, `agent/`, `conventions/`, `templates/`, `commands/`, `scripts/`
 - Per-repo working context: `<repo>/.dev/project.md`, `<repo>/.dev/state.md`
 - Human-readable source plan doc: `docs/plans/<plan-slug>.md` (scope, rationale, requirements)
-- AI execution work file: `docs/plans/<plan-slug>.prompt.md` (mutable checklist, execution state, write-back target)
+- AI execution work file: `.dev/plans/<plan-slug>.prompt.md` (mutable checklist, execution state, write-back target)
 
 If a plan finishes and still contains knowledge worth keeping, that knowledge belongs in canonical docs, not in the plan file.
 

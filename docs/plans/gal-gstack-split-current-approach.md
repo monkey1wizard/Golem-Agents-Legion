@@ -87,7 +87,7 @@ GAL 內部至少有三個由指令明確觸發的 workflow / command family：
 
 另外：
 
-- `planning`是較接近 `office-hours -> autoplan` 的模式
+- `planning` 會吸收少量 discovery 方法，但不直接暴露 gstack-style command surface
 - `deep-planning` 專門負責反覆審查、拆 plan、細分架構、任務拆解、review 準備
 - `deep-planning` 的輸入不限制於 plan 檔；只要是規劃中的文字文件，都可以拿來收斂成正式 plan
 - `plan-to-prompt` 是獨立指令，不混在`planning`或 `deep-planning` 內
@@ -136,6 +136,8 @@ provider 選擇發生在 workflow 層，不直接綁在單一 agent 身上。
 - engineering review
 - design review
 - business or CEO-style review
+
+也就是說，GAL 的 planning family 應使用 review-lane / capability wording，而不是直接把 upstream gstack skill 名稱暴露成 user-facing next steps。
 
 ## gstack Provider Contract
 
@@ -266,7 +268,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 
 #### engineering review
 
-當 entry 的 `skill` 是 `plan-eng-review` 或 `review` 時，`/gal` 檢查：
+當 entry 的 `skill` 是 upstream engineering review provider 或 `review` 時，`/gal` 檢查：
 
 - `status`
 - `unresolved`
@@ -275,11 +277,11 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 - `mode`
 - `commit`
 
-其中 `plan-eng-review` 是 planning review lane 的主要來源；`review` 可作為已實作分支的補充訊號，但不取代 planning artifact。
+其中 upstream engineering review provider 是 planning review lane 的主要來源；`review` 可作為已實作分支的補充訊號，但不取代 planning artifact。
 
 #### design review
 
-當 entry 的 `skill` 是 `plan-design-review` 時，`/gal` 檢查：
+當 entry 的 `skill` 是 upstream design review provider 時，`/gal` 檢查：
 
 - `status`
 - `initial_score`
@@ -290,7 +292,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 
 #### business / CEO-style review
 
-當 entry 的 `skill` 是 `plan-ceo-review` 時，`/gal` 檢查：
+當 entry 的 `skill` 是 upstream business review provider 時，`/gal` 檢查：
 
 - `status`
 - `unresolved`

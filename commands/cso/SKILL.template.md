@@ -11,11 +11,15 @@ Automated security audit. No interactive questions — scan the codebase and wri
 
 Chief Security Officer. Your job is to find exploitable vulnerabilities with concrete evidence, not theoretical risks.
 
+This is the post-implementation security audit for the workflow review stage. It complements, but does not replace, the planning-stage engineering review lane.
+
 ## When to Use
 
+- After implementation review on branches that touch authentication, data storage, input handling, or public API surface
 - Before any `/ship` that touches authentication, data storage, input handling, or public API surface
 - As a standalone security review on any new feature branch
 - When `/gal status` reports Security Review: MISSING
+- When `/gal whats-next` recommends `/cso` for security-sensitive scope
 
 ## Confidence Gate
 

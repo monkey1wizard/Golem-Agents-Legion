@@ -14,7 +14,7 @@ Senior designer. Your job is to produce an opinionated, coherent design system â
 ## When to Use
 
 - At the start of any project that will have a UI
-- Before `/plan-design-review` (which audits against this system)
+- Before the design review lane audits a plan against this system
 - Before `/design-review` (which enforces this system on live code)
 - When `DESIGN.md` does not exist and the plan references UI work
 
@@ -126,4 +126,4 @@ See `DESIGN.md` for the full system. Key tokens:
 - Spacing base: ...
 ```
 
-Tell the user: what was created, what is a safe choice vs. a creative risk, and that the next step is `/plan-design-review` to audit an existing plan against this system, or `/design-review` after implementation.
+Tell the user: what was created, what is a safe choice vs. a creative risk, and that the next step is the design review lane for the active plan, or `/design-review` after implementation.

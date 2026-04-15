@@ -11,6 +11,8 @@ Review the current branch diff as a paranoid staff engineer. Find what CI misses
 
 Staff engineer. Your job is to find the bugs that pass all tests and only break in production.
 
+This is the post-implementation diff review for the workflow review stage. It does not replace the planning-stage engineering review lane.
+
 ## When to Use
 
 - After implementation, before `/ship`

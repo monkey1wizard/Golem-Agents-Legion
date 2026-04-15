@@ -63,6 +63,7 @@ COMMAND_ALIAS_NAMES=()
 while IFS= read -r -d '' _d; do
     _name="$(basename "$_d")"
     [ "$_name" = "gal" ] && continue
+    [ -f "$_d/SKILL.template.md" ] || [ -f "$_d/SKILL.md" ] || continue
     COMMAND_ALIAS_NAMES+=("$_name")
 done < <(find "$REPO_ROOT/commands" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
@@ -146,6 +147,17 @@ is_gal_managed_file() {
     local first_line
     first_line="$(head -n 1 "$path" 2>/dev/null || true)"
     [ "$first_line" = "$GAL_MANAGED_GEMINI_COMMAND_HEADER" ]
+}
+
+is_gal_command_link() {
+    local path="$1"
+    [ -L "$path" ] || return 1
+
+    local target
+    target="$(readlink "$path" 2>/dev/null || true)"
+    [ -n "$target" ] || return 1
+
+    [[ "$target" == *"$REPO_ROOT"*"/commands/"* ]]
 }
 
 get_skill_frontmatter_description() {
@@ -888,6 +900,66 @@ else
 
     echo "  [NOTE] Reload active Gemini sessions with /commands reload or restart Gemini CLI to pick up updated GAL commands."
 fi
+
+# --- Migration: remove obsolete command artifacts from installed locations ---
+
+echo ""
+echo "=== Migration: obsolete command cleanup ==="
+
+for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
+    for d in "$skills_dir"/*; do
+        [ -e "$d" ] || continue
+        [ -d "$d" ] || continue
+        d_name="$(basename "$d")"
+
+        keep_dir=false
+        for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+            if [ "$d_name" = "$command_skill_name" ]; then
+                keep_dir=true
+                break
+            fi
+        done
+        if $keep_dir; then
+            continue
+        fi
+        if ! is_gal_command_link "$d"; then
+            continue
+        fi
+
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove obsolete command link: $d"
+        else
+            rm -rf "$d"
+            echo "  [REMOVED] Obsolete command link: $d"
+        fi
+    done
+done
+
+for command_file in "$GEMINI_COMMANDS_TARGET"/*.toml; do
+    [ -e "$command_file" ] || continue
+    command_name="$(basename "$command_file" .toml)"
+
+    keep_file=false
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        if [ "$command_name" = "$command_skill_name" ]; then
+            keep_file=true
+            break
+        fi
+    done
+    if $keep_file; then
+        continue
+    fi
+    if ! is_gal_managed_file "$command_file"; then
+        continue
+    fi
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would remove obsolete Gemini command: $command_file"
+    else
+        rm "$command_file"
+        echo "  [REMOVED] Obsolete Gemini command: $command_file"
+    fi
+done
 
 # --- Migration: remove legacy gal-* dirs from installed locations ---
 

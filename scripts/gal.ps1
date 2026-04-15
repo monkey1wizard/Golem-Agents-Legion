@@ -305,8 +305,8 @@ switch ($Command) {
         if ($context.Kind -eq 'idle') {
             Write-Dispatch @{
                 COMMAND = 'suggest'
-                ACTION  = "Repo is initialized but no active workflow is recorded. Use /office-hours or /autoplan to create a plan, or /gal status for details."
-                ON_COMPLETE = 'Run /gal status or /office-hours'
+                ACTION  = "Repo is initialized but no active workflow is recorded. Use /planning to create a source plan, then /plan-to-prompt to materialize execution state, or /gal status for details."
+                ON_COMPLETE = 'Run /gal status or /planning'
             }
             break
         }

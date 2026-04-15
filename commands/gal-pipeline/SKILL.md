@@ -13,7 +13,7 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 
 ## When to Use
 
-- After `/autoplan` (or `/plan-eng-review`) has produced a `## Tasks` section and a `## Test Plan`
+- After the engineering review lane has produced a `## Tasks` section and a `## Test Plan`
 - When you want full task-by-task automation without manual intervention
 - When the user says "start implementation", "run the pipeline", "implement and test", or similar
 

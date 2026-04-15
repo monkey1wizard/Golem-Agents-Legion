@@ -12,8 +12,8 @@ Determine what to do right now based on the current recorded GAL state.
 Starting from the current working directory or opened workspace folder, walk upward to the nearest ancestor directory that contains `.dev/state.md`. Treat that ancestor as the repo root and read `.dev/state.md` there.
 
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
-- If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/office-hours` to start sprint planning.**
-- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `docs/plans/<slug>.prompt.md` when it exists.
+- If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/planning` to start sprint planning.**
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
 From `.dev/state.md` and the active plan file, extract these data points:
@@ -26,6 +26,7 @@ From `.dev/state.md` and the active plan file, extract these data points:
 6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
 7. Active plan `## Tasks` — task completion state
 8. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
+9. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
 
 ## Step 2 — Decide
 
@@ -33,14 +34,16 @@ Apply this decision tree in order:
 
 | Condition | Next Action |
 | --- | --- |
-| No active plan, no work in progress | Repo is already initialized; use `/office-hours` to start sprint planning |
-| No eng review recorded | `/plan-eng-review` to get the plan reviewed before starting work |
+| No active plan, no work in progress | Repo is already initialized; use `/planning` to start sprint planning |
+| Active plan points to source plan only, no execution prompt yet | `/plan-to-prompt` to materialize `.dev/plans/<slug>.prompt.md` before specialist review |
+| No eng review recorded | Run the engineering review lane for the active plan through the configured provider, or use `/gal golem-architect` as the fallback |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
 | Implementation complete, no test results | `/qa` for full QA, or `/qa-only` for focused test run |
 | Tests failing | Return to implementation — summarize what needs fixing |
 | Tests passing, no review recorded | `/review` for code review |
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
+| Review clean, security-sensitive scope, and no security review recorded | `/cso` for a security audit before wrap-up or ship |
 | `<!-- ANALYZE: DRIFT-OPEN -->` present | Diff has drifted from plan scope — address deviations, then re-run `/review` to update verdict |
 | `## Tasks` has incomplete items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
@@ -53,7 +56,7 @@ Apply this decision tree in order:
 State in plain language:
 
 1. **Where you are** — one sentence describing the current position in the plan lifecycle
-2. **Next action** — the single command to run, or the single task to start
+2. **Next action** — the single command, review lane, or task to start
 3. **Open this first** — which file or context is needed to begin
 
 Do not present multiple options. Commit to one clear next step.

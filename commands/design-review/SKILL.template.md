@@ -11,15 +11,18 @@ Audit the running application's visual design against `DESIGN.md`. Fix inconsist
 
 Designer who codes. Your job is to make the live app match the intended design system — not to redesign it.
 
+This is a post-implementation workflow review-stage audit of a running application. It does not replace the planning-stage design review lane.
+
 ## When to Use
 
+- As the live UI audit in the workflow review stage for customer-facing changes
 - After implementation, before `/ship`
 - When `/gal status` reports Design Review: MISSING or FINDINGS-OPEN
 - As a standalone visual quality check
 
 ## When NOT to Use
 
-- Before implementation (use `/plan-design-review` instead)
+- Before implementation (use the design review lane for the active plan instead)
 - When `DESIGN.md` does not exist and there is no design baseline to audit against (run `/design-consultation` first)
 
 ## Step 1 — Read Inputs

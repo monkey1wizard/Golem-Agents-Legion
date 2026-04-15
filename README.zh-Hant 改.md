@@ -206,8 +206,6 @@ Plan 是暫時的工作檔案，不是永久紀錄。`docs/plans/` 是 staging a
 | `docs/designs/<plan-slug>/` | 計畫綁定的設計資產 |
 | `docs/qa-reports/` | QA 報告 |
 | `docs/design-reports/` | 設計審查報告 |
-| `docs/benchmarks/` | 效能基準線 |
-| `docs/retros/` | 回顧快照 |
 | `docs/research/` | 研究筆記 |
 | `.dev/learnings.jsonl` | Repo 本地制度化記憶 |
 
@@ -217,8 +215,8 @@ Plan 是暫時的工作檔案，不是永久紀錄。`docs/plans/` 是 staging a
 
 | Section | 寫入者 | 消費者（唯讀） | 用途 |
 | --- | --- | --- | --- |
-| `## Open Questions` | 規劃指令（初始化與追加）、`/plan-eng-review`（關閉已解決項目） | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list |
-| `## Tasks` | `/plan-eng-review`（唯一初始化者），或手動建立 | `/review`、`/qa`、`/ship`、`/gal status` | 可驗證的任務清單 |
+| `## Open Questions` | `/planning`（初始化）、規劃階段 review lanes（追加），engineering review lane（關閉已解決項目） | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list |
+| `## Tasks` | engineering review lane（唯一初始化者），或手動建立 | `/review`、`/qa`、`/ship`、`/gal status` | 可驗證的任務清單 |
 | `## Analyze` | `/review`（唯一寫入者） | `/ship`、`/gal status` | Drift 檢查：diff 是否偏離計畫範圍 |
 
 ### 狀態回寫邏輯
@@ -228,10 +226,10 @@ Plan 是暫時的工作檔案，不是永久紀錄。`docs/plans/` 是 staging a
 | 區段 | 由誰寫入 | 由誰讀取 |
 | --- | --- | --- |
 | `## Review Results` | 審查類專家指令 | `/gal status`、`/gal whats-next` |
-| `## Test Plan` | `/plan-eng-review`，或手動建立 | `/qa`、`/qa-only` |
+| `## Test Plan` | engineering review lane，或手動建立 | `/qa`、`/qa-only` |
 | `## Test Results` | `/qa`、`/qa-only` | `/gal status`、`/gal whats-next` |
 | `## Ship` | `/ship` | `/gal status`、`/land-and-deploy` |
-| `## Deploy` | `/land-and-deploy` | `/gal status`、`/canary` |
+| `## Deploy` | `/land-and-deploy` | `/gal status`、`/gal whats-next` |
 | `### Handoff Notes` | `/gal wrap-up` | `/gal status`、`/gal whats-next` |
 
 ## 指令入口
@@ -278,7 +276,7 @@ GAL 支援可插拔的工作流擴充模組。
 
 ### gstack 規劃模組
 
-gstack 提供結構化的 feature 規劃流程：從 `/office-hours` 發起 feature、經 CEO / Design / Eng review 管線，產出可被 pipeline 消費的 plan artifacts。這是 Standard 與 Strategic weight 最常見的 plan on-ramp，但不是唯一的——你也可以手動建立符合 artifact 格式的 plan file。
+gstack 現在是可選的 specialist provider。GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。你也可以完全不安裝 gstack，仍走完整規劃流程。
 
 詳見 [mod/gstack.md](mod/gstack.md)。
 

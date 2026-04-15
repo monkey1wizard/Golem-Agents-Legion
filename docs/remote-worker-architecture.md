@@ -32,7 +32,7 @@ split-brain state across the multi-machine setup.
 
 **Primary Feature Worktree** — the worktree on Main PC where active development,
 review, and state convergence happen. This is the only writer of `.dev/state.md`,
-`.dev/project.md`, and `docs/plans/<plan-slug>.prompt.md`.
+`.dev/project.md`, and `.dev/plans/<plan-slug>.prompt.md`.
 
 **Disposable Remote Worker Worktree** — a linked worktree created by
 `Invoke-GalRemoteTask.ps1` on the worker node for a single bounded task. It produces
@@ -44,7 +44,7 @@ not own canonical state.
 | Layer | Artifacts | Primary Feature Worktree | Disposable Remote Worker Worktree |
 | --- | --- | --- | --- |
 | Repo-level canonical | `.dev/project.md`, `.dev/state.md` | Can write (sparingly) | No — never |
-| Plan-level execution | `docs/plans/<plan-slug>.prompt.md` | Yes — primary writer | No by default; patch-first only if explicitly permitted |
+| Plan-level execution | `.dev/plans/<plan-slug>.prompt.md` | Yes — primary writer | No by default; patch-first only if explicitly permitted |
 | Remote runtime (ephemeral) | `status.json`, `summary.md`, `worker.log`, `result.patch` | No | Yes — sole owner, never committed to repo |
 | Durable outputs | `docs/research/`, `docs/qa-reports/`, etc. | Yes | Yes — via result.patch; Main PC reviews before applying |
 

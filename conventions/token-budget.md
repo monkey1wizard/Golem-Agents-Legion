@@ -10,7 +10,7 @@ When an agent begins a session, load context in this order (stop when sufficient
 
 1. **`.dev/project.md`** — compressed project summary + indexes
 2. **`.dev/state.md`** — active plan index + session continuity
-3. **Active plan file** — `docs/plans/<plan-slug>.prompt.md` (AI execution work file) with `## Status` section
+3. **Active plan file** — `.dev/plans/<plan-slug>.prompt.md` (AI execution work file) with `## Status` section
 4. **Canonical docs** — only when `project.md` explicitly references them for the current task
 5. **Source code** — only files relevant to the current plan step
 

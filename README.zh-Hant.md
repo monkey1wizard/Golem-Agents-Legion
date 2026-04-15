@@ -5,7 +5,7 @@
 GAL 是一套以 Markdown 為核心的 AI 工作系統，分為兩層：
 
 - `/gal` 控制平面：負責 repo 初始化、狀態檢視、下一步推薦、工作階段收尾與研究入口
-- gstack 風格的專家指令層：負責規劃、審查、QA、發佈、記憶管理與安全守護
+- 專家執行層：包含 GAL-native 規劃指令家族、provider-routed 規劃審查 lanes、QA、發佈、記憶管理與安全守護
 
 重點不在於保留某個工具的 UX，而是讓方法論、狀態模型與指令合約都掌握在你手中，同時讓 Copilot、Gemini 與 Codex 執行同一套工作流程。
 
@@ -14,7 +14,7 @@ GAL 是一套以 Markdown 為核心的 AI 工作系統，分為兩層：
 GAL 把持久的工作流程知識與工具特定的轉接器分開。
 
 - 知識以 Markdown 形式存放在這個 repo 裡：工作流程、代理、慣例、樣板與技能
-- Repo 本地的執行狀態存放於 `.dev/` 與 `docs/plans/`
+- Repo 本地的執行狀態存放於 `.dev/`，source plan 則存放於 `docs/plans/`
 - 工具轉接器是生成出來的輸出物，不是真相來源
 
 這個 repo 不是一個應用服務，而是 canonical 的方法論與指令表面。
@@ -38,7 +38,7 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | 層級 | 職責 | 指令 |
 | --- | --- | --- |
 | 控制平面 | 初始化 repo、讀取狀態、推薦下一步、收斂連續性、路由研究 | `/gal init`、`/gal status`、`/gal whats-next`、`/gal wrap-up`、`/gal research` |
-| 專家執行層 | 規劃、設計、除錯、審查、QA、發佈、記憶管理、安全守護 | `/office-hours`、`/plan-eng-review`、`/review`、`/qa`、`/ship` 及下方完整專家目錄 |
+| 專家執行層 | 規劃、provider-routed 規劃審查、設計、除錯、審查、QA、發佈、記憶管理、安全守護 | `/planning`、`/deep-planning`、`/plan-to-prompt`、`/review`、`/qa`、`/ship` 及下方完整專家目錄 |
 
 `/gal` 不重複實作專家行為。專家指令會把結果回寫到 `/gal` 讀取的 canonical artifacts。
 
@@ -51,14 +51,12 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
 | `.dev/state.md` | 活動計畫索引、阻塞點、工作階段連續性 |
 | `docs/plans/<plan-slug>.md` | 人類可讀的計畫文件（範圍、理由、需求） |
-| `docs/plans/<plan-slug>.prompt.md` | AI 執行工作檔案——可變清單、workflow 狀態、執行狀態、回寫目標 |
+| `.dev/plans/<plan-slug>.prompt.md` | AI 執行工作檔案——可變清單、workflow 狀態、執行狀態、回寫目標 |
 | `DESIGN.md` | Repo 層級設計治理（設計系統，非計畫專屬） |
 | `CLAUDE.md` | Repo 本地操作備注，如部署設定與設計參考 |
 | `docs/designs/<plan-slug>/` | 計畫綁定的設計資產：`variant-approved.json`、`variant-approved.png`、`handoff-final.html` |
 | `docs/qa-reports/` | QA 報告：`YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
 | `docs/design-reports/` | 設計審查報告：`YYYYMMDD-<plan-slug>-rNN.md` |
-| `docs/benchmarks/` | 效能基準線：`YYYYMMDD-HHmmss-<url-slug>.json`，canary 基準線：`canary-YYYYMMDD-HHmmss-<url-slug>.json` |
-| `docs/retros/` | 回顧快照：`YYYYMMDD.json` |
 | `docs/research/` | 研究筆記：`YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo 本地的制度化記憶 |
 
@@ -68,8 +66,8 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 
 | Section | 寫入者 | 消費者（唯讀） | 用途 |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/office-hours`（初始化）、`/plan-ceo-review`、`/plan-design-review`（追加），`/plan-eng-review` 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list，ID 格式 `OQ-NNN` |
-| `## Tasks` | `/plan-eng-review`（唯一初始化者，Eng Review CLEAR 後），實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單，ID 格式 `T-NNN` |
+| `## Open Questions` | `/planning`（初始化 scaffold）、規劃階段 review lanes 追加，engineering review lane 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list，ID 格式 `OQ-NNN` |
+| `## Tasks` | engineering review lane（唯一初始化者，Eng Review CLEAR 後），實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單，ID 格式 `T-NNN` |
 | `## Analyze` | `/review`（唯一寫入者，verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：diff 是否偏離計畫範圍？ |
 
 消費者只讀取這些 sections 用於顯示與路由 — 不重算、不覆寫。
@@ -95,15 +93,17 @@ git clone https://github.com/monkey1wizard/golem-agents-legion.git ~/golem-agent
 ```text
 # Copilot / Gemini CLI（slash-command 介面）
 /gal init
-/gal status
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 
 # Codex CLI（skill mention 介面，使用 $ 前綴，不是 /）
 $gal init
-$gal status
-$office-hours
-$autoplan
+$planning
+$deep-planning
+$plan-to-prompt
+$gal whats-next
 ```
 
 最終模型中沒有公開的 `gal sync` 步驟。轉接器生成屬於安裝層的內部作業，不是使用者工作流程。
@@ -149,8 +149,9 @@ GAL 也可以用來驅動一套以 AI 為核心的遊戲 2D / 3D assets 生產 w
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 
 # 然後搭配 game asset skills 實作：
 # - graphics-workflow
@@ -193,16 +194,18 @@ Godot C# 專案的預設工具組合是：
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 ```
 
 如果你用的是 Codex CLI：
 
 ```text
 $gal init
-$office-hours
-$autoplan
+$planning
+$deep-planning
+$plan-to-prompt
 ```
 
 `/gal init` 應該會根據 `project.godot` 加上 `*.csproj` 判定這是一個 Godot C# repo，並把這件事寫進 `.dev/project.md`。
@@ -213,8 +216,9 @@ $autoplan
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 
 # 然後搭配 Godot skills / MCP 工具實作：
 # - godot-project-ops
@@ -262,8 +266,10 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 /gal pipeline        # 自動串接實作 → 測試 → 審查
 /ship
 ```
@@ -272,8 +278,10 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 <實作>
 /review
 /qa
@@ -323,13 +331,12 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ### 規劃
 
-| 指令 | 用途 | 主要寫入 |
+| 指令或 Lane | 用途 | 主要寫入 |
 | --- | --- | --- |
-| `/office-hours` | YC 風格的 sprint 或功能啟動，建立新計畫 | 新的 `docs/plans/<plan-slug>.md` + `.prompt.md`、`.dev/state.md`、初始 `## Open Questions` |
-| `/plan-ceo-review` | 從創辦人視角審查範圍與野心 | 計畫 `## Review Results`、`## Open Questions`（scope OQs） |
-| `/plan-eng-review` | 架構與測試計畫關卡，`/ship` 前的必要條件 | 計畫 `## Review Results`、`## Test Plan`、`## Tasks`，關閉已解決的 `## Open Questions` |
-| `/plan-design-review` | 實作前的 UX 與設計審查 | 計畫 `## Review Results`、`## Open Questions`（設計相關 OQs） |
-| `/autoplan` | 串接 CEO、設計與工程審查並自動決策 | 計畫審查區段與測試計畫 |
+| `/planning` | 建立或覆寫人類可讀的 source plan | `docs/plans/<plan-slug>.md`、`.dev/state.md` |
+| `/deep-planning` | 將規劃中的文字材料收斂成 review-ready source plan | `docs/plans/<plan-slug>.md`、`.dev/state.md` |
+| `/plan-to-prompt` | 由 source plan materialize 出 execution prompt | `.dev/plans/<plan-slug>.prompt.md`、`.dev/state.md` |
+| business、design、engineering review lanes | 透過 provider routing 執行規劃階段審查；若已安裝 upstream gstack，映射到對應 skill，否則 fallback 到 `/gal golem-analyst`、`/gal golem-designer`、`/gal golem-architect` | `## Review Results`、`## Open Questions`，其中 engineering lane 另外寫 `## Test Plan`、`## Tasks`、`<!-- ENG_REVIEW: CLEAR -->` |
 | `/cso` | OWASP 加 STRIDE 資安審查 | 計畫 `## Review Results` |
 
 ### 設計
@@ -364,11 +371,8 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 | --- | --- | --- |
 | `/ship` | 合併前的最終關卡：測試、覆蓋率、PR、文件 | 計畫 `## Ship` |
 | `/land-and-deploy` | 合併並驗證正式環境部署 | 計畫 `## Deploy` |
-| `/canary` | 部署後對正式環境的持續監控 | 基準線、選擇性計畫備注 |
-| `/benchmark` | 使用真實瀏覽器測量效能並比對基準 | `docs/benchmarks/`、選擇性計畫 `## Performance` |
 | `/setup-deploy` | 一次性部署設定 | `CLAUDE.md` |
 | `/document-release` | 更新文件以符合已發佈的程式碼 | Repo 文件、PR 內容 |
-| `/retro` | 帶有 repo 指標與快照的回顧報告 | `docs/retros/` |
 
 ### 記憶管理與安全守護
 
@@ -387,8 +391,10 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 /gal pipeline        # 實作 → 測試 → 審查（多廠 AI 串接）
 /ship
 ```
@@ -397,8 +403,10 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 <實作>
 /gal wrap-up
 /review
@@ -421,8 +429,6 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 ```text
 /ship
 /land-and-deploy
-/canary
-/retro
 ```
 
 ## 狀態邏輯
@@ -432,16 +438,16 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 | 區段 | 由誰寫入 | 由誰讀取 |
 | --- | --- | --- |
 | `## Review Results` | 審查類專家指令 | `/gal status`、`/gal whats-next` |
-| `## Test Plan` | `/plan-eng-review` | `/qa`、`/qa-only` |
+| `## Test Plan` | engineering review lane | `/qa`、`/qa-only` |
 | `## Test Results` | `/qa`、`/qa-only` | `/gal status`、`/gal whats-next` |
 | `## Ship` | `/ship` | `/gal status`、`/gal whats-next`、`/land-and-deploy` |
-| `## Deploy` | `/land-and-deploy` | `/gal status`、`/canary` |
+| `## Deploy` | `/land-and-deploy` | `/gal status`、`/gal whats-next` |
 | `### Handoff Notes` | `/gal wrap-up` | `/gal status`、`/gal whats-next` |
 
 ### 狀態判定疑難排解
 
 - 如果 `.dev/state.md` 不存在，表示 repo 尚未初始化。
-- 如果 `.dev/state.md` 存在，GAL 應該從 `docs/plans/<plan-slug>.prompt.md` 的 `## Status` 讀取活動 workflow。
+- 如果 `.dev/state.md` 存在，GAL 應該從 `.dev/plans/<plan-slug>.prompt.md` 的 `## Status` 讀取活動 workflow。
 - 如果 `.dev/state.md` 已存在但 GAL 仍無法投影狀態，應視為 state 結構異常，不是要重新執行 `/gal init`。
 
 ### VS Code 技能重複疑難排解
@@ -465,7 +471,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 ~/golem-agents-legion/     canonical 方法論與指令來源
 <repo>/.dev/              repo 本地狀態與連續性
 docs/plans/<slug>.md      人類可讀的計畫文件
-docs/plans/<slug>.prompt.md  AI 執行工作檔案（可變狀態）
+.dev/plans/<slug>.prompt.md  AI 執行工作檔案（可變狀態）
 mcp-servers.example.json  受版本控制的 MCP 真相來源
 mcp-servers.local.json    本地 MCP 啟停 / 覆蓋層（gitignored）
 ~/.copilot/skills/        已安裝的 Copilot skills
@@ -507,8 +513,8 @@ clone 後需填入你的環境特定佔位符：
 | --- | --- |
 | [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | AI 代理與維護者的閱讀順序 |
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | `/gal` 讀寫合約的 canonical 定義 |
-| [docs/gstack-integration.md](docs/gstack-integration.md) | GAL 為何原生重新實作 gstack 語意 |
-| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | 專家技能的實作藍圖 |
+| [docs/gstack-integration.md](docs/gstack-integration.md) | GAL 如何在不暴露重複公開指令的前提下路由 optional gstack provider |
+| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | provider 與 specialist contracts 的實作藍圖 |
 | [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md) | 推薦的 Godot C# MCP 工具鏈與選用規則 |
 | [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md) | 官方 Godot C# 文件索引與真相來源 |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | 指令與執行平面的 live/manual 驗證狀態 |

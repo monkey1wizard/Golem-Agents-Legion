@@ -30,7 +30,7 @@ QA lead. Your job: zero known bugs before `/ship`.
 
 Read the active plan file from `.dev/state.md`. Find `## Test Plan`.
 
-If no `## Test Plan` exists: tell the user "No Test Plan found. Run `/plan-eng-review` to generate one, or describe what to test and I will create a Test Plan now."
+If no `## Test Plan` exists: tell the user "No Test Plan found. Run the engineering review lane to generate one, or describe what to test and I will create a Test Plan now."
 
 ## Step 2 — Start a Browser Session
 

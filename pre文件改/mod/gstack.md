@@ -2,10 +2,10 @@
 
 gstack 是 GAL 的可插拔 specialist provider，不是 GAL 的核心依賴。GAL 有 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為 GAL-native 規劃入口；architect、analyst、designer 提供 GAL-native 的對話型 fallback。沒有 gstack 時，GAL 仍能完整運作。
 
-gstack 安裝後（`~/gstack`），這個模組提供兩層增強能力：
+gstack 安裝後（`~/gstack`），這個模組主要提供兩層增強能力：
 
-1. **進階規劃 on-ramp**（可選）：`/office-hours`、`/autoplan`、`/plan-*-review` 提供 gstack 風格的結構化 feature 規劃流程，產出高品質的 plan artifacts。這層不是唯一規劃路徑——GAL-native 的 `/planning`、`/deep-planning` 不依賴此層。
-2. **Specialist 執行指令**：`/review`、`/qa`、`/ship` 等指令遵循 write-back discipline，把結果回寫到 GAL 的 canonical artifacts。這些指令不依賴規劃層。
+1. 進階規劃 provider：discovery-style feature planning、business/design/engineering review lanes，以及 full planning review pipeline provider。這層是可選增強，不是唯一規劃路徑。
+2. Specialist 執行指令：`/review`、`/qa`、`/ship`、`/design-review` 等指令遵循 write-back discipline，把結果回寫到 GAL 的 canonical artifacts。這些指令不依賴規劃層。
 
 ## GAL 與 gstack 的關係
 
@@ -15,7 +15,7 @@ GAL 取用的是 gstack 的 workflow semantics，作為 optional provider 接入
 - GAL 要求 repo-local canonical artifacts；upstream gstack 的部分資料模型是 user-global。
 - GAL 的目標是 tool-agnostic methodology，而不是把控制權外包給某個外部工具安裝。
 
-做法是：生成 GAL-native 的 planning 與 execution commands（`/planning`、`/deep-planning`、`/plan-to-prompt` 等），並以 provider routing 讓 gstack 的 specialist review artifact 在有安裝時接入 GAL 的 canonical artifacts。
+做法是：維持 GAL-native 的 planning 與 execution command surface，並以 provider routing 讓 gstack 的規劃與審查能力在有安裝時接入 GAL 的 canonical artifacts。
 
 記住三件事：
 
@@ -25,20 +25,20 @@ GAL 取用的是 gstack 的 workflow semantics，作為 optional provider 接入
 
 ## 規劃工作流
 
-> **注意**：本節說的是 gstack 風格的進階規劃流程。GAL 有 `/planning` 與 `/deep-planning` 作為 GAL-native 規劃入口，適合所有 risk weight 的情境。本節的 gstack 流程適合需要高品質 CEO / Design / Eng review 的 Strategic-weight features。
+> **注意**：本節說的是 gstack 風格的進階規劃能力如何接入 GAL。GAL 有 `/planning` 與 `/deep-planning` 作為 GAL-native 規劃入口，適合所有 risk weight 的情境。provider 增強層則適合需要高品質 business, design, engineering review 的 Strategic-weight features。
 
 ### 核心前提
 
-gstack 的所有命令都圍繞一個前提運作：
+gstack 風格流程圍繞一個前提運作：
 
 > **Design doc 是 per-feature，不是 per-product。**
 > 它捕捉的是「這次具體變更背後的思考」，不是整個產品的完整規格。
 
 這代表：
 
-- 每次 `/office-hours` 產出的 plan 應該對應一個可獨立交付的 feature
-- 如果你的 plan 涵蓋了整個產品，那它是 roadmap，不是 executable plan
-- 把 roadmap 拆成可執行的 feature plans 是人的責任，不是工具的責任
+- 每次 discovery-style 規劃產出的 plan 應該對應一個可獨立交付的 feature。
+- 如果你的 plan 涵蓋了整個產品，那它是 roadmap，不是 executable plan。
+- 把 roadmap 拆成可執行的 feature plans 是人的責任，不是工具的責任。
 
 ### 流程圖
 
@@ -49,19 +49,19 @@ Roadmap / product-level idea
 人工挑出一個要先做的 feature
     |
     v
-/office-hours
-    output: 該 feature 的 design doc
+discovery-style planning provider or /planning
+    output: 該 feature 的 source plan
     |
     v
 選擇審查路徑
     |
-    +--> 路徑 A: /autoplan
-    |      CEO -> Design -> Eng 依序自動審查
+    +--> 路徑 A: full planning review provider
+    |      Business -> Design -> Engineering 依序審查
     |
     `--> 路徑 B: 手動逐步審查
-                 1. /plan-ceo-review
-                 2. /plan-design-review
-                 3. /plan-eng-review
+                 1. business / scope review lane
+                 2. design review lane
+                 3. engineering review lane
 
 兩條路徑都會收斂到:
     reviewed plan
@@ -88,130 +88,74 @@ Roadmap / product-level idea
 
 ### 階段說明
 
-#### 1. 人工拆分 — 流程的起點
+#### 1. 人工拆分
 
-gstack 沒有「大 plan 自動拆成小 plan」的機制。如果你做了一次 `/office-hours` 然後得到一個涵蓋 10 個模組的大 plan，正確做法是：
+provider 不會把一個 product roadmap 自動拆成多個 feature plan。若一份大文件同時涵蓋多個模組，正確做法是：
 
-1. 把這個 plan 當作 roadmap 參考
-2. 自己決定先做哪個 feature
-3. 對每個 feature 分別跑 `/office-hours`
+1. 把這份文件當作 roadmap 參考。
+2. 先決定下一個要做的單一 feature。
+3. 只針對那個 feature 產出 source plan。
 
-每個 feature 獨立一個 plan file、獨立一條 session。
+每個 feature 應對應獨立 plan file、獨立 session、獨立 worktree。
 
-#### 2. /office-hours — 產出 design doc
+#### 2. Discovery-style 規劃
 
-`/office-hours` 模擬 YC office hours 風格的對話。它會：
+這類 provider 擅長：
 
-- 挑戰你的前提假設
+- 挑戰前提假設
 - 問清楚目標使用者和核心問題
-- 產出一份 design doc
+- 產出可供後續 review lanes 消費的 source plan
 
-這份 design doc 就是後續所有審查和實作的基礎。
+若你不需要這種強互動 discovery，也可以直接使用 `/planning` 或 `/deep-planning`。
 
-#### 3. 審查管線 — 兩種路徑
+#### 3. 審查管線
 
-##### 路徑 A: /autoplan（自動化）
+有兩種常見路徑：
 
-依序執行 CEO → Design → Eng review，自動做出大部分決策，只在真正需要人類判斷的品味問題才停下來。適合有信心的 feature。
+- 自動路徑：full planning review provider 依序跑 business、design、engineering review。
+- 手動路徑：分別跑三條 planning-stage review lanes，每步都保留人工介入空間。
 
-##### 路徑 B: 手動逐步審查
+其中 engineering review lane 會補齊 build readiness、test matrix、task breakdown 與 parallelization strategy。它拆的是「一個 feature 內的實作步驟」，不是把一個大 plan 拆成多個 plan。
 
-分開執行三個審查命令，每步都有機會介入調整。
+#### 4. 實作與收尾
 
-###### /plan-ceo-review — 商業方向
-
-有四種模式，由 AI 自動判斷：
-
-| 模式 | 說明 |
-| --- | --- |
-| EXPANSION | 10-star vision，放大野心 |
-| SELECTIVE EXPANSION | 保留核心，在特定面向加碼 |
-| HOLD SCOPE | 範圍正確，只做 polish |
-| SCOPE REDUCTION | 範圍太大，必須刪東西 |
-
-這四種模式都是在調整「同一個 plan」的範圍，不是產出新 plan。
-
-###### /plan-design-review — 設計審查
-
-檢查 UX flow、accessibility、設計系統一致性。
-
-###### /plan-eng-review — 工程審查
-
-這是最關鍵的審查步驟，產出：
-
-- **Scope Challenge**: 超過 8 個檔案或 2 個新 class 就建議縮減
-- **Architecture / Code Quality / Tests / Performance** 四大面向的 review
-- **Worktree Parallelization Strategy**: 分析 task 之間的依賴關係，產出可平行執行的 lane
-
-Worktree Parallelization 拆的是「一個 feature 內的實作步驟」，不是「把一個大 plan 拆成多個 plan」。
-
-#### 4. 實作 — 逐 task 執行
-
-審查完成後 plan 內會有具體的 task list。用 `/gal pipeline` 自動逐 task 執行，或手動一個一個做。
+審查完成後，plan 內會有具體 task list。之後可用 `/gal-pipeline` 自動逐 task 執行，或手動一個一個做。
 
 每個 task: implement → test → review → commit。
 
-#### 5. 收尾 — review → qa → ship
-
-- `/review`: staff engineer 等級的 diff 審查
-- `/qa`: 在真實瀏覽器中跑 test plan
-- `/ship`: 推分支、開 PR、觸發 `/document-release`
-
-### 實際範例：labyrinth
-
-以製作 labyrinth 為例，假設你已經透過一次 `/office-hours` 得到一份很大的 plan，內容同時包含：
-
-- 迷宮生成
-- 玩家移動與視角
-- 鑰匙 / 門 / 關卡進程
-- 敵人與戰鬥
-- 介面與教學提示
-
-這份文件可能方向正確，但性質比較接近 product roadmap，不是可以直接丟進 gstack 流程的單一 feature plan。
-
-正確做法是人工先拆 feature，再讓每個 feature 各自走完整條流程：
-
-1. 迷宮生成最小可玩版本
-2. 玩家移動、碰撞與第一人稱視角
-3. 鑰匙、門與基本進程控制
-4. 第一種敵人與最小戰鬥循環
-5. HUD、提示與新手引導
-
-然後逐一執行：
-
-1. 選「迷宮生成最小可玩版本」
-2. 只針對這個 feature 跑 `/office-hours`
-3. 跑 `/autoplan` 或手動三步審查
-4. 實作、`/review`、`/qa`、`/ship`
-5. 完成後回到 roadmap，挑下一個 feature
-
-大 plan 可以保留（有方向價值），但真正進入 gstack 流程的，永遠是「一個可獨立交付的 feature」。
+完成後再進入 `/review`、`/qa`、`/ship`、`/land-and-deploy` 這些 write-back specialist flows。
 
 ### 平行工作模型
 
-gstack 支援 10–15 個平行 sprint：
+gstack 支援多個平行 sprint，但前提仍是 feature 粒度清楚：
 
 - 每個 sprint = 獨立的 feature
 - 每個 feature = 獨立的 plan file
 - 每個 feature = 獨立的 session / worktree
-- 互不干擾，各自走完整個 `/office-hours` → `/ship` 流程
+- 各自走完整個規劃、實作、審查、發佈流程
 
-## Specialist 指令參考
+## Specialist 指令與能力參考
 
 所有 specialist commands 直接執行工作。不需要先透過 `/gal` 才能呼叫，但輸出必須符合 `/gal` 讀取的 plan write-back contract。
 
-規劃類指令是可選的 on-ramp；其餘指令屬於 GAL 的核心執行層，無論 plan 怎麼產生都能運作。
-
-### 規劃
+### GAL-native 規劃入口
 
 | 指令 | 用途 | 主要寫回 |
 | --- | --- | --- |
-| `/office-hours` | 以單一 feature 為單位產出 plan doc 與 execution work file | `docs/plans/<plan-slug>.md`、`.prompt.md`、`## Open Questions` |
-| `/plan-ceo-review` | 從創辦人視角調整 scope 與 ambition | plan `## Review Results`、`## Open Questions` |
-| `/plan-design-review` | 實作前補齊 UX 與設計決策 | plan `## Review Results`、`## Open Questions` |
-| `/plan-eng-review` | 補齊 architecture、test plan、tasks | plan `## Review Results`、`## Test Plan`、`## Tasks` |
-| `/autoplan` | 串接 CEO → Design → Eng review 並自動決策 | 同上三個 review 的所有輸出 |
-| `/cso` | OWASP + STRIDE 資安審查 | plan `## Review Results`（security review） |
+| `/planning` | 從使用者需求與對話上下文產出 source plan | `docs/plans/<plan-slug>.md` |
+| `/deep-planning` | 深化任何規劃文件為正式 plan | `docs/plans/<plan-slug>.md` |
+| `/plan-to-prompt` | 將 source plan 轉換為 execution prompt | `.dev/plans/<plan-slug>.prompt.md` |
+
+### Planning-stage review lanes
+
+這些是 capability，不是 GAL public command 名稱。
+
+| Lane | 用途 | 主要寫回 |
+| --- | --- | --- |
+| Business / Scope review | 調整 scope、ambition、價值排序 | plan `## Review Results`、`## Open Questions` |
+| Design review | 補齊 UX、state coverage、a11y、design-system fit | plan `## Review Results`、`## Open Questions` |
+| Engineering review | 補齊 architecture、test plan、tasks | plan `## Review Results`、`## Test Plan`、`## Tasks` |
+| Security review | 補齊 OWASP / STRIDE findings | plan `## Review Results`（security review） |
 
 ### 設計
 
@@ -228,6 +172,7 @@ gstack 支援 10–15 個平行 sprint：
 | --- | --- | --- |
 | `/investigate` | 根因優先的除錯流程，自動搭配 `/freeze` | plan debug session 或工作紀錄 |
 | `/review` | staff engineer 等級的 diff 審查 | plan `## Review Results`、`## Analyze` |
+| `/cso` | 資安審查與 findings 管理 | plan `## Review Results` 下的 security review |
 
 ### 瀏覽器與 QA
 
@@ -245,11 +190,8 @@ gstack 支援 10–15 個平行 sprint：
 | --- | --- | --- |
 | `/ship` | merge 前最終關卡：測試、PR、文件 | plan `## Ship` |
 | `/land-and-deploy` | 合併並驗證部署 | plan `## Deploy` |
-| `/canary` | 部署後監控 | `docs/benchmarks/` 或部署備注 |
-| `/benchmark` | 真實瀏覽器效能測量與基準比對 | `docs/benchmarks/` |
 | `/setup-deploy` | 建立 deploy config baseline | `CLAUDE.md` |
 | `/document-release` | 同步已發佈程式碼與文件 | repo docs、PR 補充內容 |
-| `/retro` | 工程回顧與 snapshot | `docs/retros/` |
 
 ### 記憶與守護
 
@@ -260,24 +202,23 @@ gstack 支援 10–15 個平行 sprint：
 | `/freeze` | 限制編輯範圍 | session only |
 | `/guard` | 同時啟用 careful 與 freeze | session only |
 | `/unfreeze` | 解除 freeze 邊界 | session only |
-| `/gstack-upgrade` | 更新 GAL command/skill 安裝 | local machine maintenance |
+| `/gstack-upgrade` | 委派到 upstream gstack 的升級 shim | local machine maintenance |
 
-每個指令的精確 reads / writes / plan sections 見 [../docs/gstack-command-contracts.md](../../docs/gstack-command-contracts.md)。
+每個指令與 lane 的精確 reads / writes / plan sections 見 [../../docs/gstack-command-contracts.md](../../docs/gstack-command-contracts.md)。
 
 ## Upstream gstack 語意映射
 
 這裡的「映射」不是宣稱 GAL 與 upstream gstack 完全等價，而是說使用者能在 GAL 中找到對應的 specialist workflow public surface，同時由 GAL 自己負責 state ownership、runtime 佈局與 control-plane 問題。
 
-### 指令對照
+### 能力對照
 
-| 指令 | upstream gstack 語意 | GAL 的實作差異 |
+| 能力 | upstream gstack 語意 | GAL 的實作差異 |
 | --- | --- | --- |
-| `/office-hours` | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
-| `/plan-eng-review` | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
+| Discovery-style feature planning | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
+| Engineering review lane | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
 | `/review` | staff diff review | `## Analyze` 成為 control plane 可讀的 drift verdict |
 | `/qa` | 執行 test plan 並回報結果 | `## Test Results` + `docs/qa-reports/` |
 | `/design-shotgun` | 視覺方向探索 | 資產路徑在 `docs/designs/` |
-| `/benchmark` | performance baseline | baseline 寫入 `docs/benchmarks/` |
 | `/learn` | session / sprint learnings | 儲存在 `.dev/learnings.jsonl` |
 
 ### Artifact 路徑對照
@@ -285,11 +226,10 @@ gstack 支援 10–15 個平行 sprint：
 | 用途 | upstream gstack | GAL |
 | --- | --- | --- |
 | source plan | `~/.gstack/projects/$SLUG/design.md` | `docs/plans/<plan-slug>.md` |
-| execution memory | 無明確對等 | `docs/plans/<plan-slug>.prompt.md` |
+| execution prompt | 無明確對等 | `.dev/plans/<plan-slug>.prompt.md` |
 | design variants | `~/.gstack/projects/$SLUG/designs/` | `docs/designs/<plan-slug>/` |
 | QA reports | `.gstack/qa-reports/` | `docs/qa-reports/` |
 | design reports | `.gstack/design-reports/` | `docs/design-reports/` |
-| benchmark baselines | 無明確對等 | `docs/benchmarks/` |
 | sprint learnings | `~/.gstack/projects/$SLUG/learnings.jsonl` | `.dev/learnings.jsonl` |
 
 ## Runtime 角色
@@ -307,7 +247,7 @@ gstack 支援 10–15 個平行 sprint：
 | 如果你要理解 | 讀這份 |
 | --- | --- |
 | 為什麼 GAL 不直接依賴 gstack | [../../docs/gstack-integration.md](../../docs/gstack-integration.md) |
-| 每個 command 的精確 reads / writes | [../../docs/gstack-command-contracts.md](../../docs/gstack-command-contracts.md) |
+| 每個 command 與 lane 的精確 reads / writes | [../../docs/gstack-command-contracts.md](../../docs/gstack-command-contracts.md) |
 | feature splitting 與 workflow 教學 | [../../docs/gstack-workflow-guide.md](../../docs/gstack-workflow-guide.md) |
 | `/gal` control plane 合約 | [../../docs/gal-control-plane-contracts.md](../../docs/gal-control-plane-contracts.md) |
 | dispatch、alias 與 script architecture | [../../docs/command-dispatch-architecture.md](../../docs/command-dispatch-architecture.md) |

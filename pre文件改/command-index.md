@@ -47,12 +47,9 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | `/planning` | 從使用者需求與對話上下文產出 source plan | `docs/plans/<plan-slug>.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/deep-planning` | 深化任何規劃文件為正式 plan（輸入不限 plan 格式） | `docs/plans/<plan-slug>.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/plan-to-prompt` | 將 source plan 轉換為 execution prompt（獨立指令） | `.dev/plans/<plan-slug>.prompt.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/office-hours` | 以單一 feature 為單位啟動 gstack-style 規劃流程 | `docs/plans/<plan-slug>.md`、`.dev/plans/<plan-slug>.prompt.md`、`## Open Questions` scaffold | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/plan-ceo-review` | 從創辦人視角調整 scope 與 ambition | plan `## Review Results`、`## Open Questions` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/plan-design-review` | 在實作前補齊 UX 與設計決策 | plan `## Review Results`、`## Open Questions` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/plan-eng-review` | 補齊 architecture、test plan、tasks，建立可建造的 plan | plan `## Review Results`、`## Test Plan`、`## Tasks` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/autoplan` | 串接 CEO → Design → Eng review | 同上三個 review 的所有輸出 | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/cso` | 資安審查與 findings 管理 | plan `## Review Results` 下的 security review | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
+
+Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public commands：business / scope review、design review、engineering review 會寫回同一組 canonical plan sections，並在有 gstack provider 時接入 upstream 能力。
 
 ### 設計
 
@@ -86,11 +83,8 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | --- | --- | --- | --- |
 | `/ship` | merge 前最終關卡：測試、PR、文件 | plan `## Ship` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/land-and-deploy` | 合併並驗證部署 | plan `## Deploy` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/canary` | 部署後監控 | `docs/benchmarks/` 或部署備注 | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/benchmark` | 真實瀏覽器效能測量與基準比對 | `docs/benchmarks/` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/setup-deploy` | 建立 deploy config baseline | `CLAUDE.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/document-release` | 同步已發佈程式碼與文件 | repo docs、PR 補充內容 | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/retro` | 工程回顧與 snapshot | `docs/retros/` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 
 ### 記憶與守護
 
@@ -111,12 +105,11 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 
 | 指令 | upstream gstack 語意 | GAL 的實作差異 |
 | --- | --- | --- |
-| `/office-hours` | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
-| `/plan-eng-review` | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
+| discovery-style feature planning | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
+| engineering review lane | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
 | `/review` | staff diff review | `## Analyze` 成為 control plane 可讀的 drift verdict |
 | `/qa` | 執行 test plan 並回報結果 | `## Test Results` + `docs/qa-reports/` |
 | `/design-shotgun` | 視覺方向探索 | 資產路徑在 `docs/designs/` |
-| `/benchmark` | performance baseline | baseline 寫入 `docs/benchmarks/` |
 | `/learn` | session / sprint learnings | 儲存在 `.dev/learnings.jsonl` |
 
 ### Artifact Path Quick Reference
@@ -128,17 +121,16 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | design variants | `~/.gstack/projects/$SLUG/designs/` | `docs/designs/<plan-slug>/` |
 | QA reports | `.gstack/qa-reports/` | `docs/qa-reports/` |
 | design reports | `.gstack/design-reports/` | `docs/design-reports/` |
-| benchmark baselines | 無明確對等 | `docs/benchmarks/` |
 | sprint learnings | `~/.gstack/projects/$SLUG/learnings.jsonl` | `.dev/learnings.jsonl` |
 
 完整 artifact ownership 與 plan section rules 請看 [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md)。
 
 ## gstack 風格工作流在 GAL 中的正確用法
 
-GAL 沿用 gstack 的一個核心假設：`/office-hours` 產出的 plan 應該是 per-feature，不是 per-product roadmap。
+GAL 沿用 gstack 的一個核心假設：discovery-style 規劃產出的 plan 應該是 per-feature，不是 per-product roadmap。
 
 - 大 plan 要由人先拆成可獨立交付的 feature。
-- `/plan-eng-review` 會拆 task 與 parallelization lane，不會把一個大 plan 拆成多個 plan。
+- engineering review lane 會拆 task 與 parallelization lane，不會把一個大 plan 拆成多個 plan。
 - `SCOPE REDUCTION` 是縮小當前 plan，不是自動生成新 plan。
 
 如果你要看完整的 labyrinth 範例、feature splitting 思路與手動審查路徑，直接看 [../docs/gstack-workflow-guide.md](../docs/gstack-workflow-guide.md)。

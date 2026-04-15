@@ -49,7 +49,7 @@ Entry to IMPLEMENT: **all required reviewers APPROVE**. If analyst is not in pac
 ## Typical Workflow (Single Developer)
 
 ```text
-1. `/office-hours` → Use a frontier-class model (interactive or async) to produce the initial plan
+1. `/planning` or `/deep-planning` → Use a frontier-class model (interactive or async) to produce the initial plan
 2. Plan reviews → Use different models for architect, design, or business critiques when practical
 3. IMPLEMENT → Use a standard coding agent — follow the approved plan
 4. TEST → Use a DIFFERENT model — feed it plan + public interfaces only; this is usually basic unit/integration coverage

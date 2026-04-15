@@ -101,6 +101,52 @@ ON_COMPLETE: <next-step hint>
 | golem-debugger | Utility | utility |
 | golem-scribe | Utility | utility |
 
+## Planning-Stage Review Lanes
+
+GAL keeps planning as a native command family and routes planning-stage review by lane, not by legacy command name.
+
+| Lane | Preferred Provider | Fallback Invocation | Canonical Write-Back |
+| --- | --- | --- | --- |
+| Business / Scope review | Upstream gstack business review provider when installed | `/gal golem-analyst` | `## Review Results` + `## Open Questions` |
+| Design review | Upstream gstack design review provider when installed | `/gal golem-designer` | `## Review Results` + `## Open Questions` |
+| Engineering review | Upstream gstack engineering review provider when installed | `/gal golem-architect` | `## Review Results` + `## Open Questions` + `## Test Plan` + `## Tasks` + `<!-- ENG_REVIEW: CLEAR -->` |
+
+Legacy gstack planning command names are not part of GAL's public command catalog. They survive only as provider semantics in integration contracts.
+
+## Design Execution
+
+These commands shape or implement design work before or during implementation. They are not the same as planning-stage design review lanes.
+
+| Command | Purpose | Phase |
+| --- | --- | --- |
+| `/design-consultation` | Establish or refine the repo-level design system in `DESIGN.md` | Project setup / design preparation |
+| `/design-shotgun` | Explore multiple visual variants before code is written | Design exploration |
+| `/design-html` | Convert an approved mockup into HTML or a framework component | Design engineering / implementation |
+
+## Post-Implementation Review And Audit
+
+These commands belong to the workflow review stage after code exists.
+
+| Command | Purpose | Phase |
+| --- | --- | --- |
+| `/review` | Paranoid staff diff review for correctness, completeness, and drift | Post-implementation review |
+| `/design-review` | Live UI audit against `DESIGN.md` for customer-facing changes | Post-implementation review |
+| `/cso` | OWASP and STRIDE security audit for auth, data, input, or public API changes | Post-implementation review |
+| `/qa`, `/qa-only` | Execute the test plan and verify behavior in the browser | Review / test stage |
+
+`/review` and `/design-review` are both workflow review-stage specialists. One audits the diff; the other audits the running product experience.
+
+## Session Safety
+
+These commands control risk for the current session. They are not planning lanes or review commands.
+
+| Command | Purpose | When to Prefer |
+| --- | --- | --- |
+| `/careful` | Warn before destructive commands | General risky work |
+| `/freeze` | Lock edits to a directory boundary | Focused refactors and debugging |
+| `/guard` | Enable `/careful` and `/freeze` together | Production systems, live data, shared risky config |
+| `/unfreeze` | Remove the current freeze boundary | After a bounded debug or refactor session |
+
 ## Source Files
 
 | File | Purpose |

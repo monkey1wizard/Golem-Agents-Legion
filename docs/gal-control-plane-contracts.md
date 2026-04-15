@@ -21,7 +21,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | Field | Value |
 | --- | --- |
 | **User question answered** | Where are we right now? |
-| **Reads** | `.dev/state.md` Active Plans index, then all active execution plan files (`docs/plans/<plan-slug>.prompt.md`: `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`) |
+| **Reads** | `.dev/state.md` Active Plans index, then all active execution plan files (`.dev/plans/<plan-slug>.prompt.md`: `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`) |
 | **Writes** | Nothing — read-only projection |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Active plans · Current position · Review & test status · Blockers · Session continuity · Specialist readiness |
@@ -32,7 +32,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 | Field | Value |
 | --- | --- |
 | **User question answered** | What do I do right now? |
-| **Reads** | `.dev/state.md` Active Plans index, then active execution plan `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes` |
+| **Reads** | `.dev/state.md` Active Plans index, then active execution plan `.dev/plans/<plan-slug>.prompt.md` `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes` |
 | **Writes** | Nothing — read-only recommendation |
 | **Dispatched via** | Direct skill procedure (no script) |
 | **Output** | Current position (one sentence) · Single next action (command or task) · File to open first |
@@ -64,7 +64,7 @@ It records the stable command surface and ownership boundaries only. Live/manual
 
 Skill activation is driven by **chat intent and runtime routing**, not by a static allowlist in `.dev/project.md`.
 
-The user invokes a skill by name (e.g., `/plan-eng-review`), and the installed skill file provides the full procedure.
+The user invokes a skill or lane entry point by name (for example, `/planning`, `/review`, or `/gal golem-architect`), and the installed skill file provides the full procedure.
 
 If capability gating is needed for skills with external dependencies (browser tools, deploy integrations, Obsidian vault access), this should be handled within the skill's own precondition checks, not by a centralized allowlist managed by the user.
 
@@ -72,20 +72,20 @@ If capability gating is needed for skills with external dependencies (browser to
 
 The `/gal` commands form the **control plane**: they read and write the repo's canonical state model, project workflow position, manage continuity, and recommend next actions.
 
-Specialist commands (e.g., `/review`, `/qa`, `/plan-eng-review`, `/ship`) form the **execution layer**: they perform coding workflow operations within the state established by the control plane.
+Specialist commands and provider-routed review lanes (for example, `/planning`, `/review`, `/qa`, `/ship`, or the engineering review lane) form the **execution layer**: they perform coding workflow operations within the state established by the control plane.
 
 A `/gal` command should never replicate specialist execution logic. A specialist command should always write its results back to the canonical artifacts that the control plane reads.
 
 | Layer | Commands | Writes To |
 | --- | --- | --- |
 | Control plane | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` | `.dev/state.md`, `### Handoff Notes` |
-| Specialist | `/office-hours`, `/plan-eng-review`, `/review`, `/qa`, `/ship`, etc. | Plan `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `## Status`, `.dev/state.md` blockers |
+| Specialist | `/planning`, `/deep-planning`, `/plan-to-prompt`, provider-routed review lanes, `/review`, `/qa`, `/ship`, etc. | Source plan doc, execution prompt sections, `.dev/state.md` blockers |
 
 ## Artifact Model
 
-When this document refers to "active plan file," it means the AI execution work file at `docs/plans/<plan-slug>.prompt.md`. This is the mutable artifact that carries `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`, and other per-task state sections.
+When this document refers to "active plan file," it means the AI execution work file at `.dev/plans/<plan-slug>.prompt.md`. This is the mutable artifact that carries `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, `### Handoff Notes`, and other per-task state sections.
 
-The human-readable source plan doc lives at `docs/plans/<plan-slug>.md`. Both files share the same `plan-slug` as their correlation key. The control plane reads the execution work file (`.prompt.md`) for state projection; it does not write to the source plan doc.
+The human-readable source plan doc lives at `docs/plans/<plan-slug>.md`. Both files share the same `plan-slug` as their correlation key. Planning workflows produce or refine the source plan first; `/plan-to-prompt` materializes the paired execution work file under `.dev/plans/`. The control plane reads the execution work file for state projection; it does not write to the source plan doc.
 
 If `.dev/state.md` is missing, the repo is uninitialized. If `.dev/state.md` exists but the active plan entry or the plan `## Status` section is malformed, that is a repo-state error, not an init case.
 

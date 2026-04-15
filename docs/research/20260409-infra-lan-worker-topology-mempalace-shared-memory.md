@@ -26,7 +26,7 @@
 - MemPalace README 顯示 Claude Code 有 plugin 與 hooks 路線，也可透過 MCP 使用其 19 個工具。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MemPalace README 將對話來源描述為 Claude、ChatGPT、Copilot 等 conversation exports / chat traces 都可以被 mine，但這不等於每個 runtime 都已有對等的 first-party auto-save integration。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MCP 只標準化 tool access，不保證 backend identity。只有在多個 runtime 最終都連到同一個 palace backend 時，它們才真的在讀寫同一份記憶；若每台機器各自使用自己的預設本地 palace path，記憶仍會分岔。這是 MemPalace local-first 設計的直接推論，不是 MCP 自動提供的能力。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
-- 以你目前的 infra plan 而言，GAL 已經明確要求 remote worker 不得維護第二套平行狀態系統，canonical workflow state 仍必須留在 `.dev/state.md` 與 plan prompt，而不是移到外部記憶庫。來源：[docs/plans/infra-lan-worker-topology.prompt.md](../plans/infra-lan-worker-topology.prompt.md) 與 [docs/per-repo-context.md](../per-repo-context.md)
+- 以目前的新架構而言，GAL 已明確要求 remote worker 不得維護第二套平行狀態系統；canonical workflow state 仍必須留在 `.dev/state.md` 與 `.dev/plans/<plan-slug>.prompt.md`，source plan 則留在 `docs/plans/<plan-slug>.md`。這些都不是外部記憶庫可以接管的對象。來源：[docs/remote-worker-architecture.md](../remote-worker-architecture.md)、[docs/per-repo-context.md](../per-repo-context.md) 與 [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
 
 ## Synthesis
 
@@ -56,6 +56,7 @@
 
 - MemPalace 可以成為 GAL 的 shared long-term memory sidecar。
 - 它不應成為 GAL 的 canonical workflow state。
+- 它也不應介入 source plan 與 execution prompt 的分工；前者是人類可讀計畫，後者是 `.dev/plans/` 下的可變 execution memory。
 - 它能幫 Gemini、VS Code Copilot、Codex 在同一台機器上共用外部記憶查詢層。
 - 它不能只靠 MCP 就自動解決多機共享記憶與一致寫入問題。
 
@@ -89,7 +90,7 @@ REVISE
 - 把「MCP 已安裝」直接等同於「shared memory 已成立」會高估設計完成度。
 - 把「VS Code Copilot」與「Copilot CLI」混為一談，會讓 runtime wiring 與支援矩陣失真。
 - 若沒有先定義 canonical MemPalace backend 的宿主與寫入政策，多機共享記憶只會變成多份 local palace 的並列存在。
-- 若讓 MemPalace 介入 `.dev/state.md`、plan prompt 或 remote task status，會直接撞上 GAL 已定義好的 canonical artifact model。
+- 若讓 MemPalace 介入 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、source plan 或 remote task status，會直接撞上 GAL 已定義好的 canonical artifact model。
 
 ### Warnings
 
@@ -104,7 +105,7 @@ REVISE
 2. 先支援 `vscode`、`gemini`、`codex` 三個 provider 的同一份 MemPalace MCP manifest；Claude 保持手動整合。
 3. 先採單一 canonical backend host，再讓各 runtime 連到同一 backend；不要先做 multi-writer network share。
 4. 定義 runtime write policy：Gemini、Codex 可寫；VS Code Copilot 先視為 read-first；Claude 另行管理。
-5. 明確禁止用 MemPalace 取代 `.dev/state.md`、`docs/plans/<plan-slug>.prompt.md`、`status.json`、`summary.md` 等 GAL 正式狀態與 runtime artifact。
+5. 明確禁止用 MemPalace 取代 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、`docs/plans/<plan-slug>.md`、`status.json`、`summary.md` 等 GAL 正式狀態與 runtime artifact。
 
 ## Recommended Next Step
 
@@ -121,7 +122,7 @@ REVISE
 - Repo docs: [docs/installation-topology.md](../installation-topology.md)
 - Repo docs: [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
 - Repo docs: [docs/per-repo-context.md](../per-repo-context.md)
-- Repo plan: [docs/plans/infra-lan-worker-topology.prompt.md](../plans/infra-lan-worker-topology.prompt.md)
+- Repo docs: [docs/remote-worker-architecture.md](../remote-worker-architecture.md)
 - Repo manifest: [mcp-servers.example.json](../mcp-servers.example.json)
 - Existing research style reference: [docs/research/lan-worker-feasibility.md](./lan-worker-feasibility.md)
 - MemPalace README: [github.com/milla-jovovich/mempalace](https://github.com/milla-jovovich/mempalace)

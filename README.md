@@ -5,7 +5,7 @@ English | [繁體中文](README.zh-Hant.md)
 GAL is a Markdown-native AI working system with two layers:
 
 - A `/gal` control plane for repo bootstrap, state inspection, next-action routing, wrap-up, and research
-- A gstack-style specialist command surface for planning, review, QA, release, memory, and guardrails
+- A specialist execution layer with a GAL-native planning family, provider-routed planning review lanes, QA, release, memory, and guardrails
 
 The point is not to preserve one tool's UX. The point is to keep the methodology, state model, and command contracts under your control while letting Copilot and Gemini execute the same workflow.
 
@@ -14,7 +14,7 @@ The point is not to preserve one tool's UX. The point is to keep the methodology
 GAL separates durable workflow knowledge from tool-specific adapters.
 
 - Knowledge lives in this repo as Markdown: workflows, agents, conventions, templates, and skills
-- Repo-local execution state lives in `.dev/` and `docs/plans/`
+- Repo-local execution state lives in `.dev/`, with source plans under `docs/plans/`
 - Tool adapters are generated outputs, not the source of truth
 
 This repo is not an application service. It is the canonical methodology and command surface.
@@ -38,7 +38,7 @@ GAL now uses a strict split between control plane and execution layer.
 | Layer | Responsibility | Commands |
 | --- | --- | --- |
 | Control plane | Bootstrap repo, read state, recommend next action, converge continuity, route research | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` |
-| Specialist execution | Plan, design, debug, review, QA, release, memory, guardrails | `/office-hours`, `/plan-eng-review`, `/review`, `/qa`, `/ship`, and the rest of the specialist catalog below |
+| Specialist execution | Plan, provider-routed planning reviews, design, debug, review, QA, release, memory, guardrails | `/planning`, `/deep-planning`, `/plan-to-prompt`, `/review`, `/qa`, `/ship`, and the rest of the specialist catalog below |
 
 `/gal` does not duplicate specialist behavior. Specialist commands write back to canonical artifacts that `/gal` reads.
 
@@ -51,14 +51,12 @@ These files are the durable state model.
 | `.dev/project.md` | Repo summary, stack, goals, constraints |
 | `.dev/state.md` | Active plan index, blockers, session continuity |
 | `docs/plans/<plan-slug>.md` | Human-readable source plan doc (scope, rationale, requirements) |
-| `docs/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, phase markers, execution status, write-back target |
+| `.dev/plans/<plan-slug>.prompt.md` | AI execution work file — mutable checklist, phase markers, execution status, write-back target |
 | `DESIGN.md` | Repo-level design governance (design system, not plan-specific) |
 | `CLAUDE.md` | Repo-local operational notes such as deploy config and design references |
 | `docs/designs/<plan-slug>/` | Plan-bound design assets: `variant-approved.json`, `variant-approved.png`, `handoff-final.html` |
 | `docs/qa-reports/` | QA reports: `YYYYMMDD-<plan-slug>.md` / `YYYYMMDD-<plan-slug>-report-only.md` |
 | `docs/design-reports/` | Design audit reports: `YYYYMMDD-<plan-slug>-rNN.md` |
-| `docs/benchmarks/` | Performance baselines: `YYYYMMDD-HHmmss-<url-slug>.json`, canary baselines: `canary-YYYYMMDD-HHmmss-<url-slug>.json` |
-| `docs/retros/` | Retro snapshots: `YYYYMMDD.json` |
 | `docs/research/` | Research notes: `YYYYMMDD-<plan-slug>-<topic>.md` |
 | `.dev/learnings.jsonl` | Repo-local institutional memory |
 
@@ -68,8 +66,8 @@ The execution work file (`.prompt.md`) contains three specialist-written section
 
 | Section | Written by | Consumed by | Purpose |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/office-hours` (initial), `/plan-ceo-review`, `/plan-design-review` (append), `/plan-eng-review` closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions, IDs `OQ-NNN` |
-| `## Tasks` | `/plan-eng-review` (sole initializer after Eng Review CLEAR), implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist, IDs `T-NNN` |
+| `## Open Questions` | `/planning` (initial scaffold), planning-stage review lanes append, engineering review lane closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions, IDs `OQ-NNN` |
+| `## Tasks` | Engineering review lane (sole initializer after Eng Review CLEAR), implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist, IDs `T-NNN` |
 | `## Analyze` | `/review` (sole writer, verdict: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN`) | `/ship`, `/gal status`, `/gal whats-next` | Drift check: did the diff stay within plan scope? |
 
 Consumers read these sections for display and routing — they do not recalculate or overwrite them.
@@ -95,15 +93,17 @@ Then, inside a target repo:
 ```text
 # Copilot / Gemini CLI (slash-command surface)
 /gal init
-/gal status
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 
 # Codex CLI (skill mention surface — $ prefix, not /)
 $gal init
-$gal status
-$office-hours
-$autoplan
+$planning
+$deep-planning
+$plan-to-prompt
+$gal whats-next
 ```
 
 There is no public `gal sync` step in the final model. Adapter generation is installation plumbing, not a user workflow.
@@ -151,8 +151,9 @@ The repo now includes game-asset workflow guidance in:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 
 # Then implement with the game asset skills:
 # - graphics-workflow
@@ -195,16 +196,18 @@ Inside the target Godot C# repo:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 ```
 
 If you are using Codex CLI instead of slash commands:
 
 ```text
 $gal init
-$office-hours
-$autoplan
+$planning
+$deep-planning
+$plan-to-prompt
 ```
 
 `/gal init` should detect a Godot C# repo from `project.godot` plus `*.csproj` and write that into `.dev/project.md`.
@@ -215,8 +218,9 @@ Use GAL like this for normal feature work:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
 
 # Then implement with the Godot skills and tools:
 # - godot-project-ops
@@ -264,8 +268,10 @@ Use the control plane like this:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 /gal pipeline        # iterates T-NNN tasks: implement → commit → test → review, final verifier
 /ship
 ```
@@ -274,8 +280,10 @@ Or if you prefer manual control:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 <implement>
 /review
 /qa
@@ -325,13 +333,12 @@ These commands implement the work layer directly. They do not route through `/ga
 
 ### Planning
 
-| Command | Purpose | Primary Writes |
+| Command or Lane | Purpose | Primary Writes |
 | --- | --- | --- |
-| `/office-hours` | YC-style sprint or feature kickoff that creates a new plan | New `docs/plans/<plan-slug>.md` + `.prompt.md`, `.dev/state.md`, initial `## Open Questions` |
-| `/plan-ceo-review` | Scope and ambition review from a founder perspective | Plan `## Review Results`, `## Open Questions` (scope OQs) |
-| `/plan-eng-review` | Architecture and test-plan gate, required before `/ship` | Plan `## Review Results`, `## Test Plan`, `## Tasks`, closes resolved `## Open Questions` |
-| `/plan-design-review` | Pre-implementation UX and design audit | Plan `## Review Results`, `## Open Questions` (design OQs) |
-| `/autoplan` | Chains CEO, design, and eng reviews with auto-decisions | Plan review sections and test plan |
+| `/planning` | Create or replace a human-readable source plan | `docs/plans/<plan-slug>.md`, `.dev/state.md` |
+| `/deep-planning` | Refine planning-stage material into a review-ready source plan | `docs/plans/<plan-slug>.md`, `.dev/state.md` |
+| `/plan-to-prompt` | Materialize the mutable execution prompt from a source plan | `.dev/plans/<plan-slug>.prompt.md`, `.dev/state.md` |
+| Business, design, and engineering review lanes | Provider-routed planning-stage reviews; use upstream gstack if installed, otherwise fallback golems via `/gal golem-analyst`, `/gal golem-designer`, `/gal golem-architect` | `## Review Results`, `## Open Questions`, and for engineering also `## Test Plan`, `## Tasks`, `<!-- ENG_REVIEW: CLEAR -->` |
 | `/cso` | OWASP plus STRIDE security review | Plan `## Review Results` |
 
 ### Design
@@ -366,11 +373,8 @@ These commands implement the work layer directly. They do not route through `/ga
 | --- | --- | --- |
 | `/ship` | Final pre-merge gate: tests, coverage, PR, docs | Plan `## Ship` |
 | `/land-and-deploy` | Merge and verify production deployment | Plan `## Deploy` |
-| `/canary` | Post-deploy monitoring against production | Baselines, optional plan note |
-| `/benchmark` | Real-browser performance measurement and comparison | `docs/benchmarks/`, optional plan `## Performance` |
 | `/setup-deploy` | One-time deploy configuration | `CLAUDE.md` |
 | `/document-release` | Updates docs to match shipped code | Repo docs, PR body |
-| `/retro` | Retrospective with repo metrics and snapshots | `docs/retros/` |
 
 ### Memory And Guardrails
 
@@ -389,8 +393,10 @@ These commands implement the work layer directly. They do not route through `/ga
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 /gal pipeline        # task-by-task: implement → commit → test → review (multi-vendor AI)
 /ship
 ```
@@ -399,8 +405,10 @@ Or step by step:
 
 ```text
 /gal init
-/office-hours
-/autoplan
+/planning
+/deep-planning
+/plan-to-prompt
+/gal whats-next
 <implement>
 /gal wrap-up
 /review
@@ -423,8 +431,6 @@ Or step by step:
 ```text
 /ship
 /land-and-deploy
-/canary
-/retro
 ```
 
 ## State Logic
@@ -434,16 +440,16 @@ The control plane works because specialist commands write predictable sections b
 | Section | Written By | Read By |
 | --- | --- | --- |
 | `## Review Results` | Review specialists | `/gal status`, `/gal whats-next` |
-| `## Test Plan` | `/plan-eng-review` | `/qa`, `/qa-only` |
+| `## Test Plan` | Engineering review lane | `/qa`, `/qa-only` |
 | `## Test Results` | `/qa`, `/qa-only` | `/gal status`, `/gal whats-next` |
 | `## Ship` | `/ship` | `/gal status`, `/gal whats-next`, `/land-and-deploy` |
-| `## Deploy` | `/land-and-deploy` | `/gal status`, `/canary` |
+| `## Deploy` | `/land-and-deploy` | `/gal status`, `/gal whats-next` |
 | `### Handoff Notes` | `/gal wrap-up` | `/gal status`, `/gal whats-next` |
 
 ### Troubleshooting State Detection
 
 - If `.dev/state.md` is missing, the repo is not initialized yet.
-- If `.dev/state.md` exists, GAL should read the active workflow from `docs/plans/<plan-slug>.prompt.md` `## Status`.
+- If `.dev/state.md` exists, GAL should read the active workflow from `.dev/plans/<plan-slug>.prompt.md` `## Status`.
 - If GAL cannot project state even though `.dev/state.md` exists, treat that as a malformed state issue, not a signal to re-run `/gal init`.
 
 ### Troubleshooting Duplicate Skills In VS Code
@@ -467,7 +473,7 @@ The control plane works because specialist commands write predictable sections b
 ~/golem-agents-legion/     canonical methodology and command source
 <repo>/.dev/              repo-local state and continuity
 docs/plans/<slug>.md      human-readable source plan doc
-docs/plans/<slug>.prompt.md  AI execution work file (mutable state)
+.dev/plans/<slug>.prompt.md  AI execution work file (mutable state)
 mcp-servers.example.json  tracked MCP source of truth
 mcp-servers.local.json    local MCP enable/override layer (gitignored)
 ~/.copilot/skills/        installed Copilot skills
@@ -511,8 +517,8 @@ Optional external CLIs such as OpenCLI or Defuddle remain skill-layer dependenci
 | --- | --- |
 | [docs/ai-agent-onboarding.md](docs/ai-agent-onboarding.md) | Reading order for AI agents and maintainers |
 | [docs/gal-control-plane-contracts.md](docs/gal-control-plane-contracts.md) | Canonical `/gal` read/write contracts |
-| [docs/gstack-integration.md](docs/gstack-integration.md) | Why GAL reimplements gstack semantics natively |
-| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | Implementation blueprint for specialist skills |
+| [docs/gstack-integration.md](docs/gstack-integration.md) | How GAL routes optional gstack providers without exposing duplicate public commands |
+| [docs/gstack-command-contracts.md](docs/gstack-command-contracts.md) | Provider and specialist implementation blueprint |
 | [docs/godot-mcp-setup.md](docs/godot-mcp-setup.md) | Recommended Godot C# MCP stack and tool-selection guide |
 | [docs/godot-external-knowledge.md](docs/godot-external-knowledge.md) | Official Godot C# references and source-of-truth links |
 | [docs/runtime-verification.md](docs/runtime-verification.md) | Live/manual verification status for commands and execution-plane behavior |

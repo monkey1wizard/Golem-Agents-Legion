@@ -124,14 +124,14 @@ This repo follows its own methodology.
 Changes to GAL itself are tracked using two complementary artifact types:
 
 - **Source plan doc** — `docs/plans/<plan-slug>.md`: the human-readable plan with scope, rationale, and requirements. This is what a human reads to understand what a change does and why.
-- **AI execution work file** — `docs/plans/<plan-slug>.prompt.md`: the mutable working artifact the agent operates against. It carries per-task checklists, execution state, `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, and `### Handoff Notes`. This is the canonical state vector that `/gal status` reads.
+- **AI execution work file** — `.dev/plans/<plan-slug>.prompt.md`: the mutable working artifact the agent operates against. It carries per-task checklists, execution state, `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, and `### Handoff Notes`. This is the canonical state vector that `/gal status` reads.
 
-Both files share the same `plan-slug` as their correlation key. Specialist commands write back to the `.prompt.md` file. The source plan doc `.md` is not modified by specialist commands after creation.
+Both files share the same `plan-slug` as their correlation key. Specialist commands write back to the execution prompt in `.dev/plans/`. The source plan doc `.md` is not modified by specialist commands after creation.
 
 The three specialist-owned execution sections have explicit ownership rules:
 
-- `## Open Questions` — initialized by `/office-hours`, appended by `/plan-ceo-review` and `/plan-design-review`, closed by `/plan-eng-review`
-- `## Tasks` — initialized only by `/plan-eng-review`; implementation updates completion state only
+- `## Open Questions` — scaffolded by `/planning`, appended by planning-stage review lanes, closed only by the engineering review lane
+- `## Tasks` — initialized only by the engineering review lane; implementation updates completion state only
 - `## Analyze` — written only by `/review`; downstream commands consume the verdict and do not recalculate it
 
 When reading a plan in this repo, interpret it as:

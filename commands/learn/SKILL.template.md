@@ -14,7 +14,7 @@ Institutional memory keeper. Make sure what was learned is not re-learned.
 ## When to Use
 
 - After a difficult debugging session to record what was discovered
-- After `/retro` to promote key insights to permanent learnings
+- After `/ship`, `/land-and-deploy`, or another high-signal workflow checkpoint to preserve reusable lessons
 - When you want to search what was learned before making a recommendation
 - Periodically to prune stale entries
 
