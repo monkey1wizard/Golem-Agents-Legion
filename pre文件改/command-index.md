@@ -1,6 +1,6 @@
 # 指令索引
 
-這份文件是 GAL 的主要 command index。GAL 有 GAL-native 的規劃 workflow family（`/planning`、`/deep-planning`、`/plan-to-prompt`），以及洵蓋完整開發生命週期的 specialist commands。gstack 是可插拔的 specialist provider——安裝後能提升 planning review 品質，但不是 GAL 的核心依賴。
+這份文件是 GAL 的主要 command index。GAL 有 GAL-native 的規劃 workflow family（`/planning`、`/deep-planning`、`/plan-to-prompt`），以及涵蓋完整開發生命週期的 specialist commands。gstack 是可插拔的 specialist provider——安裝後能提升 planning review 品質，但不是 GAL 的核心依賴。
 
 - 如果你想知道「現在應該跑哪個指令」，先看這份。
 - 如果你想知道「某個指令精確讀寫哪些 artifacts」，再往下跳到 [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md)。
@@ -33,6 +33,7 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | `/gal whats-next` | 下一步做什麼？ | 讀 state、review/test/ship/deploy 狀態 | [../docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) |
 | `/gal wrap-up` | 怎麼乾淨地結束這次 session？ | 收斂 `### Handoff Notes` 與 continuity | [../docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) |
 | `/gal research` | 怎麼進入結構化研究？ | 依 skill 路由研究工作流 | [../docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) |
+| `/gal pipeline` | 怎麼逐 task 自動推進實作、測試、審查與驗證？ | 讀活動 plan、`## Tasks`、`## Test Plan` 與 model routing，回寫 plan 狀態 | [../docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) |
 
 如果你要看 `/gal` 的 dispatch、alias 與 script contract，不在這份文件展開，直接看 [../docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md)。
 

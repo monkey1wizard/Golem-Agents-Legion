@@ -47,6 +47,11 @@
 - 如果某份文件只是幫人找路，就不要把完整 spec 再抄寫一遍。
 - 摘要應該用來導讀與縮短跳轉，不應該創造另一份需要同步維護的版本。
 
+### 7. Provider routing 應留在 workflow 層
+
+- 不要做成「某個 agent 偵測到 gstack 或其他 provider 後，就自己切換人格、流程或 contract」。
+- formal workflow 先決定 provider，再由 provider 產出內容，最後回寫到同一組 canonical artifacts。
+
 ## 資訊應該寫在哪裡
 
 | 資訊類型 | 正確位置 |
@@ -96,6 +101,7 @@
 - specialist commands 是否仍然回寫到 canonical artifacts？
 - 有沒有把 repo-local state 推回 user-global path？
 - 有沒有把工具缺失誤當成成功？
+- 有沒有把 provider routing 偷綁進 agent persona、單一工具偵測或 runtime 特例？
 - README、devguide、command index 是否各自維持單一明確角色？
 - 新增或搬移的內容是否有正式落點與可用連結？
 

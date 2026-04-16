@@ -54,6 +54,8 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 | **researcher** | 本地優先的研究與結構化綜合，帶有 source attribution |
 | **librarian** | Obsidian vault 寫入——inbox processing、知識萃取 |
 
+當 domain agents 需要落成正式 artifact 時，落點是固定的：architect 的正式輸出落在 plan 內，沿用 GSD-style code architecture 結構；designer 的正式輸出落在 `docs/design/`，必要時同步更新 `DESIGN.md`，沿用 gstack-style visual / experience design 結構；analyst 的正式輸出落在 `docs/research/`，沿用 gstack-style business-analyst 結構。
+
 ### Pipeline Agents
 
 Pipeline 是 GAL 的自動化執行核心。`/gal pipeline` 逐 task 串接四個 agent：

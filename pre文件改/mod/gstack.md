@@ -7,6 +7,13 @@ gstack 安裝後（`~/gstack`），這個模組主要提供兩層增強能力：
 1. 進階規劃 provider：discovery-style feature planning、business/design/engineering review lanes，以及 full planning review pipeline provider。這層是可選增強，不是唯一規劃路徑。
 2. Specialist 執行指令：`/review`、`/qa`、`/ship`、`/design-review` 等指令遵循 write-back discipline，把結果回寫到 GAL 的 canonical artifacts。這些指令不依賴規劃層。
 
+另外要分清楚兩層偵測：
+
+- 安裝存在性：機器上是否有受支援的 gstack 安裝（例如 `~/gstack`）。
+- provider artifact readiness：目前 repo / branch 是否已有足夠的 review artifacts 可供 formal workflow 採用。
+
+GAL 需要兩層都分開判斷；不能用 `.gstack` 或單一 artifact 存在與否，去取代完整的 provider contract 判斷。
+
 ## GAL 與 gstack 的關係
 
 GAL 取用的是 gstack 的 workflow semantics，作為 optional provider 接入，而不是依賴 upstream runtime 作為核心依賴。
@@ -16,6 +23,8 @@ GAL 取用的是 gstack 的 workflow semantics，作為 optional provider 接入
 - GAL 的目標是 tool-agnostic methodology，而不是把控制權外包給某個外部工具安裝。
 
 做法是：維持 GAL-native 的 planning 與 execution command surface，並以 provider routing 讓 gstack 的規劃與審查能力在有安裝時接入 GAL 的 canonical artifacts。
+
+provider routing 發生在 workflow 層，不直接綁在單一 agent 身上。也就是說，GAL 不做成「agent 偵測到 gstack 就切換人格或流程」，而是先由 formal workflow 決定這次要走 upstream provider 還是 GAL-native fallback，再把結果回寫到同一組 canonical sections。
 
 記住三件事：
 
@@ -115,11 +124,13 @@ provider 不會把一個 product roadmap 自動拆成多個 feature plan。若�
 - 自動路徑：full planning review provider 依序跑 business、design、engineering review。
 - 手動路徑：分別跑三條 planning-stage review lanes，每步都保留人工介入空間。
 
+template 與 contract 也刻意分流：visual / experience design 與 business scope 的輸出骨架，優先沿用 gstack-style specialist artifact；formal gate / verdict contract 與 code architecture 則保留 GSD-style。GAL 接的是 upstream 能力，不是整套上游格式的全盤繼承。
+
 其中 engineering review lane 會補齊 build readiness、test matrix、task breakdown 與 parallelization strategy。它拆的是「一個 feature 內的實作步驟」，不是把一個大 plan 拆成多個 plan。
 
 #### 4. 實作與收尾
 
-審查完成後，plan 內會有具體 task list。之後可用 `/gal-pipeline` 自動逐 task 執行，或手動一個一個做。
+審查完成後，plan 內會有具體 task list。之後可用 `/gal pipeline` 自動逐 task 執行，或手動一個一個做。
 
 每個 task: implement → test → review → commit。
 
@@ -241,6 +252,14 @@ gstack 支援多個平行 sprint，但前提仍是 feature 粒度清楚：
 | Codex CLI | 與 Copilot / Gemini 共用同一套 artifact contract，但用 `$` 作為 command 入口 |
 
 這三者共享的是 artifacts 與 contracts，不是完全對稱的 host 能力。
+
+## 相關文件
+
+- [readme.zh-Hant.md](../readme.zh-Hant.md) — GAL 使用者入口
+- [command-index.md](../command-index.md) — control plane 與 specialist commands 索引
+- [../../docs/gstack-integration.md](../../docs/gstack-integration.md) — gstack provider 偵測、artifact readiness 與 project-scoped contract
+- [../../docs/gstack-command-contracts.md](../../docs/gstack-command-contracts.md) — 每個 command 與 lane 的精確 reads / writes / plan sections
+- [../../docs/gstack-workflow-guide.md](../../docs/gstack-workflow-guide.md) — upstream gstack workflow reference
 
 ## 深入閱讀
 
