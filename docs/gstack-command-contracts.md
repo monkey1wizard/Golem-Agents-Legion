@@ -126,9 +126,9 @@ Specialist: Source Plan To Execution Prompt
 | **Role** | Artifact materializer |
 | **Mode** | Deterministic transform |
 | **Input reads** | `docs/plans/<plan-slug>.md` |
-| **Operation** | Copies the canonical source plan into the execution prompt skeleton, creates `.dev/plans/<plan-slug>.prompt.md`, and preserves the source plan as human-readable reference. |
+| **Operation** | Rebuilds `.dev/plans/<plan-slug>.prompt.md` from `templates/plan-prompt.md` using the source plan as semantic input. The template owns section order and scaffold shape; if the source plan contains drifted execution-style sections, the materializer salvages their content into the matching canonical sections instead of mirroring the non-canonical layout. Honor an explicit user-requested output language; otherwise preserve the source-plan language for copied prose. |
 | **Output artifacts** | `.dev/plans/<plan-slug>.prompt.md` |
-| **State written to plan** | Initializes `## Status`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Plan`, `## Test Results`, and `### Handoff Notes` scaffolds in the execution prompt |
+| **State written to plan** | Initializes the canonical execution-prompt scaffolds for `## Status`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Plan`, `## Test Results`, and `### Handoff Notes`, while preserving existing mutable state on refresh unless the user asked for a reset |
 | **Control-plane hook** | Updates `.dev/state.md` Active Plans so the `File` column points at the execution prompt once it exists |
 | **GAL deviation from gstack** | GAL makes prompt materialization explicit instead of coupling it to first-pass planning. |
 | **Feeds into** | Business review lane, design review lane, engineering review lane |
