@@ -45,7 +45,7 @@ If this is a Godot C# repo, record the split explicitly:
 
 ## Protected Paths
 
-- [path/or/file] — [why touching this should escalate to T2]
+- [path/or/file] — [why touching this should force a return to /deep-planning before implementation continues]
 
 ## Key Decisions
 

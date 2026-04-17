@@ -6,8 +6,11 @@
 
 - `/planning`
 - `/deep-planning`
+- business / design / engineering review lanes
 - `/plan-to-prompt`
 - `/gal whats-next`
+
+在 GAL 的正確順序裡，`/plan-to-prompt` 應放在 planning-stage review 完成之後、`/gal pipeline` 之前。
 
 只有在 provider routing 判定要走 upstream gstack 時，這份文件中的 skill 名稱才有意義。
 

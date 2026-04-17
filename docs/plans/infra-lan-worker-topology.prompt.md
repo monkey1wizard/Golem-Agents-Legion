@@ -6,14 +6,11 @@
 
 本計畫的重點不是單純「能 SSH 到另一台機器」，而是把多台設備的責任邊界定清楚：哪類任務應留在主機、哪類任務可 offload 到 burst worker、哪類任務應交給 always-on endpoint。
 
-## Tier
+## Planning Notes
 
-T2
-
-## Review Pack
-
-- architect-full
-- reviewer
+- This plan predates the current planning model.
+- Architect review was part of pre-implementation planning.
+- Additional implementation review was requested for this plan.
 
 ## Requirements
 

@@ -32,19 +32,17 @@ Default principle: formal cross-checks should use a different model from the one
 8. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
 9. When switching tools, update the **Current Mapping** table below only
 
-## Review Pack Rules (Full Review)
+## Planning Review Rules
 
-The Strategic review pack has a fixed core plus conditional specialists:
+`/deep-planning` is the default architect-reviewed planning pass before prompt materialization.
 
 | Reviewer | When Included | Verdict Required? |
 | --- | --- | --- |
-| **Architect-full** | Always | Yes — APPROVE required |
-| **DESIGNER** | Always | Yes — APPROVE required |
-| **Analyst** | Business rules, pricing, permissions, customer-visible changes | Yes — when included |
-| **Reviewer** | Large implementation, security-sensitive code | Yes — when included |
-| **Debugger** | Complex integration, known fragile areas | Advisory only |
+| **ARCHITECT** | Every `/deep-planning` pass | Yes — review required before `/plan-to-prompt` |
+| **ANALYST** | Business rules, pricing, permissions, customer-visible logic | Yes — when included |
+| **DESIGNER** | Customer-facing flows, layout, states, component systems, accessibility-sensitive work | Yes — when included |
 
-Entry to IMPLEMENT: **all required reviewers APPROVE**. If analyst is not in pack, analyst approval not needed.
+Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
 ## Typical Workflow (Single Developer)
 

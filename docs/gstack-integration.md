@@ -14,7 +14,7 @@
 
 ## 核心結論
 
-- GAL 保留自己的 control plane 與 planning public surface：`/planning`、`/deep-planning`、`/plan-to-prompt`
+- GAL 保留自己的 control plane 與 planning public surface：`/planning`、`/deep-planning`，以及在 implementation 前才執行的 `/plan-to-prompt`
 - gstack 是 optional specialist provider，不是 GAL 的 public command surface
 - planning-stage review 在 GAL 內以 **review lanes** 表達，不以 upstream command 名稱表達
 - upstream gstack skill 名稱只存在於 provider routing 與 integration contract 中
@@ -38,7 +38,7 @@
 | 類型 | Surface |
 | --- | --- |
 | Control plane | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` |
-| Planning family | `/planning`, `/deep-planning`, `/plan-to-prompt` |
+| Planning family | `/planning`, `/deep-planning`, planning-stage review lanes, `/plan-to-prompt` |
 | Other specialist commands | `/review`, `/qa`, `/ship`, `/design-review` 等 GAL-native skills |
 
 ### Layer B: Planning Review Lanes
@@ -47,13 +47,13 @@
 
 | Lane | 用途 | Canonical write-back |
 | --- | --- | --- |
-| Business / Scope review | 檢查價值、範圍與優先順序 | `## Review Results` + `## Open Questions` |
-| Design review | 檢查 UX、state coverage、a11y、design-system fit | `## Review Results` + `## Open Questions` |
-| Engineering review | 檢查 architecture、test matrix、build readiness | `## Review Results` + `## Open Questions` + `## Test Plan` + `## Tasks` + `<!-- ENG_REVIEW: CLEAR -->` |
+| Business / Scope review | 檢查價值、範圍與優先順序 | source plan `## Review Results` + `## Open Questions` |
+| Design review | 檢查 UX、state coverage、a11y、design-system fit | source plan `## Review Results` + `## Open Questions` |
+| Engineering review | 檢查 architecture、test matrix、build readiness | source plan `## Review Results` + `## Open Questions` + `## Test Plan` + `## Tasks` + `<!-- ENG_REVIEW: CLEAR -->` |
 
 ### Layer C: Provider Routing
 
-provider routing 發生在 workflow 層，而不是在 planning family 內直接寫死 gstack command 名稱。
+provider routing 發生在 workflow 層，而不是在 planning family 內直接寫死 gstack command 名稱。這些 review lanes 應被視為 specialized deep-planning passes，先寫回 source plan，再由 `/plan-to-prompt` 轉成 execution prompt。
 
 | Review lane | Preferred provider when gstack is installed | Fallback when gstack is absent |
 | --- | --- | --- |
@@ -145,7 +145,7 @@ GAL 的 execution prompt 仍然維持自己的 section ownership：
 - `## Tasks`：只由 engineering review lane 初始化
 - `## Analyze`：只由 `/review` 寫入
 
-所以即使 provider 換了，`/gal status` 與 `/gal whats-next` 看的仍是同一組 canonical sections。
+所以即使 provider 換了，`/gal status` 與 `/gal whats-next` 在 materialization 前後看的仍是同一套 canonical semantics：先看 source plan 的 planning-stage sections，materialization 後再看 execution prompt 的對應 sections。
 
 ## 結論
 
@@ -154,7 +154,7 @@ GAL 與 gstack 的整合方式不是共用 command surface，而是：
 1. GAL 保留自己的 control plane 和 planning family
 2. planning-stage reviews 以 lane 表達
 3. lane 在 workflow 層決定要走 upstream gstack skill 還是 fallback golem
-4. 結果一律回寫到 GAL canonical artifacts
+4. 結果先回寫到 source plan，完成 review 後再由 `/plan-to-prompt` 轉進 execution prompt
 
 這樣才同時避免重複 commands、保留 provider 能力、又不失去 control-plane 可讀性。
 

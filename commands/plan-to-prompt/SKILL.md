@@ -33,6 +33,7 @@ Never conclude that a plan is already materialized from `.dev/state.md` alone.
 ## Step 1 — Find the Source Plan
 
 Look for the source plan in this order:
+
 1. `docs/plans/<slug>.md`
 2. `<slug>.md` at the repo root
 3. Search the repo for a file matching `*<slug>*.md` (excluding `.dev/` and any existing `.prompt.md`)
@@ -61,8 +62,6 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 -->
 
 ## Goal
-## Risk Weight
-## Review Pack
 ## Requirements
 ## Approach
 ## Files to Create or Modify
@@ -77,7 +76,7 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 ## Analyze
 ## Test Plan
 ## Test Results
-## Review Results  (with ### Business Review, ### Design Review, ### Engineering Review)
+## Review Results  (with ### Architecture Review, ### Business Review, ### Design Review, ### Engineering Review)
 ## Debug Log
 ```
 
@@ -93,12 +92,13 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 - `## Status`, `## Analyze`, `## Test Results`, `### Deviations`, `### Handoff Notes` are mutable execution-state sections. Initialize them from the template scaffold unless refreshing an existing prompt whose progress should be preserved.
 - `## Open Questions` — carry forward existing `OQ-NNN` items. Format: `- [ ] OQ-NNN — description *(raised by: source)*`
 - `## Review Results`, `## Test Plan`, and `## Tasks` may carry forward existing planning-stage content when it belongs in the canonical matching section.
+- Carry forward architecture review content from the source plan into `## Review Results > ### Architecture Review` and `## Approval > Architect review`.
 
 ### Status Section Scaffold
 
 Initialize `## Status` as:
 
-```
+```text
 Workflow: DRAFT
 Step: 0 of N
 Last activity: YYYY-MM-DD — prompt materialized from source plan

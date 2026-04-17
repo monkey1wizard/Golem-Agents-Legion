@@ -37,9 +37,16 @@ GAL 的核心是 11 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 
 | 分類 | 啟動方式 | 成員 |
 | --- | --- | --- |
-| **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、reviewer、verifier |
 | **Utility** | 任何時候直接呼叫 | debugger、scribe |
 | **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、librarian |
+| **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、reviewer、verifier |
+
+### Utility Agents
+
+| Agent | 職責 |
+| --- | --- |
+| **debugger** | 科學方法 bug 調查：假說、驗證、根因確認後才修 |
+| **scribe** | 每日工作日記 + 宵禁系統執行者 |
 
 ### Domain Agents
 
@@ -71,41 +78,34 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> ✓ commit
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
-| **implementer** | 讀取 plan spec，產出 code + atomic commit | 遵守 scope fence（Trivial/Standard 有禁止清單） |
+| **implementer** | 讀取 plan spec，產出 code + atomic commit | 遇到架構邊界變更時，必須停下來回到 `/deep-planning` |
 | **tester** | 從 spec 與 public API 寫測試，不讀實作 | 必須與 implementer 使用不同模型 |
 | **reviewer** | Staff engineer 等級的 diff 審查 | 應與 implementer 不同模型，能力不應弱於 implementer |
 | **verifier** | Goal-backward 驗證 + plan lifecycle ending | 抽取知識到 `docs/`，標記 plan 可關閉 |
 
-### Utility Agents
+## Planning Review
 
-| Agent | 職責 |
-| --- | --- |
-| **debugger** | 科學方法 bug 調查：假說、驗證、根因確認後才修 |
-| **scribe** | 每日工作日記 + 宵禁系統執行者 |
-
-### 審查包組裝
-
-Strategic weight 使用 composable review pack——按 task 需求組裝，不是固定的所有人都要看：
+`/deep-planning` 會先做 architect review，確認 plan 在進入 `/plan-to-prompt` 之前已經過架構面的挑戰與收斂。
 
 | 角色 | 何時加入 |
 | --- | --- |
-| Architect | 永遠加入（Strategic 為 full，Standard 為 lite） |
-| Designer | 永遠加入（無 UI 面向時回報 no-impact verdict） |
+| Architect | 每次 `/deep-planning` 都會加入 |
+| Designer | 只在 plan 牽涉 customer-facing flow、layout、states、components 或 accessibility 時加入 |
 | Analyst | 只在涉及商業邏輯、定價、權限或客戶可見變更時 |
-| 其他（reviewer、debugger） | 視 task 類型決定 |
+| 其他（reviewer、debugger） | 屬於實作後或除錯階段的 specialist，不是 deep-planning 預設 reviewer |
 
-進入 IMPLEMENT 需要 pack 內所有成員 APPROVE。Analyst 不在 pack 內就不需要 analyst 批准。
+進入 `/plan-to-prompt` 前，architect review 必須先完成。Analyst 或 designer 只有在這次 plan 真的需要時才加入。
 
-### 模型角色強制
+### AI 模型與 Agent 規則
 
-跨模型驗證是 GAL 的預設護欄：
+GAL 有預設必須更換模型來進行審核與測試，規則如下：
 
-- **Tester 必須與 implementer 使用不同模型**——獨立驗證
-- **Reviewer 應與 implementer 不同**——新鮮視角
-- **Reviewer 的能力不應弱於 implementer**——要能 review 得動
-- **規劃作者與 architect 應盡量不同**——cross-check plan
+- **Tester 必須與 implementer 使用不同模型**
+- **Reviewer 應與 implementer 不同**
+- **Reviewer 的能力不應弱於 implementer**
+- **規劃作者與 architect 應盡量不同**
 
-模型映射在 `model-roles.local.md` 中設定。
+上述規則在 `model-roles.local.md` 中設定。
 
 ### 直接呼叫 vs Pipeline 呼叫
 
@@ -139,19 +139,27 @@ Strategic weight 使用 composable review pack——按 task 需求組裝，不�
 
 ## 開發工作流
 
-GAL 的開發工作流是 artifact-driven 的：控制平面讀取 plan artifacts 裡的 markdown sections 來判定狀態，不依賴特定的規劃指令。
+```text
+init -> planning
+          |
+          v
+     deep-planning 與 business/design/engineering review
+          |
+          v
+      plan-to-prompt -> gal-pipeline
+```
 
-### Risk Weight
+### 何時使用 `/deep-planning`
 
-不是每個變更都需要同樣的流程。Risk weight 決定啟用多少護欄：
+GAL 不再用舊的分級式風險系統來決定流程。現在的規則比較直接：
 
-| Weight | 適用場景 | 流程 | 需要 plan？ |
-| --- | --- | --- | --- |
-| **Trivial** | Typo 修正、明顯 bug、單檔編輯 | 直接實作 → 可選 review/QA | 不需要 |
-| **Standard** | 小功能、已知原因的 bug fix、2–3 檔 | Plan（輕量）→ 實作 → `/review` → `/qa` → `/ship` | 輕量 plan |
-| **Strategic** | 新 feature、架構變更、高風險、跨模組 | Plan（完整）→ review pack → 實作 → `/review` → `/qa` → `/ship` | 完整 plan |
+| 情境 | 建議流程 | architect |
+| --- | --- | --- |
+| 明顯且局部的修正 | 直接實作 → 可選 `/review` / `/qa` | 可選諮詢 |
+| 範圍清楚的小功能或已知原因 bug | `/planning` → `/plan-to-prompt` → 實作 | 可選諮詢 |
+| 牽涉共享結構、dependency、public API、protected path，或架構上還不夠確定 | `/planning` → `/deep-planning` → `/plan-to-prompt` → 實作 | `/deep-planning` 內必跑 architect review |
 
-**升級規則**：任何變更可以在進行中升級到 Strategic。停下來、完善 plan、啟用完整 review pack。
+如果實作過程中才發現有架構不確定性，就停止實作，回到 `/deep-planning`。
 
 ### Execution Lifecycle
 
@@ -163,11 +171,9 @@ GAL 的開發工作流是 artifact-driven 的：控制平面讀取 plan artifact
 | Code review 與 QA | 實作到達有意義的 checkpoint | `/review`、`/qa` | `## Analyze`、`## Review Results`、`## Test Results` |
 | 收尾或發佈 | 工作暫停或準備合併 | `/gal wrap-up`、`/ship`、`/land-and-deploy` | `### Handoff Notes`、`## Ship`、`## Deploy` |
 
-### Scope Fence
+### 架構升級規則
 
-Trivial 與 Standard weight 缺少完整 review pack，為防止意外的架構損傷，有兩層防禦：
-
-**Layer 1 — Implementer Scope Fence**：implementer 的指令集包含禁止操作清單。觸發任何項目必須停下來請求升級到 Strategic：
+如果實作過程需要碰到下列結構性變更，implementer 必須停下來，回到 `/deep-planning`：
 
 - 建立或刪除專案檔（`.csproj`、`package.json` 等）
 - 新增或移除 package dependency
@@ -176,11 +182,9 @@ Trivial 與 Standard weight 缺少完整 review pack，為防止意外的架構�
 - 修改 DI registration 或 service composition
 - 修改被 2+ consumer 使用的 public API signature
 
-**Layer 2 — Standard Mandatory Reviewer**：Standard 的 reviewer 是必要的（不是可選），但只檢查 correctness + architecture 兩個維度。
-
 ### Protected Paths
 
-每個 repo 的 `.dev/project.md` 包含 `## Protected Paths`，列出架構關鍵檔案。Trivial 或 Standard 工作觸碰 protected path 會自動觸發 Strategic 升級。
+每個 repo 的 `.dev/project.md` 包含 `## Protected Paths`，列出架構關鍵檔案。只要工作觸碰到 protected path，就應先回到 `/deep-planning` 再繼續。
 
 ### Plan Lifecycle
 

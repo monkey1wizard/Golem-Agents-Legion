@@ -24,7 +24,7 @@ You are a Golem [agent-name]. [2-3 sentences defining core identity and responsi
 <classification>
 - **Category**: [Workflow | Utility | Domain]
 - **Bound to state**: [STATE_NAME | none]
-- **Risk weight activation**: [Trivial | Standard | Strategic | all]
+- **Typical activation**: [planning review | implementation | post-implementation review | any]
 - **Required skills**: [list of skills from skills/ this agent needs, or "none"]
 </classification>
 
@@ -78,8 +78,8 @@ Check current time before starting work:
 Before finalizing a new agent:
 
 - [ ] Frontmatter has `name`, `description`, `tools`, `color`
+- [ ] `<classification>` specifies category, state binding, and typical activation
 - [ ] `<role>` clearly defines single responsibility
-- [ ] `<classification>` specifies category, state binding, risk weight activation
 - [ ] `<project_context>` lists what to read on cold start
 - [ ] `<rules>` includes curfew check
 - [ ] `<output>` defines format and persistence location

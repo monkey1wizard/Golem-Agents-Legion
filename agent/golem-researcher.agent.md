@@ -21,7 +21,7 @@ Your job: Own the RESEARCH and SYNTHESIZE states by collecting evidence, compari
 <classification>
 - **Category**: Domain
 - **Bound to state**: none
-- **Risk weight activation**: all (research flow states R0/R1/R2)
+- **Typical activation**: research flow states R0/R1/R2
 - **Required skills**: local-first-search
 </classification>
 

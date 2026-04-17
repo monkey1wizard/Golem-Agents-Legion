@@ -4,16 +4,6 @@
 
 [What this change accomplishes and why it matters — stated as a truth that must hold when done]
 
-## Risk Weight
-
-[Trivial | Standard | Strategic]
-
-## Review Pack
-
-- [architect-lite | architect-full]
-- [analyst — only if business rules / pricing / permissions / customer-visible changes]
-- [reviewer — if large or security-sensitive]
-
 ## Requirements
 
 - [ ] [Requirement 1 — observable behavior]
@@ -61,5 +51,31 @@
 ## Approval
 
 - Human approval: [pending]
-- Architect verdict: [pending]
-- Other required reviewers: [pending]
+- Architect review: [pending]
+- Additional domain review: [not requested]
+
+## Review Results
+
+### Architecture Review
+
+Pending.
+
+### Business Review
+
+Pending.
+
+### Design Review
+
+Pending.
+
+### Engineering Review
+
+Pending.
+
+## Test Plan
+
+Pending.
+
+## Tasks
+
+Pending.

@@ -10,14 +10,6 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 
 [Copy from source plan]
 
-## Risk Weight
-
-[Copy from source plan]
-
-## Review Pack
-
-- [Copy from source plan]
-
 ## Requirements
 
 - [ ] [Copy from source plan]
@@ -52,8 +44,8 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 ## Approval
 
 - Human approval: [pending]
-- Architect verdict: [pending]
-- Other required reviewers: [pending]
+- Architect review: [pending]
+- Additional domain review: [not requested]
 
 ---
 
@@ -62,7 +54,7 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 Workflow: DRAFT
 Step: 0 of N
 Last activity: YYYY-MM-DD — prompt created
-Next step: [run plan reviews or begin implementation when gates are clear]
+Next step: [begin implementation workflow]
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -100,7 +92,23 @@ Review Retry Count: 0
 
 ## Review Results
 
-[Written by reviewer specialist after REVIEW phase]
+### Architecture Review
+
+Pending.
+
+### Business Review
+
+Pending.
+
+### Design Review
+
+Pending.
+
+### Engineering Review
+
+Pending.
+
+[Written by planning-stage and review specialists in their owned subsections]
 
 ## Debug Log
 

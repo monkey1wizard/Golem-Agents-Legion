@@ -31,6 +31,7 @@ Escalate to a direct user question only when one of these is true:
 - the plan depends on a genuine taste decision with no repo precedent
 
 Do not route the user to legacy planning commands from this workflow. If later planning-stage review is needed, describe it as a review lane (business, design, engineering), not as a gstack command name.
+Treat `/deep-planning` as the architect-reviewed planning pass when the plan needs structural challenge before `/plan-to-prompt`.
 
 ## Step 2 — Produce Source Plan
 
@@ -59,5 +60,5 @@ Tell the user:
 
 - which source plan file was written
 - the chosen `plan-slug`
-- whether the plan is ready for `/plan-to-prompt` or should go through `/deep-planning` first
-- whether the next concern is prompt materialization or a planning-stage review lane
+- whether the plan is ready for `/plan-to-prompt` or should go through `/deep-planning` for architect review first
+- whether the next concern is prompt materialization or another planning-stage review lane

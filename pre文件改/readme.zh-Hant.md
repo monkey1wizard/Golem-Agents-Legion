@@ -74,7 +74,7 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> ✓ commit
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
-| **implementer** | 讀取 plan spec，產出 code + atomic commit | 遵守 scope fence（Trivial/Standard 有禁止清單） |
+| **implementer** | 讀取 plan spec，產出 code + atomic commit | 遇到架構邊界變更時，必須停下來回到 `/deep-planning` |
 | **tester** | 從 spec 與 public API 寫測試，不讀實作 | 必須與 implementer 使用不同模型 |
 | **reviewer** | Staff engineer 等級的 diff 審查 | 應與 implementer 不同模型，能力不應弱於 implementer |
 | **verifier** | Goal-backward 驗證 + plan lifecycle ending | 抽取知識到 `docs/`，標記 plan 可關閉 |
@@ -86,18 +86,18 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> ✓ commit
 | **debugger** | 科學方法 bug 調查：假說、驗證、根因確認後才修 |
 | **scribe** | 每日工作日記 + 宵禁系統執行者 |
 
-### 審查包組裝
+### Planning Review
 
-Strategic weight 使用 composable review pack——按 task 需求組裝，不是固定的所有人都要看：
+`/deep-planning` 會先做 architect review，確認 plan 在進入 `/plan-to-prompt` 之前已經過架構面的挑戰與收斂。
 
 | 角色 | 何時加入 |
 | --- | --- |
-| Architect | 永遠加入（Strategic 為 full，Standard 為 lite） |
-| Designer | 永遠加入（無 UI 面向時回報 no-impact verdict） |
+| Architect | 每次 `/deep-planning` 都會加入 |
+| Designer | 只在 plan 牽涉 customer-facing flow、layout、states、components 或 accessibility 時加入 |
 | Analyst | 只在涉及商業邏輯、定價、權限或客戶可見變更時 |
-| 其他（reviewer、debugger） | 視 task 類型決定 |
+| 其他（reviewer、debugger） | 屬於實作後或除錯階段的 specialist，不是 deep-planning 預設 reviewer |
 
-進入 IMPLEMENT 需要 pack 內所有成員 APPROVE。Analyst 不在 pack 內就不需要 analyst 批准。
+進入 `/plan-to-prompt` 前，architect review 必須先完成。Analyst 或 designer 只有在這次 plan 真的需要時才加入。
 
 ### 模型角色強制
 
@@ -144,17 +144,17 @@ Strategic weight 使用 composable review pack——按 task 需求組裝，不�
 
 GAL 的開發工作流是 artifact-driven 的：控制平面讀取 plan artifacts 裡的 markdown sections 來判定狀態，不依賴特定的規劃指令。
 
-### Risk Weight
+### 何時使用 `/deep-planning`
 
-不是每個變更都需要同樣的流程。Risk weight 決定啟用多少護欄：
+GAL 不再用舊的分級式風險系統來決定流程。現在的規則比較直接：
 
-| Weight | 適用場景 | 流程 | 需要 plan？ |
-| --- | --- | --- | --- |
-| **Trivial** | Typo 修正、明顯 bug、單檔編輯 | 直接實作 → 可選 review/QA | 不需要 |
-| **Standard** | 小功能、已知原因的 bug fix、2–3 檔 | Plan（輕量）→ 實作 → `/review` → `/qa` → `/ship` | 輕量 plan |
-| **Strategic** | 新 feature、架構變更、高風險、跨模組 | Plan（完整）→ review pack → 實作 → `/review` → `/qa` → `/ship` | 完整 plan |
+| 情境 | 建議流程 | architect |
+| --- | --- | --- |
+| 明顯且局部的修正 | 直接實作 → 可選 `/review` / `/qa` | 可選諮詢 |
+| 範圍清楚的小功能或已知原因 bug | `/planning` → `/plan-to-prompt` → 實作 | 可選諮詢 |
+| 牽涉共享結構、dependency、public API、protected path，或架構上還不夠確定 | `/planning` → `/deep-planning` → `/plan-to-prompt` → 實作 | `/deep-planning` 內必跑 architect review |
 
-**升級規則**：任何變更可以在進行中升級到 Strategic。停下來、完善 plan、啟用完整 review pack。
+如果實作過程中才發現有架構不確定性，就停止實作，回到 `/deep-planning`。
 
 ### Execution Lifecycle
 
@@ -166,11 +166,9 @@ GAL 的開發工作流是 artifact-driven 的：控制平面讀取 plan artifact
 | Code review 與 QA | 實作到達有意義的 checkpoint | `/review`、`/qa` | `## Analyze`、`## Review Results`、`## Test Results` |
 | 收尾或發佈 | 工作暫停或準備合併 | `/gal wrap-up`、`/ship`、`/land-and-deploy` | `### Handoff Notes`、`## Ship`、`## Deploy` |
 
-### Scope Fence
+### 架構升級規則
 
-Trivial 與 Standard weight 缺少完整 review pack，為防止意外的架構損傷，有兩層防禦：
-
-**Layer 1 — Implementer Scope Fence**：implementer 的指令集包含禁止操作清單。觸發任何項目必須停下來請求升級到 Strategic：
+如果實作過程需要碰到下列結構性變更，implementer 必須停下來，回到 `/deep-planning`：
 
 - 建立或刪除專案檔（`.csproj`、`package.json` 等）
 - 新增或移除 package dependency
@@ -179,11 +177,9 @@ Trivial 與 Standard weight 缺少完整 review pack，為防止意外的架構�
 - 修改 DI registration 或 service composition
 - 修改被 2+ consumer 使用的 public API signature
 
-**Layer 2 — Standard Mandatory Reviewer**：Standard 的 reviewer 是必要的（不是可選），但只檢查 correctness + architecture 兩個維度。
-
 ### Protected Paths
 
-每個 repo 的 `.dev/project.md` 包含 `## Protected Paths`，列出架構關鍵檔案。Trivial 或 Standard 工作觸碰 protected path 會自動觸發 Strategic 升級。
+每個 repo 的 `.dev/project.md` 包含 `## Protected Paths`，列出架構關鍵檔案。只要工作觸碰到 protected path，就應先回到 `/deep-planning` 再繼續。
 
 ### Plan Lifecycle
 
@@ -280,7 +276,7 @@ GAL 支援可插拔的工作流擴充模組。
 
 ### gstack（可選 specialist provider）
 
-GAL 有 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為 GAL-native 規劃入口，不需要 gstack 也能完成完整規劃流程。gstack 作為可插拔的 specialist provider，提供 business / design / engineering review lanes 的 upstream skill 實作。安裝 gstack 後，review 結果透過 provider routing 回寫到 GAL 的 canonical artifacts。
+GAL 有 `/planning`、`/deep-planning` 作為 GAL-native 規劃入口，並在 implementation 前用 `/plan-to-prompt` 將 reviewed source plan 轉成 execution prompt。gstack 作為可插拔的 specialist provider，提供 business / design / engineering review lanes 的 upstream skill 實作。這些 lanes 應視為 planning 之後、`/plan-to-prompt` 之前的 specialized deep-planning passes；安裝 gstack 後，review 結果先透過 provider routing 回寫到 source plan，再 materialize 進 GAL 的 execution prompt。
 
 詳見 [mod/gstack.md](mod/gstack.md)。
 

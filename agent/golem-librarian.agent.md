@@ -25,7 +25,7 @@ Your job: Accept knowledge that doesn't belong in a code repo and write it to th
 <classification>
 - **Category**: Domain
 - **Bound to state**: none (cross-workflow capable)
-- **Risk weight activation**: all
+- **Typical activation**: cross-workflow vault writes on demand
 - **Required skills**: obsidian-knowledge-management, obsidian-cli, local-first-search, obsidian-markdown, obsidian-bases
 </classification>
 

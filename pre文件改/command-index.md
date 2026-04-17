@@ -46,11 +46,11 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | 指令 | 用途 | 主要寫回 | 深入規格 |
 | --- | --- | --- | --- |
 | `/planning` | 從使用者需求與對話上下文產出 source plan | `docs/plans/<plan-slug>.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/deep-planning` | 深化任何規劃文件為正式 plan（輸入不限 plan 格式） | `docs/plans/<plan-slug>.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
-| `/plan-to-prompt` | 將 source plan 轉換為 execution prompt（獨立指令） | `.dev/plans/<plan-slug>.prompt.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
+| `/deep-planning` | 深化任何規劃文件為正式 plan（包含 review-lane 類型的規劃深化） | `docs/plans/<plan-slug>.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
+| `/plan-to-prompt` | 在 source plan 完成 planning-stage 深化與審查後，轉換為 execution prompt | `.dev/plans/<plan-slug>.prompt.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/cso` | 資安審查與 findings 管理 | plan `## Review Results` 下的 security review | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 
-Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public commands：business / scope review、design review、engineering review 會寫回同一組 canonical plan sections，並在有 gstack provider 時接入 upstream 能力。
+Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public commands：business / scope review、design review、engineering review 應視為 specialized deep-planning passes，先寫回 source plan 的同一組 canonical sections，再由 `/plan-to-prompt` 轉成 execution prompt。
 
 ### 設計
 
@@ -107,7 +107,7 @@ Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public
 | 指令 | upstream gstack 語意 | GAL 的實作差異 |
 | --- | --- | --- |
 | discovery-style feature planning | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
-| engineering review lane | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
+| engineering review lane | 產出 task list 與 test plan | 先寫回 source plan 的 `## Test Plan` 與 `## Tasks`，再由 `/plan-to-prompt` 轉入 execution prompt |
 | `/review` | staff diff review | `## Analyze` 成為 control plane 可讀的 drift verdict |
 | `/qa` | 執行 test plan 並回報結果 | `## Test Results` + `docs/qa-reports/` |
 | `/design-shotgun` | 視覺方向探索 | 資產路徑在 `docs/designs/` |

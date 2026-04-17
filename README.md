@@ -66,8 +66,8 @@ The execution work file (`.prompt.md`) contains three specialist-written section
 
 | Section | Written by | Consumed by | Purpose |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/planning` (initial scaffold), planning-stage review lanes append, engineering review lane closes resolved items | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions, IDs `OQ-NNN` |
-| `## Tasks` | Engineering review lane (sole initializer after Eng Review CLEAR), implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist, IDs `T-NNN` |
+| `## Open Questions` | `/planning` initializes them in the source plan, planning-stage review lanes append, `/plan-to-prompt` carries them into execution | `/ship`, `/gal status`, `/gal whats-next` | Stable list of unresolved assumptions and decisions, IDs `OQ-NNN` |
+| `## Tasks` | Engineering review lane initializes them in the source plan after Eng Review CLEAR; `/plan-to-prompt` carries them into execution; implementation marks completion only | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` | Verifiable task checklist, IDs `T-NNN` |
 | `## Analyze` | `/review` (sole writer, verdict: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN`) | `/ship`, `/gal status`, `/gal whats-next` | Drift check: did the diff stay within plan scope? |
 
 Consumers read these sections for display and routing — they do not recalculate or overwrite them.
@@ -336,9 +336,9 @@ These commands implement the work layer directly. They do not route through `/ga
 | Command or Lane | Purpose | Primary Writes |
 | --- | --- | --- |
 | `/planning` | Create or replace a human-readable source plan | `docs/plans/<plan-slug>.md`, `.dev/state.md` |
-| `/deep-planning` | Refine planning-stage material into a review-ready source plan | `docs/plans/<plan-slug>.md`, `.dev/state.md` |
-| `/plan-to-prompt` | Materialize the mutable execution prompt from a source plan | `.dev/plans/<plan-slug>.prompt.md`, `.dev/state.md` |
-| Business, design, and engineering review lanes | Provider-routed planning-stage reviews; use upstream gstack if installed, otherwise fallback golems via `/gal golem-analyst`, `/gal golem-designer`, `/gal golem-architect` | `## Review Results`, `## Open Questions`, and for engineering also `## Test Plan`, `## Tasks`, `<!-- ENG_REVIEW: CLEAR -->` |
+| `/deep-planning` | Refine planning-stage material into an implementation-ready source plan | `docs/plans/<plan-slug>.md`, `.dev/state.md` |
+| Business, design, and engineering review lanes | Provider-routed planning-stage deep-planning passes; use upstream gstack if installed, otherwise fallback golems via `/gal golem-analyst`, `/gal golem-designer`, `/gal golem-architect` | Source plan `## Review Results`, `## Open Questions`, and for engineering also `## Test Plan`, `## Tasks`, `<!-- ENG_REVIEW: CLEAR -->` |
+| `/plan-to-prompt` | Materialize the mutable execution prompt from the reviewed source plan right before implementation | `.dev/plans/<plan-slug>.prompt.md`, `.dev/state.md` |
 | `/cso` | OWASP plus STRIDE security review | Plan `## Review Results` |
 
 ### Design
@@ -440,7 +440,7 @@ The control plane works because specialist commands write predictable sections b
 | Section | Written By | Read By |
 | --- | --- | --- |
 | `## Review Results` | Review specialists | `/gal status`, `/gal whats-next` |
-| `## Test Plan` | Engineering review lane | `/qa`, `/qa-only` |
+| `## Test Plan` | Engineering review lane in the source plan, then `/plan-to-prompt` carries it into execution | `/qa`, `/qa-only` |
 | `## Test Results` | `/qa`, `/qa-only` | `/gal status`, `/gal whats-next` |
 | `## Ship` | `/ship` | `/gal status`, `/gal whats-next`, `/land-and-deploy` |
 | `## Deploy` | `/land-and-deploy` | `/gal status`, `/gal whats-next` |
@@ -528,7 +528,7 @@ Optional external CLIs such as OpenCLI or Defuddle remain skill-layer dependenci
 
 ## What GAL No Longer Treats As Public Workflow
 
-- T0/T1/T2 are not the primary user-facing workflow vocabulary for the new command surface
+- Legacy tiered risk labels are no longer part of the command surface or planning model
 - Upstream gstack installation is not required to use GAL's specialist commands
 
 ## License

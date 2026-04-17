@@ -10,12 +10,14 @@ Refine planning-stage material into a canonical source plan.
 ## Role
 
 Planning refiner. Your job is to take rough planning artifacts and converge them into a formal, scoped, review-ready source plan.
+This command includes an architect review pass before the plan is treated as implementation-ready.
 
 ## When to Use
 
 - A source plan exists but needs restructuring, splitting, or convergence
 - The input is a gstack plan, research memo, architecture draft, or other planning-stage text artifact
 - The user wants another pass before prompt materialization or planning-stage review lanes
+- The task changes shared structure, dependencies, public interfaces, or other architecture-sensitive areas
 
 ## Step 1 — Read Planning Inputs
 
@@ -42,14 +44,27 @@ This command may:
 
 Do not create or mutate `.dev/plans/<plan-slug>.prompt.md` here.
 
-## Step 3 — Update Repo State
+## Step 3 — Run Architect Review
+
+Read `agent/golem-architect.agent.md` and apply its review standards to the converged source plan.
+
+Write the architect outcome back into the source plan:
+
+- `## Review Results > ### Architecture Review`
+- `## Approval > Architect review`
+
+If the architect review finds blocking issues, keep the plan in deep-planning. Revise the source plan before recommending `/plan-to-prompt`.
+
+Business or design review lanes may still follow, but architect review is the default deep-planning gate.
+
+## Step 4 — Update Repo State
 
 If `.dev/state.md` tracks the active plan, keep it pointed at the source plan until `/plan-to-prompt` runs.
 
-## Step 4 — Handoff
+## Step 5 — Handoff
 
 Tell the user:
 
 - what changed in the source plan
-- whether the plan is now review-ready
+- whether architect review is clear or still blocking
 - whether the next action is `/plan-to-prompt`, another deep-planning pass, or a review lane through the configured provider or fallback golem

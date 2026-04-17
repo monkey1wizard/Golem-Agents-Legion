@@ -24,9 +24,9 @@ GAL keeps these roles separate on purpose.
 
 | Agent | Classification | Invocation | Purpose |
 | --- | --- | --- | --- |
-| [golem-architect](golem-architect.agent.md) | Domain | Consult / review pack | Adversarial plan review — trade-offs, over-engineering, bugs |
-| [golem-analyst](golem-analyst.agent.md) | Domain | Consult / conditional review pack | Business logic review — ROI, domain correctness, user impact |
-| [golem-designer](golem-designer.agent.md) | Domain | Consult / design review workflows | Review visual design, UX flow, accessibility, and design-system consistency |
+| [golem-architect](golem-architect.agent.md) | Domain | Consult / deep-planning review | Adversarial plan review — trade-offs, over-engineering, bugs |
+| [golem-analyst](golem-analyst.agent.md) | Domain | Consult / conditional planning review | Business logic review — ROI, domain correctness, user impact |
+| [golem-designer](golem-designer.agent.md) | Domain | Consult / conditional planning review / design review workflows | Review visual design, UX flow, accessibility, and design-system consistency |
 | [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research` or direct consult | Local-first research and structured synthesis with source attribution |
 | [golem-implementer](golem-implementer.agent.md) | Pipeline | `/gal pipeline` | Execute approved plans with atomic commits |
 | [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` | Write tests from spec only (never reads implementation) |
@@ -36,18 +36,15 @@ GAL keeps these roles separate on purpose.
 | [golem-scribe](golem-scribe.agent.md) | Utility | Any time | End-of-day diary + shutdown enforcer |
 | [golem-librarian](golem-librarian.agent.md) | Domain | Consult / vault workflows | Obsidian vault writes — inbox processing, knowledge extraction |
 
-## Strategic Review Pack
+## Planning Reviews
 
-Strategic weight uses a **composable review pack** — not a fixed dual-review. The pack is assembled per task:
+`/deep-planning` runs an architect review by default before a source plan is treated as implementation-ready.
 
-- **Architect-full** (always): trade-off analysis, over-engineering, bug surface, public API risk
-- **Designer** (always): visual direction, UX flow, accessibility, and design-system consistency
-- **Analyst** (conditional): only when task involves business rules, pricing, permissions, or customer-visible changes
-- **Others** (optional): reviewer, debugger — added when task type warrants it
+- **Architect** (default in `/deep-planning`): trade-off analysis, over-engineering, bug surface, dependency pollution, and public API risk
+- **Analyst** (conditional): add when the plan changes business rules, pricing, permissions, or customer-visible behavior
+- **Designer** (conditional): add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions
 
-Entry to IMPLEMENT requires **all pack members APPROVE**. If analyst is not in the pack, analyst approval is not needed.
-
-Trivial and Standard skip the full review pack. Standard gets architect-lite by default (structure risk only).
+`reviewer` and `debugger` remain implementation-stage specialists. They are not default planning reviewers.
 
 ## Direct Agent Invocation
 
@@ -76,7 +73,7 @@ Per [model-roles.md](../model-roles.md):
 
 ## Activation Principles
 
-- **Minimum viable set**: Only activate specialists needed for the current risk weight and task.
+- **Minimum viable set**: Only activate specialists needed for the current workflow stage and task.
 - **Context budget ~15%**: Each specialist's loaded context (agent prompt + project files) should stay under ~15% of available context window.
 - **Independent operation**: Each specialist can operate with only its agent file + `.dev/project.md` + the current plan. No specialist depends on another specialist's chat history.
 

@@ -1,10 +1,10 @@
 # gstack 可選 provider 模組
 
-gstack 是 GAL 的可插拔 specialist provider，不是 GAL 的核心依賴。GAL 有 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為 GAL-native 規劃入口；architect、analyst、designer 提供 GAL-native 的對話型 fallback。沒有 gstack 時，GAL 仍能完整運作。
+gstack 是 GAL 的可插拔 specialist provider，不是 GAL 的核心依賴。GAL 有 `/planning`、`/deep-planning` 作為 GAL-native 規劃入口，並在 implementation 前用 `/plan-to-prompt` 將 reviewed source plan 轉成 execution prompt；architect、analyst、designer 提供 GAL-native 的對話型 fallback。沒有 gstack 時，GAL 仍能完整運作。
 
 gstack 安裝後（`~/gstack`），這個模組主要提供兩層增強能力：
 
-1. 進階規劃 provider：discovery-style feature planning、business/design/engineering review lanes，以及 full planning review pipeline provider。這層是可選增強，不是唯一規劃路徑。
+1. 進階規劃 provider：discovery-style feature planning、business/design/engineering review lanes，以及 full planning review pipeline provider。這些 review lanes 屬於 planning 之後、`/plan-to-prompt` 之前的 specialized deep-planning passes。這層是可選增強，不是唯一規劃路徑。
 2. Specialist 執行指令：`/review`、`/qa`、`/ship`、`/design-review` 等指令遵循 write-back discipline，把結果回寫到 GAL 的 canonical artifacts。這些指令不依賴規劃層。
 
 另外要分清楚兩層偵測：
@@ -34,7 +34,7 @@ provider routing 發生在 workflow 層，不直接綁在單一 agent 身上。�
 
 ## 規劃工作流
 
-> **注意**：本節說的是 gstack 風格的進階規劃能力如何接入 GAL。GAL 有 `/planning` 與 `/deep-planning` 作為 GAL-native 規劃入口，適合所有 risk weight 的情境。provider 增強層則適合需要高品質 business, design, engineering review 的 Strategic-weight features。
+> **注意**：本節說的是 gstack 風格的進階規劃能力如何接入 GAL。GAL 有 `/planning` 與 `/deep-planning` 作為 GAL-native 規劃入口，適合所有 risk weight 的情境。business / design / engineering review lanes 應被視為 specialized deep-planning passes，發生在 source plan 完成初稿之後、`/plan-to-prompt` 之前。provider 增強層則適合需要高品質 business, design, engineering review 的 Strategic-weight features。
 
 ### 核心前提
 
@@ -78,6 +78,10 @@ discovery-style planning provider or /planning
     + worktree parallelization strategy
     |
     v
+/plan-to-prompt
+    output: execution prompt
+    |
+    v
 逐 task 實作
     - /gal-pipeline
     - 或手動執行
@@ -113,7 +117,7 @@ provider 不會把一個 product roadmap 自動拆成多個 feature plan。若�
 
 - 挑戰前提假設
 - 問清楚目標使用者和核心問題
-- 產出可供後續 review lanes 消費的 source plan
+- 產出可供後續 deep-planning / review lanes 消費的 source plan
 
 若你不需要這種強互動 discovery，也可以直接使用 `/planning` 或 `/deep-planning`。
 
@@ -126,9 +130,15 @@ provider 不會把一個 product roadmap 自動拆成多個 feature plan。若�
 
 template 與 contract 也刻意分流：visual / experience design 與 business scope 的輸出骨架，優先沿用 gstack-style specialist artifact；formal gate / verdict contract 與 code architecture 則保留 GSD-style。GAL 接的是 upstream 能力，不是整套上游格式的全盤繼承。
 
-其中 engineering review lane 會補齊 build readiness、test matrix、task breakdown 與 parallelization strategy。它拆的是「一個 feature 內的實作步驟」，不是把一個大 plan 拆成多個 plan。
+在 GAL 的語意中，這三條 review lanes 都屬於 planning 之後、implementation 之前的深度規劃環節。換句話說，它們不是 execution prompt 上的後續附加工序，而是 source plan 變成 implementation-ready plan 之前的 specialized deep-planning passes。
 
-#### 4. 實作與收尾
+其中 engineering review lane 會補齊 build readiness、test matrix、task breakdown 與 parallelization strategy。它拆的是「一個 feature 內的實作步驟」，不是把一個大 plan 拆成多個 plan。這些內容應先寫回 source plan，再由 `/plan-to-prompt` 一次 materialize 到 execution prompt。
+
+#### 4. Materialize 與實作
+
+當 source plan 完成上述 deep-planning / review lanes 後，再執行 `/plan-to-prompt`。這一步不是做 planning review，而是把 reviewed source plan 轉成 execution prompt，讓後續 `/gal pipeline`、`/qa`、`/review` 等 stateful specialist flows 有穩定的機器可讀工作檔。
+
+#### 5. 實作與收尾
 
 審查完成後，plan 內會有具體 task list。之後可用 `/gal pipeline` 自動逐 task 執行，或手動一個一個做。
 
@@ -155,17 +165,17 @@ gstack 支援多個平行 sprint，但前提仍是 feature 粒度清楚：
 | --- | --- | --- |
 | `/planning` | 從使用者需求與對話上下文產出 source plan | `docs/plans/<plan-slug>.md` |
 | `/deep-planning` | 深化任何規劃文件為正式 plan | `docs/plans/<plan-slug>.md` |
-| `/plan-to-prompt` | 將 source plan 轉換為 execution prompt | `.dev/plans/<plan-slug>.prompt.md` |
+| `/plan-to-prompt` | 將 reviewed source plan 轉換為 execution prompt | `.dev/plans/<plan-slug>.prompt.md` |
 
 ### Planning-stage review lanes
 
-這些是 capability，不是 GAL public command 名稱。
+這些是 capability，不是 GAL public command 名稱。在實務上，它們可視為 `/deep-planning` 的 specialized passes。
 
 | Lane | 用途 | 主要寫回 |
 | --- | --- | --- |
-| Business / Scope review | 調整 scope、ambition、價值排序 | plan `## Review Results`、`## Open Questions` |
-| Design review | 補齊 UX、state coverage、a11y、design-system fit | plan `## Review Results`、`## Open Questions` |
-| Engineering review | 補齊 architecture、test plan、tasks | plan `## Review Results`、`## Test Plan`、`## Tasks` |
+| Business / Scope review | 調整 scope、ambition、價值排序 | source plan `## Review Results`、`## Open Questions` |
+| Design review | 補齊 UX、state coverage、a11y、design-system fit | source plan `## Review Results`、`## Open Questions` |
+| Engineering review | 補齊 architecture、test plan、tasks | source plan `## Review Results`、`## Test Plan`、`## Tasks` |
 | Security review | 補齊 OWASP / STRIDE findings | plan `## Review Results`（security review） |
 
 ### 設計
@@ -226,7 +236,7 @@ gstack 支援多個平行 sprint，但前提仍是 feature 粒度清楚：
 | 能力 | upstream gstack 語意 | GAL 的實作差異 |
 | --- | --- | --- |
 | Discovery-style feature planning | per-feature design doc 啟動 | plan 寫入 `docs/plans/`，不是 `~/.gstack/projects/` |
-| Engineering review lane | 產出 task list 與 test plan | `## Test Plan` 與 `## Tasks` 寫回活動 plan |
+| Engineering review lane | 產出 task list 與 test plan | 先寫回 source plan 的 `## Test Plan` 與 `## Tasks`，再由 `/plan-to-prompt` 轉入 execution prompt |
 | `/review` | staff diff review | `## Analyze` 成為 control plane 可讀的 drift verdict |
 | `/qa` | 執行 test plan 並回報結果 | `## Test Results` + `docs/qa-reports/` |
 | `/design-shotgun` | 視覺方向探索 | 資產路徑在 `docs/designs/` |

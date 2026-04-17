@@ -8,7 +8,7 @@ This document defines, for each relevant gstack command or review concept:
 
 - what it reads and writes
 - which artifact paths change in the GAL translation (e.g. `~/.gstack/projects/$SLUG/` → `docs/plans/`)
-- what structured sections it must write back to the active plan file (so `/gal status` can read them)
+- what structured sections it must write back to the canonical plan artifacts (so `/gal status` can read them)
 
 **How to use this document:** When implementing a provider-aware SKILL.md or fallback agent, find the relevant entry in §3. The `Input reads`, `Output artifacts`, `State written to plan`, and `GAL deviation` fields are the contract your implementation must honour.
 
@@ -24,7 +24,7 @@ Two layers, zero overlap. The rule: if an operation **governs GAL's control-plan
 | Layer | Commands | Canonical Artifact |
 | --- | --- | --- |
 | **GAL control-plane** | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up` | `.dev/state.md`, `.dev/project.md` |
-| **Planning specialists / review lanes** | `/planning`, `/deep-planning`, `/plan-to-prompt`, planning review lanes via provider or fallback | `docs/plans/<plan-slug>.md` (source plan doc) + `.dev/plans/<plan-slug>.prompt.md` (AI execution work file) |
+| **Planning specialists / review lanes** | `/planning`, `/deep-planning`, planning review lanes via provider or fallback, `/plan-to-prompt` | `docs/plans/<plan-slug>.md` (source plan doc) + `.dev/plans/<plan-slug>.prompt.md` (AI execution work file) |
 | **Design specialists** | `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review` | `DESIGN.md`, `docs/designs/<plan-slug>/`, `docs/design-reports/` |
 | **Debug / Review specialists** | `/investigate`, `/review`, `/cso` | Active plan `## Review Results` |
 | **QA / Test specialists** | `/qa`, `/qa-only`, `/browse`, `/connect-chrome`, `/setup-browser-cookies` | Active plan `## Test Results` + `docs/qa-reports/` |
@@ -45,8 +45,8 @@ gstack uses two storage scopes: user-global (`~/.gstack/projects/$SLUG/`) and re
 | --- | --- | --- | --- |
 | Design doc (from GAL planning or upstream discovery) | `~/.gstack/projects/$SLUG/design.md` | Source plan doc | `docs/plans/<plan-slug>.md` |
 | AI execution work file | *(not modeled)* | Per-task mutable checklist + execution state | `.dev/plans/<plan-slug>.prompt.md` |
-| CEO/Design/Eng review results | Review Readiness Dashboard (in-memory + logged) | `## Review Results` section | Active plan file |
-| Test plan (from engineering review lane) | `~/.gstack/projects/$SLUG/test-plan.md` | `## Test Plan` section | Active plan file |
+| CEO/Design/Eng review results | Review Readiness Dashboard (in-memory + logged) | `## Review Results` section | Source plan first, then carried into execution prompt |
+| Test plan (from engineering review lane) | `~/.gstack/projects/$SLUG/test-plan.md` | `## Test Plan` section | Source plan first, then carried into execution prompt |
 | QA reports | `.gstack/qa-reports/` | `## Test Results` section + report file | Active plan file + `docs/qa-reports/YYYYMMDD-<plan-slug>.md` |
 | Design reports | `.gstack/design-reports/` | Design audit report | `docs/design-reports/YYYYMMDD-<plan-slug>-rNN.md` |
 | Design variants + approved mockup | `~/.gstack/projects/$SLUG/designs/approved.json` | Approved mockup | `docs/designs/<plan-slug>/variant-approved.json` + `variant-approved.png` |
@@ -55,7 +55,7 @@ gstack uses two storage scopes: user-global (`~/.gstack/projects/$SLUG/`) and re
 | Deploy config | `CLAUDE.md` (gstack section) | Deploy config | `CLAUDE.md` (GAL section) |
 | Greptile false-positive history | `~/.gstack/greptile-history.md` | FP history | `.dev/greptile-history.md` |
 
-**Invariant:** Every specialist command that produces reviewable state MUST write a structured section back to the active plan file. The active plan is the canonical state vector. `/gal status` reads plan files to project current state. `/gal wrap-up` compresses them into `### Handoff Notes`. This is the chain of custody.
+**Invariant:** Every specialist command that produces reviewable state MUST write a structured section back to the canonical plan artifacts. Planning-stage review lanes write to the source plan; after `/plan-to-prompt`, execution-stage specialists write to the active execution prompt. `/gal status` reads the appropriate artifact to project current state. `/gal wrap-up` compresses execution state into `### Handoff Notes`. This is the chain of custody.
 
 ---
 
@@ -65,8 +65,8 @@ Three sections of the execution work file (`## Open Questions`, `## Tasks`, `## 
 
 | Section | Initialized by | Appended / Updated by | Consumed by (read-only) |
 | --- | --- | --- | --- |
-| `## Open Questions` | `/planning` (empty scaffold + initial OQs) | business/design review lanes (append), engineering review lane (closes resolved items) | `/ship`, `/gal status`, `/gal whats-next` |
-| `## Tasks` | engineering review lane (sole initializer, after Eng Review is CLEAR) | implementer (marks completion state only — no rewrite of task semantics) | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` |
+| `## Open Questions` | `/planning` in the source plan (empty scaffold + initial OQs), then `/plan-to-prompt` carries them forward | business/design review lanes append on the source plan; engineering review lane closes resolved items before materialization | `/ship`, `/gal status`, `/gal whats-next` |
+| `## Tasks` | engineering review lane in the source plan (sole initializer, after Eng Review is CLEAR), then `/plan-to-prompt` carries them forward | implementer (marks completion state only — no rewrite of task semantics) | `/review`, `/qa`, `/ship`, `/gal status`, `/gal whats-next` |
 | `## Analyze` | `/review` (sole writer, drift verdict: CLEAR \| DRIFT-OPEN \| NOT-RUN) | — | `/ship`, `/gal status`, `/gal whats-next` |
 
 **Ship policy:** Unresolved open questions, unfinished tasks, and `DRIFT-OPEN` analyze verdict surface as high-visibility readiness **warnings** in `/ship`. They do not add a new hard gate. `ENG_REVIEW` remains the only required gate before `/ship`.
@@ -95,7 +95,7 @@ Specialist: GAL-native Planning Entry
 | **State written to plan** | Initializes the source plan doc using the canonical plan template |
 | **Control-plane hook** | Adds or updates the `.dev/state.md` Active Plans row so the plan slug becomes discoverable before prompt materialization |
 | **GAL deviation from gstack** | gstack has no separate source-plan-only planning command. GAL makes this split explicit so source plans and execution prompts can evolve independently. |
-| **Feeds into** | `/deep-planning`, `/plan-to-prompt`, planning review lanes |
+| **Feeds into** | `/deep-planning`, planning review lanes, `/plan-to-prompt` once the source plan is implementation-ready |
 
 ---
 
@@ -113,7 +113,7 @@ Specialist: Plan Refinement And Convergence
 | **State written to plan** | Updates the source plan doc; does not materialize execution state |
 | **Control-plane hook** | Keeps `.dev/state.md` Active Plans pointed at the source plan until `/plan-to-prompt` materializes the execution prompt |
 | **GAL deviation from gstack** | gstack planning artifacts are input material, not canonical state. GAL-native deep planning always converges them into repo-local source plans. |
-| **Feeds into** | `/plan-to-prompt`, planning review lanes |
+| **Feeds into** | another `/deep-planning` pass, planning review lanes, or `/plan-to-prompt` once the source plan is implementation-ready |
 
 ---
 
@@ -126,12 +126,12 @@ Specialist: Source Plan To Execution Prompt
 | **Role** | Artifact materializer |
 | **Mode** | Deterministic transform |
 | **Input reads** | Source plan: `docs/plans/<slug>.md`, or `<slug>.md` at repo root, or search by slug. Template is embedded in the SKILL.md — no external `templates/plan-prompt.md` dependency. |
-| **Operation** | Rebuilds `.dev/plans/<slug>.prompt.md` using the canonical template (embedded in the skill) as the output schema, with the source plan as semantic input. The template owns section order, scaffold shape, and output language (English). When the source plan is in a non-English language, content is translated during materialization. Non-canonical source headings are mapped into canonical sections by semantic role. Materialization status is determined by the actual presence of `.dev/plans/<slug>.prompt.md` on disk, not by `.dev/state.md` alone. If the source plan contains drifted execution-style sections, the materializer salvages their content into the matching canonical sections instead of mirroring the non-canonical layout. When multiple unmaterialized plans exist, the user must be asked which plan to materialize. |
+| **Operation** | Rebuilds `.dev/plans/<slug>.prompt.md` using the canonical template (embedded in the skill) as the output schema, with the reviewed source plan as semantic input. The template owns section order, scaffold shape, and output language (English). When the source plan is in a non-English language, content is translated during materialization. Non-canonical source headings are mapped into canonical sections by semantic role. Materialization status is determined by the actual presence of `.dev/plans/<slug>.prompt.md` on disk, not by `.dev/state.md` alone. If the source plan already contains planning-stage review write-back sections such as `## Review Results`, `## Test Plan`, or `## Tasks`, the materializer carries them into their canonical execution-prompt sections. When multiple unmaterialized plans exist, the user must be asked which plan to materialize. |
 | **Output artifacts** | `.dev/plans/<plan-slug>.prompt.md` |
 | **State written to plan** | Initializes the canonical execution-prompt scaffolds for `## Status`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Plan`, `## Test Results`, and `### Handoff Notes`, while preserving existing mutable state on refresh unless the user asked for a reset |
 | **Control-plane hook** | Updates `.dev/state.md` Active Plans so the `File` column points at the execution prompt once it exists |
 | **GAL deviation from gstack** | GAL makes prompt materialization explicit instead of coupling it to first-pass planning. |
-| **Feeds into** | Business review lane, design review lane, engineering review lane |
+| **Feeds into** | `/gal pipeline`, manual implementation, and the post-materialization specialist execution flow |
 
 ---
 
@@ -147,9 +147,9 @@ Specialist: Source Plan To Execution Prompt
 | **Operation** | Two submodes: **Startup** (6 forcing questions: demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, future-fit) and **Builder** (generative exploration). Challenges framing, extracts capabilities user didn't articulate, challenges premises, suggests 2–3 implementation approaches with effort estimates. In the split model, this is exploratory planning and source-plan generation only. |
 | **Output artifacts** | `docs/plans/<feature>.md` (source plan doc: problem statement, reframe, validated premises, recommended approach, effort estimate) |
 | **State written to plan** | `## Goal`, `## Context`, `## Scope`, `## Requirements`, `## Steps`, and any initial OQ items in the source plan doc |
-| **Control-plane hook** | After: update `.dev/state.md` `## Active Plans` to include the new plan, referencing `docs/plans/<feature>.md` until `/plan-to-prompt` materializes `.dev/plans/<feature>.prompt.md` |
+| **Control-plane hook** | After: update `.dev/state.md` `## Active Plans` to include the new plan, referencing `docs/plans/<feature>.md` until review-complete source-plan material is materialized by `/plan-to-prompt` |
 | **GAL deviation from gstack** | gstack planning output is coupled to user-global storage. GAL keeps the discovery-style planning semantics as an optional provider capability, but execution-state materialization happens separately via `/plan-to-prompt`. |
-| **Feeds into** | `/deep-planning`, `/plan-to-prompt`, planning-stage review lanes, full planning review provider |
+| **Feeds into** | `/deep-planning`, planning-stage review lanes, full planning review provider, then `/plan-to-prompt` |
 
 ---
 
@@ -163,13 +163,13 @@ Specialist: Source Plan To Execution Prompt
 | --- | --- |
 | **Role** | CEO / Founder — "Brian Chesky mode" |
 | **Mode** | Interactive — one scope decision at a time, `AskUserQuestion` for genuine tradeoffs |
-| **Input reads** | Active plan's AI execution work file `.dev/plans/<plan-slug>.prompt.md` (reads `## Goal`, `## Context`, `## Scope`) |
-| **Operation** | Asks "what is the 10-star product hiding inside this request?" Four modes: SCOPE EXPANSION, SELECTIVE EXPANSION, HOLD SCOPE, SCOPE REDUCTION. Each expansion/reduction is an individual opt-in decision. Runs a 10-section structured review. |
-| **Output artifacts** | Updates active plan file with CEO review findings; updates Review Readiness Dashboard state |
-| **State written to plan** | Appends `## CEO Review` sub-section under `## Review Results` with: mode used, scope decisions resolved, open scope questions |
-| **Control-plane hook** | `/gal status` must read `## Review Results` to report CEO Review as CLEAR/MISSING/FAILED |
+| **Input reads** | Source plan `docs/plans/<plan-slug>.md` (reads goal, scope, requirements, approach, and any earlier deep-planning notes) |
+| **Operation** | Asks "what is the 10-star product hiding inside this request?" Four modes: SCOPE EXPANSION, SELECTIVE EXPANSION, HOLD SCOPE, SCOPE REDUCTION. Each expansion/reduction is an individual opt-in decision. Runs a 10-section structured review as a specialized deep-planning pass over the source plan. |
+| **Output artifacts** | Updates the source plan with business review findings; updates planning readiness state |
+| **State written to plan** | Appends `### Business Review` under `## Review Results` in the source plan with: mode used, scope decisions resolved, open scope questions |
+| **Control-plane hook** | `/gal status` and `/gal whats-next` may inspect source-plan `## Review Results` before materialization to report Business Review as CLEAR/MISSING/FAILED |
 | **GAL deviation from gstack** | gstack persists "Exceptional visions" to `docs/designs/`. GAL writes all review output to the plan file. `DESIGN.md` is written by `/design-consultation`, not here. |
-| **Feeds into** | engineering review lane, design review lane, full planning review provider |
+| **Feeds into** | other planning-stage review lanes, full planning review provider, then `/plan-to-prompt` |
 
 ---
 
@@ -181,14 +181,14 @@ Specialist: Source Plan To Execution Prompt
 | --- | --- |
 | **Role** | Technical lead / eng manager |
 | **Mode** | Interactive — `AskUserQuestion` for architecture decisions; auto-generates diagrams |
-| **Input reads** | Active execution work file `.dev/plans/<plan-slug>.prompt.md` (all sections, especially `## CEO Review` if present) and the paired source plan `docs/plans/<plan-slug>.md` for rationale reference |
+| **Input reads** | Source plan `docs/plans/<plan-slug>.md` (all sections, especially `## Review Results` from earlier planning passes) |
 | **Operation** | Forces architecture into the open: system boundaries, data flow diagrams (ASCII), state machines, error paths, trust boundaries, test matrix, failure modes, security sketch. Forces "make it buildable" rigour, not more ideation. |
-| **Output artifacts** | Updates active plan file with Eng Review; writes test plan artifact |
-| **State written to plan** | Appends `## Eng Review` under `## Review Results` (architecture, diagrams, test plan); appends `## Test Plan` with test matrix for `/qa` to consume |
+| **Output artifacts** | Updates the source plan with Eng Review; writes planning-stage task and test artifacts into the same source plan |
+| **State written to plan** | Appends `### Engineering Review` under `## Review Results` (architecture, diagrams, test plan); appends `## Test Plan` with test matrix for `/qa` to consume after materialization; appends `## Tasks` with the implementation breakdown |
 | **Review Readiness Dashboard** | Eng Review is the only **required** gate before `/ship`. Write a `<!-- ENG_REVIEW: CLEAR -->` marker to plan when passed. |
-| **Control-plane hook** | `/gal status` and `/gal whats-next` read `## Review Results` to detect CLEAR/MISSING state and recommend next action |
-| **GAL deviation from gstack** | gstack writes test plan to `~/.gstack/projects/$SLUG/test-plan.md`. GAL writes `## Test Plan` section to the active plan file. `/qa` reads this section instead of the gstack global path. |
-| **Feeds into** | `/qa` (reads `## Test Plan`), `/ship` (checks Review Readiness Dashboard) |
+| **Control-plane hook** | `/gal status` and `/gal whats-next` inspect the source plan before materialization to detect CLEAR/MISSING state and recommend `/plan-to-prompt` only after this pass is complete |
+| **GAL deviation from gstack** | gstack writes test plan to `~/.gstack/projects/$SLUG/test-plan.md`. GAL writes `## Test Plan` and `## Tasks` to the source plan first, then `/plan-to-prompt` carries them into the execution prompt that `/qa` and `/gal pipeline` read. |
+| **Feeds into** | `/plan-to-prompt`, then `/qa` and `/ship` through the execution prompt |
 
 ---
 
@@ -200,11 +200,11 @@ Specialist: Senior Designer
 | --- | --- |
 | **Role** | Senior designer — plan-mode audit (pre-implementation) |
 | **Mode** | Interactive — one `AskUserQuestion` per genuine design choice |
-| **Input reads** | Active execution work file `.dev/plans/<plan-slug>.prompt.md`; paired source plan `docs/plans/<plan-slug>.md`; `DESIGN.md` if present |
+| **Input reads** | Source plan `docs/plans/<plan-slug>.md`; `DESIGN.md` if present |
 | **Operation** | Seven passes over the plan: information architecture, interaction state coverage (4 features × 5 states = 20 states minimum), user journey, AI slop risk, design system alignment, responsive/accessibility, unresolved design decisions. Rates each dimension 0–10. Fixes plan directly for obvious gaps; asks for choice on genuine tradeoffs. |
-| **Output artifacts** | Updates active plan file with design review |
-| **State written to plan** | Appends `## Design Review` under `## Review Results` with per-dimension ratings, changes made, open decisions |
-| **Control-plane hook** | `/gal status` reads `## Review Results` to report Design Review as CLEAR/MISSING |
+| **Output artifacts** | Updates the source plan with design review |
+| **State written to plan** | Appends `### Design Review` under `## Review Results` with per-dimension ratings, changes made, open decisions |
+| **Control-plane hook** | `/gal status` and `/gal whats-next` may inspect source-plan `## Review Results` before materialization to report Design Review as CLEAR/MISSING |
 | **GAL deviation from gstack** | Same as gstack — both operate on the plan document. No state written to `~/.gstack/`. |
 | **Feeds into** | `/design-consultation` (if DESIGN.md needed), `/design-review` (post-implementation) |
 
@@ -218,13 +218,13 @@ Specialist: Senior Designer
 | --- | --- |
 | **Role** | Review autopilot — chains CEO → Design → Eng reviews |
 | **Mode** | Mostly automated; surfaces only "taste decisions" at final approval gate |
-| **Input reads** | Active plan file; reads all three review SKILL.md files from disk at runtime |
+| **Input reads** | Active source plan file; reads all three review SKILL.md files from disk at runtime |
 | **Operation** | Loads business, design, and engineering review procedures. Runs them sequentially with 6 encoded auto-decision principles: prefer completeness, match existing patterns, choose reversible options, prefer prior user choices, defer ambiguous items, escalate security. Collects taste decisions (close approaches, borderline scope, cross-model disagreement) for a final approval gate. |
-| **Output artifacts** | All three `## *Review` sections written to active plan file (same as running each individually) |
+| **Output artifacts** | All three planning review sections written to the active source plan file (same as running each individually) |
 | **State written to plan** | Same as running CEO + Design + Eng individually |
-| **Control-plane hook** | Same — `/gal whats-next` reads Review Readiness after the full planning review provider completes |
+| **Control-plane hook** | Same — `/gal whats-next` reads source-plan Review Readiness after the full planning review provider completes and recommends `/plan-to-prompt` next |
 | **GAL deviation from gstack** | No deviation. Behaviour is identical; storage differs per the general mapping above. |
-| **Feeds into** | Same downstream as running the three reviews individually |
+| **Feeds into** | `/plan-to-prompt`, then the same downstream execution flow as running the three reviews individually |
 
 ---
 

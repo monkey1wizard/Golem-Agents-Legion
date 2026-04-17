@@ -5,19 +5,17 @@ Every AI agent follows the same artifact model: source plans live in `docs/plans
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
-## Risk Weight
+## Choosing Planning Depth
 
-Not every change needs the same process. **Risk weight** determines how many guardrails to apply.
+Not every change needs the same amount of planning. GAL uses command choice, not a named risk tier, to decide how much review to apply.
 
-| Weight | When | Recommended Flow | Plan? | Architect | Designer | Analyst | Reviewer |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Trivial** | Typo fix, obvious bug, single-file edit | Direct implement, optional `/review`, optional `/qa` | No | No (consult OK) | No | No | No |
-| **Standard** | Small feature, known-cause bug fix, 2–3 files | `/planning` → `/plan-to-prompt` → engineering review lane → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Lightweight | Lite (default on) | No | No | Mandatory (lite) |
-| **Strategic** | New feature, arch change, high-risk, cross-cutting | `/planning` → `/deep-planning` → `/plan-to-prompt` → full review pack → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Full | Full (mandatory) | Full (mandatory) | Conditional | Full |
+| Situation | Recommended Flow | Architect | Notes |
+| --- | --- | --- | --- |
+| Obvious local fix | Direct implement, optional `/review`, optional `/qa` | Optional consult | Use when scope and impact are already clear |
+| Scoped feature or known-cause bug | `/planning` → `/plan-to-prompt` → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
+| Structural, cross-cutting, or uncertain change | `/planning` → `/deep-planning` → `/plan-to-prompt` → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
 
-**Upgrade rule**: Any change can escalate to Strategic mid-flight if complexity exceeds expectations. Stop, refine the plan, and engage the full review pack.
-
-Risk weight is about how many guardrails the task needs, not whether the task is morally "important." Trivial minimizes ceremony; Standard adds cheap structural protection; Strategic buys explicit review gates when a wrong move would be expensive.
+If implementation uncovers architectural uncertainty, stop and return to `/deep-planning` before continuing.
 
 ## Execution Lifecycle
 
@@ -35,53 +33,19 @@ The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispa
 
 `/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and drift in the diff; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
 
-## Review Pack (Strategic)
+## Planning Reviews
 
-Strategic weight uses a fixed core review pack plus conditional specialists.
-Current default policy includes `designer` in every Strategic review, even for technical tasks.
+`/deep-planning` includes an architect review by default before a plan is treated as implementation-ready.
 
-### Always included
+- **Architect**: default reviewer for `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
+- **Analyst**: add when the plan changes business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
+- **Designer**: add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
 
-- **Architect-full**: trade-off analysis, over-engineering, bug surface, dependency pollution, public API risk.
-- **Designer**: visual direction, UX flow, accessibility, interaction clarity, and design-system consistency. If the task has no meaningful UI surface, return a no-impact verdict instead of inventing issues.
+Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
-### Conditionally included
+## Architectural Escalation Fence
 
-- **Analyst**: Only when the task involves business rules, pricing/billing, permission/policy, notification behavior, onboarding/funnel, eligibility/approval, or any change to customer-visible outcomes.
-- **Reviewer**: When implementation is large or touches security-sensitive code.
-- **Debugger**: When the task involves complex integration or known fragile areas.
-
-### Entry to implementation
-
-The condition is: **all required reviewers in the pack APPROVE**. If analyst is not in the pack, analyst approval is not needed.
-
-### When analyst is NOT needed (Strategic examples)
-
-- Pure technical refactoring
-- Infrastructure / build / CI changes
-- Performance optimization
-- Dependency upgrades
-- Bug fixes where business semantics don't change
-
-Strategic weight does not automatically imply analyst involvement. Strategic means technical or delivery risk; analyst is added only when the change also carries business or customer-facing meaning.
-
-## Architect Modes
-
-| Mode | Weight | Scope |
-| --- | --- | --- |
-| **Lite** | Standard (default on) | Structure risk only: cross-layer, DI/interface/public API, protected paths, obvious over-engineering |
-| **Full** | Strategic (mandatory) | Complete trade-off review: architecture fit, complexity budget, trade-offs, bug surface, performance, security |
-| **Consult** | Any | Human-initiated, no formal verdict. Ask architect for advice without entering the formal review pack. |
-
-This split exists because architect review is most useful when it is frequent enough to catch drift but not so heavy that trivial work pays a Strategic-weight tax.
-
-## Scope Fence (Trivial/Standard)
-
-Trivial and Standard weight changes lack the full strategic review pack. To prevent accidental architecture damage, a dual-layer defence applies.
-
-### Layer 1 — Implementer Scope Fence (Prevention)
-
-The implementer's instruction set includes a **Trivial/Standard prohibited operations list**. Triggering any item requires stopping and requesting a Strategic upgrade:
+Implementation must stop and return to `/deep-planning` if the work requires any of the following structural changes:
 
 - Create or delete project files (.csproj, .sln, package.json, etc.)
 - Add or remove package dependencies
@@ -92,9 +56,7 @@ The implementer's instruction set includes a **Trivial/Standard prohibited opera
 - Introduce new design patterns
 - Modify shared/core/base classes used by 3+ consumers
 
-### Layer 2 — Standard Mandatory Reviewer (Detection)
-
-Standard weight's reviewer is mandatory (not optional), but checks only two dimensions: **correctness + architecture**. This catches Scope Fence violations the implementer missed without the overhead of a full OWASP scan.
+These changes need an architect-reviewed plan before implementation continues.
 
 ## Session Safety Mode
 
@@ -104,7 +66,7 @@ For normal feature work, `/careful` is the lighter default. `/guard` should not 
 
 ## Protected Paths
 
-Each repo's `.dev/project.md` contains a `## Protected Paths` section listing architecture-critical files. Touching any protected path during Trivial or Standard work **automatically triggers a Strategic upgrade**.
+Each repo's `.dev/project.md` contains a `## Protected Paths` section listing architecture-critical files. Touching any protected path requires a return to `/deep-planning` before implementation continues.
 
 ## Plan Lifecycle: Transient Task Memory
 
