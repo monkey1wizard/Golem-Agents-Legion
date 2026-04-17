@@ -27,7 +27,7 @@ GAL draws from several adjacent systems rather than a single upstream.
 - [gstack](https://github.com/garrytan/gstack) contributes much of the specialist workflow semantics and command vocabulary, GAL reimplements those semantics natively instead of depending on upstream gstack runtime or storage.
 - [GitHub Spec Kit](https://github.com/github/spec-kit) contributes the portable command-kit and artifact-driven direction: repo-carried workflow artifacts, Markdown-native docs, and installable command surfaces across different runtimes.
 
-GAL's own addition is the split between a dedicated `/gal` control plane and a specialist execution layer, backed by a repo-local canonical state model under `.dev/`, `docs/plans/`, and related artifact folders.
+GAL's own addition is the split between a dedicated `/gal` control plane and a specialist execution layer, backed by repo-local project files under `.dev/`, `docs/plans/`, and related output folders.
 
 In short: GAL is not a fork of any one source. It recombines ideas from GSD, gstack, and Spec Kit into a Copilot/Gemini/Codex-friendly operating model.
 
@@ -40,11 +40,11 @@ GAL now uses a strict split between control plane and execution layer.
 | Control plane | Bootstrap repo, read state, recommend next action, converge continuity, route research | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up`, `/gal research` |
 | Specialist execution | Plan, provider-routed planning reviews, design, debug, review, QA, release, memory, guardrails | `/planning`, `/deep-planning`, `/plan-to-prompt`, `/review`, `/qa`, `/ship`, and the rest of the specialist catalog below |
 
-`/gal` does not duplicate specialist behavior. Specialist commands write back to canonical artifacts that `/gal` reads.
+`/gal` does not duplicate specialist behavior. Specialist commands write back to the project files and plan sections that `/gal` reads.
 
-## Canonical Artifacts
+## Project Files
 
-These files are the durable state model.
+These are the durable project files and output locations that GAL reads or updates.
 
 | Path | Purpose |
 | --- | --- |

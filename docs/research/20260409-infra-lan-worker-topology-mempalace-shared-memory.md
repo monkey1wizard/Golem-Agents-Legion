@@ -26,7 +26,7 @@
 - MemPalace README 顯示 Claude Code 有 plugin 與 hooks 路線，也可透過 MCP 使用其 19 個工具。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MemPalace README 將對話來源描述為 Claude、ChatGPT、Copilot 等 conversation exports / chat traces 都可以被 mine，但這不等於每個 runtime 都已有對等的 first-party auto-save integration。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MCP 只標準化 tool access，不保證 backend identity。只有在多個 runtime 最終都連到同一個 palace backend 時，它們才真的在讀寫同一份記憶；若每台機器各自使用自己的預設本地 palace path，記憶仍會分岔。這是 MemPalace local-first 設計的直接推論，不是 MCP 自動提供的能力。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
-- 以目前的新架構而言，GAL 已明確要求 remote worker 不得維護第二套平行狀態系統；canonical workflow state 仍必須留在 `.dev/state.md` 與 `.dev/plans/<plan-slug>.prompt.md`，source plan 則留在 `docs/plans/<plan-slug>.md`。這些都不是外部記憶庫可以接管的對象。來源：[docs/remote-worker-architecture.md](../remote-worker-architecture.md)、[docs/per-repo-context.md](../per-repo-context.md) 與 [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
+- 以目前的新架構而言，GAL 已明確要求 remote worker 不得維護第二套平行狀態系統；正式 workflow state 仍必須留在 `.dev/state.md` 與 `.dev/plans/<plan-slug>.prompt.md`，source plan 則留在 `docs/plans/<plan-slug>.md`。這些都不是外部記憶庫可以接管的對象。來源：[docs/remote-worker-architecture.md](../remote-worker-architecture.md)、[docs/per-repo-context.md](../per-repo-context.md) 與 [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
 
 ## Synthesis
 
@@ -55,7 +55,7 @@
 這份研究比較支持以下說法：
 
 - MemPalace 可以成為 GAL 的 shared long-term memory sidecar。
-- 它不應成為 GAL 的 canonical workflow state。
+- 它不應成為 GAL 的正式 workflow state。
 - 它也不應介入 source plan 與 execution prompt 的分工；前者是人類可讀計畫，後者是 `.dev/plans/` 下的可變 execution memory。
 - 它能幫 Gemini、VS Code Copilot、Codex 在同一台機器上共用外部記憶查詢層。
 - 它不能只靠 MCP 就自動解決多機共享記憶與一致寫入問題。

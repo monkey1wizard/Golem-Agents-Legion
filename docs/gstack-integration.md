@@ -8,7 +8,7 @@
 
 - GAL 為什麼不再安裝 gstack-style planning commands
 - 安裝 gstack 後，planning family 怎麼找到正確的 upstream skills
-- canonical artifacts 和 provider artifacts 怎麼接線
+- GAL project files 和 provider artifacts 怎麼接線
 
 就讀這份文件。
 
@@ -24,7 +24,7 @@
 原因不是語意不相容，而是 ownership 與安裝面都不同：
 
 1. gstack 的 host 假設是 Claude Code，不是 Copilot 的 control plane
-2. GAL 必須維持 repo-local canonical artifacts
+2. GAL 必須維持 repo-local project files
 3. 若 GAL 也重建 upstream 的 discovery 與 planning-review public surface，在同機安裝 upstream gstack 時會出現重複 planning commands
 
 因此 GAL 不再把這些 upstream 名稱當作自己的 public command surface。
@@ -45,7 +45,7 @@
 
 這一層是 capability，不是固定 command 名稱。
 
-| Lane | 用途 | Canonical write-back |
+| Lane | 用途 | Write-back target |
 | --- | --- | --- |
 | Business / Scope review | 檢查價值、範圍與優先順序 | source plan `## Review Results` + `## Open Questions` |
 | Design review | 檢查 UX、state coverage、a11y、design-system fit | source plan `## Review Results` + `## Open Questions` |
@@ -85,11 +85,11 @@ Windows 對應：
 
 這一層只回答「機器上是否有受支援的 gstack 安裝」，不直接回答「目前這個 repo 的 active plan 是否已有可採用的 review artifact」。
 
-## Provider Artifacts 與 Canonical Artifacts
+## Provider Artifacts 與 GAL Project Files
 
-upstream provider 可以有自己的 project-scoped artifacts，但 GAL 的 canonical state 仍是 repo-local。
+upstream provider 可以有自己的 project-scoped artifacts，但 GAL 的主要檔案仍維持 repo-local。
 
-### GAL canonical artifacts
+### GAL project files
 
 - `.dev/state.md`
 - `docs/plans/<plan-slug>.md`
@@ -115,8 +115,8 @@ GAL 目前只承認這組最小 project-scoped contract：
 ### 核心原則
 
 - provider 產生內容可以被 GAL 讀
-- 但 canonical write-back 必須回到 GAL 自己的 plan artifacts
-- control plane 讀的是 GAL canonical artifacts，不直接把 provider storage 當成主 state
+- 但正式 write-back 必須回到 GAL 自己的 plan files
+- control plane 讀的是 GAL project files，不直接把 provider storage 當成主 state
 
 ## Review Log 欄位對應
 

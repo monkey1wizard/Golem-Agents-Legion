@@ -70,11 +70,11 @@ If capability gating is needed for skills with external dependencies (browser to
 
 ## Separator: Control-Plane vs Specialist Commands
 
-The `/gal` commands form the **control plane**: they read and write the repo's canonical state model, project workflow position, manage continuity, and recommend next actions.
+The `/gal` commands form the **control plane**: they read and write the repo's project files and workflow state, manage continuity, and recommend next actions.
 
 Specialist commands and provider-routed review lanes (for example, `/planning`, `/review`, `/qa`, `/ship`, or the engineering review lane) form the **specialist work layer**: they perform planning-stage refinement, implementation, validation, and release operations within the state established by the control plane.
 
-A `/gal` command should never replicate specialist execution logic. A specialist command should always write its results back to the canonical artifacts that the control plane reads.
+A `/gal` command should never replicate specialist execution logic. A specialist command should always write its results back to the project files and plan sections that the control plane reads.
 
 | Layer | Commands | Writes To |
 | --- | --- | --- |

@@ -19,9 +19,9 @@ This document defines, for each relevant gstack command or review concept:
 
 ## 1. Semantic Division Matrix
 
-Two layers, zero overlap. The rule: if an operation **governs GAL's control-plane projection** (what to do next, how to persist session continuity, how to read canonical artifacts), it is control-plane. If it **executes within a plan phase** (reads a plan, produces work, writes back to the plan), it is a specialist.
+Two layers, zero overlap. The rule: if an operation **governs GAL's control-plane projection** (what to do next, how to persist session continuity, how to read GAL project files), it is control-plane. If it **executes within a plan phase** (reads a plan, produces work, writes back to the plan), it is a specialist.
 
-| Layer | Commands | Canonical Artifact |
+| Layer | Commands | Project Files / Write-Back Target |
 | --- | --- | --- |
 | **GAL control-plane** | `/gal init`, `/gal status`, `/gal whats-next`, `/gal wrap-up` | `.dev/state.md`, `.dev/project.md` |
 | **Planning specialists / review lanes** | `/planning`, `/deep-planning`, planning review lanes via provider or fallback, `/plan-to-prompt` | `docs/plans/<plan-slug>.md` (source plan doc) + `.dev/plans/<plan-slug>.prompt.md` (AI execution work file) |
@@ -112,7 +112,7 @@ Specialist: Plan Refinement And Convergence
 | **Output artifacts** | `docs/plans/<plan-slug>.md` |
 | **State written to plan** | Updates the source plan doc; does not materialize execution state |
 | **Control-plane hook** | Keeps `.dev/state.md` Active Plans pointed at the source plan until `/plan-to-prompt` materializes the execution prompt |
-| **GAL deviation from gstack** | gstack planning artifacts are input material, not canonical state. GAL-native deep planning always converges them into repo-local source plans. |
+| **GAL deviation from gstack** | gstack planning artifacts are input material, not the repo's primary project files. GAL-native deep planning always converges them into repo-local source plans. |
 | **Feeds into** | another `/deep-planning` pass, planning review lanes, or `/plan-to-prompt` once the source plan is implementation-ready |
 
 ---

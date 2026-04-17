@@ -23,7 +23,7 @@ Machine setup and adapter sync scripts.
 ## Command Surface
 
 The portable shell entrypoint is `gal <subcommand>`.
-AI slash commands map onto the same subcommands, with `/gal` as the canonical entry.
+AI slash commands map onto the same subcommands, with `/gal` as the primary entry.
 
 | Command | Purpose |
 | --- | --- |

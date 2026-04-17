@@ -106,7 +106,7 @@ if [[ ${#source_docs[@]} -gt 0 ]]; then
     IFS='|' read -r path type <<< "$entry"
     doc_table="$doc_table\n| \`$path\` | $type | |"
   done
-  project_content="${project_content//\[Index of canonical docs...\]/$doc_table}"
+  project_content="${project_content//\[Index of source docs...\]/$doc_table}"
 fi
 
 # Inject detected tech stack

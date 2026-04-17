@@ -5,7 +5,7 @@ description: "Refines any planning-stage text artifact into a formal source plan
 
 # /deep-planning
 
-Refine planning-stage material into a canonical source plan.
+Refine planning-stage material into a formal source plan.
 
 ## Role
 

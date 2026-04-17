@@ -55,7 +55,7 @@ If this is a Godot C# repo, record the split explicitly:
 
 ## Source Documents
 
-[Index of canonical docs...]
+[Index of source docs...]
 
 | Document | Path | Last Verified |
 | --- | --- | --- |

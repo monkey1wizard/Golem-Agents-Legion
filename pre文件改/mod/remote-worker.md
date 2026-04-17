@@ -27,13 +27,13 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 
 **主要 Feature Worktree** — 主控 PC 上進行開發、審查與狀態收斂的 worktree。是 `.dev/state.md`、`.dev/project.md` 與 `.dev/plans/<plan-slug>.prompt.md` 的唯一寫入者。`docs/plans/<plan-slug>.md` 是 source plan，可作為 scope 與 rationale 參考，但不是 live execution state 的主要寫入目標。
 
-**可拋棄遠端 Worker Worktree** — 由 `Invoke-GalRemoteTask.ps1` 在 worker 節點為單一有界任務建立的 linked worktree。產出 temp artifacts 和可選的 canonical-path 輸出（透過 `result.patch`），但不擁有 canonical 狀態。
+**可拋棄遠端 Worker Worktree** — 由 `Invoke-GalRemoteTask.ps1` 在 worker 節點為單一有界任務建立的 linked worktree。產出 temp artifacts 和可選的 repo-path 輸出（透過 `result.patch`），但不擁有正式狀態。
 
 ### 狀態層級與寫入規則
 
 | 層級 | Artifacts | 主要 Feature Worktree | 可拋棄 Worker Worktree |
 | --- | --- | --- | --- |
-| Repo 層級 canonical | `.dev/project.md`、`.dev/state.md` | 可寫（節制） | 不可——永遠不寫 |
+| Repo 層級正式狀態 | `.dev/project.md`、`.dev/state.md` | 可寫（節制） | 不可——永遠不寫 |
 | Source plan | `docs/plans/<plan-slug>.md` | 可更新，但只限 scope / rationale / requirements 層級 | 預設不可 |
 | Plan 層級執行 | `.dev/plans/<plan-slug>.prompt.md` | 是——主要寫入者 | 預設不可；僅在明確許可時以 patch-first 方式 |
 | 遠端 runtime（暫態） | `status.json`、`summary.md`、`worker.log`、`result.patch` | 否 | 是——唯一擁有者，永不 commit |
@@ -59,7 +59,7 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 這代表 remote worker 的預設政策是：
 
 - 不直接擁有 source plan 的語義改寫權
-- 不直接擁有 execution prompt 的 canonical write 權
+- 不直接擁有 execution prompt 的正式寫入權
 - 只回傳 findings、patch 與暫態 runtime artifacts，再由主控 PC 完成 state convergence
 
 ## 任務合約

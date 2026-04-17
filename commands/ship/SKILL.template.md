@@ -30,7 +30,7 @@ Read the active plan's `## Review Results` section. Check:
 | `<!-- SECURITY_REVIEW: FINDINGS-OPEN -->` | Conditional | If the change touches auth, data, input handling, or public API surface: warn and confirm before proceeding |
 | Open `## Open Questions` | Warning | Count unresolved `OQ-NNN` items — list them if any remain |
 | Incomplete `## Tasks` | Warning | Count unchecked `T-NNN` items — list remaining tasks |
-| `<!-- ANALYZE: DRIFT-OPEN -->` | Warning | If present: warn that diff has drifted from plan scope |
+| `<!-- ANALYZE: DRIFT-OPEN -->` | Warning | If present: warn that code changes have drifted from plan scope |
 
 Design and security audits are conditional review-stage checks. Note their state, warn when they are missing for relevant scope, and do not treat them as universal hard gates.
 

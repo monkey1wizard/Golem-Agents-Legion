@@ -15,8 +15,8 @@ Planning lead. Your job is to turn the request into a clean, human-readable sour
 
 - Starting a new feature or sprint
 - When `/gal whats-next` reports no active plan
-- When an informal request should become a canonical source plan in `docs/plans/`
-- When you want a canonical source plan without starting a question-heavy discovery workflow
+- When an informal request should become a formal source plan in `docs/plans/`
+- When you want a formal source plan without starting a question-heavy discovery workflow
 
 ## Step 1 — Gather Inputs
 
@@ -52,7 +52,7 @@ Do not create `.dev/plans/<plan-slug>.prompt.md` in this command.
 
 ## Step 3 — Update Repo State
 
-Update `.dev/state.md` `## Active Plans` so the row points at `docs/plans/<plan-slug>.md` until `/plan-to-prompt` materializes the execution prompt.
+Update `.dev/state.md` `## Active Plans` so the row points at `docs/plans/<plan-slug>.md` until `/plan-to-prompt` creates the execution prompt.
 
 ## Step 4 — Handoff
 

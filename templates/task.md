@@ -32,7 +32,7 @@ Key files to read:
 - [Other constraints, e.g. "Do not modify any source files", "Stay within the docs/ directory"]
 - Do not commit changes — produce a diff (result.patch) only
 - Do not interact with external services beyond what is needed for the task
-- Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file — these are canonical artifacts owned by the primary control plane and must never be modified directly by a remote worker
+- Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file — these are primary project files owned by the primary control plane and must never be modified directly by a remote worker
 
 ## Output Format
 

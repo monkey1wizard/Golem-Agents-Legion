@@ -35,7 +35,7 @@ Apply this decision tree in order:
 | Condition | Next Action |
 | --- | --- |
 | No active plan, no work in progress | Repo is already initialized; use `/planning` to start sprint planning |
-| Active plan points to source plan only, no execution prompt yet | `/plan-to-prompt` to materialize `.dev/plans/<slug>.prompt.md` before specialist review |
+| Active plan points to source plan only, no execution prompt yet | `/plan-to-prompt` to create `.dev/plans/<slug>.prompt.md` before specialist review |
 | No eng review recorded | Run the engineering review lane for the active plan through the configured provider, or use `/gal golem-architect` as the fallback |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
@@ -44,7 +44,7 @@ Apply this decision tree in order:
 | Tests passing, no review recorded | `/review` for code review |
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
 | Review clean, security-sensitive scope, and no security review recorded | `/cso` for a security audit before wrap-up or ship |
-| `<!-- ANALYZE: DRIFT-OPEN -->` present | Diff has drifted from plan scope — address deviations, then re-run `/review` to update verdict |
+| `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `/review` to update verdict |
 | `## Tasks` has incomplete items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
 | Review clean, plan not yet verified | `/gal wrap-up` to close the session for handoff |

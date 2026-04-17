@@ -36,14 +36,14 @@ review, and state convergence happen. This is the only writer of `.dev/state.md`
 
 **Disposable Remote Worker Worktree** — a linked worktree created by
 `Invoke-GalRemoteTask.ps1` on the worker node for a single bounded task. It produces
-temp artifacts and optionally canonical-path outputs (via `result.patch`), but it does
-not own canonical state.
+temp artifacts and optionally repo-path outputs (via `result.patch`), but it does
+not own project-file state.
 
 ### State Layers And Write Rules
 
 | Layer | Artifacts | Primary Feature Worktree | Disposable Remote Worker Worktree |
 | --- | --- | --- | --- |
-| Repo-level canonical | `.dev/project.md`, `.dev/state.md` | Can write (sparingly) | No — never |
+| Repo-level project files | `.dev/project.md`, `.dev/state.md` | Can write (sparingly) | No — never |
 | Plan-level execution | `.dev/plans/<plan-slug>.prompt.md` | Yes — primary writer | No by default; patch-first only if explicitly permitted |
 | Remote runtime (ephemeral) | `status.json`, `summary.md`, `worker.log`, `result.patch` | No | Yes — sole owner, never committed to repo |
 | Durable outputs | `docs/research/`, `docs/qa-reports/`, etc. | Yes | Yes — via result.patch; Main PC reviews before applying |
@@ -166,7 +166,7 @@ Rules:
 
 - Discord / Telegram are intake channels only, not alternate execution planes.
 - They must translate user requests into bounded task specs or queue items that still pass through the same control-plane policy.
-- They must not write canonical state directly.
+- They must not write project files directly.
 - They must not bypass endpoint selection, patch review, or state convergence rules.
 
 ## Worker Engine

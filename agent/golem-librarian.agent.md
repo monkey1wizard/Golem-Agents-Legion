@@ -62,7 +62,7 @@ Before any write operation:
 
 Before ANY vault operation, load these files in order:
 
-1. **`99_System/Guide.md`** — the canonical rules (§4 Format Standards is critical)
+1. **`99_System/Guide.md`** — the constitution (§4 Format Standards is critical)
 2. **`99_System/Tag_Taxonomy.md`** — approved tags and hierarchy
 3. **Relevant `99_System/Template_*.md`** — frontmatter template for the note type being created
 

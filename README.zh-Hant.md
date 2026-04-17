@@ -27,7 +27,7 @@ GAL 不是單一上游的改名版，而是把幾個相鄰系統的長處重新�
 - [gstack](https://github.com/garrytan/gstack) 提供的是 specialist workflow semantics 與大量指令語彙，GAL 取用的是這些工作流語意，並以 GAL-native skills 重新實作，而不是依賴 upstream gstack 的 runtime 或儲存模型。
 - [GitHub Spec Kit](https://github.com/github/spec-kit) 提供的是 portable command-kit 與 artifact-driven 的方向：repo 內可攜的 workflow artifacts、Markdown-native 文件，以及可安裝到不同 agent/runtime 的命令表面。
 
-GAL 自己額外做的，是把這些來源收斂成「`/gal` 控制平面 + specialist execution layer」的分層，並把 canonical state 固定在 repo 內的 `.dev/`、`docs/plans/` 與相關 artifact 目錄。
+GAL 自己額外做的，是把這些來源收斂成「`/gal` 控制平面 + specialist execution layer」的分層，並把 repo-local 的主要檔案固定在 `.dev/`、`docs/plans/` 與相關輸出目錄。
 
 簡單說，GAL 不是 spec-kit 或 gstack 的 fork，它是把 GSD、gstack、Spec Kit 的不同優點重組成一個更適合 Copilot、Gemini 與 Codex 的 repo-local operating model。
 
@@ -40,11 +40,11 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | 控制平面 | 初始化 repo、讀取狀態、推薦下一步、收斂連續性、路由研究 | `/gal init`、`/gal status`、`/gal whats-next`、`/gal wrap-up`、`/gal research` |
 | 專家執行層 | 規劃、provider-routed 規劃審查、設計、除錯、審查、QA、發佈、記憶管理、安全守護 | `/planning`、`/deep-planning`、`/plan-to-prompt`、`/review`、`/qa`、`/ship` 及下方完整專家目錄 |
 
-`/gal` 不重複實作專家行為。專家指令會把結果回寫到 `/gal` 讀取的 canonical artifacts。
+`/gal` 不重複實作專家行為。專家指令會把結果回寫到 `/gal` 讀取的主要檔案與計畫區段。
 
-## Canonical Artifacts
+## 主要檔案 (Project files)
 
-這些是持久的狀態模型檔案。
+這些是 GAL 會讀取或更新的持久檔案與輸出位置。
 
 | 路徑 | 用途 |
 | --- | --- |
@@ -68,7 +68,7 @@ GAL 現在採用控制平面與執行層的嚴格分層。
 | --- | --- | --- | --- |
 | `## Open Questions` | `/planning`（初始化 scaffold）、規劃階段 review lanes 追加，engineering review lane 關閉已解決項目 | `/ship`、`/gal status`、`/gal whats-next` | 未解決假設與決策的唯一 canonical list，ID 格式 `OQ-NNN` |
 | `## Tasks` | engineering review lane（唯一初始化者，Eng Review CLEAR 後），實作階段只能更新完成狀態 | `/review`、`/qa`、`/ship`、`/gal status`、`/gal whats-next` | 可驗證的任務清單，ID 格式 `T-NNN` |
-| `## Analyze` | `/review`（唯一寫入者，verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：diff 是否偏離計畫範圍？ |
+| `## Analyze` | `/review`（唯一寫入者，verdict：`CLEAR` / `DRIFT-OPEN` / `NOT-RUN`） | `/ship`、`/gal status`、`/gal whats-next` | Drift 檢查：變更是否偏離計畫範圍？ |
 
 消費者只讀取這些 sections 用於顯示與路由 — 不重算、不覆寫。
 
@@ -353,7 +353,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 | 指令 | 用途 | 主要寫入 |
 | --- | --- | --- |
 | `/investigate` | 根因優先的除錯工作流程 | 計畫 `## Debug Session` |
-| `/review` | Staff 級別的 diff 審查，找出 CI 漏掉的問題 | 計畫 `## Review Results`、`## Analyze` |
+| `/review` | Staff 級別的程式碼變更審查，找出 CI 漏掉的問題 | 計畫 `## Review Results`、`## Analyze` |
 
 ### 瀏覽器與 QA
 

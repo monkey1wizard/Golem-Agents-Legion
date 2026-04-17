@@ -34,7 +34,7 @@ Agents read this file first. It must be short enough to consume in full without 
 - [File or path that should never be edited without human approval]
 - [Naming rule, pattern, or constraint that is easy to violate by accident]
 
-## Canonical Docs
+## Source Docs
 
 | Purpose | Path |
 | --- | --- |

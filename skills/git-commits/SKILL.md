@@ -1,6 +1,6 @@
 ---
 name: git-commits
-description: Write commit messages that follow this project's Conventional Commit format. Use whenever the user asks for a commit message, wants to rewrite one, says to commit or summarize staged changes, or needs wording that matches GAL rules. Analyze staged changes or the provided diff, choose the right commit type, detect breaking-change risk, choose the most relevant scope, and return the repo's canonical scoped format.
+description: Write commit messages that follow this project's Conventional Commit format. Use whenever the user asks for a commit message, wants to rewrite one, says to commit or summarize staged changes, or needs wording that matches GAL rules. Analyze staged changes or the provided diff, choose the right commit type, detect breaking-change risk, choose the most relevant scope, and return the repo's scoped format.
 ---
 
 # Git Commits Skill
@@ -11,7 +11,7 @@ description: Write commit messages that follow this project's Conventional Commi
 
 ## Overview
 
-Analyze staged git changes and generate commit messages that match this repository's canonical Conventional Commit style. Use staged diffs or a provided patch to determine the correct type, detect breaking-change risk, choose the most relevant scope, and produce either a one-line commit or a short body with up to three high-signal bullets.
+Analyze staged git changes and generate commit messages that match this repository's Conventional Commit style. Use staged diffs or a provided patch to determine the correct type, detect breaking-change risk, choose the most relevant scope, and produce either a one-line commit or a short body with up to three high-signal bullets.
 
 This repo's local rules override generic Conventional Commits guidance when they conflict. The final output must use a scoped header and stay in this repo's no-footer format unless the user explicitly asks for generic Conventional Commits instead.
 
@@ -19,7 +19,7 @@ This repo's local rules override generic Conventional Commits guidance when they
 
 - Git repository initialized in the working directory
 - Changes staged via `git add`, or the user has provided a diff or patch directly
-- Understanding that this repo's commit style is canonical, including a scoped header when a primary area can be identified
+- Understanding that this repo's commit style is the repo standard, including a scoped header when a primary area can be identified
 
 ## Instructions
 
@@ -41,7 +41,7 @@ This repo's local rules override generic Conventional Commits guidance when they
 8. For non-trivial changes, add up to three short bullets describing the most important changes and their impact.
 9. Do not use footers, if the change is breaking, make that clear in the header or bullets unless the user explicitly asks for generic Conventional Commits.
 
-## Canonical Rules
+## Rules
 
 - Use imperative mood: `add feature`, not `added feature`
 - Start with lowercase

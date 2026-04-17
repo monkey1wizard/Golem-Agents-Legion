@@ -1,9 +1,9 @@
 # Commands
 
-GAL slash commands use a canonical `/gal` control-plane entry point plus `gal-*` aliases for autocomplete discoverability.
+GAL slash commands use a primary `/gal` control-plane entry point plus `gal-*` aliases for autocomplete discoverability.
 
 See [docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) for the architectural rationale and dispatch contract.
-See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) for the canonical command definitions and read/write contracts.
+See [docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) for the current command definitions and read/write contracts.
 
 ## Architecture
 
@@ -15,14 +15,14 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 
 | Layer | Path | Content |
 | --- | --- | --- |
-| Canonical dispatcher | `~/.copilot/skills/gal/SKILL.md`, `~/.gemini/commands/gal.toml`, `~/.codex/skills/gal/SKILL.md` | Main entry point — generated from `commands/gal/SKILL.template.md` |
+| Installed dispatcher entry | `~/.copilot/skills/gal/SKILL.md`, `~/.gemini/commands/gal.toml`, `~/.codex/skills/gal/SKILL.md` | Main entry point — generated from `commands/gal/SKILL.template.md` |
 | Discoverability aliases | `~/.copilot/skills/gal-*/SKILL.md`, `~/.gemini/commands/gal-*.toml`, `~/.codex/skills/gal-*/SKILL.md` | Alias entries — generated from `commands/gal-*/SKILL.template.md` |
 | GAL references | `~/.copilot/gal/`, `~/.gemini/gal/` → repo symlink | templates/, workflows/, conventions/, agent/ |
 | Workspace context | `.dev/project.md`, `.dev/state.md` | Per-repo state |
 
 **Key principles:**
 
-- **Canonical control plane** — `/gal` is the main interface. It routes subcommands, consults golems, and handles state-aware dispatch.
+- **Primary control-plane entry** — `/gal` is the main interface. It routes subcommands, consults golems, and handles state-aware dispatch.
 - **Substantive alias skills** — `/gal-status`, `/gal-whats-next`, and `/gal-wrap-up` contain full procedures and do not dispatch through the script.
 - **Script-dispatched subcommands** — `init` and `research` still route through `gal.ps1 dispatch`.
 - **Discoverability aliases** — `/gal-init`, `/gal-status`, `/gal-whats-next`, `/gal-wrap-up` exist so typing `/gal-` exposes controls in slash-command autocomplete.
@@ -105,7 +105,7 @@ ON_COMPLETE: <next-step hint>
 
 GAL keeps planning as a native command family and routes planning-stage review by lane, not by legacy command name.
 
-| Lane | Preferred Provider | Fallback Invocation | Canonical Write-Back |
+| Lane | Preferred Provider | Fallback Invocation | Write-Back Target |
 | --- | --- | --- | --- |
 | Business / Scope review | Upstream gstack business review provider when installed | `/gal golem-analyst` | `## Review Results` + `## Open Questions` |
 | Design review | Upstream gstack design review provider when installed | `/gal golem-designer` | `## Review Results` + `## Open Questions` |
@@ -129,12 +129,12 @@ These commands belong to the workflow review stage after code exists.
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `/review` | Paranoid staff diff review for correctness, completeness, and drift | Post-implementation review |
+| `/review` | Paranoid staff code review for correctness, completeness, and drift | Post-implementation review |
 | `/design-review` | Live UI audit against `DESIGN.md` for customer-facing changes | Post-implementation review |
 | `/cso` | OWASP and STRIDE security audit for auth, data, input, or public API changes | Post-implementation review |
 | `/qa`, `/qa-only` | Execute the test plan and verify behavior in the browser | Review / test stage |
 
-`/review` and `/design-review` are both workflow review-stage specialists. One audits the diff; the other audits the running product experience.
+`/review` and `/design-review` are both workflow review-stage specialists. One audits the code changes; the other audits the running product experience.
 
 ## Session Safety
 
@@ -151,7 +151,7 @@ These commands control risk for the current session. They are not planning lanes
 
 | File | Purpose |
 | --- | --- |
-| `commands/gal/SKILL.template.md` | Canonical dispatcher template |
+| `commands/gal/SKILL.template.md` | Dispatcher source template |
 | `commands/gal-init/SKILL.template.md` | Alias template for `/gal-init` |
 | `commands/gal-status/SKILL.template.md` | Alias template for `/gal-status` |
 | `commands/gal-whats-next/SKILL.template.md` | Alias template for `/gal-whats-next` |

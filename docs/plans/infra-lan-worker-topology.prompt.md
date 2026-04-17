@@ -15,7 +15,7 @@
 ## Requirements
 
 - [x] 本計畫是 GAL control plane 的 execution-plane 子計畫。
-- [x] 在任何 remote dispatch 發生前，必要的 canonical artifacts 必須先存在：`.dev/project.md`、`.dev/state.md`、`docs/plans/<plan-slug>.md`、`.dev/plans/<plan-slug>.prompt.md`。
+- [x] 在任何 remote dispatch 發生前，必要的主要檔案必須先存在：`.dev/project.md`、`.dev/state.md`、`docs/plans/<plan-slug>.md`、`.dev/plans/<plan-slug>.prompt.md`。
 - [x] 必須明確區分兩種 worktree class：primary feature worktree 與 disposable remote worker worktree。
 - [ ] 遠端執行面已服從 `/gal` orchestrator 的 task contract 與 policy 決策。
 - [ ] 使用者不需要手動指定 endpoint、tier 或 golem 就能派工。
@@ -28,7 +28,7 @@
 - [x] 遠端 worker 不得維護第二套平行狀態系統。執行期資料應落在 temp / ephemeral artifact，而非 repo tracked state。
 - [x] `.dev/state.md` 是 repo-level index 與 continuity artifact，不是 per-task log。
 - [x] `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state，coding、debug、test、review、handoff 的細部進度應優先寫入此檔案。
-- [x] formal progress query 與 live remote-task query 必須分開定義：前者讀 canonical artifacts，後者讀 task-scoped temp artifacts。
+- [x] formal progress query 與 live remote-task query 必須分開定義：前者讀主要檔案，後者讀 task-scoped temp artifacts。
 - [x] plan section 的 remote write policy 必須以 section / command 為單位明確定義，而不是默許 remote worker 可任意寫入 plan。
 
 ## Execution Partitioning Model
@@ -37,7 +37,7 @@
 
 | Layer | Artifacts | 用途 | 查詢方式 |
 | --- | --- | --- | --- |
-| Repo-level canonical state | `.dev/project.md`, `.dev/state.md` | repo 摘要、active plans、blockers、session continuity | 先讀 `.dev/state.md` 判斷目前 repo-level 位置 |
+| Repo-level 主要檔案狀態 | `.dev/project.md`, `.dev/state.md` | repo 摘要、active plans、blockers、session continuity | 先讀 `.dev/state.md` 判斷目前 repo-level 位置 |
 | Plan-level execution state | `docs/plans/<plan-slug>.md`, `.dev/plans/<plan-slug>.prompt.md` | 單一 feature / task 的範圍、workflow step、分析、測試、review、handoff | 讀 active plan 的 `.prompt.md` 取得詳細進度 |
 | Remote runtime artifacts | `task.md`, `status.json`, `summary.md`, `worker.log`, `result.patch` | 單次 remote task 的執行中狀態與回收結果 | 讀 task-scoped temp artifacts，而不是 `.dev/state.md` |
 
@@ -65,13 +65,13 @@
 | `docs/plans/<plan-slug>.md` | 可更新 | 預設否 | source plan，不是 live runtime 狀態 |
 | `.dev/plans/<plan-slug>.prompt.md` | 是，為主要 writer | 預設否；僅在後續 policy 明確允許時才可透過 patch-first 提案 | 詳細 per-task state 的正式來源 |
 | `docs/research/`, `docs/qa-reports/`, `docs/design-reports/` 等 durable outputs | 是 | 是，限 patch-first 任務 | remote 可產生這些檔案，但由 Main PC 審核整合 |
-| `status.json`, `summary.md`, `worker.log` | 否 | 是 | 僅存在 task-scoped temp，不屬於 canonical state |
+| `status.json`, `summary.md`, `worker.log` | 否 | 是 | 僅存在 task-scoped temp，不屬於主要檔案狀態 |
 
 ### Artifact Ownership And Commit Strategy
 
-#### 1. Canonical-path outputs
+#### 1. Project-file outputs
 
-對於 research、docs rewrite、repo scan、某些 QA / review report 類任務，remote worker 可以在自己的 worktree 中直接修改 canonical 路徑，例如 `docs/research/`。這些變更會透過 `git diff HEAD` 被收進 `result.patch`，由 Main PC 回收後審核與整合。
+對於 research、docs rewrite、repo scan、某些 QA / review report 類任務，remote worker 可以在自己的 worktree 中直接修改 repo 內的正式路徑，例如 `docs/research/`。這些變更會透過 `git diff HEAD` 被收進 `result.patch`，由 Main PC 回收後審核與整合。
 
 #### 2. Ephemeral task artifacts
 
@@ -79,7 +79,7 @@
 
 #### 3. Plan / control-plane state
 
-plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote worker 回傳 findings、summary、patch，最終把結果翻譯回 `## Status`、`## Analyze`、`## Review Results`、`## Test Results` 或 `.dev/state.md` 的動作，仍應由 Main PC 在 primary feature worktree 收斂。
+plan prompt 與 `.dev/state.md` 是正式 workflow state。即使 remote worker 回傳 findings、summary、patch，最終把結果翻譯回 `## Status`、`## Analyze`、`## Review Results`、`## Test Results` 或 `.dev/state.md` 的動作，仍應由 Main PC 在 primary feature worktree 收斂。
 
 ### Progress Query Method
 
@@ -99,7 +99,7 @@ plan prompt 與 `.dev/state.md` 是 canonical workflow state。即使 remote wor
 
 1. 讀 task-scoped 的 `status.json`、`summary.md`、`worker.log`。
 2. 不要把 `.dev/state.md` 或 plan prompt 當成 remote task 的即時監控來源。
-3. remote task 回收後，再由 Main PC 把正式狀態收斂回 canonical artifacts。
+3. remote task 回收後，再由 Main PC 把正式狀態收斂回主要檔案與計畫檔案。
 
 #### Example: 基本 coding 完成，但尚未 test
 
@@ -148,7 +148,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 
 | Model / Lane | 適合承接的工作 | 不應承接的工作 |
 | --- | --- | --- |
-| Gemma 4 | 通用摘要、分類、草稿整理、多語內容壓縮、低風險的背景前處理 | 需要 repo-wide correctness 的最終判斷、正式 review 結論、canonical state 寫回 |
+| Gemma 4 | 通用摘要、分類、草稿整理、多語內容壓縮、低風險的背景前處理 | 需要 repo-wide correctness 的最終判斷、正式 review 結論、正式 workflow state 寫回 |
 | Breeze 2 | 台灣繁中語氣修正、筆記整理、私有資料初步歸類、Obsidian 類在地中文任務 | 高風險架構判斷、複雜跨檔推理、正式測試/安全審核 |
 | Gemini CLI | headless remote worker、需要較高穩定性的 research / review / docs 任務 | 不應與 LOCAL lane 混為同一層 contract |
 
@@ -160,7 +160,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 4. Main PC 產生單一 task spec，內容只描述目標、限制、輸出要求與必要讀取檔案。task spec 應足以讓 worker 執行 bounded task，而不是把 plan ownership 一併交出去。
 5. Control plane 依任務特性選 endpoint：Main PC、Windows burst worker、或未來的 Mac Mini async endpoint。
 6. 若選 remote endpoint，Main PC 透過 SSH/SCP 與 endpoint profile（OS、shell、temp root、worker entry、repo path）把 task spec 送到遠端 temp 目錄，並在 remote 端建立 disposable worktree。
-7. 遠端 endpoint 在 linked git worktree 中執行單次任務，Windows 使用 `Start-GalWorker.ps1`，Mac Mini 使用 `Start-GalWorker.sh`；兩者都必須輸出 `status.json`、`summary.md`、`worker.log`、`result.patch`。若 task type 允許，也可在 canonical 路徑產生 patch-first outputs。
+7. 遠端 endpoint 在 linked git worktree 中執行單次任務，Windows 使用 `Start-GalWorker.ps1`，Mac Mini 使用 `Start-GalWorker.sh`；兩者都必須輸出 `status.json`、`summary.md`、`worker.log`、`result.patch`。若 task type 允許，也可在正式 repo 路徑產生 patch-first outputs。
 8. 遠端 worker 不直接擁有 `.dev/state.md`；對 plan prompt 也採 default deny，除非後續 policy 對特定 section / command 明確開放。
 9. Main PC 回收 artifacts，檢查狀態、閱讀 summary、審核 patch，必要時重派或拆小任務。
 10. Main PC 在 primary feature worktree 中完成最後的 state convergence：更新 plan prompt、必要時更新 `.dev/state.md`、再決定是否整合 patch。
@@ -183,7 +183,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 ### P1: Contract And Worker Semantics
 
 - **Scope**
-	- 鎖定 repo-level canonical state、plan-level execution state、remote runtime artifacts 三層模型。
+	- 鎖定 repo-level 主要檔案狀態、plan-level execution state、remote runtime artifacts 三層模型。
 	- 鎖定 primary feature worktree 與 disposable remote worker worktree 的 ownership 邊界。
 	- 鎖定第一版 task / result contract，MVP 只要求 `status.json`、`summary.md`、`worker.log`、`result.patch`。
 	- 鎖定 worktree lifecycle 與 runtime status 的落點，避免把執行期資料寫進 repo tracked state。
@@ -199,7 +199,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 讓主 PC 可把單次任務派送到 Windows sub PC / notebook。
 	- 使用 git worktree 作為 MVP 的唯一隔離模型，不將 branch return 納入第一版成功條件。
 	- 補齊 timeout、retry、failure status 與 log policy。
-	- 驗證 disposable remote worker worktree 只回傳 artifacts / patch，而不直接成為 canonical state owner。
+	- 驗證 disposable remote worker worktree 只回傳 artifacts / patch，而不直接成為正式狀態的 owner。
 	- 先支援 research / review / repo scan / docs 類任務。
 
 - **Files**: `scripts/Invoke-GalRemoteTask.ps1`, `scripts/Start-GalWorker.ps1`, `scripts/Get-GalRemoteResult.ps1`, `docs/runtime-verification.md`
@@ -262,7 +262,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 
 ## Test Cases
 
-- [ ] 在 remote dispatch 前，primary feature worktree 已具備必要 canonical artifacts：`.dev/project.md`、`.dev/state.md`、source plan、active plan prompt。
+- [ ] 在 remote dispatch 前，primary feature worktree 已具備必要主要檔案：`.dev/project.md`、`.dev/state.md`、source plan、active plan prompt。
 - [ ] 在 primary feature worktree 中，coding complete but tests pending 會先更新 active plan prompt；`.dev/state.md` 只在 next step、blocker、active-plan index 或 continuity 改變時更新。
 - [ ] 在 debug flow 中，active plan prompt 會更新 `## Status`、`## Analyze`、必要時 `### Handoff Notes`；`.dev/state.md` 只在 repo-level 狀態改變時更新。
 - [ ] formal repo progress 可透過 `.dev/state.md` + active plan prompt 重建；live remote-task status 則透過 `status.json` / `summary.md` / `worker.log` 觀察。
@@ -279,7 +279,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 
 - [ ] 遠端執行面成為 `/gal` orchestrator 的延伸能力，而不是另一套 side channel。
 - [ ] primary feature worktree 與 disposable remote worker worktree 的責任邊界清楚，且不產生 split-brain state。
-- [ ] Windows burst worker 可穩定承接 bounded text-oriented 任務，且不污染 canonical state。
+- [ ] Windows burst worker 可穩定承接 bounded text-oriented 任務，且不污染主要檔案狀態。
 - [ ] 查 repo 正式進度、查單一 plan 進度、查 live remote-task 狀態三者的方法清楚且不互相混淆。
 - [ ] Main PC、Windows sub PC / notebook、Mac Mini 可納入同一控制平面，但保有清楚責任邊界。
 - [ ] 外出情境下的 Discord / Telegram 遠端入口是 intake layer，不會變成 control plane 之外的 side channel。
@@ -317,7 +317,7 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 | --- | --- | --- | --- |
 | 舊版狀態判定 | 把多項 requirement 與 test case 標為已完成 | 全數退回到「待 live verification」或「待 control-plane policy 實作」 | repo 目前擁有的是 contract 與腳本，不是已完成的多機 orchestration rollout |
 | 舊版 phase 結構 | 直接從 Windows notebook MVP 跳到 Mac Mini | 插入獨立的 control-plane offload policy phase | 多台設備分工的核心不是「再多一台機器」，而是先定義誰負責選 endpoint 與為何這樣選 |
-| worktree 方法定義 | 原先把所有 worktree 視為同一類 | 明確區分 primary feature worktree 與 disposable remote worker worktree | feature 開發的 canonical state 更新，與 remote bounded execution 的 artifact 回收，不應混為同一 ownership 模型 |
+| worktree 方法定義 | 原先把所有 worktree 視為同一類 | 明確區分 primary feature worktree 與 disposable remote worker worktree | feature 開發的主要檔案狀態更新，與 remote bounded execution 的 artifact 回收，不應混為同一 ownership 模型 |
 
 ### Handoff Notes
 
@@ -328,8 +328,8 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 1. `primary feature worktree` 與 `disposable remote worker worktree` 是兩種不同 ownership class。
 2. `.dev/state.md` 是 repo-level index / continuity，不是 per-task log。
 3. `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state。
-4. formal progress query 讀 canonical artifacts；live remote-task query 讀 task-scoped temp artifacts。
-5. remote worker 允許對某些 canonical docs 採 patch-first，但不預設擁有 `.dev/state.md` 或 plan sections。
+4. formal progress query 讀主要檔案；live remote-task query 讀 task-scoped temp artifacts。
+5. remote worker 允許對某些正式 repo 文件採 patch-first，但不預設擁有 `.dev/state.md` 或 plan sections。
 6. Mac Mini 採 bash worker adapter，仍服從同一份 artifact contract；Gemini CLI 是唯一 headless engine。
 7. Copilot CLI、VS Code、Codex CLI 雖已安裝於 Mac Mini，但目前不納入 automated remote dispatch。
 8. MLX-LM 屬於 Apple Silicon LOCAL lane，不與 execution plane 的 Gemini contract 混為同一層。

@@ -204,7 +204,7 @@ Required outputs for the active execution prompt:
 - Resolve only the `OQ-NNN` items that are definitively answered by this review
 - Write `<!-- ENG_REVIEW: CLEAR -->` only when the plan is buildable enough for implementation to begin
 
-Do not invent a separate artifact format. Write in the plan's canonical sections.
+Do not invent a separate artifact format. Write in the plan's defined sections.
 
 </formal_writeback_contract>
 

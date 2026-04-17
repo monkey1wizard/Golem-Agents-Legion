@@ -1,17 +1,17 @@
 ---
 name: review
-description: "Paranoid staff engineer review of the current branch diff. Finds N+1 queries, race conditions, trust boundary violations, forgotten enum handlers, and completeness gaps. Auto-fixes mechanical issues. Writes ## Staff Review to the active plan."
+description: "Paranoid staff engineer review of the current branch changes. Finds N+1 queries, race conditions, trust boundary violations, forgotten enum handlers, and completeness gaps. Auto-fixes mechanical issues. Writes ## Staff Review to the active plan."
 ---
 
 # /review
 
-Review the current branch diff as a paranoid staff engineer. Find what CI misses.
+Review the current branch changes as a paranoid staff engineer. Find what CI misses.
 
 ## Role
 
 Staff engineer. Your job is to find the bugs that pass all tests and only break in production.
 
-This is the post-implementation diff review for the workflow review stage. It does not replace the planning-stage engineering review lane.
+This is the post-implementation review of code changes for the workflow review stage. It does not replace the planning-stage engineering review lane.
 
 ## When to Use
 
@@ -19,13 +19,13 @@ This is the post-implementation diff review for the workflow review stage. It do
 - After a significant `/investigate` fix
 - When `/gal whats-next` recommends review
 
-## Step 1 — Read Diff
+## Step 1 — Review Changes
 
-Run `git diff main` (or `git diff origin/main` if on a remote branch) and read the full diff.
+Run `git diff main` (or `git diff origin/main` if on a remote branch) and read the full set of changes.
 
 Read the active plan file from `.dev/state.md` — note what was intended to be built.
 
-Also read `## Tasks` and `## Open Questions` from the plan's `.prompt.md` — use the task list to check completeness against the diff.
+Also read `## Tasks` and `## Open Questions` from the plan's `.prompt.md` — use the task list to check completeness against the changes.
 
 ## Step 2 — Bug Pattern Scan
 
@@ -77,7 +77,7 @@ In the active plan file, append under `## Review Results`:
 ### Staff Review
 
 **Date:** <today>
-**Diff reviewed:** <branch> vs main
+**Changes reviewed:** <branch> vs main
 
 #### Auto-Fixed (<N> items)
 
@@ -98,23 +98,23 @@ Replace `CLEAR` with `FINDINGS-OPEN` if there are flagged items the user has not
 
 **Write `## Analyze`:**
 
-After reviewing the diff against the plan, overwrite the `## Analyze` section of the `.prompt.md` with the verdict:
+After reviewing the changes against the plan, overwrite the `## Analyze` section of the `.prompt.md` with the verdict:
 
 ```markdown
 ## Analyze
 
 **Date:** <today>
-**Diff:** <branch> vs main
+**Branch changes:** <branch> vs main
 
 | Check | Result |
 | --- | --- |
-| All T-NNN tasks addressed by diff | ✓ / ✗ — <count> of <total> complete |
-| Diff stays within plan scope | ✓ / ✗ — <note any unplanned work> |
+| All T-NNN tasks addressed by the changes | ✓ / ✗ — <count> of <total> complete |
+| Changes stay within plan scope | ✓ / ✗ — <note any unplanned work> |
 | Requirements vs implementation | ✓ / ✗ — <gaps if any> |
 
 <!-- ANALYZE: CLEAR -->
 ```
 
-Replace `CLEAR` with `DRIFT-OPEN` if any task is uncomplete or the diff includes significant out-of-scope work. Replace with `NOT-RUN` only if the plan has no `## Tasks` and no requirements to check against.
+Replace `CLEAR` with `DRIFT-OPEN` if any task is uncomplete or the changes include significant out-of-scope work. Replace with `NOT-RUN` only if the plan has no `## Tasks` and no requirements to check against.
 
 Tell the user: auto-fixed count, open findings count, whether the branch is ready for `/ship`, and the `ANALYZE` verdict.

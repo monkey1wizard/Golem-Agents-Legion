@@ -124,7 +124,7 @@ This repo follows its own methodology.
 Changes to GAL itself are tracked using two complementary artifact types:
 
 - **Source plan doc** — `docs/plans/<plan-slug>.md`: the human-readable plan with scope, rationale, and requirements. This is what a human reads to understand what a change does and why.
-- **AI execution work file** — `.dev/plans/<plan-slug>.prompt.md`: the mutable working artifact the agent operates against. It carries per-task checklists, execution state, `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, and `### Handoff Notes`. This is the canonical state vector that `/gal status` reads.
+- **AI execution work file** — `.dev/plans/<plan-slug>.prompt.md`: the mutable working artifact the agent operates against. It carries per-task checklists, execution state, `## Status`, `## Open Questions`, `## Tasks`, `## Analyze`, `## Review Results`, `## Test Results`, and `### Handoff Notes`. This is the state vector that `/gal status` reads.
 
 Both files share the same `plan-slug` as their correlation key. Planning-stage specialist passes such as business, design, and engineering review lanes write back to the source plan first. After `/plan-to-prompt`, execution-stage specialist commands write back to the execution prompt in `.dev/plans/`.
 

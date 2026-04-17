@@ -9,7 +9,7 @@
 ## 先記住三件事
 
 1. `/gal` 只處理 control plane，不重複包一層 specialist workflow。
-2. specialist commands 直接執行工作，但必須回寫到 `/gal` 讀得懂的 canonical artifacts。
+2. specialist commands 直接執行工作，但必須回寫到 `/gal` 讀得懂的主要檔案與計畫區段。
 3. GAL 採 repo-local state model，不使用 upstream gstack 的 user-global storage 作為核心狀態邊界。
 
 ## gstack 作為可選 provider
@@ -17,7 +17,7 @@
 GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gstack runtime 運作。
 
 - gstack 的 host 假設是 Claude Code；GAL 的主控制面是 Copilot，Gemini CLI 與 Codex 是其他可接入 runtime。
-- GAL 要求 repo-local canonical artifacts；upstream gstack 的部分資料模型是 user-global。
+- GAL 要求 repo-local project files；upstream gstack 的部分資料模型是 user-global。
 - GAL 的目標是 tool-agnostic methodology，而不是把控制權外包給某個外部工具安裝。
 
 所以 GAL 的做法是：挑出與 GAL 相容的 gstack-style specialist commands 與工作流語意，將其實作成 GAL-native skills，並把結果回寫到 GAL 自己的 artifacts。
@@ -50,7 +50,7 @@ GAL 有 GAL-native 的 workflow 與 specialist commands，不依賴 upstream gst
 | `/plan-to-prompt` | 在 source plan 完成 planning-stage 深化與審查後，轉換為 execution prompt | `.dev/plans/<plan-slug>.prompt.md` | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 | `/cso` | 資安審查與 findings 管理 | plan `## Review Results` 下的 security review | [../docs/gstack-command-contracts.md](../docs/gstack-command-contracts.md) |
 
-Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public commands：business / scope review、design review、engineering review 應視為 specialized deep-planning passes，先寫回 source plan 的同一組 canonical sections，再由 `/plan-to-prompt` 轉成 execution prompt。
+Planning-stage review lanes 是 provider-routed capabilities，不是 GAL public commands：business / scope review、design review、engineering review 應視為 specialized deep-planning passes，先寫回 source plan 的同一組固定區段，再由 `/plan-to-prompt` 轉成 execution prompt。
 
 ### 設計
 

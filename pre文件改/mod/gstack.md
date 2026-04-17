@@ -5,7 +5,7 @@ gstack 是 GAL 的可插拔 specialist provider，不是 GAL 的核心依賴。G
 gstack 安裝後（`~/gstack`），這個模組主要提供兩層增強能力：
 
 1. 進階規劃 provider：discovery-style feature planning、business/design/engineering review lanes，以及 full planning review pipeline provider。這些 review lanes 屬於 planning 之後、`/plan-to-prompt` 之前的 specialized deep-planning passes。這層是可選增強，不是唯一規劃路徑。
-2. Specialist 執行指令：`/review`、`/qa`、`/ship`、`/design-review` 等指令遵循 write-back discipline，把結果回寫到 GAL 的 canonical artifacts。這些指令不依賴規劃層。
+2. Specialist 執行指令：`/review`、`/qa`、`/ship`、`/design-review` 等指令遵循 write-back discipline，把結果回寫到 GAL 的主要檔案與計畫區段。這些指令不依賴規劃層。
 
 另外要分清楚兩層偵測：
 
@@ -19,17 +19,17 @@ GAL 需要兩層都分開判斷；不能用 `.gstack` 或單一 artifact 存在�
 GAL 取用的是 gstack 的 workflow semantics，作為 optional provider 接入，而不是依賴 upstream runtime 作為核心依賴。
 
 - gstack 的 host 假設是 Claude Code；GAL 的主控制面是 Copilot，Gemini CLI 與 Codex 是其他可接入 runtime。
-- GAL 要求 repo-local canonical artifacts；upstream gstack 的部分資料模型是 user-global。
+- GAL 要求 repo-local project files；upstream gstack 的部分資料模型是 user-global。
 - GAL 的目標是 tool-agnostic methodology，而不是把控制權外包給某個外部工具安裝。
 
-做法是：維持 GAL-native 的 planning 與 execution command surface，並以 provider routing 讓 gstack 的規劃與審查能力在有安裝時接入 GAL 的 canonical artifacts。
+做法是：維持 GAL-native 的 planning 與 execution command surface，並以 provider routing 讓 gstack 的規劃與審查能力在有安裝時接入 GAL 的主要檔案。
 
-provider routing 發生在 workflow 層，不直接綁在單一 agent 身上。也就是說，GAL 不做成「agent 偵測到 gstack 就切換人格或流程」，而是先由 formal workflow 決定這次要走 upstream provider 還是 GAL-native fallback，再把結果回寫到同一組 canonical sections。
+provider routing 發生在 workflow 層，不直接綁在單一 agent 身上。也就是說，GAL 不做成「agent 偵測到 gstack 就切換人格或流程」，而是先由 formal workflow 決定這次要走 upstream provider 還是 GAL-native fallback，再把結果回寫到同一組固定區段。
 
 記住三件事：
 
 1. `/gal` 只處理 control plane，不重複包一層 specialist workflow。
-2. Specialist commands 直接執行工作，但必須回寫到 `/gal` 讀得懂的 canonical artifacts。
+2. Specialist commands 直接執行工作，但必須回寫到 `/gal` 讀得懂的主要檔案與計畫區段。
 3. GAL 採 repo-local state model，不使用 upstream gstack 的 user-global storage。
 
 ## 規劃工作流

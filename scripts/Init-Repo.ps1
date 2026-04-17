@@ -110,7 +110,7 @@ if ($sourceDocs.Count -gt 0) {
     foreach ($doc in $sourceDocs) {
         $docTable += "| ``$($doc.Path)`` | $($doc.Type) | |`n"
     }
-    $projectContent = $projectContent -replace "\[Index of canonical docs\.\.\.\]", $docTable.TrimEnd("`n")
+    $projectContent = $projectContent -replace "\[Index of source docs\.\.\.\]", $docTable.TrimEnd("`n")
 }
 
 # Inject detected tech stack

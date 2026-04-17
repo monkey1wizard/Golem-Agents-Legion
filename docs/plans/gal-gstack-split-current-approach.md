@@ -26,18 +26,18 @@
 GAL 持續擁有以下責任：
 
 - `/gal` control plane
-- repo-local canonical artifacts
+- repo-local project files
 - 多 runtime 共用的 workflow contract
 - 多機器協作與 remote worker 收斂模型
 - plan lifecycle 與 pipeline lifecycle
-- specialist 結果的 canonical write-back 規則
+- specialist 結果的 write-back 規則
 - 沒有 gstack 時的對話型 fallback 架構
 
-也就是說，GAL 仍是 canonical state owner。即使沒有 gstack，GAL 也必須能獨立運作。
+也就是說，GAL 仍負責 repo-local 主要檔案的最終狀態。即使沒有 gstack，GAL 也必須能獨立運作。
 
 ### gstack
 
-gstack 的角色是可插拔的 specialist provider，不是控制平面，也不是 canonical state owner。
+gstack 的角色是可插拔的 specialist provider，不是控制平面，也不負責主要檔案的最終狀態。
 
 GAL 目前只把它視為：
 
@@ -46,7 +46,7 @@ GAL 目前只把它視為：
 - CEO-style 或 business-scope review 的內容生成能力來源
 - 其他快速演化 specialist workflow 的外部提供者
 
-不論內容由誰產生，最終都必須回寫到 GAL 自己的 canonical artifacts。
+不論內容由誰產生，最終都必須回寫到 GAL 自己的主要檔案與計畫檔案。
 
 ### Domain Agents
 
@@ -119,7 +119,7 @@ GAL 內部至少有三個由指令明確觸發的 workflow / command family：
 - GAL 使用較乾淨、較 provider-neutral 的 GSD-style gate 與 verdict 邏輯
 - 架構分析、component responsibilities、data flow、recommended structure、anti-patterns 等 artifact，以 GSD-style architecture template 為正式基底
 
-gstack 的 engineering review 可以提供內容，但不作為 GAL canonical architecture artifact 的格式來源。
+gstack 的 engineering review 可以提供內容，但不作為 GAL 正式架構文件的格式來源。
 
 ## Formal Workflow 路由原則
 
@@ -350,7 +350,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 - 舊文件只作為參考，不作為必須被轉換的正式輸入
 - 先把 provider routing 抽出來，再討論各 agent 的最終細節
 - 先把 GAL-native 的`planning`與 `deep-planning` 建立起來，再決定 gstack 如何接入 formal review
-- 任何委派給 gstack 的結果，都必須能無損回寫到 GAL 的 canonical artifacts
+- 任何委派給 gstack 的結果，都必須能無損回寫到 GAL 的主要檔案與計畫檔案
 
 ## 目前狀態
 

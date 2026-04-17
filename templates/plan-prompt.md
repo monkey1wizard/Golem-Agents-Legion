@@ -2,7 +2,7 @@
 
 <!--
 Generated from docs/plans/<plan-slug>.md.
-Canonical path: <repo>/.dev/plans/<plan-slug>.prompt.md
+Output path: <repo>/.dev/plans/<plan-slug>.prompt.md
 This is the mutable execution work file consumed by /gal status, /gal whats-next, /gal pipeline, and specialist write-back flows.
 -->
 

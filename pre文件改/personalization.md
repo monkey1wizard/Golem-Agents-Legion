@@ -57,9 +57,9 @@ macOS:
 
 ## 設定責任邊界
 
-- canonical methodology 與 docs 應留在 repo tracked files。
+- 正式方法論與來源文件應留在 repo tracked files。
 - machine-local values 應留在 `*.local.*` 或本機 runtime config。
-- 如果某個設定會讓不同機器分叉，先確認它是不是應該進 canonical docs，而不是直接進 local file。
+- 如果某個設定會讓不同機器分叉，先確認它是不是應該進來源文件，而不是直接進 local file。
 
 ## 相關文件
 

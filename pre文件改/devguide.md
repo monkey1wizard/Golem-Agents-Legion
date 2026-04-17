@@ -1,10 +1,10 @@
 # 開發者指南
 
-這份文件不是第二份 canonical spec。它的角色是維護者導航：幫你在修改 GAL repo 前，先判斷自己正在碰哪一層、該讀哪份真正的 source of truth，以及哪些規則不能破壞。
+這份文件不是第二份正式規格。它的角色是維護者導航：幫你在修改 GAL repo 前，先判斷自己正在碰哪一層、該讀哪份真正的 source of truth，以及哪些規則不能破壞。
 
 ## 先判斷你在改哪一層
 
-| 你要改什麼 | 先問自己 | 真正的 canonical 文件 |
+| 你要改什麼 | 先問自己 | 真正的來源文件 |
 | --- | --- | --- |
 | 設計原則、方法論邊界 | 這是 durable rule，還是一次性實作細節？ | [../docs/design-principles.md](../docs/design-principles.md) |
 | `/gal` 指令表面、dispatch、alias | 這是 control plane contract 還是 runtime plumbing？ | [../docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md)、[../docs/gal-control-plane-contracts.md](../docs/gal-control-plane-contracts.md) |
@@ -29,7 +29,7 @@
 
 ### 3. Repo-local state 是 ownership boundary
 
-- `.dev/`、`docs/plans/`、`docs/designs/`、`docs/qa-reports/` 等是可共享的 canonical artifacts。
+- `.dev/`、`docs/plans/`、`docs/designs/`、`docs/qa-reports/` 等是可共享的主要檔案與輸出目錄。
 - 不要把 GAL 的核心狀態移回 user-global storage。
 
 ### 4. 缺失工具不能被當作靜默成功
@@ -42,7 +42,7 @@
 - 對某個工具很順手，但會讓 Copilot / Gemini / Codex contract 分叉的改動，通常是壞改動。
 - README、devguide、commands、setup scripts 都應優先服務跨 runtime parity。
 
-### 6. 不要把摘要寫成第二份 canonical
+### 6. 不要把摘要寫成第二份正式規格
 
 - 如果某份文件只是幫人找路，就不要把完整 spec 再抄寫一遍。
 - 摘要應該用來導讀與縮短跳轉，不應該創造另一份需要同步維護的版本。
@@ -50,7 +50,7 @@
 ### 7. Provider routing 應留在 workflow 層
 
 - 不要做成「某個 agent 偵測到 gstack 或其他 provider 後，就自己切換人格、流程或 contract」。
-- formal workflow 先決定 provider，再由 provider 產出內容，最後回寫到同一組 canonical artifacts。
+- formal workflow 先決定 provider，再由 provider 產出內容，最後回寫到同一組主要檔案與計畫區段。
 
 ## 資訊應該寫在哪裡
 
@@ -62,7 +62,7 @@
 | AI 執行工作檔與 specialist 回寫 | `.dev/plans/<plan-slug>.prompt.md` |
 | 一次性 session continuity | plan 的 `### Handoff Notes` 與 `.dev/state.md` |
 
-如果某個 plan 完成後仍然包含值得保留的知識，應把它提取回 canonical docs，而不是把 plan 永遠留下來當隱性知識庫。
+如果某個 plan 完成後仍然包含值得保留的知識，應把它提取回來源文件，而不是把 plan 永遠留下來當隱性知識庫。
 
 ## 常見改動的正確入口
 
@@ -89,7 +89,7 @@
 ### 重構文件本身
 
 1. 先確認這份文件的唯一工作是否明確。
-2. 若某段內容已經被別的 canonical doc 擁有，就改成摘要加連結，而不是再寫一份。
+2. 若某段內容已經被別的來源文件擁有，就改成摘要加連結，而不是再寫一份。
 3. 若從首頁移出內容，必須同時給出新的落點，不要只做刪減。
 
 ## 自檢清單
@@ -98,7 +98,7 @@
 
 - 這次改動有沒有新增第二份 source of truth？
 - `/gal` 是否仍然只處理 control plane？
-- specialist commands 是否仍然回寫到 canonical artifacts？
+- specialist commands 是否仍然回寫到主要檔案與計畫區段？
 - 有沒有把 repo-local state 推回 user-global path？
 - 有沒有把工具缺失誤當成成功？
 - 有沒有把 provider routing 偷綁進 agent persona、單一工具偵測或 runtime 特例？
@@ -119,6 +119,6 @@
 - [readme.zh-Hant.md](readme.zh-Hant.md) — 使用者入口
 - [command-index.md](command-index.md) — GAL 指令索引
 - [mod/gstack.md](mod/gstack.md) — gstack 可選 provider 工作流模組
-- [../docs/design-principles.md](../docs/design-principles.md) — 設計原則 canonical spec
-- [../docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) — dispatch canonical spec
-- [../docs/installation-topology.md](../docs/installation-topology.md) — 安裝拓撲 canonical spec
+- [../docs/design-principles.md](../docs/design-principles.md) — 設計原則來源規格
+- [../docs/command-dispatch-architecture.md](../docs/command-dispatch-architecture.md) — dispatch 來源規格
+- [../docs/installation-topology.md](../docs/installation-topology.md) — 安裝拓撲來源規格

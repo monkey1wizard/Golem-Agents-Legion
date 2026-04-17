@@ -21,7 +21,7 @@ If implementation uncovers architectural uncertainty, stop and return to `/deep-
 
 GAL's coding flow is expressed as artifact-producing command phases.
 
-| Phase | Entry Signal | Commands | Main Artifacts |
+| Phase | Entry Signal | Commands | Main Files / Outputs |
 | --- | --- | --- | --- |
 | **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
 | **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via provider or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
@@ -31,7 +31,7 @@ GAL's coding flow is expressed as artifact-producing command phases.
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan artifacts such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
-`/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and drift in the diff; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
+`/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and scope drift in the code changes; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews
 
@@ -76,7 +76,7 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 
 1. **`/planning` creates the source plan** → `docs/plans/<type>-<slug>.md`
 2. **`/deep-planning` refines the source plan when needed** → keeps scope and rationale review-ready
-3. **`/plan-to-prompt` materializes the execution prompt** → `.dev/plans/<type>-<slug>.prompt.md`
+3. **`/plan-to-prompt` creates the execution prompt** → `.dev/plans/<type>-<slug>.prompt.md`
 4. **The execution prompt self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
 5. **Implementation updates progress** during execution (not `.dev/state.md`)
 6. **Testing and review write results** → execution prompt `## Test Results`, `## Review Results`, `## Analyze`
