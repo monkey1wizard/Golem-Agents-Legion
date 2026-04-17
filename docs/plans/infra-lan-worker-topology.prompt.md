@@ -189,7 +189,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 鎖定 worktree lifecycle 與 runtime status 的落點，避免把執行期資料寫進 repo tracked state。
 	- 定義 remote worker 只負責執行，不擁有第二套 state model。
 
-- **Files**: `docs/remote-worker-architecture.md`, `docs/per-repo-context.md`, `templates/task.md`
+- **Files**: `docs/mod/remote-worker.md`, `docs/devguide.md`, `templates/task.md`
 - **Repo State**: plan 層面的 ownership 規則已在本檔定義，但 supporting docs 尚未全部同步，完整 live verification 也尚未完成。
 - **Verify**: 至少完成一次真實的 Windows remote worker 任務，並確認三層 state model 與 worktree ownership 邊界在操作上可成立。
 
@@ -214,7 +214,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 定義 specialist command 的 offload matrix，以及哪些 plan sections / state writes 只能在 primary feature worktree 發生。
 	- 讓 `/gal` 與 specialist commands 產生的 task artifact 能透過同一 decision path 被送往 remote endpoint。
 
-- **Files**: `docs/remote-worker-architecture.md`, `docs/gal-control-plane-contracts.md`, `docs/command-dispatch-architecture.md`, `model-roles.example.md`
+- **Files**: `docs/mod/remote-worker.md`, `commands/commands.md`, `model-roles.example.md`
 - **Verify**: 不需使用者手動指定「這次送 notebook 還是 Mac Mini」，control plane 可依 task 特性做出可解釋的 routing 決策。
 
 ### P4: Mac Mini Async Endpoint
@@ -230,7 +230,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 為 Gemma 4 與 Breeze 2 分配 LOCAL lane 工作：Gemma 4 偏通用摘要/分類；Breeze 2 偏繁中在地化整理、筆記與私有資料前處理。
 	- 定義主要節點、備援節點與 endpoint health 檢查。
 
-- **Files**: `docs/remote-worker-architecture.md`, `docs/installation-topology.md`, `model-roles.example.md`, `scripts/scripts.md`
+- **Files**: `docs/mod/remote-worker.md`, `docs/devguide.md`, `model-roles.example.md`, `scripts/scripts.md`
 - **Repo State**: Mac Mini 已確認安裝 Gemini CLI、Copilot CLI、VS Code、Codex CLI，但 bash worker、endpoint profile abstraction 與 live verification 尚未完成。
 - **Verify**: 同一 contract 可讓 Windows burst worker 與 Mac Mini async endpoint 執行不同類型的任務；Mac worker 需以 bash 產出與 Windows 相同的 artifacts；Discord / Telegram intake 只能送出 bounded tasks，不可直接形成另一套執行面。
 
@@ -239,9 +239,8 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 | File | 目前狀態 | 還缺什麼 |
 | --- | --- | --- |
 | `docs/plans/infra-lan-worker-topology.prompt.md` | 正在修訂 | 鎖定 state layers、worktree classes、query method、writer ownership matrix |
-| `docs/remote-worker-architecture.md` | 已存在 | 補上 multi-endpoint policy、Main PC / Windows / Mac Mini 分工與 health model |
-| `docs/installation-topology.md` | 已存在 | 補上 Mac Mini 作為 async endpoint 的實際接線方式 |
-| `docs/per-repo-context.md` | 已存在 | 確認 remote task artifact 與 canonical artifact 的 ownership boundary |
+| `docs/mod/remote-worker.md` | 已存在 | 補上 multi-endpoint policy、Main PC / Windows / Mac Mini 分工與 health model |
+| `docs/devguide.md` | 已存在 | 吸收 setup topology，並確認 ownership boundary 與 async endpoint 接線方式 |
 | `templates/task.md` | 已存在 | 補上 endpoint-neutral task spec 約束 |
 | `scripts/Invoke-GalRemoteTask.ps1` | 已存在 | 完成 live validation，未來支援 endpoint selection abstraction |
 | `scripts/Start-GalWorker.ps1` | 已存在 | 補強 summary extraction、timeout、錯誤可觀測性 |
@@ -253,11 +252,9 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 
 ### Supporting Context Already In Repo
 
-- `docs/gal-control-plane-contracts.md` — `/gal` 控制面指令的 read/write contract
-- `docs/gstack-command-contracts.md` — specialist command 的 read/write contract 與 artifact mapping
-- `docs/gstack-integration.md` — GAL 採用 gstack-style specialist semantics 的整合模型
-- `docs/command-dispatch-architecture.md` — control plane 與 dispatcher 的角色邊界
-- `docs/research/lan-worker-feasibility.md` — LAN worker 可行性研究與 MVP scope cut 建議
+- `commands/commands.md` — `/gal` control-plane contract, alias rules, and runtime surface
+- `docs/command-index.md` — specialist command map and write-back ownership
+- `docs/mod/gstack.md` — optional gstack provider semantics
 - `docs/research/20260409-infra-lan-worker-topology-mempalace-shared-memory.md` — MemPalace 是否能成為 GAL 跨 runtime 共用長期記憶層的架構評估
 
 ## Test Cases

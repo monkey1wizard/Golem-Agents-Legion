@@ -39,7 +39,7 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 - [ ] R-03 — `/review` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，交叉比對變更是否跨越 community 邊界
 - [ ] R-04 — `/planning` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，用 communities 判斷 scope 是否跨模組
 - [ ] R-05 — `mcp-servers.example.json` 包含 graphify MCP server 設定（disabled by default）
-- [ ] R-06 — `docs/per-repo-context.md` 記載 graphify detection 規則
+- [ ] R-06 — `docs/devguide.md` 記載 graphify detection 規則
 - [ ] R-07 — graphify 不存在時，所有修改過的 SKILL.md 行為完全不變（zero regression）
 
 ## Approach
@@ -72,6 +72,7 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 
 - **Files**: `mcp-servers.example.json`
 - **What**: 加入 graphify server entry，所有 provider 設為 `enabled: false`：
+
   ```json
   "graphify": {
     "description": "Knowledge graph query server for architecture-aware planning and review.",
@@ -103,11 +104,12 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
     }
   }
   ```
+
 - **Verify**: `mcp-servers.example.json` 語法正確，graphify entry 存在且全部 disabled
 
 ### Step 6: Detection 文件化
 
-- **Files**: `docs/per-repo-context.md`
+- **Files**: `docs/devguide.md`
 - **What**: 新增 "## Graphify Knowledge Graph Detection" section，記載偵測規則和 artifact 說明：
   - 偵測信號：`graphify-out/GRAPH_REPORT.md` 存在
   - 對應 artifact：`graph.json`（可查詢圖）、`graph.html`（視覺化）、`GRAPH_REPORT.md`（摘要報告）
@@ -124,7 +126,7 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 - `commands/review/SKILL.template.md` — 同步修改
 - `commands/planning/SKILL.md` — 加入條件式讀取
 - `mcp-servers.example.json` — 加入 graphify server entry（disabled）
-- `docs/per-repo-context.md` — 加入 graphify detection section
+- `docs/devguide.md` — 加入 graphify detection section
 
 ## Test Cases
 
@@ -188,5 +190,5 @@ Pending — Level 1 changes are single-sentence SKILL.md additions; Level 2 is a
 - T-003 — Add conditional read to `/review` SKILL.md + template
 - T-004 — Add conditional read to `/planning` SKILL.md
 - T-005 — Add graphify MCP server entry to `mcp-servers.example.json`
-- T-006 — Add Graphify detection section to `docs/per-repo-context.md`
+- T-006 — Add Graphify detection section to `docs/devguide.md`
 - T-007 — Verify zero-regression: run `/deep-planning` and `/review` on a repo without `graphify-out/`

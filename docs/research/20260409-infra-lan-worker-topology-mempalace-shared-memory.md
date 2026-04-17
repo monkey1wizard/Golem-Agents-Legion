@@ -17,8 +17,8 @@
 
 ## Raw Findings
 
-- GAL 目前把 MCP 視為獨立 manifest layer，並將 provider config 合併到 VS Code、Gemini CLI、Codex CLI；Claude Code 目前明確標為 deferred，不在現行 merge flow。來源：[docs/installation-topology.md](../installation-topology.md) 與 [README.md](../README.md)
-- GAL 的 machine install 說明顯示，Gemini CLI 透過 `settings.json` bridge 讀取 skills 並合併 `mcpServers`，Codex CLI 會附加 `[mcp_servers.*]`，而 Claude Code CLI 仍屬 future。來源：[docs/installation-topology.md](../installation-topology.md)
+- GAL 目前把 MCP 視為獨立 manifest layer，並將 provider config 合併到 VS Code、Gemini CLI、Codex CLI；Claude Code 目前明確標為 deferred，不在現行 merge flow。來源：[devguide.md](../devguide.md) 與 [README.md](../../README.md)
+- GAL 的 machine install 說明顯示，Gemini CLI 透過 `settings.json` bridge 讀取 skills 並合併 `mcpServers`，Codex CLI 會附加 `[mcp_servers.*]`，而 Claude Code CLI 仍屬 future。來源：[devguide.md](../devguide.md)
 - `mcp-servers.example.json` 的 provider 目前只覆蓋 `vscode`、`gemini`、`codex`，沒有 `claude` provider。這表示 GAL 現在的 MCP source of truth 尚未把 Claude 當成同級自動配置目標。來源：[mcp-servers.example.json](../mcp-servers.example.json)
 - MemPalace 上游 README 把自己定位成 local-first 的長期 AI memory system：以本地 ChromaDB 保留原始對話內容，並用 MCP tools、knowledge graph、搜尋與 hooks 提供回憶能力，而不是 workflow state store。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MemPalace 明確支援 Gemini CLI 的 MCP 註冊與 `PreCompress` hook，可在 context 壓縮前自動保存記憶。來源：[MemPalace Gemini guide](https://github.com/milla-jovovich/mempalace/blob/main/examples/gemini_cli_setup.md)
@@ -26,7 +26,7 @@
 - MemPalace README 顯示 Claude Code 有 plugin 與 hooks 路線，也可透過 MCP 使用其 19 個工具。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MemPalace README 將對話來源描述為 Claude、ChatGPT、Copilot 等 conversation exports / chat traces 都可以被 mine，但這不等於每個 runtime 都已有對等的 first-party auto-save integration。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
 - MCP 只標準化 tool access，不保證 backend identity。只有在多個 runtime 最終都連到同一個 palace backend 時，它們才真的在讀寫同一份記憶；若每台機器各自使用自己的預設本地 palace path，記憶仍會分岔。這是 MemPalace local-first 設計的直接推論，不是 MCP 自動提供的能力。來源：[MemPalace README](https://github.com/milla-jovovich/mempalace)
-- 以目前的新架構而言，GAL 已明確要求 remote worker 不得維護第二套平行狀態系統；正式 workflow state 仍必須留在 `.dev/state.md` 與 `.dev/plans/<plan-slug>.prompt.md`，source plan 則留在 `docs/plans/<plan-slug>.md`。這些都不是外部記憶庫可以接管的對象。來源：[docs/remote-worker-architecture.md](../remote-worker-architecture.md)、[docs/per-repo-context.md](../per-repo-context.md) 與 [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
+- 以目前的新架構而言，GAL 已明確要求 remote worker 不得維護第二套平行狀態系統；正式 workflow state 仍必須留在 `.dev/state.md` 與 `.dev/plans/<plan-slug>.prompt.md`，source plan 則留在 `docs/plans/<plan-slug>.md`。這些都不是外部記憶庫可以接管的對象。來源：[mod/remote-worker.md](../mod/remote-worker.md)、[README.md](../../README.md) 與 [commands/commands.md](../../commands/commands.md)
 
 ## Synthesis
 
@@ -119,12 +119,11 @@ REVISE
 
 ## Sources
 
-- Repo docs: [docs/installation-topology.md](../installation-topology.md)
-- Repo docs: [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
-- Repo docs: [docs/per-repo-context.md](../per-repo-context.md)
-- Repo docs: [docs/remote-worker-architecture.md](../remote-worker-architecture.md)
+- Repo docs: [devguide.md](../devguide.md)
+- Repo docs: [commands/commands.md](../../commands/commands.md)
+- Repo docs: [README.md](../../README.md)
+- Repo docs: [mod/remote-worker.md](../mod/remote-worker.md)
 - Repo manifest: [mcp-servers.example.json](../mcp-servers.example.json)
-- Existing research style reference: [docs/research/lan-worker-feasibility.md](./lan-worker-feasibility.md)
 - MemPalace README: [github.com/milla-jovovich/mempalace](https://github.com/milla-jovovich/mempalace)
 - MemPalace Gemini guide: [examples/gemini_cli_setup.md](https://github.com/milla-jovovich/mempalace/blob/main/examples/gemini_cli_setup.md)
 - MemPalace Codex plugin: [.codex-plugin](https://github.com/milla-jovovich/mempalace/tree/main/.codex-plugin)

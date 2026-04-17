@@ -1,6 +1,6 @@
 # Research Brief: OpenCLI 作為 GAL 低 token 資訊擷取層的可行性
 
-Operational guidance based on this research now lives in [../opencli-routing.md](../opencli-routing.md).
+Operational guidance based on this research now lives in [../mod/opencli.md](../mod/opencli.md).
 
 ## Research Question
 
@@ -278,13 +278,11 @@ User question
 - `web read`
 - `notebooklm`
 
-目前這一步已落地為 [../opencli-routing.md](../opencli-routing.md)、[../opencli-coverage.md](../opencli-coverage.md) 與 `skills/opencli-research/SKILL.md`。
+目前這一步已落地為 [../mod/opencli.md](../mod/opencli.md) 與 `skills/opencli-research/SKILL.md`。
 
 ## Sources
 
 - Upstream repo: `jackwener/OpenCLI` README, docs, and adapter docs
 - OpenCLI docs site: `https://opencli.info/`
-- GAL docs: [docs/command-dispatch-architecture.md](../command-dispatch-architecture.md)
-- GAL docs: [docs/gal-control-plane-contracts.md](../gal-control-plane-contracts.md)
-- GAL docs: [commands/commands.md](../../commands/commands.md)
+- GAL source: [commands/commands.md](../../commands/commands.md)
 - Local verification: `opencli --version`, `opencli list`, `opencli google -h`, `opencli wikipedia -h`, `opencli hackernews -h`, `opencli notebooklm -h`, `opencli web -h`, `opencli hackernews top --limit 3 -f json`, `opencli wikipedia summary "Large language model" -f json`
