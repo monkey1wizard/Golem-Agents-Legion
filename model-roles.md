@@ -3,7 +3,7 @@
 Define roles by **what they do**, not by which model they are.
 When you switch AI tools, update the mapping table — everything else stays the same.
 
-Default principle: formal cross-checks should use a different model from the one that authored the artifact whenever practical.
+Default principle: formal cross-checks should use a different model from the one that authored the work file whenever practical.
 
 ## Roles
 

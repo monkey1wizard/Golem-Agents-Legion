@@ -279,7 +279,7 @@ case "$command" in
         elif [[ "$STATE_KIND" == state-error ]]; then
           write_dispatch COMMAND suggest ACTION "Repo is initialized, but the active plan reference is invalid. Inspect .dev/state.md Active Plans and $STATE_ACTIVE_PLAN." ON_COMPLETE "Fix repo state, then run /gal status"
         else
-          write_dispatch COMMAND suggest ACTION "Active plan detected at $STATE_ACTIVE_PLAN. Use /gal whats-next to choose the next specialist command from plan artifacts, not dispatcher state." ON_COMPLETE "Run /gal whats-next"
+          write_dispatch COMMAND suggest ACTION "Active plan detected at $STATE_ACTIVE_PLAN. Use /gal whats-next to choose the next specialist command from plan files, not dispatcher state." ON_COMPLETE "Run /gal whats-next"
         fi
         ;;
       *)

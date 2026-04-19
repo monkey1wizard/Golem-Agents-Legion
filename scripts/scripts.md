@@ -30,7 +30,7 @@ AI slash commands map onto the same subcommands, with `/gal` as the primary entr
 | `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` |
 | `/gal status` | Show current plan progress, active plan, review and test status, blockers, and specialist readiness |
 | `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
-| `/gal wrap-up` | Close the session cleanly — converge handoff artifacts, update `.dev/state.md`, prompt for commit |
+| `/gal wrap-up` | Close the session cleanly — converge handoff updates, update `.dev/state.md`, prompt for commit |
 | `/gal research` | Enter structured investigation mode |
 
 Alias slash commands:

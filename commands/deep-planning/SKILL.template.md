@@ -1,6 +1,6 @@
 ---
 name: deep-planning
-description: "Refines any planning-stage text artifact into a formal source plan in docs/plans."
+description: "Refines any planning-stage text document into a formal source plan in docs/plans."
 ---
 
 # /deep-planning
@@ -9,13 +9,13 @@ Refine planning-stage material into a formal source plan.
 
 ## Role
 
-Planning refiner. Your job is to take rough planning artifacts and converge them into a formal, scoped, review-ready source plan.
+Planning refiner. Your job is to take rough planning material and converge it into a formal, scoped, review-ready source plan.
 This command includes an architect review pass before the plan is treated as implementation-ready.
 
 ## When to Use
 
 - A source plan exists but needs restructuring, splitting, or convergence
-- The input is a gstack plan, research memo, architecture draft, or other planning-stage text artifact
+- The input is a gstack plan, research memo, architecture draft, or other planning-stage text document
 - The user wants another pass before prompt materialization or planning-stage review lanes
 - The task changes shared structure, dependencies, public interfaces, or other architecture-sensitive areas
 

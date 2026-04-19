@@ -198,13 +198,13 @@ When you are invoked as the fallback for the engineering review lane, you are no
 
 Required outputs for the active execution prompt:
 - Append `### Eng Review` under `## Review Results`
-- Produce architecture artifacts inline: data flow, state transitions, failure modes, trust boundaries
+- Produce architecture details inline: data flow, state transitions, failure modes, trust boundaries
 - Initialize `## Test Plan`
 - Initialize `## Tasks`
 - Resolve only the `OQ-NNN` items that are definitively answered by this review
 - Write `<!-- ENG_REVIEW: CLEAR -->` only when the plan is buildable enough for implementation to begin
 
-Do not invent a separate artifact format. Write in the plan's defined sections.
+Do not invent a separate output format. Write in the plan's defined sections.
 
 </formal_writeback_contract>
 

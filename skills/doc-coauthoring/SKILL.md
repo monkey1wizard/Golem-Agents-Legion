@@ -144,16 +144,16 @@ Ask if this structure works, or if they want to adjust it.
 
 Create the initial document structure with placeholder text for all sections.
 
-**If access to artifacts is available:**
-Use `create_file` to create an artifact. This gives both Claude and the user a scaffold to work from.
+**If access to files is available:**
+Use `create_file` to create a file. This gives both Claude and the user a scaffold to work from.
 
 Inform them that the initial structure with placeholders for all sections will be created.
 
-Create artifact with all section headers and brief placeholder text like "[To be written]" or "[Content here]".
+Create the file with all section headers and brief placeholder text like "[To be written]" or "[Content here]".
 
 Provide the scaffold link and indicate it's time to fill in each section.
 
-**If no access to artifacts:**
+**If no access to files:**
 Create a markdown file in the working directory. Name it appropriately (e.g., `decision-doc.md`, `technical-spec.md`).
 
 Inform them that the initial structure with placeholders for all sections will be created.
@@ -202,12 +202,12 @@ Use `str_replace` to replace the placeholder text for this section with the actu
 
 Announce the [SECTION NAME] section will be drafted now based on what they've selected.
 
-**If using artifacts:**
-After drafting, provide a link to the artifact.
+**If using files:**
+After drafting, provide a link to the file.
 
 Ask them to read through it and indicate what to change. Note that being specific helps learning for the next sections.
 
-**If using a file (no artifacts):**
+**If using a file:**
 After drafting, confirm completion.
 
 Inform them the [SECTION NAME] section has been drafted in [filename]. Ask them to read through it and indicate what to change. Note that being specific helps learning for the next sections.
@@ -219,7 +219,7 @@ Provide a note: Instead of editing the doc directly, ask them to indicate what t
 
 As user provides feedback:
 - Use `str_replace` to make edits (never reprint the whole doc)
-- **If using artifacts:** Provide link to artifact after each edit
+- **If using files:** Provide link to the file after each edit
 - **If using files:** Just confirm edits are complete
 - If user edits doc directly and asks to read it: mentally note the changes they made and keep them in mind for future sections (this shows their preferences)
 
@@ -376,11 +376,11 @@ Announce document completion. Provide a few final tips:
 - Throughout, if context is missing on something mentioned, proactively ask
 - Don't let gaps accumulate - address them as they come up
 
-**Artifact Management:**
+**File Management:**
 - Use `create_file` for drafting full sections
 - Use `str_replace` for all edits
-- Provide artifact link after every change
-- Never use artifacts for brainstorming lists - that's just conversation
+- Provide the file link after every change
+- Never use files for brainstorming lists - that's just conversation
 
 **Quality over Speed:**
 - Don't rush through stages

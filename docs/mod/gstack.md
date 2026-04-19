@@ -7,14 +7,14 @@ gstack is an optional specialist provider for GAL, not a core runtime dependency
 When gstack is installed, GAL can use it for two kinds of enhancement:
 
 1. planning-stage review capabilities such as discovery-style planning, business review, design review, and engineering review
-2. specialist execution commands whose outputs still write back into GAL-owned artifacts
+2. specialist execution commands whose outputs still write back into GAL-owned files
 
 Without gstack, GAL still works through native planning commands and fallback golems.
 
 ## What Does Not Change When gstack Is Installed
 
 - `/gal` still owns the control plane.
-- Repo-local Markdown artifacts still own state.
+- Repo-local Markdown files still own state.
 - Specialist commands still write back to the same plan sections and output directories.
 - Provider routing still happens at the workflow layer, not by silently changing an agent persona.
 
@@ -23,9 +23,9 @@ Without gstack, GAL still works through native planning commands and fallback go
 Keep these checks separate in implementation and documentation:
 
 - provider availability: does this machine have a supported gstack install?
-- provider readiness: does this repo or branch have the artifacts needed for the chosen formal workflow?
+- provider readiness: does this repo or branch have the files needed for the chosen formal workflow?
 
-GAL should not treat a single `.gstack` directory or one detected artifact as proof that the full provider contract is ready.
+GAL should not treat a single `.gstack` directory or one detected file as proof that the full provider contract is ready.
 
 ## Planning Integration
 
@@ -85,7 +85,7 @@ GAL does not claim full equivalence with upstream gstack. The goal is narrower: 
 | engineering review lane | writes `## Test Plan` and `## Tasks` into the source plan before execution |
 | staff-style code review | writes a drift-readable verdict into `## Analyze` |
 | QA run with persistent report | writes `## Test Results` and stores reports in `docs/qa-reports/` |
-| design variant exploration | stores artifacts in `docs/designs/` |
+| design variant exploration | stores files in `docs/designs/` |
 | sprint learnings | stores repo-local learnings in `.dev/learnings.jsonl` |
 
 ## Runtime Notes
@@ -94,7 +94,7 @@ GAL does not claim full equivalence with upstream gstack. The goal is narrower: 
 | --- | --- |
 | Copilot | primary interactive control plane |
 | Gemini CLI | bounded worker runtime |
-| Codex CLI | shares the same artifact contract and uses `$skill` invocation |
+| Codex CLI | shares the same write-back contract and uses `$skill` invocation |
 
 ## Read Next
 

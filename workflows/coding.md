@@ -1,7 +1,7 @@
 # Coding Flow
 
 The primary development workflow is command-driven, not dispatcher-state-driven.
-Every AI agent follows the same artifact model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist commands write back to the active execution prompt.
+Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist commands write back to the active execution prompt.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -19,7 +19,7 @@ If implementation uncovers architectural uncertainty, stop and return to `/deep-
 
 ## Execution Lifecycle
 
-GAL's coding flow is expressed as artifact-producing command phases.
+GAL's coding flow is expressed as write-back command phases.
 
 | Phase | Entry Signal | Commands | Main Files / Outputs |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ GAL's coding flow is expressed as artifact-producing command phases.
 | **Review-stage audits** | Implementation reached a meaningful checkpoint | `/review`, conditional `/design-review`, conditional `/cso`, `/qa`, `/qa-only` | `## Analyze`, `## Review Results`, `## Test Results` |
 | **Wrap-up or ship** | Work is paused or ready to land | `/gal wrap-up`, `/ship`, `/land-and-deploy` | `### Handoff Notes`, `.dev/state.md`, `## Ship`, `## Deploy` |
 
-The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan artifacts such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
+The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
 `/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and scope drift in the code changes; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
 
@@ -126,7 +126,7 @@ This is manually triggered — the AI does not know when you're switching contex
 | **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run scribe]` |
 | **Pipeline** | Direct invocation is consult-only | `/gal [golem-tester]`, `/gal [golem-reviewer]` for scoped advice; full execution authority comes from `/gal pipeline` |
 
-Consult output is advice, not a formal APPROVE or REVIEW verdict. Formal outcomes come from the specialist commands and the artifacts they write.
+Consult output is advice, not a formal APPROVE or REVIEW verdict. Formal outcomes come from the specialist commands and the files and sections they update.
 
 ## Per-Phase Model Assignment
 

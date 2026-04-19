@@ -37,7 +37,7 @@ Treat `/deep-planning` as the architect-reviewed planning pass when the plan nee
 
 Write or update `docs/plans/<plan-slug>.md` using `templates/plan.md`.
 
-The source plan is the human-readable artifact for:
+The source plan is the human-readable plan document for:
 
 - goal and rationale
 - scope boundaries

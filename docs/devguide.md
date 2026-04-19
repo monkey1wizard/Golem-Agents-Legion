@@ -9,7 +9,7 @@ This document is maintainer navigation, not a second specification. Use it to de
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
 | planning flow or optional provider semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [mod/gstack.md](mod/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
 | setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh` |
-| templates and plan lifecycle | which artifact should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
+| templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
 | remote worker behavior | is this part of the main workflow or an execution-plane extension? | [mod/remote-worker.md](mod/remote-worker.md), remote worker scripts under `scripts/` |
 | Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [mod/godot.md](mod/godot.md), [mod/graphworkflow.md](mod/graphworkflow.md) |
 
@@ -20,16 +20,16 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 ### 1. Markdown owns the durable contract
 
 - Methodology, rules, and contracts live in tracked Markdown and source files.
-- Generated adapters, baked command files, and runtime configs are outputs, not canonical inputs.
+- Generated adapters, baked command files, and runtime configs are outputs, not source inputs.
 
 ### 2. `/gal` only solves control-plane problems
 
 - `/gal` should not wrap a second copy of `/review`, `/qa`, `/ship`, or other specialist workflows.
-- Specialist commands can run directly, but they must write back to artifacts that `/gal` understands.
+- Specialist commands can run directly, but they must write back to files and sections that `/gal` understands.
 
 ### 3. Repo-local state is the ownership boundary
 
-- `.dev/`, `docs/plans/`, `docs/designs/`, `docs/qa-reports/`, and similar repo-local artifacts are the shared working state.
+- `.dev/`, `docs/plans/`, `docs/designs/`, `docs/qa-reports/`, and similar repo-local files are the shared working state.
 - Do not move GAL's core state back into user-global storage.
 
 ### 4. Missing tools must not look like success
@@ -39,7 +39,7 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 ### 5. Do not optimize one runtime by breaking portability
 
-- If a change makes Copilot, Gemini, and Codex diverge in contract or artifact flow, it is usually the wrong change.
+- If a change makes Copilot, Gemini, and Codex diverge in contract or file flow, it is usually the wrong change.
 - README, docs, templates, and setup scripts should preserve cross-runtime parity first.
 
 ### 6. Navigation docs must not become a second spec
@@ -50,7 +50,7 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 ### 7. Provider routing belongs to the workflow layer
 
 - Do not make an agent silently switch personas or contracts because a provider was detected.
-- The workflow decides the provider first, then the provider writes back into the same repo-owned artifacts.
+- The workflow decides the provider first, then the provider writes back into the same repo-owned files.
 
 ## Runtime Topology For Setup Work
 
@@ -60,7 +60,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 
 | Layer | Location | Purpose |
 | --- | --- | --- |
-| Layer 1 | the GAL repo | canonical methodology source |
+| Layer 1 | the GAL repo | main methodology source |
 | Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, and `~/.codex/` | installed skills, generated commands, and runtime-facing symlinks |
 | Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
 | Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
@@ -110,7 +110,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/` and `~/.gemini/gal/` give installed command skills one stable path back to the canonical repo. That keeps generated command prompts small and deterministic.
+`~/.copilot/gal/` and `~/.gemini/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
 
 ## Common Change Entry Points
 
@@ -144,7 +144,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 
 1. Decide whether the CLI has a machine-layer config directory that GAL can target.
 2. Decide whether its repo-facing instruction file can reuse `AGENTS.md` or needs another generated adapter.
-3. If the runtime supports native commands, generate them from the same canonical command templates instead of building a second workflow source.
+3. If the runtime supports native commands, generate them from the same shared command templates instead of building a second workflow source.
 4. Add any config-merge bridge only if the runtime has a stable, user-owned config file that can safely accept additive changes.
 
 ## Verify Setup Changes
@@ -175,7 +175,7 @@ Before you finish a maintainer change, ask:
 
 - Did I create a second source of truth?
 - Does `/gal` still only solve control-plane problems?
-- Do specialist commands still write back to repo-owned artifacts?
+- Do specialist commands still write back to repo-owned files?
 - Did I accidentally move state back into a user-global path?
 - Can a missing tool still fail loudly instead of pretending to succeed?
 - Did I keep provider routing at the workflow layer?

@@ -4,7 +4,7 @@
 
 這份文件只記錄目前已經確定的方向，用來作為後續重構與文件更新的共同基線。
 
-這不是最終完整規格，但主要分層、artifact 方向、workflow 家族、template 選型與 provider contract 已經拍板。後續討論應建立在這些前提上，而不是回到零開始。
+這不是最終完整規格，但主要分層、輸出方向、workflow 家族、template 選型與 provider contract 已經拍板。後續討論應建立在這些前提上，而不是回到零開始。
 
 ## 核心結論
 
@@ -17,7 +17,7 @@
 7. visual 與 experience design、business-analyst template 採 gstack-style format。
 8. formal gate / verdict contract 與 code architecture template 採 GSD-style format。
 9. gstack 的支援安裝模式固定採 Other AI Agents 方式，也就是 source checkout 放在 `~/gstack` 後再執行 `./setup`。
-10. gstack provider 的 project-scoped contract 以 `~/.gstack/projects/<slug>/` 為核心；`/gal` 主要檢查 `<branch>-reviews.jsonl` 與少數已明確定義的 artifact 目錄。
+10. gstack provider 的 project-scoped contract 以 `~/.gstack/projects/<slug>/` 為核心；`/gal` 主要檢查 `<branch>-reviews.jsonl` 與少數已明確定義的輸出目錄。
 
 ## 分層與角色
 
@@ -61,7 +61,7 @@ architect、designer、analyst 三個 domain agents 的定位，不是要達到�
 
 它們比較接近 GAL-native fallback 與對話型專業助手，而不是 gstack 的一比一替代品。
 
-## Workflow 與 Artifact 模型
+## Workflow 與檔案模型
 
 ### Source Plan 與 Execution Prompt
 
@@ -106,7 +106,7 @@ GAL 內部至少有三個由指令明確觸發的 workflow / command family：
 這代表：
 
 - design specialist workflow 優先對接 gstack-style 的設計輸出結構
-- business scope、產品價值、premise challenge 一類的輸出骨架，優先沿用 gstack-style specialist artifact
+- business scope、產品價值、premise challenge 一類的輸出骨架，優先沿用 gstack-style specialist output
 
 ### 採 GSD-style 的部分
 
@@ -117,7 +117,7 @@ GAL 內部至少有三個由指令明確觸發的 workflow / command family：
 
 - GAL 不採 gstack 的 review report 格式作為 kernel contract
 - GAL 使用較乾淨、較 provider-neutral 的 GSD-style gate 與 verdict 邏輯
-- 架構分析、component responsibilities、data flow、recommended structure、anti-patterns 等 artifact，以 GSD-style architecture template 為正式基底
+- 架構分析、component responsibilities、data flow、recommended structure、anti-patterns 等內容，以 GSD-style architecture template 為正式基底
 
 gstack 的 engineering review 可以提供內容，但不作為 GAL 正式架構文件的格式來源。
 
@@ -129,7 +129,7 @@ provider 選擇發生在 workflow 層，不直接綁在單一 agent 身上。
 
 - 不做成「agent 自己偵測到 gstack 就切換人格或流程」
 - 應做成「GAL 的 formal workflow 先選 provider，再由 provider 產出內容」
-- 產出完成後，仍由 GAL 的 artifact contract 接住結果並寫回 canonical sections
+- 產出完成後，仍由 GAL 的 write-back contract 接住結果並寫回指定 sections
 
 這個原則主要適用於：
 
@@ -147,11 +147,11 @@ provider 選擇發生在 workflow 層，不直接綁在單一 agent 身上。
 
 原因是：
 
-- `.gstack` 可能只是 repo-local artifact scope
+- `.gstack` 可能只是 repo-local output scope
 - gstack 本身還有獨立於 `docs/` 的生成結果資料夾
-- artifact 是否存在，不等於 workflow provider 是否可用
+- 檔案是否存在，不等於 workflow provider 是否可用
 
-因此 `/gal` 應把「是否安裝 gstack」與「這次 workflow 是否有足夠 provider artifact 可用」視為兩層不同判斷。
+因此 `/gal` 應把「是否安裝 gstack」與「這次 workflow 是否有足夠 provider files 可用」視為兩層不同判斷。
 
 ### 安裝 contract
 
@@ -189,11 +189,11 @@ cd ~/gstack && ./setup
 
 在 Windows 上，以上三項分別對應到 `%USERPROFILE%\gstack\...`。
 
-這一層只回答「機器上是否有受支援的 gstack 安裝」，不直接回答「目前 repo / branch 是否已有可採用的 formal review artifact」。
+這一層只回答「機器上是否有受支援的 gstack 安裝」，不直接回答「目前 repo / branch 是否已有可採用的 formal review files」。
 
 ### project-scoped contract
 
-GAL 不需要吃下 gstack repo 裡所有歷史性或周邊 artifact，只承認一組最小且可驗證的 project-scoped 結構：
+GAL 不需要吃下 gstack repo 裡所有歷史性或周邊輸出，只承認一組最小且可驗證的 project-scoped 結構：
 
 ```text
 ~/.gstack/projects/<slug>/
@@ -208,15 +208,15 @@ GAL 不需要吃下 gstack repo 裡所有歷史性或周邊 artifact，只承認
 各部分用途如下：
 
 - `<branch>-reviews.jsonl`：branch-scoped 的 formal review state 主來源
-- `ceo-plans/`：CEO-style 或 business-scope specialist artifact
-- `checkpoints/`：跨 session 的中間收斂點與 context recovery artifact
+- `ceo-plans/`：CEO-style 或 business-scope specialist output
+- `checkpoints/`：跨 session 的中間收斂點與 context recovery file
 - `designs/`：design exploration、approved choice、design audit、finalized output 的 project-scoped 容器
 - `evals/`：gstack 自己的 eval output；GAL 可知道其存在，但不把它當成 planning gate 的必要前置
 - `learnings.jsonl`：project-scoped learnings；屬於輔助訊號，不是 formal gate 主來源
 
 ### `designs/` 目錄
 
-GAL 不需要理解所有 design binary 細節，但需要承認以下 artifact 類型：
+GAL 不需要理解所有 design binary 細節，但需要承認以下檔案類型：
 
 ```text
 ~/.gstack/projects/<slug>/designs/
@@ -238,18 +238,18 @@ GAL 不需要理解所有 design binary 細節，但需要承認以下 artifact 
 - `*-$BRANCH-ceo-handoff-*.md`
 - `*-design-audit-*.md`
 
-GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical index。真正給 `/gal` 做狀態判斷的主入口，仍然是 `<branch>-reviews.jsonl` 與上面幾個明確子目錄。
+GAL 可以讀這些檔案作為 context，但不把它們當作唯一主索引。真正給 `/gal` 做狀態判斷的主入口，仍然是 `<branch>-reviews.jsonl` 與上面幾個明確子目錄。
 
-### provider artifact 檢查欄位
+### provider file 檢查欄位
 
-`/gal` 對 gstack provider 的檢查，採「先看目錄，再看 branch review log，再看 artifact 輔助訊號」的順序。
+`/gal` 對 gstack provider 的檢查，採「先看目錄，再看 branch review log，再看檔案輔助訊號」的順序。
 
 #### 基本存在性
 
 - `~/.gstack/projects/<slug>/` 是否存在
 - `~/.gstack/projects/<slug>/<branch>-reviews.jsonl` 是否存在
 
-若不存在 review log，視為 provider artifact 不足，不視為已完成 formal review。
+若不存在 review log，視為 provider files 不足，不視為已完成 formal review。
 
 #### review log 共通欄位
 
@@ -264,7 +264,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 
 - `timestamp` 用於新鮮度判斷
 - `commit` 用於和目前 HEAD 比對，避免誤用過期 review
-- `status` 是 provider 原始狀態，GAL 之後再正規化為自己的 canonical gate 狀態
+- `status` 是 provider 原始狀態，GAL 之後再正規化為自己的正式 gate 狀態
 
 #### engineering review
 
@@ -277,7 +277,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 - `mode`
 - `commit`
 
-其中 upstream engineering review provider 是 planning review lane 的主要來源；`review` 可作為已實作分支的補充訊號，但不取代 planning artifact。
+其中 upstream engineering review provider 是 planning review lane 的主要來源；`review` 可作為已實作分支的補充訊號，但不取代 planning files。
 
 #### design review
 
@@ -303,7 +303,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 - `scope_deferred`
 - `commit`
 
-#### design artifact 輔助訊號
+#### design file 輔助訊號
 
 在 design lane，`/gal` 可額外檢查：
 
@@ -319,12 +319,12 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 
 - `learnings.jsonl`
 - `evals/`
-- `checkpoints/` 內的 markdown artifact
-- `ceo-plans/` 內的原始 markdown artifact
+- `checkpoints/` 內的 markdown file
+- `ceo-plans/` 內的原始 markdown file
 
 它們的用途是 context recovery、補充判讀與 downstream prompt enrichment，而不是正式 verdict 來源。
 
-## Domain Agents Artifact 落點
+## Domain Agents 檔案落點
 
 目前已確定三個 domain agents 的正式輸出落點如下：
 
@@ -334,7 +334,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 | designer | `docs/design/`，必要時同步更新 `DESIGN.md` | gstack-style visual / experience design template |
 | analyst | `docs/research/` | gstack-style business-analyst template |
 
-也就是說，三個 domain agents 雖然在互動方式上偏對話型 fallback，但一旦需要落成正式 artifact，仍有固定的 template 與欄位骨架可依附。
+也就是說，三個 domain agents 雖然在互動方式上偏對話型 fallback，但一旦需要落成正式輸出，仍有固定的 template 與欄位骨架可依附。
 
 其中 designer lane 的結構進一步固定為：
 
@@ -346,7 +346,7 @@ GAL 可以讀這些檔案作為 context，但不把它們當作唯一 canonical 
 
 後續重構時，應遵守以下原則：
 
-- 直接以新 artifact path 與新 workflow contract 為準，不為舊版保留相容層
+- 直接以新 output path 與新 workflow contract 為準，不為舊版保留相容層
 - 舊文件只作為參考，不作為必須被轉換的正式輸入
 - 先把 provider routing 抽出來，再討論各 agent 的最終細節
 - 先把 GAL-native 的`planning`與 `deep-planning` 建立起來，再決定 gstack 如何接入 formal review

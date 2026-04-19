@@ -50,7 +50,7 @@ Do not silently pretend OpenCLI succeeded when it did not.
 
 If neither OpenCLI nor the documented MCP or workspace fallback can satisfy the task, stop and say which capability is missing.
 
-- Ask the user for a URL, source artifact, or permission to switch to a manual path when that would still move the task forward.
+- Ask the user for a URL, source file, or permission to switch to a manual path when that would still move the task forward.
 - Do not fabricate adapter output.
 - Do not describe the task as completed when the retrieval path was unavailable.
 

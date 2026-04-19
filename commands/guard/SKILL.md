@@ -53,6 +53,6 @@ Both guardrails allow user override. Nothing is hard-blocked — these are accid
 - To remove the freeze boundary: run `/unfreeze`
 - Careful mode and freeze deactivate automatically at session end
 
-## No Plan Artifacts
+## No Plan Files
 
 `/guard` does not write to plan files.

@@ -1,6 +1,6 @@
 ---
 name: careful
-description: "Accident prevention guardrails. Warns before destructive commands: rm -rf, DROP TABLE, git push --force, git reset --hard, kubectl delete, docker system prune, and similar. Whitelisted for common build artifact cleanup. User can always override."
+description: "Accident prevention guardrails. Warns before destructive commands: rm -rf, DROP TABLE, git push --force, git reset --hard, kubectl delete, docker system prune, and similar. Whitelisted for common build output cleanup. User can always override."
 ---
 
 # /careful
@@ -49,7 +49,7 @@ Proceed? (yes / cancel)
 
 ## Whitelist — No Warning Needed
 
-Common build artifact cleanup is safe and should not trigger false alarms:
+Common build output cleanup is safe and should not trigger false alarms:
 
 | Pattern | Reason |
 | --- | --- |
@@ -65,6 +65,6 @@ Common build artifact cleanup is safe and should not trigger false alarms:
 
 The user can always proceed. These are accident-prevention guardrails. If the user confirms: execute the command without further warnings for that specific invocation.
 
-## No Plan Artifacts
+## No Plan Files
 
 `/careful` does not write to plan files.

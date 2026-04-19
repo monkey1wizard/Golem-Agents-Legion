@@ -320,7 +320,7 @@ switch ($Command) {
         }
         Write-Dispatch @{
             COMMAND = 'suggest'
-            ACTION  = "Active plan detected at $($context.ActivePlanPath). Use /gal whats-next to choose the next specialist command from plan artifacts, not dispatcher state."
+            ACTION  = "Active plan detected at $($context.ActivePlanPath). Use /gal whats-next to choose the next specialist command from plan files, not dispatcher state."
             ON_COMPLETE = 'Run /gal whats-next'
         }
         break

@@ -86,7 +86,7 @@ The pipeline's implement → test → review loop benefits from graph context at
 
 ## 3. Integration Approaches (Light → Heavy)
 
-### Level 1 — Artifact-based (zero new dependencies, works now)
+### Level 1 — Report-based (zero new dependencies, works now)
 
 **How:** After the user runs `/graphify .` once, add a single conditional step to `/deep-planning`, `golem-architect`, and `/review`:
 
@@ -156,7 +156,7 @@ Modify architect/planning commands to query the MCP server for targeted structur
 
 ## 5. Recommendation
 
-**Start with Level 1 (artifact-based) immediately, pilot Level 2 (MCP) in parallel.**
+**Start with Level 1 (report-based) immediately, pilot Level 2 (MCP) in parallel.**
 
 ### Level 1 — now
 

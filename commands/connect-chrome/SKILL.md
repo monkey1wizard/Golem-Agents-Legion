@@ -47,6 +47,6 @@ If not configured: proceed without it. Tell the user how to configure it if they
 
 Tell the user: "Headed Chrome is connected. All browser commands will now use a visible browser. Green shimmer active."
 
-## No Plan Artifacts
+## No Plan Files
 
 `/connect-chrome` does not write to the plan file.

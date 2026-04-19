@@ -89,7 +89,7 @@ def package_skill(skill_path, output_dir=None):
     # Create the .skill file (zip format)
     try:
         with zipfile.ZipFile(skill_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Walk through the skill directory, excluding build artifacts
+            # Walk through the skill directory, excluding build outputs
             for file_path in skill_path.rglob('*'):
                 if not file_path.is_file():
                     continue

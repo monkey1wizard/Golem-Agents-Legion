@@ -45,7 +45,7 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 | `/gal init` | How do I bootstrap this repo? | Scaffold `.dev/project.md` + `.dev/state.md` via script |
 | `/gal status` | Where are we right now? | Full state projection — active plans, review/test/blockers/continuity |
 | `/gal whats-next` | What do I do next? | Read state and recommend single next action or command |
-| `/gal wrap-up` | How do I close this session? | Converge handoff artifacts and update session continuity |
+| `/gal wrap-up` | How do I close this session? | Converge handoff updates and update session continuity |
 | `/gal research` | I need structured investigation | Invoke research golem via script |
 | `/gal <golem-name>` | Consult a specific golem | Invoke that golem via script |
 

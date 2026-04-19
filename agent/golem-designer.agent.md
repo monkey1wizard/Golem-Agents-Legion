@@ -177,7 +177,7 @@ Required outputs for the active execution prompt:
 - Record unresolved design questions in `## Open Questions` with stable `OQ-NNN` IDs
 - Keep recommendations grounded in user journeys, state coverage, accessibility, and design-system fit
 
-Do not create a separate side artifact unless the user explicitly requests one. The active execution prompt remains the review target.
+Do not create a separate side file unless the user explicitly requests one. The active execution prompt remains the review target.
 
 </formal_writeback_contract>
 

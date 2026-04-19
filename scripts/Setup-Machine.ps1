@@ -1100,7 +1100,7 @@ else {
     Write-Host "  [NOTE] Reload active Gemini sessions with /commands reload or restart Gemini CLI to pick up updated GAL commands."
 }
 
-# --- Migration: remove obsolete command artifacts from installed locations ---
+# --- Migration: remove obsolete command files from installed locations ---
 
 Write-Host ""
 Write-Host "=== Migration: obsolete command cleanup ==="

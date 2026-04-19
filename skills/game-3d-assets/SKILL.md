@@ -38,7 +38,7 @@ Need modeling, baking, rendering, or export?
 
 When using this skill:
 
-1. Produce a concept or reference artifact before modeling.
+1. Produce a concept or reference file before modeling.
 2. Use Blender as the documented 3D production tool.
 3. Keep the lane reproducible with source files and preview renders.
 4. End with preview renders plus an export-ready source package.

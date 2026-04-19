@@ -98,7 +98,7 @@ Follow Guide.md §3 Workflows exactly:
 - Reference → proceed to sanitize
 
 ### Step 2: Sanitize (淨化)
-- Remove navigation, ads, formatting artifacts
+- Remove navigation, ads, and formatting residue
 - Preserve source attribution
 - Fix broken links and formatting
 

@@ -45,6 +45,6 @@ After the upstream upgrade completes, confirm that the upstream gstack command s
 
 If the user wanted to update GAL itself, point them to the GAL repo update workflow instead of using `/gstack-upgrade`.
 
-## No Plan Artifacts
+## No Plan Files
 
 `/gstack-upgrade` does not write to plan files — it is a machine maintenance operation.

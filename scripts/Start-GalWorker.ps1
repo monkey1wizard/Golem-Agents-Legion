@@ -5,7 +5,7 @@
 .DESCRIPTION
     Intended to run on the remote worker machine (invoked by Invoke-GalRemoteTask.ps1).
     Executes the task spec via Gemini CLI non-interactively, captures output,
-    generates a result patch, and writes all artifacts to the output directory.
+    generates a result patch, and writes all output files to the output directory.
 
     This script is NOT intended to be run manually in normal use. It is invoked
     remotely by the control plane. For debugging, it can be run locally with
@@ -21,7 +21,7 @@
     Absolute path to the task spec Markdown file.
 
 .PARAMETER OutputDir
-    Absolute path to the directory where artifacts will be written.
+    Absolute path to the directory where output files will be written.
 
 .EXAMPLE
     .\Start-GalWorker.ps1 `

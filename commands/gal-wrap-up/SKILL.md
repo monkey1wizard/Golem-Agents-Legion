@@ -1,6 +1,6 @@
 ---
 name: gal-wrap-up
-description: "GAL — wrap up and hand off the current session. Converges handoff artifacts, updates session continuity, and prepares the repo for clean resumption by any session or machine."
+description: "GAL — wrap up and hand off the current session. Converges handoff updates, updates session continuity, and prepares the repo for clean resumption by any session or machine."
 ---
 
 # /gal wrap-up
@@ -11,7 +11,7 @@ Close out the current work session and leave the repo in a resumable state.
 
 - Compresses key task context into the active plan's `### Handoff Notes`
 - Updates `.dev/state.md` session continuity with the current stopped-at state
-- Reports which artifacts changed and are ready to commit
+- Reports which files changed and are ready to commit
 - Leaves a clear signal that can be read by `/gal whats-next` in a future session
 
 ## Step 1 — Collect Active State

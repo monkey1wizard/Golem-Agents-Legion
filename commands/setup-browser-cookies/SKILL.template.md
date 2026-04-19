@@ -68,6 +68,6 @@ Navigate to the first filtered domain. Check that the session is authenticated b
 
 Tell the user: "Loaded N cookies for [domains]. Session appears authenticated." (or "Session did not appear authenticated — manual login may be required.")
 
-## No Plan Artifacts
+## No Plan Files
 
 `/setup-browser-cookies` does not write to the plan file.

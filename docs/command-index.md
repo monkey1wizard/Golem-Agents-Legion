@@ -5,8 +5,8 @@ This is the index for GAL commands. Start here when you need to decide what to r
 ## Three Rules
 
 - `/gal` owns the control plane. It answers status, next-step, wrap-up, and bounded orchestration questions.
-- Specialist commands do the work directly. They must write back to the plan sections and repo artifacts that `/gal` reads.
-- Repo-local Markdown artifacts are the ownership boundary. GAL does not depend on upstream gstack global storage as its core state model.
+- Specialist commands do the work directly. They must write back to the plan sections and repo files that `/gal` reads.
+- Repo-local Markdown files are the ownership boundary. GAL does not depend on upstream gstack global storage as its core state model.
 
 ## Quick Routing
 
@@ -24,7 +24,7 @@ This is the index for GAL commands. Start here when you need to decide what to r
 
 The control-plane contract, dispatch block schema, alias behavior, and runtime surface are defined in [../commands/commands.md](../commands/commands.md).
 
-| Command | What it answers | Primary artifacts |
+| Command | What it answers | Primary files |
 | --- | --- | --- |
 | `/gal init` | How does this repo enter GAL management? | creates `.dev/project.md` and `.dev/state.md` |
 | `/gal status` | Where are we right now? | reads `.dev/state.md` and the active plan |
@@ -108,7 +108,7 @@ The authoritative version lives in [../commands/commands.md](../commands/command
 
 This is the minimal map humans usually need when checking whether a command wrote to the right place.
 
-| Section or artifact | Primary owner |
+| Section or file | Primary owner |
 | --- | --- |
 | `docs/plans/<plan-slug>.md` | planning and deep-planning work |
 | source plan `## Open Questions` | planning-stage review lanes |
@@ -133,7 +133,7 @@ The only required pre-execution planning gate is engineering review readiness. B
 | --- | --- |
 | Copilot | primary interactive control plane |
 | Gemini CLI | bounded worker runtime |
-| Codex CLI | shares the same artifact contract, but uses `$skill` invocation instead of slash commands |
+| Codex CLI | shares the same write-back contract, but uses `$skill` invocation instead of slash commands |
 
 ## Read Next
 

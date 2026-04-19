@@ -19,34 +19,34 @@
 - [x] 必須明確區分兩種 worktree class：primary feature worktree 與 disposable remote worker worktree。
 - [ ] 遠端執行面已服從 `/gal` orchestrator 的 task contract 與 policy 決策。
 - [ ] 使用者不需要手動指定 endpoint、tier 或 golem 就能派工。
-- [ ] 遠端派工已能承接由 GAL 專家指令（specialist commands）產生的 task artifact 與結果回寫需求。
+- [ ] 遠端派工已能承接由 GAL 專家指令（specialist commands）產生的 task spec 與結果回寫需求。
 - [ ] 任務提交、執行、回收 contract 已完成 live verification。MVP 至少涵蓋 spec、status、summary、worker log、patch。
 - [ ] Mac Mini 可作為外出時的 Discord / Telegram async intake endpoint，但訊息入口只能轉譯成同一份 task contract，不可形成第二套 workflow。
 - [x] branch return 不屬於 MVP 必要條件，僅能在 patch-first 流程穩定後再列入後續擴充。
 - [x] 第一個 worker class 鎖定為 Windows LAN + SSH + PowerShell + Gemini CLI。
 - [ ] Mac Mini 已能以相同 contract 加入為 async endpoint。
-- [x] 遠端 worker 不得維護第二套平行狀態系統。執行期資料應落在 temp / ephemeral artifact，而非 repo tracked state。
-- [x] `.dev/state.md` 是 repo-level index 與 continuity artifact，不是 per-task log。
+- [x] 遠端 worker 不得維護第二套平行狀態系統。執行期資料應落在 temp / ephemeral output files，而非 repo tracked state。
+- [x] `.dev/state.md` 是 repo-level index 與 continuity file，不是 per-task log。
 - [x] `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state，coding、debug、test、review、handoff 的細部進度應優先寫入此檔案。
-- [x] formal progress query 與 live remote-task query 必須分開定義：前者讀主要檔案，後者讀 task-scoped temp artifacts。
+- [x] formal progress query 與 live remote-task query 必須分開定義：前者讀主要檔案，後者讀 task-scoped temp output files。
 - [x] plan section 的 remote write policy 必須以 section / command 為單位明確定義，而不是默許 remote worker 可任意寫入 plan。
 
 ## Execution Partitioning Model
 
 ### State Layers
 
-| Layer | Artifacts | 用途 | 查詢方式 |
+| Layer | Files | 用途 | 查詢方式 |
 | --- | --- | --- | --- |
 | Repo-level 主要檔案狀態 | `.dev/project.md`, `.dev/state.md` | repo 摘要、active plans、blockers、session continuity | 先讀 `.dev/state.md` 判斷目前 repo-level 位置 |
 | Plan-level execution state | `docs/plans/<plan-slug>.md`, `.dev/plans/<plan-slug>.prompt.md` | 單一 feature / task 的範圍、workflow step、分析、測試、review、handoff | 讀 active plan 的 `.prompt.md` 取得詳細進度 |
-| Remote runtime artifacts | `task.md`, `status.json`, `summary.md`, `worker.log`, `result.patch` | 單次 remote task 的執行中狀態與回收結果 | 讀 task-scoped temp artifacts，而不是 `.dev/state.md` |
+| Remote runtime output files | `task.md`, `status.json`, `summary.md`, `worker.log`, `result.patch` | 單次 remote task 的執行中狀態與回收結果 | 讀 task-scoped temp output files，而不是 `.dev/state.md` |
 
 ### Worktree Classes
 
 | Worktree Class | 角色 | 可以寫什麼 | 不可以寫什麼 |
 | --- | --- | --- | --- |
-| Primary Feature Worktree | 目前正在實作 / debug / test 該 feature 的主要工作樹 | code、active plan prompt、必要時 `.dev/state.md`、允許的 canonical docs | 不應把 remote temp artifacts 當成正式 state |
-| Disposable Remote Worker Worktree | 由 sub PC / notebook / Mac Mini 建立的暫時執行工作樹 | bounded task 的 code / docs 變更、task-scoped temp artifacts、允許的 patch-first outputs | 不直接擁有 `.dev/state.md`，不默許直接擁有 plan sections |
+| Primary Feature Worktree | 目前正在實作 / debug / test 該 feature 的主要工作樹 | code、active plan prompt、必要時 `.dev/state.md`、允許的正式 docs | 不應把 remote temp output files 當成正式 state |
+| Disposable Remote Worker Worktree | 由 sub PC / notebook / Mac Mini 建立的暫時執行工作樹 | bounded task 的 code / docs 變更、task-scoped temp output files、允許的 patch-first outputs | 不直接擁有 `.dev/state.md`，不默許直接擁有 plan sections |
 
 ### Node Roles
 
@@ -58,7 +58,7 @@
 
 ### Writer Ownership Matrix
 
-| Artifact / Section | Primary Feature Worktree | Disposable Remote Worker Worktree | Notes |
+| File / Section | Primary Feature Worktree | Disposable Remote Worker Worktree | Notes |
 | --- | --- | --- | --- |
 | `.dev/project.md` | 少量、明確的 repo-level 更新 | 否 | 通常由 `/gal init` 或明確的 repo-level 文件工作更新 |
 | `.dev/state.md` | 可更新，但只限 active-plan index、blockers、session continuity、next step 改變時 | 否 | repo-level index，不是 per-task log |
@@ -67,15 +67,15 @@
 | `docs/research/`, `docs/qa-reports/`, `docs/design-reports/` 等 durable outputs | 是 | 是，限 patch-first 任務 | remote 可產生這些檔案，但由 Main PC 審核整合 |
 | `status.json`, `summary.md`, `worker.log` | 否 | 是 | 僅存在 task-scoped temp，不屬於主要檔案狀態 |
 
-### Artifact Ownership And Commit Strategy
+### File Ownership And Commit Strategy
 
 #### 1. Project-file outputs
 
 對於 research、docs rewrite、repo scan、某些 QA / review report 類任務，remote worker 可以在自己的 worktree 中直接修改 repo 內的正式路徑，例如 `docs/research/`。這些變更會透過 `git diff HEAD` 被收進 `result.patch`，由 Main PC 回收後審核與整合。
 
-#### 2. Ephemeral task artifacts
+#### 2. Ephemeral task output files
 
-`status.json`、`summary.md`、`worker.log`、以及 task-scoped 的 `result.patch` 副本，都屬於單次執行的 temp artifacts。它們用來回答「remote task 現在跑到哪裡」，不是 repo 的正式進度檔。
+`status.json`、`summary.md`、`worker.log`、以及 task-scoped 的 `result.patch` 副本，都屬於單次執行的 temp output files。它們用來回答「remote task 現在跑到哪裡」，不是 repo 的正式進度檔。
 
 #### 3. Plan / control-plane state
 
@@ -111,7 +111,7 @@ plan prompt 與 `.dev/state.md` 是正式 workflow state。即使 remote worker 
 
 - active plan prompt 應更新 `## Status`、`## Analyze`，必要時更新 `### Handoff Notes`。
 - `.dev/state.md` 只在 debug 已形成 repo-level blocker、跨 plan 決策、或新的 continuity 需求時更新。
-- remote debug assistance 若存在，應回傳 findings artifacts，再由 Main PC 決定如何寫回 plan。
+- remote debug assistance 若存在，應回傳 findings files，再由 Main PC 決定如何寫回 plan。
 
 ### Endpoint Selection Policy
 
@@ -124,9 +124,9 @@ plan prompt 與 `.dev/state.md` 是正式 workflow state。即使 remote worker 
 
 ### Specialist Command Offload Policy
 
-| Command / Output Class | Offload Policy | Canonical Write Strategy |
+| Command / Output Class | Offload Policy | Write-Back Strategy |
 | --- | --- | --- |
-| `/gal research`, bounded repo scan, docs rewrite | 可 offload | remote 直接產生 canonical-path outputs，Main PC 以 patch-first 整合 |
+| `/gal research`, bounded repo scan, docs rewrite | 可 offload | remote 直接產生 repo-path outputs，Main PC 以 patch-first 整合 |
 | `/review`, `/qa` | 條件式 | remote 可執行 bounded analysis 或 test run，但正式 `## Review Results` / `## Test Results` 預設由 Main PC 回寫 |
 | engineering review lane, discovery-style planning provider, `/ship`, `/gal wrap-up` | Main PC only | 這些流程直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
 | `## Status`, `## Tasks`, `## Analyze` 的常規更新 | Primary Feature Worktree only | 屬於主要 workflow state，不預設由 remote worker 持有 |
@@ -136,7 +136,7 @@ plan prompt 與 `.dev/state.md` 是正式 workflow state。即使 remote worker 
 | Runtime / Tool | 在 Mac Mini 的角色 | 是否屬於目前 remote contract |
 | --- | --- | --- |
 | Gemini CLI | Mac Mini async endpoint 的唯一 headless worker engine | 是 |
-| `Start-GalWorker.sh` | Mac 專用 worker adapter，負責產生與 Windows 相同的 artifacts | 是 |
+| `Start-GalWorker.sh` | Mac 專用 worker adapter，負責產生與 Windows 相同的 output files | 是 |
 | Discord / Telegram bridge | 外出時的人類遠端入口，將請求轉成 bounded task spec | 否，屬於 intake layer |
 | Copilot CLI、VS Code、Codex CLI | 已安裝於 Mac Mini，供互動式或手動操作使用 | 否 |
 | MLX-LM + Gemma 4 / Breeze 2 | Apple Silicon 本機推理 lane，承接 LOCAL / private 類任務 | 否 |
@@ -162,7 +162,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 6. 若選 remote endpoint，Main PC 透過 SSH/SCP 與 endpoint profile（OS、shell、temp root、worker entry、repo path）把 task spec 送到遠端 temp 目錄，並在 remote 端建立 disposable worktree。
 7. 遠端 endpoint 在 linked git worktree 中執行單次任務，Windows 使用 `Start-GalWorker.ps1`，Mac Mini 使用 `Start-GalWorker.sh`；兩者都必須輸出 `status.json`、`summary.md`、`worker.log`、`result.patch`。若 task type 允許，也可在正式 repo 路徑產生 patch-first outputs。
 8. 遠端 worker 不直接擁有 `.dev/state.md`；對 plan prompt 也採 default deny，除非後續 policy 對特定 section / command 明確開放。
-9. Main PC 回收 artifacts，檢查狀態、閱讀 summary、審核 patch，必要時重派或拆小任務。
+9. Main PC 回收 output files，檢查狀態、閱讀 summary、審核 patch，必要時重派或拆小任務。
 10. Main PC 在 primary feature worktree 中完成最後的 state convergence：更新 plan prompt、必要時更新 `.dev/state.md`、再決定是否整合 patch。
 
 ### Current Reality vs Target Model
@@ -183,7 +183,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 ### P1: Contract And Worker Semantics
 
 - **Scope**
-	- 鎖定 repo-level 主要檔案狀態、plan-level execution state、remote runtime artifacts 三層模型。
+	- 鎖定 repo-level 主要檔案狀態、plan-level execution state、remote runtime output files 三層模型。
 	- 鎖定 primary feature worktree 與 disposable remote worker worktree 的 ownership 邊界。
 	- 鎖定第一版 task / result contract，MVP 只要求 `status.json`、`summary.md`、`worker.log`、`result.patch`。
 	- 鎖定 worktree lifecycle 與 runtime status 的落點，避免把執行期資料寫進 repo tracked state。
@@ -199,7 +199,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 讓主 PC 可把單次任務派送到 Windows sub PC / notebook。
 	- 使用 git worktree 作為 MVP 的唯一隔離模型，不將 branch return 納入第一版成功條件。
 	- 補齊 timeout、retry、failure status 與 log policy。
-	- 驗證 disposable remote worker worktree 只回傳 artifacts / patch，而不直接成為正式狀態的 owner。
+	- 驗證 disposable remote worker worktree 只回傳 output files / patch，而不直接成為正式狀態的 owner。
 	- 先支援 research / review / repo scan / docs 類任務。
 
 - **Files**: `scripts/Invoke-GalRemoteTask.ps1`, `scripts/Start-GalWorker.ps1`, `scripts/Get-GalRemoteResult.ps1`, `docs/runtime-verification.md`
@@ -212,7 +212,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 	- 把「是否 offload、派到哪台機器」從人工作業提升成 control-plane policy。
 	- 定義 endpoint registry、health check、task type -> endpoint class 的對應規則。
 	- 定義 specialist command 的 offload matrix，以及哪些 plan sections / state writes 只能在 primary feature worktree 發生。
-	- 讓 `/gal` 與 specialist commands 產生的 task artifact 能透過同一 decision path 被送往 remote endpoint。
+	- 讓 `/gal` 與 specialist commands 產生的 task spec 能透過同一 decision path 被送往 remote endpoint。
 
 - **Files**: `docs/mod/remote-worker.md`, `commands/commands.md`, `model-roles.example.md`
 - **Verify**: 不需使用者手動指定「這次送 notebook 還是 Mac Mini」，control plane 可依 task 特性做出可解釋的 routing 決策。
@@ -232,7 +232,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 
 - **Files**: `docs/mod/remote-worker.md`, `docs/devguide.md`, `model-roles.example.md`, `scripts/scripts.md`
 - **Repo State**: Mac Mini 已確認安裝 Gemini CLI、Copilot CLI、VS Code、Codex CLI，但 bash worker、endpoint profile abstraction 與 live verification 尚未完成。
-- **Verify**: 同一 contract 可讓 Windows burst worker 與 Mac Mini async endpoint 執行不同類型的任務；Mac worker 需以 bash 產出與 Windows 相同的 artifacts；Discord / Telegram intake 只能送出 bounded tasks，不可直接形成另一套執行面。
+- **Verify**: 同一 contract 可讓 Windows burst worker 與 Mac Mini async endpoint 執行不同類型的任務；Mac worker 需以 bash 產出與 Windows 相同的 output files；Discord / Telegram intake 只能送出 bounded tasks，不可直接形成另一套執行面。
 
 ## Files to Create or Modify
 
@@ -244,7 +244,7 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 | `templates/task.md` | 已存在 | 補上 endpoint-neutral task spec 約束 |
 | `scripts/Invoke-GalRemoteTask.ps1` | 已存在 | 完成 live validation，未來支援 endpoint selection abstraction |
 | `scripts/Start-GalWorker.ps1` | 已存在 | 補強 summary extraction、timeout、錯誤可觀測性 |
-| `scripts/Start-GalWorker.sh` | 尚未建立 | 實作 Mac bash worker，輸出與 Windows worker 完全相同的 artifact contract |
+| `scripts/Start-GalWorker.sh` | 尚未建立 | 實作 Mac bash worker，輸出與 Windows worker 完全相同的 file contract |
 | `scripts/Get-GalRemoteResult.ps1` | 已存在 | 補強回收與 cleanup 的穩定性驗證 |
 | `scripts/scripts.md` | 已存在 | 補上多 endpoint 操作方式 |
 | `model-roles.example.md` | 已存在 | 補上 Main PC / burst worker / async endpoint 的角色映射 |
@@ -314,7 +314,7 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 | --- | --- | --- | --- |
 | 舊版狀態判定 | 把多項 requirement 與 test case 標為已完成 | 全數退回到「待 live verification」或「待 control-plane policy 實作」 | repo 目前擁有的是 contract 與腳本，不是已完成的多機 orchestration rollout |
 | 舊版 phase 結構 | 直接從 Windows notebook MVP 跳到 Mac Mini | 插入獨立的 control-plane offload policy phase | 多台設備分工的核心不是「再多一台機器」，而是先定義誰負責選 endpoint 與為何這樣選 |
-| worktree 方法定義 | 原先把所有 worktree 視為同一類 | 明確區分 primary feature worktree 與 disposable remote worker worktree | feature 開發的主要檔案狀態更新，與 remote bounded execution 的 artifact 回收，不應混為同一 ownership 模型 |
+| worktree 方法定義 | 原先把所有 worktree 視為同一類 | 明確區分 primary feature worktree 與 disposable remote worker worktree | feature 開發的主要檔案狀態更新，與 remote bounded execution 的 output file 回收，不應混為同一 ownership 模型 |
 
 ### Handoff Notes
 
@@ -325,9 +325,9 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 1. `primary feature worktree` 與 `disposable remote worker worktree` 是兩種不同 ownership class。
 2. `.dev/state.md` 是 repo-level index / continuity，不是 per-task log。
 3. `.dev/plans/<plan-slug>.prompt.md` 是詳細的 per-task execution state。
-4. formal progress query 讀主要檔案；live remote-task query 讀 task-scoped temp artifacts。
+4. formal progress query 讀主要檔案；live remote-task query 讀 task-scoped temp output files。
 5. remote worker 允許對某些正式 repo 文件採 patch-first，但不預設擁有 `.dev/state.md` 或 plan sections。
-6. Mac Mini 採 bash worker adapter，仍服從同一份 artifact contract；Gemini CLI 是唯一 headless engine。
+6. Mac Mini 採 bash worker adapter，仍服從同一份 file contract；Gemini CLI 是唯一 headless engine。
 7. Copilot CLI、VS Code、Codex CLI 雖已安裝於 Mac Mini，但目前不納入 automated remote dispatch。
 8. MLX-LM 屬於 Apple Silicon LOCAL lane，不與 execution plane 的 Gemini contract 混為同一層。
 9. Discord / Telegram 在規劃中只作為遠端人類入口，必須轉譯成 bounded task spec 再交給 control plane。
@@ -338,7 +338,7 @@ Next step: 先完成 Windows burst worker E2E 驗證，再落地 endpoint profil
 1. 完成一次真實的 Windows burst worker 端到端驗證。
 2. 把 endpoint selection 與 specialist command offload matrix 從人工作業提升為 control-plane policy。
 3. 落地 endpoint profile abstraction，讓 Windows 與 Mac 可共用 dispatch/retrieve 流程，但各自選用正確的 shell 與 worker entry。
-4. 實作 `Start-GalWorker.sh`，讓 Mac Mini 以 bash 產出與 Windows 相同的 artifacts。
+4. 實作 `Start-GalWorker.sh`，讓 Mac Mini 以 bash 產出與 Windows 相同的 output files。
 5. 持續同步 supporting docs，讓 `per-repo-context`、`remote-worker-architecture`、`runtime-verification` 對上述 ownership 規則保持一致。
 
 ## Test Results

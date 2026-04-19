@@ -30,7 +30,7 @@ Operational guidance based on this research now lives in [../mod/opencli.md](../
 - `notebooklm` adapter 特別值得注意。它不只是列出 notebook，還能對目前 notebook 執行 `source-list`、`source-get`、`source-guide`、`source-fulltext`、`summary`、`history`。這很接近「先用現成知識庫壓縮，再讓 LLM 吃更少內容」的模式。
 - `web read` 也存在，能把任意網頁轉成 Markdown。這可以當通用 fallback，但 token 效率通常不如站點專用 adapter。
 - 官方 README 強調 built-in deterministic commands 在 runtime 是 zero LLM cost。要注意，這描述的是執行現有 adapter 時，不是說探索新網站能力完全沒有模型成本。
-- 對 GAL 而言，`/gal research` 的 canonical contract 是「進入結構化研究流程」，而不是把第三方資料擷取 runtime 內建到 control plane。GAL control plane 應維持薄而穩定。
+- 對 GAL 而言，`/gal research` 的主要 contract 是「進入結構化研究流程」，而不是把第三方資料擷取 runtime 內建到 control plane。GAL control plane 應維持薄而穩定。
 - GAL 目前的設計重點是：控制平面和專家執行層分離、repo 可攜、跨 Copilot / Gemini / Codex 一致。這代表任何依賴 Chrome extension、登入狀態、特定本機工具的能力，都不適合直接變成 `/gal` 的硬依賴。
 - 本機驗證結果：
   - `opencli --version` 回傳 `1.7.0`
@@ -246,7 +246,7 @@ User question
 -> shortlist
 -> optional opencli web read / notebooklm source-fulltext
 -> model synthesis
--> GAL research artifact
+-> GAL research output
 ```
 
 ## Risks And Caveats

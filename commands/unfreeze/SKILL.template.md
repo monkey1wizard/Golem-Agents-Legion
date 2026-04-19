@@ -36,6 +36,6 @@ Previous boundary: src/api/
 No freeze boundary was active. Nothing to remove.
 ```
 
-## No Plan Artifacts
+## No Plan Files
 
 `/unfreeze` does not write to plan files.

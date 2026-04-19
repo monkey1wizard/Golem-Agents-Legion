@@ -81,7 +81,7 @@ REVISE
 ### What Is Realistically Achievable Now
 
 - 讓 Gemini、VS Code Copilot、Codex 在 GAL 管理下取得同一組 MemPalace MCP tools。
-- 在單機或單一 canonical backend 前提下，讓這些 runtime 查詢同一份長期記憶。
+- 在單機或單一主要 backend 前提下，讓這些 runtime 查詢同一份長期記憶。
 - 讓 Gemini 與 Codex 具有較成熟的 auto-save / write path。
 - 讓 Claude 保持手動或 out-of-band 整合，而不是硬塞進 GAL 目前的自動安裝拓樸。
 
@@ -89,8 +89,8 @@ REVISE
 
 - 把「MCP 已安裝」直接等同於「shared memory 已成立」會高估設計完成度。
 - 把「VS Code Copilot」與「Copilot CLI」混為一談，會讓 runtime wiring 與支援矩陣失真。
-- 若沒有先定義 canonical MemPalace backend 的宿主與寫入政策，多機共享記憶只會變成多份 local palace 的並列存在。
-- 若讓 MemPalace 介入 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、source plan 或 remote task status，會直接撞上 GAL 已定義好的 canonical artifact model。
+- 若沒有先定義主要的 MemPalace backend 宿主與寫入政策，多機共享記憶只會變成多份 local palace 的並列存在。
+- 若讓 MemPalace 介入 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、source plan 或 remote task status，會直接撞上 GAL 已定義好的正式檔案模型。
 
 ### Warnings
 
@@ -103,9 +103,9 @@ REVISE
 
 1. 在 GAL 中把 MemPalace 定位成 optional shared-memory sidecar，而不是 control-plane state layer。
 2. 先支援 `vscode`、`gemini`、`codex` 三個 provider 的同一份 MemPalace MCP manifest；Claude 保持手動整合。
-3. 先採單一 canonical backend host，再讓各 runtime 連到同一 backend；不要先做 multi-writer network share。
+3. 先採單一主要 backend host，再讓各 runtime 連到同一 backend；不要先做 multi-writer network share。
 4. 定義 runtime write policy：Gemini、Codex 可寫；VS Code Copilot 先視為 read-first；Claude 另行管理。
-5. 明確禁止用 MemPalace 取代 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、`docs/plans/<plan-slug>.md`、`status.json`、`summary.md` 等 GAL 正式狀態與 runtime artifact。
+5. 明確禁止用 MemPalace 取代 `.dev/state.md`、`.dev/plans/<plan-slug>.prompt.md`、`docs/plans/<plan-slug>.md`、`status.json`、`summary.md` 等 GAL 正式狀態與 runtime 檔案。
 
 ## Recommended Next Step
 

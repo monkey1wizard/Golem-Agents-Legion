@@ -22,7 +22,7 @@
     Path to the task output directory on the worker (printed by Invoke-GalRemoteTask).
 
 .PARAMETER LocalOutputDir
-    Local directory to write retrieved artifacts. Defaults to .\gal-results\{TaskId}.
+    Local directory to write retrieved output files. Defaults to .\gal-results\{TaskId}.
 
 .PARAMETER KeepRemote
     If specified, do not clean up the remote worktree and output directory after retrieval.
@@ -102,25 +102,25 @@ if ($Wait) {
     }
 }
 
-# ── Retrieve artifacts via SCP ────────────────────────────────────────────────
+# ── Retrieve output files via SCP ─────────────────────────────────────────────
 Write-Host "Retrieving results for task $TaskId..."
 Write-Host "  From: ${sshTarget}:$RemoteOutputDir"
 Write-Host "  To:   $LocalOutputDir"
 
-$artifacts = @("status.json", "summary.md", "worker.log", "result.patch")
+$outputFiles = @("status.json", "summary.md", "worker.log", "result.patch")
 $retrieved = @()
 $missing = @()
 
-foreach ($artifact in $artifacts) {
-    $remotePath = "$RemoteOutputDir/$artifact"
-    $localPath  = Join-Path $LocalOutputDir $artifact
+foreach ($outputFile in $outputFiles) {
+    $remotePath = "$RemoteOutputDir/$outputFile"
+    $localPath  = Join-Path $LocalOutputDir $outputFile
 
     scp -q "${sshTarget}:$remotePath" $localPath 2>$null
     if ($LASTEXITCODE -eq 0) {
-        $retrieved += $artifact
+        $retrieved += $outputFile
     }
     else {
-        $missing += $artifact
+        $missing += $outputFile
     }
 }
 

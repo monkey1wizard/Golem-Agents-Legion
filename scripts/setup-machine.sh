@@ -901,7 +901,7 @@ else
     echo "  [NOTE] Reload active Gemini sessions with /commands reload or restart Gemini CLI to pick up updated GAL commands."
 fi
 
-# --- Migration: remove obsolete command artifacts from installed locations ---
+# --- Migration: remove obsolete command files from installed locations ---
 
 echo ""
 echo "=== Migration: obsolete command cleanup ==="

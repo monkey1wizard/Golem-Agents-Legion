@@ -112,7 +112,7 @@ Review Retry Count: 0
 
 ### Language Rule
 
-The execution prompt is a **machine-readable artifact** and must be entirely in **English**. All section headers, scaffold text, status markers, and content prose must be in English. When the source plan is in a non-English language, **translate** content while creating the prompt. Do not produce mixed-language output.
+The execution prompt is a **machine-readable work file** and must be entirely in **English**. All section headers, scaffold text, status markers, and content prose must be in English. When the source plan is in a non-English language, **translate** content while creating the prompt. Do not produce mixed-language output.
 
 ### Scope Guard
 

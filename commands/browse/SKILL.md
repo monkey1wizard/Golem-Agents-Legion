@@ -80,6 +80,6 @@ On any Playwright error:
 3. Increment the failure counter for this page
 4. If failure counter ≥ 3: trigger auto-handoff
 
-## No Plan Artifacts
+## No Plan Files
 
 `/browse` does not write to the plan file. The calling command is responsible for recording what was found.

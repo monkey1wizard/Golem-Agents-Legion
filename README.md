@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and artifacts.
+GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 

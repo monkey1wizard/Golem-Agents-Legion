@@ -75,7 +75,7 @@ From `.dev/state.md` `## Session Continuity`:
 
 ### Specialist Readiness
 
-Based on the current plan artifacts and progress markers, list the commands that are appropriate to invoke next:
+Based on the current plan files and progress markers, list the commands that are appropriate to invoke next:
 
 | Signal | Appropriate Commands |
 | --- | --- |

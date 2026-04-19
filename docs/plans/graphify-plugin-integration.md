@@ -2,7 +2,7 @@
 
 ## Goal
 
-讓 GAL 在偵測到目標 repo 已有 graphify 產出（`graphify-out/`）時，自動將 knowledge graph context 注入到 planning、architect review、staff review 等工作流中，提升結構感知的準確度。GAL 不主動安裝 graphify，也不將其列為必要依賴——偵測到就用，沒有就維持現有行為。
+讓 GAL 在偵測到目標 repo 已有 graphify 產出（`graphify-out/`）時，自動將 knowledge graph context 注入到 planning、architect review、staff review 等工作流中，提升結構感知的準確度，並以 `docs/mod/graphify.md` 明確定義 GAL 與 graphify 的 plugin contract。GAL 不主動安裝 graphify，也不將其列為必要依賴，偵測到就用，沒有就維持現有行為。
 
 ## Background
 
@@ -29,49 +29,56 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 
 1. GAL 不安裝、不 require graphify
 2. 偵測信號：`graphify-out/GRAPH_REPORT.md` 存在於 repo root
-3. 有就讀、沒有就跳過——所有 SKILL.md 修改都是條件式（`if exists`）
-4. MCP server 在 `mcp-servers.example.json` 中 `enabled: false`，由使用者在 `mcp-servers.local.json` 自行啟用
+3. `docs/mod/graphify.md` 是 GAL x graphify contract 的主要說明文件；README 與 devguide 最多只做導引，不複製完整規則
+4. 有就讀、沒有就跳過，所有 workflow 修改都必須是條件式（`if exists`）
+5. MCP server 在 `mcp-servers.example.json` 中維持 `enabled: false`，只作為 Phase B pilot，由使用者在 `mcp-servers.local.json` 自行啟用
 
 ## Requirements
 
-- [ ] R-01 — `/deep-planning` Step 1 在 `graphify-out/GRAPH_REPORT.md` 存在時讀取它作為結構 context
-- [ ] R-02 — `golem-architect` 在 `<project_context>` 階段讀取 `GRAPH_REPORT.md`，用 god nodes 和 communities 輔助 trade-off 分析
-- [ ] R-03 — `/review` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，交叉比對變更是否跨越 community 邊界
-- [ ] R-04 — `/planning` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，用 communities 判斷 scope 是否跨模組
-- [ ] R-05 — `mcp-servers.example.json` 包含 graphify MCP server 設定（disabled by default）
-- [ ] R-06 — `docs/devguide.md` 記載 graphify detection 規則
-- [ ] R-07 — graphify 不存在時，所有修改過的 SKILL.md 行為完全不變（zero regression）
+- [ ] R-01 — `docs/mod/graphify.md` 定義 GAL x graphify contract：定位、availability vs readiness、GAL 消費的檔案與輸出、非目標範圍，以及 upstream handoff
+- [ ] R-02 — `/deep-planning` Step 1 在 `graphify-out/GRAPH_REPORT.md` 存在時讀取它作為結構 context
+- [ ] R-03 — `golem-architect` 在 `<project_context>` 階段讀取 `GRAPH_REPORT.md`，用 god nodes 和 communities 輔助 trade-off 分析，且在 Level 1 僅將 INFERRED edges 視為 advisory signal
+- [ ] R-04 — `/review` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，交叉比對變更是否跨越 community 邊界
+- [ ] R-05 — `/planning` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，用 communities 判斷 scope 是否跨模組
+- [ ] R-06 — graphify 不存在時，所有修改過的 workflows 行為完全不變（zero regression）
+- [ ] R-07 — `mcp-servers.example.json` 可加入 graphify MCP server 設定，但必須維持 disabled by default，且只作為 Phase B pilot，不得成為 Phase A 的前置條件
 
 ## Approach
 
-### Step 1: 條件式 artifact 讀取（Level 1）
+### Step 1: 建立 graphify 模組契約文件（Phase A）
+
+- **Files**: `docs/mod/graphify.md`
+- **What**: 新增一篇 GAL x graphify 模組文件，專門說明 graphify 在 GAL 架構中的位置、何時可用、GAL 如何偵測與使用它、哪些邊界不會改變，以及詳細安裝與完整 CLI 用法應回到 upstream GitHub。這篇文件作為主要 contract 文件，不把 `docs/devguide.md` 變成第二份規格。
+- **Verify**: 文件存在，且至少包含定位、What This Module Covers、What Does Not Change、availability vs readiness、GAL 消費的檔案與輸出、整合層級、非目標範圍與 Read Next
+
+### Step 2: 條件式報告讀取（Phase A）
 
 - **Files**: `commands/deep-planning/SKILL.md`, `commands/deep-planning/SKILL.template.md`
 - **What**: 在 Step 1 "Gather Inputs" 加入一行：`Read graphify-out/GRAPH_REPORT.md if it exists — use god nodes, communities, and surprising connections as structural context for the plan.`
 - **Verify**: SKILL.md 包含條件讀取語句，且語意為 "if exists"
 
-### Step 2: Architect agent context
+### Step 3: Architect agent context（Phase A）
 
 - **Files**: `agent/golem-architect.agent.md`
-- **What**: 在 `<project_context>` section 加入：`Read graphify-out/GRAPH_REPORT.md if it exists. Use god nodes to identify core abstractions, communities for module boundary awareness, and surprising connections for hidden coupling. Filter INFERRED edges below 0.7 confidence.`
+- **What**: 在 `<project_context>` section 加入：`Read graphify-out/GRAPH_REPORT.md if it exists. Use god nodes to identify core abstractions, communities for module boundary awareness, and surprising connections for hidden coupling. Treat INFERRED edges as advisory unless live query support is enabled.`
 - **Verify**: Agent file 包含 graphify context 指引
 
-### Step 3: Staff review context
+### Step 4: Staff review context（Phase A）
 
 - **Files**: `commands/review/SKILL.md`, `commands/review/SKILL.template.md`
 - **What**: 在 Step 1 "Read Changes" 加入條件讀取，指引 reviewer 交叉比對：新增的 import 是否建立非預期的 cross-community edge。
 - **Verify**: SKILL.md 包含條件讀取語句
 
-### Step 4: Planning context
+### Step 5: Planning context（Phase A）
 
 - **Files**: `commands/planning/SKILL.md`
 - **What**: 在 Step 1 "Gather Inputs" 加入條件讀取，用 communities 輔助 scope 判斷。
 - **Verify**: SKILL.md 包含條件讀取語句
 
-### Step 5: MCP server 設定（Level 2）
+### Step 6: MCP server 設定（Phase B pilot，non-blocking）
 
 - **Files**: `mcp-servers.example.json`
-- **What**: 加入 graphify server entry，所有 provider 設為 `enabled: false`：
+- **What**: 加入 graphify server entry，所有 provider 設為 `enabled: false`，僅作為本地 opt-in pilot。這一步不改變 Phase A 的完成定義，也不引入任何 graphify 安裝或 setup 自動化：
 
   ```json
   "graphify": {
@@ -105,67 +112,72 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
   }
   ```
 
-- **Verify**: `mcp-servers.example.json` 語法正確，graphify entry 存在且全部 disabled
-
-### Step 6: Detection 文件化
-
-- **Files**: `docs/devguide.md`
-- **What**: 新增 "## Graphify Knowledge Graph Detection" section，記載偵測規則和 artifact 說明：
-  - 偵測信號：`graphify-out/GRAPH_REPORT.md` 存在
-  - 對應 artifact：`graph.json`（可查詢圖）、`graph.html`（視覺化）、`GRAPH_REPORT.md`（摘要報告）
-  - MCP server 啟用方式
-  - graphify 不是 GAL 核心依賴
-- **Verify**: Section 存在且內容準確
+- **Verify**: `mcp-servers.example.json` 語法正確，graphify entry 存在且全部 disabled，且文件仍明確表達這是 pilot 而非必要依賴
 
 ## Files to Create or Modify
 
+- `docs/mod/graphify.md` — GAL x graphify 模組契約與使用邊界
 - `commands/deep-planning/SKILL.md` — 加入條件式 GRAPH_REPORT.md 讀取
 - `commands/deep-planning/SKILL.template.md` — 同步修改
 - `agent/golem-architect.agent.md` — 加入 graphify context 到 `<project_context>`
 - `commands/review/SKILL.md` — 加入條件式讀取
 - `commands/review/SKILL.template.md` — 同步修改
 - `commands/planning/SKILL.md` — 加入條件式讀取
-- `mcp-servers.example.json` — 加入 graphify server entry（disabled）
-- `docs/devguide.md` — 加入 graphify detection section
+- `mcp-servers.example.json` — 加入 graphify server entry（disabled，Phase B pilot）
 
 ## Test Cases
 
-- [ ] TC-01 — 在有 `graphify-out/GRAPH_REPORT.md` 的 repo 執行 `/deep-planning`，確認 agent 讀取了報告內容
-- [ ] TC-02 — 在沒有 `graphify-out/` 的 repo 執行 `/deep-planning`，確認行為與修改前完全一致
-- [ ] TC-03 — 在有 graph 的 repo 啟用 MCP server，透過 `query_graph`、`god_nodes`、`shortest_path` 驗證結構查詢
-- [ ] TC-04 — 確認 `golem-architect` 在有 graphify context 時引用 god nodes 和 communities 進行 trade-off 分析
-- [ ] TC-05 — 確認 `/review` 在有 graphify context 時交叉比對 community 邊界
+- [ ] TC-01 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`，但未啟用 graphify MCP server。執行 `/deep-planning`，確認輸出引用報告中的 god nodes、communities 或 surprising connections
+- [ ] TC-02 — Preconditions: 同一個 repo 移除 `graphify-out/`。執行 `/deep-planning`，確認 workflow 不報錯且仍按既有非 graphify 路徑運作
+- [ ] TC-03 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`。執行 architect review 路徑，確認 graphify 被視為 advisory context，而不是 provider switch 或 hard dependency
+- [ ] TC-04 — Preconditions: repo 含 `graphify-out/graph.json`，並在 `mcp-servers.local.json` 啟用 graphify。驗證 `query_graph`、`god_nodes` 或 `shortest_path` 可作為 pilot follow-up 使用
+- [ ] TC-05 — 讀 `docs/mod/graphify.md`，確認它把安裝與完整 graphify 使用導回 upstream，而不是複製一份完整手冊
 
 ## Success Criteria
 
-- [ ] SC-01 — 所有 SKILL.md 修改都是 `if exists` 條件式，graphify 不存在時零行為差異
-- [ ] SC-02 — `mcp-servers.example.json` 中 graphify 預設 disabled
-- [ ] SC-03 — GAL 不包含任何 `pip install graphify` 或自動安裝邏輯
-- [ ] SC-04 — `per-repo-context.md` 記載了完整的 detection 規則
-- [ ] SC-05 — 有 graphify 的 repo 中，architect review 能引用結構證據（god nodes、communities、surprising connections）
+- [ ] SC-01 — `docs/mod/graphify.md` 成為 GAL x graphify contract 的主要說明文件；README 與 devguide 不被擴寫成第二份規格
+- [ ] SC-02 — 所有 workflow 修改都是 `if exists` 條件式，graphify 不存在時零行為差異
+- [ ] SC-03 — GAL 不包含任何 `pip install graphify`、自動安裝邏輯，或把 graphify 假裝成必備工具的敘述
+- [ ] SC-04 — `mcp-servers.example.json` 中 graphify 若存在，則在 VS Code、Gemini、Codex 皆維持預設 disabled
+- [ ] SC-05 — Phase A 可獨立完成並交付；Phase B 仍是 optional pilot，不阻塞 Phase A 完成
+- [ ] SC-06 — 有 graphify 輸出檔案的 repo 中，planning、architect review、staff review 能引用結構證據（god nodes、communities、surprising connections）
 
 ## Risks
 
 - **Graph staleness** — `GRAPH_REPORT.md` 可能落後於最新 commit。Mitigation：graphify 內建 `graphify hook install` 可設定 post-commit 自動 AST-only rebuild（免費）。GAL 不負責管理 graph freshness。
+- **Availability 與 readiness 混淆** — machine 上有 graphify，不代表 repo 已經有 `graphify-out/` 輸出檔案。Mitigation：在 `docs/mod/graphify.md` 明確區分 provider availability 與 repo readiness，workflow 只依檔案 readiness 啟用。
+- **文件重複與 drift** — 若把 graphify contract 同時寫進 devguide、README、mod 文件，之後很容易不一致。Mitigation：以 `docs/mod/graphify.md` 為唯一契約文件，其他文件只保留短導引。
 - **Token budget** — `GRAPH_REPORT.md` 約 500–2000 tokens，在 GAL token-budget convention 可接受範圍內。MCP queries 有 `--budget N` 參數可控制。
-- **Semantic extraction 成本** — AST-only 提取免費且 sub-second。Document semantic extraction 需要 LLM tokens，由使用者自行決定是否執行。GAL 只消費已產出的 artifact。
+- **Semantic extraction 成本** — AST-only 提取免費且 sub-second。Document semantic extraction 需要 LLM tokens，由使用者自行決定是否執行。GAL 只消費已產出的檔案與報告。
 
 ## Open Questions
 
 - [x] OQ-001 — graphify 是否適合作為 GAL planning 和 architect review 的 context source？ *(raised by: research, resolved by: empirical test — 12.4x token reduction, 100% community accuracy)*
-- [ ] OQ-002 — 是否需要 Level 3 深度整合（cross-community 自動 escalation、god-node change detection）？ *(raised by: planning)* — 建議 Level 2 MCP 驗證後再評估
+- [x] OQ-002 — Level 1 是否需要先加入 confidence threshold 之類的 live-query heuristics？ *(raised by: planning, resolved by: architecture-review)* — 不需要。Phase A 只消費 report，INFERRED edges 僅作 advisory signal；數值閾值留待 Phase B pilot 再評估
+- [ ] OQ-003 — graphify MCP pilot 應與 Phase A 同一個 PR 交付，還是作為後續 follow-up？ *(raised by: planning)*
 
 ## Approval
 
 - Human approval: [pending]
-- Architect review: [pending]
+- Architect review: [clear]
 - Additional domain review: [not requested]
 
 ## Review Results
 
 ### Architecture Review
 
-Pending.
+**Date:** 2026-04-19
+
+**Verdict:** APPROVE
+
+這份 plan 已修正前一輪 architect review 的主要問題：
+
+- 文檔落點已收斂到 `docs/mod/graphify.md`，不再把 `docs/devguide.md` 擴寫成第二份規格
+- 交付已拆成 **Phase A report-based integration** 與 **Phase B MCP pilot**，避免把低風險整合和跨 runtime pilot 綁成同一個完成定義
+- Level 1 不再引入缺乏驗證依據的 confidence threshold，改為把 INFERRED edges 視為 advisory signal
+- Test cases 已補上 report-present / report-absent / local MCP enablement 等前置條件，具備可驗收性
+
+目前的 trade-off 是合理的：Phase A 提供最小可交付價值，Phase B 保留為 opt-in pilot，不會把 graphify 變成 GAL 的核心依賴。
 
 ### Business Review
 
@@ -181,14 +193,24 @@ Pending.
 
 ## Test Plan
 
-Pending — Level 1 changes are single-sentence SKILL.md additions; Level 2 is a disabled-by-default MCP config entry. Testing primarily through manual `/deep-planning` and `/review` runs on repos with and without graphify.
+Phase A:
+
+- 在含 `graphify-out/GRAPH_REPORT.md` 的 repo 驗證 `/planning`、`/deep-planning`、architect review、`/review` 皆會條件式讀取報告
+- 在不含 `graphify-out/` 的 repo 驗證上述 workflows 維持既有行為且不報錯
+- 檢查 `docs/mod/graphify.md` 是否只描述 GAL x graphify contract，並明確把安裝與詳細用法導回 upstream
+
+Phase B pilot:
+
+- 在 `mcp-servers.local.json` 手動啟用 graphify 後驗證 `query_graph`、`god_nodes`、`shortest_path` 是否可作為 targeted follow-up
+- 驗證 `mcp-servers.example.json` 仍為 disabled by default，不造成跨 runtime 預設行為改變
 
 ## Tasks
 
-- T-001 — Add conditional GRAPH_REPORT.md read to `/deep-planning` SKILL.md + template
-- T-002 — Add graphify context block to `golem-architect.agent.md`
-- T-003 — Add conditional read to `/review` SKILL.md + template
-- T-004 — Add conditional read to `/planning` SKILL.md
-- T-005 — Add graphify MCP server entry to `mcp-servers.example.json`
-- T-006 — Add Graphify detection section to `docs/devguide.md`
-- T-007 — Verify zero-regression: run `/deep-planning` and `/review` on a repo without `graphify-out/`
+- T-001 — Create `docs/mod/graphify.md` as the main GAL x graphify module document
+- T-002 — Add conditional GRAPH_REPORT.md read to `/deep-planning` SKILL.md + template
+- T-003 — Add graphify context block to `golem-architect.agent.md` without hard-coded Level 1 confidence thresholds
+- T-004 — Add conditional read to `/review` SKILL.md + template
+- T-005 — Add conditional read to `/planning` SKILL.md
+- T-006 — Add graphify MCP server entry to `mcp-servers.example.json` as a disabled-by-default Phase B pilot
+- T-007 — Verify zero-regression by running planning/review flows on a repo without `graphify-out/`
+- T-008 — Validate local MCP pilot only after explicit enablement in `mcp-servers.local.json`

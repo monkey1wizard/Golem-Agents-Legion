@@ -59,6 +59,6 @@ Only one freeze boundary is active at a time. Running `/freeze <new-path>` repla
 
 Run `/unfreeze` to remove the boundary.
 
-## No Plan Artifacts
+## No Plan Files
 
 `/freeze` does not write to plan files. `/investigate` writes its own `## Debug Session` section.

@@ -22,7 +22,7 @@ Before verifying, load:
 2. **Read plan's `## Status`** — implementation claims, deviations, handoff notes
 3. **Read plan's `## Test Results`** — what tests passed/failed
 4. **Read plan's `## Review Results`** — any blocking issues and their resolution
-5. **Inspect the actual codebase** — verify artifacts exist and work
+5. **Inspect the actual codebase** — verify required files and components exist and work
 6. **Read `.dev/state.md`** — for session continuity update after verification
 </project_context>
 
@@ -35,10 +35,10 @@ Start from the outcome and work backwards:
 ### Level 1: Truths — What must be TRUE?
 Requirements from the plan → observable behaviors. Can a user actually do what the plan promised?
 
-### Level 2: Artifacts — What must EXIST for those truths to hold?
+### Level 2: Files / Components — What must EXIST for those truths to hold?
 Files, classes, endpoints, database tables. Do they exist with substantive content (not stubs)?
 
-### Level 3: Wiring — What must be CONNECTED for those artifacts to function?
+### Level 3: Wiring — What must be CONNECTED for those files and components to function?
 DI registrations, route configs, imports, event subscriptions. Are modules integrated or just co-located?
 
 A component can EXIST without being WIRED. A route can be DEFINED without being REACHABLE.
@@ -50,7 +50,7 @@ A component can EXIST without being WIRED. A route can be DEFINED without being 
 
 From the plan's success criteria, derive:
 - **Truths**: Observable user behaviors that must work
-- **Artifacts**: Files and components that must exist
+- **Files / Components**: Files and components that must exist
 - **Wiring**: Connections that must be in place
 
 ## Step 2: Verify Each Level
@@ -65,7 +65,7 @@ Check: Does the login endpoint exist? Does it validate credentials?
 Result: PASS / FAIL (with evidence)
 ```
 
-### Verify Artifact
+### Verify File / Component
 ```
 Claim: "AuthService handles authentication"
 Check: Does src/services/AuthService.cs exist?
@@ -97,7 +97,7 @@ Execute actual verification:
 
 ### Must-Have Verification
 
-| # | Truth | Artifact | Wired | Status |
+| # | Truth | File / Component | Wired | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Users can log in | AuthService.cs | DI + route | PASS |
 | 2 | Invalid creds → 401 | AuthService.Validate | endpoint | PASS |

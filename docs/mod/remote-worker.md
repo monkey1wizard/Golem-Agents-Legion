@@ -27,11 +27,11 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 
 **主要 Feature Worktree** — 主控 PC 上進行開發、審查與狀態收斂的 worktree。是 `.dev/state.md`、`.dev/project.md` 與 `.dev/plans/<plan-slug>.prompt.md` 的唯一寫入者。`docs/plans/<plan-slug>.md` 是 source plan，可作為 scope 與 rationale 參考，但不是 live execution state 的主要寫入目標。
 
-**可拋棄遠端 Worker Worktree** — 由 `Invoke-GalRemoteTask.ps1` 在 worker 節點為單一有界任務建立的 linked worktree。產出 temp artifacts 和可選的 repo-path 輸出（透過 `result.patch`），但不擁有正式狀態。
+**可拋棄遠端 Worker Worktree** — 由 `Invoke-GalRemoteTask.ps1` 在 worker 節點為單一有界任務建立的 linked worktree。產出暫態檔案和可選的 repo-path 輸出（透過 `result.patch`），但不擁有正式狀態。
 
 ### 狀態層級與寫入規則
 
-| 層級 | Artifacts | 主要 Feature Worktree | 可拋棄 Worker Worktree |
+| 層級 | 檔案 / 輸出 | 主要 Feature Worktree | 可拋棄 Worker Worktree |
 | --- | --- | --- | --- |
 | Repo 層級正式狀態 | `.dev/project.md`、`.dev/state.md` | 可寫（節制） | 不可——永遠不寫 |
 | Source plan | `docs/plans/<plan-slug>.md` | 可更新，但只限 scope / rationale / requirements 層級 | 預設不可 |
@@ -43,7 +43,7 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 
 遠端任務完成後，主控 PC 必須關閉迴路：
 
-1. 以 `Get-GalRemoteResult.ps1` 擷取 artifacts
+1. 以 `Get-GalRemoteResult.ps1` 擷取輸出檔案
 2. 讀取 `summary.md` 並審閱 `result.patch`
 3. 適當時套用 patch：`git apply result.patch`
 4. 更新 `.dev/plans/<plan-slug>.prompt.md` 的對應區段；若變更屬於永久 scope/rationale，才回寫 `docs/plans/<plan-slug>.md`
@@ -51,7 +51,7 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 
 ### 規劃與執行分離
 
-新架構下，planning artifacts 分成兩層：
+新架構下，planning files 分成兩層：
 
 - `docs/plans/<plan-slug>.md`：source plan，給人讀，承接 scope、理由、需求
 - `.dev/plans/<plan-slug>.prompt.md`：execution prompt，給 `/gal status`、`/gal whats-next`、`/gal-pipeline` 與 specialist write-back 使用
@@ -60,7 +60,7 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 
 - 不直接擁有 source plan 的語義改寫權
 - 不直接擁有 execution prompt 的正式寫入權
-- 只回傳 findings、patch 與暫態 runtime artifacts，再由主控 PC 完成 state convergence
+- 只回傳 findings、patch 與暫態 runtime 檔案，再由主控 PC 完成 state convergence
 
 ## 任務合約
 
@@ -84,7 +84,7 @@ task-{YYYYMMDD}-{random6}.md
 
 Worktree 在任務前建立、結果收集後移除。永不 commit。
 
-### 輸出 Artifacts
+### 輸出檔案
 
 所有輸出存在 worker 上的**暫態任務目錄**中：
 
