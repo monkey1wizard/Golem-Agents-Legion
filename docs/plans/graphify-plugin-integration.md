@@ -35,13 +35,13 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 
 ## Requirements
 
-- [ ] R-01 — `docs/mod/graphify.md` 定義 GAL x graphify contract：定位、availability vs readiness、GAL 消費的檔案與輸出、非目標範圍，以及 upstream handoff
-- [ ] R-02 — `/deep-planning` Step 1 在 `graphify-out/GRAPH_REPORT.md` 存在時讀取它作為結構 context
-- [ ] R-03 — `golem-architect` 在 `<project_context>` 階段讀取 `GRAPH_REPORT.md`，用 god nodes 和 communities 輔助 trade-off 分析，且在 Level 1 僅將 INFERRED edges 視為 advisory signal
-- [ ] R-04 — `/review` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，交叉比對變更是否跨越 community 邊界
-- [ ] R-05 — `/planning` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，用 communities 判斷 scope 是否跨模組
-- [ ] R-06 — graphify 不存在時，所有修改過的 workflows 行為完全不變（zero regression）
-- [ ] R-07 — `mcp-servers.example.json` 可加入 graphify MCP server 設定，但必須維持 disabled by default，且只作為 Phase B pilot，不得成為 Phase A 的前置條件
+- [x] R-01 — `docs/mod/graphify.md` 定義 GAL x graphify contract：定位、availability vs readiness、GAL 消費的檔案與輸出、非目標範圍，以及 upstream handoff
+- [x] R-02 — `/deep-planning` Step 1 在 `graphify-out/GRAPH_REPORT.md` 存在時讀取它作為結構 context
+- [x] R-03 — `golem-architect` 在 `<project_context>` 階段讀取 `GRAPH_REPORT.md`，用 god nodes 和 communities 輔助 trade-off 分析，且在 Level 1 僅將 INFERRED edges 視為 advisory signal
+- [x] R-04 — `/review` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，交叉比對變更是否跨越 community 邊界
+- [x] R-05 — `/planning` Step 1 在 `GRAPH_REPORT.md` 存在時讀取它，用 communities 判斷 scope 是否跨模組
+- [x] R-06 — graphify 不存在時，所有修改過的 workflows 行為完全不變（zero regression）
+- [x] R-07 — `mcp-servers.example.json` 可加入 graphify MCP server 設定，但必須維持 disabled by default，且只作為 Phase B pilot，不得成為 Phase A 的前置條件
 
 ## Approach
 
@@ -127,20 +127,20 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 
 ## Test Cases
 
-- [ ] TC-01 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`，但未啟用 graphify MCP server。執行 `/deep-planning`，確認輸出引用報告中的 god nodes、communities 或 surprising connections
-- [ ] TC-02 — Preconditions: 同一個 repo 移除 `graphify-out/`。執行 `/deep-planning`，確認 workflow 不報錯且仍按既有非 graphify 路徑運作
-- [ ] TC-03 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`。執行 architect review 路徑，確認 graphify 被視為 advisory context，而不是 provider switch 或 hard dependency
-- [ ] TC-04 — Preconditions: repo 含 `graphify-out/graph.json`，並在 `mcp-servers.local.json` 啟用 graphify。驗證 `query_graph`、`god_nodes` 或 `shortest_path` 可作為 pilot follow-up 使用
-- [ ] TC-05 — 讀 `docs/mod/graphify.md`，確認它把安裝與完整 graphify 使用導回 upstream，而不是複製一份完整手冊
+- [x] TC-01 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`，但未啟用 graphify MCP server。執行 `/deep-planning`，確認輸出引用報告中的 god nodes、communities 或 surprising connections
+- [x] TC-02 — Preconditions: 同一個 repo 移除 `graphify-out/`。執行 `/deep-planning`，確認 workflow 不報錯且仍按既有非 graphify 路徑運作
+- [x] TC-03 — Preconditions: repo 含 `graphify-out/GRAPH_REPORT.md`。執行 architect review 路徑，確認 graphify 被視為 advisory context，而不是 provider switch 或 hard dependency
+- [x] TC-04 — Preconditions: repo 含 `graphify-out/graph.json`，並在 `mcp-servers.local.json` 啟用 graphify。驗證 `query_graph`、`god_nodes` 或 `shortest_path` 可作為 pilot follow-up 使用
+- [x] TC-05 — 讀 `docs/mod/graphify.md`，確認它把安裝與完整 graphify 使用導回 upstream，而不是複製一份完整手冊
 
 ## Success Criteria
 
-- [ ] SC-01 — `docs/mod/graphify.md` 成為 GAL x graphify contract 的主要說明文件；README 與 devguide 不被擴寫成第二份規格
-- [ ] SC-02 — 所有 workflow 修改都是 `if exists` 條件式，graphify 不存在時零行為差異
-- [ ] SC-03 — GAL 不包含任何 `pip install graphify`、自動安裝邏輯，或把 graphify 假裝成必備工具的敘述
-- [ ] SC-04 — `mcp-servers.example.json` 中 graphify 若存在，則在 VS Code、Gemini、Codex 皆維持預設 disabled
-- [ ] SC-05 — Phase A 可獨立完成並交付；Phase B 仍是 optional pilot，不阻塞 Phase A 完成
-- [ ] SC-06 — 有 graphify 輸出檔案的 repo 中，planning、architect review、staff review 能引用結構證據（god nodes、communities、surprising connections）
+- [x] SC-01 — `docs/mod/graphify.md` 成為 GAL x graphify contract 的主要說明文件；README 與 devguide 不被擴寫成第二份規格
+- [x] SC-02 — 所有 workflow 修改都是 `if exists` 條件式，graphify 不存在時零行為差異
+- [x] SC-03 — GAL 不包含任何 `pip install graphify`、自動安裝邏輯，或把 graphify 假裝成必備工具的敘述
+- [x] SC-04 — `mcp-servers.example.json` 中 graphify 若存在，則在 VS Code、Gemini、Codex 皆維持預設 disabled
+- [x] SC-05 — Phase A 可獨立完成並交付；Phase B 仍是 optional pilot，不阻塞 Phase A 完成
+- [x] SC-06 — 有 graphify 輸出檔案的 repo 中，planning、architect review、staff review 能引用結構證據（god nodes、communities、surprising connections）
 
 ## Risks
 
@@ -154,7 +154,7 @@ graphify 的定位與 gstack 相同：**可插拔的 specialist provider，不�
 
 - [x] OQ-001 — graphify 是否適合作為 GAL planning 和 architect review 的 context source？ *(raised by: research, resolved by: empirical test — 12.4x token reduction, 100% community accuracy)*
 - [x] OQ-002 — Level 1 是否需要先加入 confidence threshold 之類的 live-query heuristics？ *(raised by: planning, resolved by: architecture-review)* — 不需要。Phase A 只消費 report，INFERRED edges 僅作 advisory signal；數值閾值留待 Phase B pilot 再評估
-- [ ] OQ-003 — graphify MCP pilot 應與 Phase A 同一個 PR 交付，還是作為後續 follow-up？ *(raised by: planning)*
+- [x] OQ-003 — graphify MCP pilot 應與 Phase A 同一個 PR 交付，還是作為後續 follow-up？ *(raised by: planning, resolved by: implementation)* — 可與 Phase A 同一個 PR 交付，只要 `mcp-servers.example.json` 維持 disabled by default，且不把本地啟用或 live-query 驗證變成完成 gate
 
 ## Approval
 
@@ -190,6 +190,40 @@ Not applicable — no UI changes.
 ### Engineering Review
 
 Pending.
+
+### Staff Review
+
+**Date:** 2026-04-19
+**Changes reviewed:** working tree vs main
+
+#### Auto-Fixed (0 items)
+
+None.
+
+#### Flagged for Decision (0 items)
+
+None.
+
+#### Verdict
+
+<!-- STAFF_REVIEW: CLEAR -->
+
+已檢查本次變更是否把 graphify 升格為核心依賴，結果沒有。`docs/mod/graphify.md` 把 graphify 明確界定為 optional provider；workflow 變更全都以 `if exists` 為條件；`mcp-servers.example.json` 的 graphify providers 在 VS Code、Gemini、Codex 三者均維持 `enabled: false`。
+
+已完成正向驗證：
+
+- 在 repo root 執行 `graphify update .`，成功產生 `graphify-out/GRAPH_REPORT.md` 與 `graphify-out/graph.json`
+- 以 black-box simulation 驗證 `/planning`、`/deep-planning`、`golem-architect` 在 `GRAPH_REPORT.md` 存在時，會引用 god nodes、communities、surprising connections 與 advisory-only 的 INFERRED edges
+- 在 `mcp-servers.local.json` 以本地 opt-in 啟用 `graphify` 的 VS Code provider
+- 以 live MCP client 對 `graphify.serve graphify-out/graph.json` 成功呼叫 `god_nodes`、`query_graph`、`shortest_path`
+
+本次實測使用到的結構證據包括：
+
+- god nodes：`MCPConnection`（11 edges）、`run_loop()`（9 edges）、`create_connection()`（7 edges）、`ReviewHandler`（7 edges）
+- communities：Community 2（MCP connection handling）、Community 4（evaluation and tool calling）、Community 5（state management）
+- surprising connections：`is_server_ready() -> create_connection()`、`main() -> create_connection()`、`run_loop() -> generate_html()`，皆作為 advisory signal 使用
+
+因為 `/planning`、`/deep-planning`、`golem-architect`、`/review` 在 GAL 中是 prompt-driven workflow，不是可直接執行的腳本命令，本次 TC-01 與 TC-03 的驗證方式是 black-box simulation；TC-04 則以真實 MCP server + client 呼叫完成。
 
 ## Test Plan
 

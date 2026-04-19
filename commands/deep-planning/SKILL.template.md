@@ -28,6 +28,8 @@ Read every planning-stage document the user identifies. This may include:
 - design notes
 - external or migrated planning documents
 
+Read `graphify-out/GRAPH_REPORT.md` if it exists. Use god nodes, communities, and surprising connections as structural context for the plan.
+
 Prefer convergence over interrogation. Ask a focused question only when the plan cannot be made review-ready without resolving a security, irreversible scope, or taste decision.
 
 ## Step 2 — Converge To One Source Plan

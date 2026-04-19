@@ -254,6 +254,47 @@
         }
       }
     },
+    "graphify": {
+      "description": "Knowledge graph query server for architecture-aware planning and review.",
+      "providers": {
+        "vscode": {
+          "key": "graphify",
+          "enabled": false,
+          "config": {
+            "command": "python",
+            "args": [
+              "-m",
+              "graphify.serve",
+              "graphify-out/graph.json"
+            ]
+          }
+        },
+        "gemini": {
+          "key": "graphify",
+          "enabled": false,
+          "config": {
+            "command": "python",
+            "args": [
+              "-m",
+              "graphify.serve",
+              "graphify-out/graph.json"
+            ]
+          }
+        },
+        "codex": {
+          "key": "graphify",
+          "enabled": false,
+          "config": {
+            "command": "python",
+            "args": [
+              "-m",
+              "graphify.serve",
+              "graphify-out/graph.json"
+            ]
+          }
+        }
+      }
+    },
     "github": {
       "description": "GitHub MCP via the Copilot endpoint.",
       "providers": {
