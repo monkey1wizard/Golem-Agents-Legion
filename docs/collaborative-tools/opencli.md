@@ -1,82 +1,106 @@
-# OpenCLI 協作工具導引
+# OpenCLI Collaborative Tool Guide
 
-這份文件定義 GAL 何時該用 OpenCLI、何時該用 MCP browser tools，以及 OpenCLI 在架構中的位置。
+This document defines when GAL should use OpenCLI, when it should use MCP browser tools, and where OpenCLI fits in the architecture.
 
-## 定位
+## Positioning
 
-OpenCLI 是一個**可選的**外部 CLI 協作工具。GAL 會把它當成一組可掛接的 site adapters 與命令集合來使用，而不是把它視為單一研究工具。研究與資料擷取是它最常被大量使用的場景，但不是它唯一的定位。它不是 MCP server、不是 `/gal` 控制面的一部分、也不是 GAL 工作的必要依賴。
+OpenCLI is an **optional** external CLI collaborative tool. GAL treats it as a set of pluggable site adapters and commands, not as a single research tool. Research and structured retrieval are its most common high-frequency use cases, but they are not its only role. It is not an MCP server, not part of the `/gal` control plane, and not a required dependency for GAL workflows.
 
-這是一份 lane-specific 路由指南，不是 repo 層級的萬用工具規則。其他 GAL skills 可能設計為 MCP-first、local-first 或混合模式。
+This is a lane-specific routing guide, not a repo-wide rule for every tool choice. Other GAL skills may be MCP-first, local-first, or hybrid.
 
-## 在架構中的位置
+## Where It Fits In The Architecture
 
-| 層級 | 功能 | OpenCLI 適用性 |
+| Layer | Function | OpenCLI fit |
 | --- | --- | --- |
-| 控制面 | 路由控制面問題和專家指令 | 不適用 |
-| MCP 層 | 讓通用工具跨 runtime 可見 | 不適用 |
-| Skill 層 | 教 agent 安全使用可選工具與 plugin adapters | **主要適用** |
-| 外部 CLI adapter 層 | 提供站台或來源專屬 commands 與 schema | **主要適用** |
-| 研究/資料擷取 | 以低 token 開銷取得結構化外部資訊 | 常見高頻用法 |
+| Control plane | Routes control-plane questions and specialist commands | Not applicable |
+| MCP layer | Makes general tools visible across runtimes | Not applicable |
+| Skill layer | Teaches the agent to use optional tools and adapter commands safely | **Primary fit** |
+| External CLI adapter layer | Provides source-specific commands and schemas | **Primary fit** |
+| Research and retrieval | Returns structured external information with low token cost | Common high-frequency use |
 
-## 快速決策表
+## Preflight - Shared Checking Model
 
-| 任務形態 | 預設工具 | 升級時機 |
+OpenCLI follows the shared preflight model in [checking-contract.md](checking-contract.md).
+
+| Shared state | OpenCLI meaning | GAL behavior |
 | --- | --- | --- |
-| 已知站台、已知 schema、需穩定結構化輸出 | OpenCLI | adapter 缺欄位或失敗時 |
-| 未知頁面、未知 DOM、需檢視/點擊/滾動 | MCP browser tools | 互動穩定到可建 adapter 時 |
-| 讀一次普通文章頁 | MCP `fetch` 或 `imagefetch` | 有站台專屬 adapter 且結構化輸出更乾淨時 |
-| 批次擷取或可重複 shell 工作流 | OpenCLI | 任務依賴一次性手動探索時 |
-| 已登入瀏覽器資料且有 adapter | OpenCLI | browser bridge/session 不可用時 |
-| UI 除錯、network 檢視、頁面狀態驗證 | MCP browser tools | 目標簡化為 deterministic 資料擷取時 |
-| Repo-local 程式碼理解 | Workspace tools | 永遠不路由到 OpenCLI |
+| `not-applicable` | The task does not involve external retrieval or does not map to an OpenCLI-capable source. | Use the normal non-OpenCLI path. |
+| `unavailable` | `opencli --version` fails or the command is not installed. | Fall back to MCP retrieval or workspace tools as appropriate. |
+| `available-but-needs-init` | OpenCLI is installed, but required local setup such as adapter install, browser bridge, or session wiring is incomplete. | Do not auto-initialize during normal research. |
+| `available-but-not-ready` | OpenCLI is installed, but the current task does not map cleanly to a supported adapter or the adapter cannot return the required fields. | Fall back to the documented alternative tool path. |
+| `ready` | OpenCLI is installed and a supported adapter can satisfy the requested retrieval. | Route into OpenCLI. |
 
-## 常用來源路由
+## Quick Decision Table
 
-| 來源 | 預設工具 | 常見任務 |
+| Task shape | Default tool | Upgrade when |
 | --- | --- | --- |
-| YouTube | `opencli youtube ...` | 搜尋、影片 metadata、逐字稿 |
-| NotebookLM | `opencli notebooklm ...` | Notebook metadata、source list、summary |
-| Wikipedia | `opencli wikipedia ...` | 搜尋與摘要 |
-| Hacker News | `opencli hackernews ...` | 熱門文章、搜尋、使用者 profile |
-| Google News | `opencli google news ...` | 主題標題 |
-| 一般文章頁 | MCP `fetch` 或 `imagefetch` | 一次性文章閱讀 |
+| Known site, known schema, stable structured output needed | OpenCLI | The adapter is missing fields or fails |
+| Unknown page, unknown DOM, clicking or scrolling required | MCP browser tools | The interaction becomes stable enough to justify an adapter |
+| Read a normal article page once | MCP `fetch` or `imagefetch` | A site adapter yields cleaner structured output |
+| Batch retrieval or repeatable shell workflow | OpenCLI | The task depends on one-off manual exploration |
+| Logged-in browser-backed data with an adapter available | OpenCLI | The browser bridge or session path is unavailable |
+| UI debugging, network inspection, or page-state validation | MCP browser tools | The goal narrows into deterministic data retrieval |
+| Repo-local code understanding | Workspace tools | Never route to OpenCLI |
 
-## 操作規則
+## Common Source Routing
 
-- 有現成 site adapter 且回傳所需欄位時，偏好 OpenCLI
-- 盡可能使用 `-f json` 和明確 `--limit`
-- 公開 adapter 優先於 browser-backed adapter
-- 探索新站台或除錯壞掉的 adapter 時，先用 MCP browser tools
-- 不要把 repo-local 程式碼或 git 任務路由到 OpenCLI
-- 不要把 OpenCLI 當成 `/gal`、`/gal research` 或任何控制面指令的必要依賴
-- 不要把 OpenCLI-first 泛化為 repo 層級的萬用規則
-- 若 OpenCLI 和 fallback 都無法滿足任務，以明確的 no-tool 訊息停下，不要假裝擷取成功
+| Source | Default tool | Common tasks |
+| --- | --- | --- |
+| YouTube | `opencli youtube ...` | Search, video metadata, transcript |
+| NotebookLM | `opencli notebooklm ...` | Notebook metadata, source list, summary |
+| Wikipedia | `opencli wikipedia ...` | Search and summary |
+| Hacker News | `opencli hackernews ...` | Top stories, search, user profile |
+| Google News | `opencli google news ...` | Topic headlines |
+| General article pages | MCP `fetch` or `imagefetch` | One-off article reading |
 
-## 建議查詢模式
+## Operating Rules
+
+- Prefer OpenCLI when an existing site adapter already returns the fields you need.
+- Prefer `-f json` and an explicit `--limit` whenever possible.
+- Prefer public adapters over browser-backed adapters.
+- Use MCP browser tools first when exploring a new site or debugging a broken adapter.
+- Do not route repo-local code or git tasks into OpenCLI.
+- Do not make OpenCLI a required dependency for `/gal`, `/gal research`, or any other control-plane command.
+- Do not generalize OpenCLI-first behavior into a repo-wide rule.
+- If OpenCLI and its fallback paths both fail, stop with an explicit no-tool message instead of pretending retrieval succeeded.
+
+## Recommended Query Pattern
 
 ```text
-問題
-→ opencli shortlist（帶 --limit 和 -f json）
-→ opencli detail（可選：transcript、fulltext、guide）
-→ MCP 檢視或 fallback 擷取（可選）
-→ model synthesis
+question
+-> opencli shortlist (with --limit and -f json)
+-> opencli detail (optional: transcript, fulltext, guide)
+-> MCP inspection or fallback retrieval (optional)
+-> model synthesis
 ```
 
-## OpenCLI 在 GAL 中的形態
+## Degrade Path
 
-應被視為：
+If OpenCLI is unavailable, needs initialization, or is not ready for the current task:
 
-- 可選的外部 CLI plugin runtime
-- 一組可掛接的 site adapters 與命令集合
-- 透過 skill 層中的 skills 消費
-- 研究/資料擷取工作流中的高頻工具
+- fall back to MCP `fetch` or `imagefetch` for standard page retrieval
+- fall back to MCP browser tools for interaction, DOM inspection, screenshots, or adapter debugging
+- fall back to workspace tools for repo-local code understanding
+- stop with a clear missing-capability message if no documented path can satisfy the task
 
-不應被視為：
+Do not auto-install adapters or silently switch the task into a fake-success state.
 
-- MCP manifest 條目
-- 控制面依賴
-- MCP browser tools 的替代品
+## What OpenCLI Is In GAL
 
-## 相關文件
+Treat OpenCLI as:
 
-- [開發者指南](../devguide.md) — 安裝與 runtime 佈局
+- an optional external CLI runtime
+- a set of pluggable site adapters and commands
+- a capability consumed through skill-layer routing
+- a frequent tool in research and retrieval workflows
+
+Do not treat OpenCLI as:
+
+- an MCP manifest entry
+- a control-plane dependency
+- a replacement for MCP browser tools
+
+## Related Files
+
+- [checking-contract.md](checking-contract.md) for the shared collaborative-tool state model.
+- [../devguide.md](../devguide.md) for setup and runtime topology.

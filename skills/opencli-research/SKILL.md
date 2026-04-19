@@ -18,6 +18,8 @@ Use OpenCLI as an optional research-side plugin for structured retrieval.
 OpenCLI is a CLI runtime, not an MCP server.
 Use it when the task maps cleanly to an existing OpenCLI adapter and the goal is to reduce model context size by retrieving stable structured output.
 
+This skill follows the shared collaborative-tool state model in [docs/collaborative-tools/checking-contract.md](../../docs/collaborative-tools/checking-contract.md).
+
 ## Preferred Tool Order
 
 1. Use OpenCLI when an existing adapter already matches the source and fields you need.
@@ -36,6 +38,8 @@ opencli --version
 - Exit code `0`: OpenCLI is available.
 - Non-zero or command-not-found: OpenCLI is unavailable. Use the fallback strategy below.
 
+Treat adapter or session setup gaps as `available-but-needs-init`. Treat unsupported sources or missing required fields as `available-but-not-ready`.
+
 ## Fallback Strategy
 
 If OpenCLI is unavailable or the required adapter cannot reach the needed data:
@@ -49,6 +53,8 @@ Do not silently pretend OpenCLI succeeded when it did not.
 ## No-Tool Behavior
 
 If neither OpenCLI nor the documented MCP or workspace fallback can satisfy the task, stop and say which capability is missing.
+
+This applies both when OpenCLI is `unavailable` and when it is installed but `available-but-not-ready` for the requested task.
 
 - Ask the user for a URL, source file, or permission to switch to a manual path when that would still move the task forward.
 - Do not fabricate adapter output.

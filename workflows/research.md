@@ -51,6 +51,7 @@ No active research. Waiting for a research question or topic.
   - Define the research question clearly.
   - Identify sources: documentation, codebase, web, existing vault notes.
   - **Local-first**: Always search the Obsidian vault first (via local-first-search skill) before external sources.
+  - **Collaborative-tool preflight**: if the task maps to OpenCLI, resolve the tool state through [docs/collaborative-tools/checking-contract.md](../docs/collaborative-tools/checking-contract.md) before attempting structured retrieval. If OpenCLI is unavailable or not ready, fall back through [opencli.md](../docs/collaborative-tools/opencli.md).
   - Collect raw findings with source attribution.
   - For R1/R2: create a working document to track progress.
 - **Golem**: researcher

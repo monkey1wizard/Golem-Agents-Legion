@@ -23,14 +23,19 @@ This module does not document graphify installation, graph generation, rebuild c
 - Workflow routing does not silently switch collaborative tools because a report exists.
 - Missing graphify outputs must not cause errors, setup prompts, or mandatory fallback steps.
 
-## Two Separate Checks
+## Preflight - Shared Checking Model
 
-Keep these checks separate in implementation and documentation:
+This tool follows the shared preflight model in [checking-contract.md](checking-contract.md).
 
-- tool availability: does the machine or runtime have graphify installed or otherwise wired for optional live queries?
-- repo readiness: does this repo already contain `graphify-out/GRAPH_REPORT.md` for report-based context?
+| Shared state | graphify meaning | GAL behavior |
+| --- | --- | --- |
+| `not-applicable` | The current lane does not use structural graph context. | Continue without graphify. |
+| `unavailable` | The machine or runtime does not have graphify installed and no live-query wiring exists. | Continue with native codebase reading. |
+| `available-but-needs-init` | graphify is installed, but the repo has not been generated into `graphify-out/` for the expected collaboration mode. | Do not auto-generate graph outputs during planning or review. |
+| `available-but-not-ready` | graphify is installed, but the current lane is missing the required artifact such as `graphify-out/GRAPH_REPORT.md` for report mode or `graphify-out/graph.json` for live-query follow-up. | Degrade to the normal non-graph workflow path. |
+| `ready` | The applicable graphify artifact exists for the current integration level. | Use graphify as advisory structural context. |
 
-Report-based integration uses only repo readiness. A machine with graphify installed but no repo outputs is not graph-ready for GAL.
+Report-based integration uses repo readiness, not machine availability alone. A machine with graphify installed but no repo outputs is not graph-ready for GAL.
 
 ## GAL-Consumed Files And Signals
 
@@ -56,6 +61,8 @@ graphify does not become a new state owner. It only provides extra structure evi
 | Level 2: optional live-query follow-up | a runtime explicitly wires graphify query tools | Use targeted graph queries for follow-up exploration without changing GAL's state ownership |
 
 At Level 1, treat `INFERRED` edges as advisory signals rather than hard facts.
+
+If graphify is unavailable or not ready, degrade to native codebase reading and standard GAL planning or review behavior. Do not prompt for installation or graph regeneration unless the user explicitly asked for graphify-specific capability.
 
 ## Non-Goals
 

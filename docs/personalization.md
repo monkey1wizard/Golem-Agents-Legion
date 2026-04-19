@@ -69,6 +69,7 @@ macOS:
 
 - Methodology and durable contracts stay in tracked repo files.
 - Machine-local values stay in `*.local.*` files or runtime-owned config.
+- Collaborative-tool availability belongs to machine-local setup and personalization. Collaborative-tool readiness belongs to workflow preflight through [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
 - If a setting would create cross-machine drift, first ask whether it belongs in a source file instead of a local override.
 
 ## Read Next

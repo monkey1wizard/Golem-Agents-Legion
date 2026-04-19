@@ -6,7 +6,7 @@ GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
-- [gstack](https://github.com/garrytan/gstack) 的 specialist workflow semantics 對 GAL 有明顯影響，但在 GAL 中它是可選的協作工具，不是核心依賴。詳見 [docs/mod/gstack.md](docs/mod/gstack.md)。
+- [gstack](https://github.com/garrytan/gstack) 的 specialist workflow semantics 對 GAL 有明顯影響，但在 GAL 中它是可選的協作工具，不是核心依賴。詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
 
 ## 快速開始
 
@@ -220,29 +220,49 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 ## 協作工具
 
-GAL 支援可選的協作工具。這些工具擴充特定 lane，但不改變 `/gal` 的 control-plane ownership。
+GAL 支援可選的協作工具（collaborative tools）。這些工具擴充特定 lane 的能力，但不改變 `/gal` 的 control-plane ownership，也不是核心依賴——沒有安裝任何一個，GAL 仍能完整運作。
 
-### OpenCLI
+### 共用 Preflight 機制
 
-以 plugin 模式接入 agent workflow 的結構化外部資料擷取協作工具。詳見 [docs/mod/opencli.md](docs/mod/opencli.md)。
+所有協作工具在使用前都走同一套 5 狀態 preflight 檢查：
+
+```text
+applicability → availability → initialization status → readiness → route / degrade
+```
+
+| 狀態 | 意義 |
+| --- | --- |
+| `not-applicable` | 目前 lane 或任務不需要此工具，直接跳過 |
+| `unavailable` | 機器或 runtime 無法存取此工具，走 fallback |
+| `available-but-needs-init` | 工具存在但尚未完成首次設定，不在正常流程中自動初始化 |
+| `available-but-not-ready` | 已安裝且已初始化，但當前 repo 或任務缺少所需 artifact |
+| `ready` | 適用且所有前置條件滿足，進入工具能力 |
+
+核心行為規則：不自動安裝、不自動初始化、不以模糊成功語言掩蓋缺失。每個工具啟用的 lane 都有明確的 degrade path。完整規格見 [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md)。
+
+### graphify — 結構化 Context
+
+當 repo 存在 `graphify-out/` 產出時，planning、architect review 與 staff review 會自動注入 knowledge graph context，提升結構感知的準確度。沒有產出時維持原有行為。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+
+### OpenCLI — 結構化外部擷取
+
+以 plugin 模式接入 agent workflow 的結構化外部資料擷取工具，用於研究與 context 補充。詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
+
+### gstack — 規劃審核 Lane
+
+GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。不安裝 gstack 仍走完整規劃流程。詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
 
 ### Remote Worker
 
-跨機器的遠端任務派發與結果收集。詳見 [docs/mod/remote-worker.md](docs/mod/remote-worker.md)。
-
-### gstack 規劃協作工具
-
-gstack 現在是可選的 specialist 協作工具。GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。你也可以完全不安裝 gstack，仍走完整規劃流程。
-
-詳見 [docs/mod/gstack.md](docs/mod/gstack.md)。
+跨機器的遠端任務派發與結果收集。詳見 [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md)。
 
 ### Godot C Sharp
 
-現有指令透過 convention、skill 與 MCP 工具直接操作 Godot 4 C# repo。詳見 [docs/mod/godot.md](docs/mod/godot.md)。
+現有指令透過 convention、skill 與 MCP 工具直接操作 Godot 4 C# repo。詳見 [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md)。
 
 ### AI-First 遊戲素材
 
-以 ComfyUI 為生成入口，搭配後段工具做整理與導出。詳見 [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md)。
+以 ComfyUI 為生成入口，搭配後段工具做整理與導出。詳見 [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md)。
 
 ## 個人化設定
 
@@ -250,18 +270,20 @@ gstack 現在是可選的 specialist 協作工具。GAL 以 `/planning`、`/deep
 
 ## 文件
 
-`docs/` 主要用於快速閱讀與查找，`docs/mod` 則是協作工具與相鄰 lane 導引的快速入門及索引。
+`docs/` 主要用於快速閱讀與查找，`docs/collaborative-tools/` 則是協作工具與相鄰 lane 導引的快速入門及索引。
 
 | 路徑 | 用途 |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | 指令對照表 |
-| [docs/devguide.md](docs/devguide.md) | 開法者手冊 |
+| [docs/devguide.md](docs/devguide.md) | 開發者手冊 |
 | [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋與 rerun setup |
-| [docs/mod/gstack.md](docs/mod/gstack.md) | gstack 協作工具契約：規劃與 specialist 整合 |
-| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI 協作工具導引與使用時機 |
-| [docs/mod/remote-worker.md](docs/mod/remote-worker.md) | 遠端 worker 拓撲、所有權與 patch-first 收斂 |
-| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# 工作流導引 |
-| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
+| [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |
+| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | graphify 結構化 context 契約 |
+| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 協作工具導引與使用時機 |
+| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與 specialist 整合 |
+| [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md) | 遠端 worker 拓撲、所有權與 patch-first 收斂 |
+| [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# 工作流導引 |
+| [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
 
 ## 參考
 

@@ -16,8 +16,8 @@ This is the index for GAL commands. Start here when you need to decide what to r
 | know current progress or blockers | `/gal status` | [../commands/commands.md](../commands/commands.md) |
 | get a single next action | `/gal whats-next` | [../commands/commands.md](../commands/commands.md) |
 | close a session cleanly | `/gal wrap-up` | [../commands/commands.md](../commands/commands.md) |
-| create or deepen a plan | `/planning` or `/deep-planning` | [mod/gstack.md](mod/gstack.md) |
-| materialize an execution work file | `/plan-to-prompt` | [mod/gstack.md](mod/gstack.md) |
+| create or deepen a plan | `/planning` or `/deep-planning` | [collaborative-tools/gstack.md](collaborative-tools/gstack.md) |
+| materialize an execution work file | `/plan-to-prompt` | [collaborative-tools/gstack.md](collaborative-tools/gstack.md) |
 | run execution, QA, review, or release work | the relevant specialist command | `commands/<command>/SKILL.template.md` |
 
 ## Control Plane
@@ -49,7 +49,9 @@ Exact per-command prompts live in `commands/<command>/SKILL.template.md`. This i
 | engineering review lane | close architecture, tasking, and test readiness gaps | source plan `## Review Results`, `## Test Plan`, and `## Tasks` |
 | `/cso` | add security findings when the change touches trust boundaries | plan `## Review Results` |
 
-Planning-stage review lanes are capabilities, not public GAL command names. If gstack is installed they can be routed. If not, GAL still has native planning and fallback golems. See [mod/gstack.md](mod/gstack.md).
+Planning-stage review lanes are capabilities, not public GAL command names. If gstack is installed they can be routed. If not, GAL still has native planning and fallback golems. See [collaborative-tools/gstack.md](collaborative-tools/gstack.md).
+
+All collaborative-tool-routed lanes should resolve tool state through [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) before attempting tool-specific capabilities.
 
 ### Design Work
 
@@ -138,6 +140,7 @@ The only required pre-execution planning gate is engineering review readiness. B
 ## Read Next
 
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract, alias rules, and runtime surface.
-- [mod/gstack.md](mod/gstack.md) for optional collaborative-tool semantics and planning-stage review integration.
+- [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) for shared collaborative-tool preflight behavior.
+- [collaborative-tools/gstack.md](collaborative-tools/gstack.md) for optional collaborative-tool semantics and planning-stage review integration.
 - [../workflows/coding.md](../workflows/coding.md) for the execution state machine.
 - `commands/<command>/SKILL.template.md` for the exact prompt and write-back behavior of a specific specialist command.

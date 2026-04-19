@@ -24,7 +24,7 @@ GAL's coding flow is expressed as write-back command phases.
 | Phase | Entry Signal | Commands | Main Files / Outputs |
 | --- | --- | --- | --- |
 | **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
-| **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via provider or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
+| **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
 | **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, code changes |
 | **Review-stage audits** | Implementation reached a meaningful checkpoint | `/review`, conditional `/design-review`, conditional `/cso`, `/qa`, `/qa-only` | `## Analyze`, `## Review Results`, `## Test Results` |
 | **Wrap-up or ship** | Work is paused or ready to land | `/gal wrap-up`, `/ship`, `/land-and-deploy` | `### Handoff Notes`, `.dev/state.md`, `## Ship`, `## Deploy` |
@@ -42,6 +42,18 @@ The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispa
 - **Designer**: add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
 
 Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
+
+## Collaborative Tool Preflight
+
+Before planning, review, or specialist lanes attempt to use a collaborative tool, resolve the tool state through [docs/collaborative-tools/checking-contract.md](../docs/collaborative-tools/checking-contract.md).
+
+| Workflow phase | Tools that may apply | Degrade behavior |
+| --- | --- | --- |
+| `/planning` and `/deep-planning` | graphify for structural context, gstack for optional review lanes | Continue with native planning and fallback golems |
+| `/review` | graphify for cross-community coupling checks | Continue with standard diff-based review |
+| research workflows | OpenCLI for structured external retrieval | Fall back to MCP retrieval or browser tools |
+
+Do not treat a missing collaborative tool as a workflow error. Do not prompt for install or initialization unless the user explicitly asked for the tool-specific capability.
 
 ## Architectural Escalation Fence
 

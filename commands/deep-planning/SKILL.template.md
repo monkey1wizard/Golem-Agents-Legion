@@ -28,6 +28,11 @@ Read every planning-stage document the user identifies. This may include:
 - design notes
 - external or migrated planning documents
 
+Before using a collaborative tool, resolve its state through the shared checking model in `docs/collaborative-tools/checking-contract.md`.
+
+- graphify: if `graphify-out/GRAPH_REPORT.md` exists, use it as structural context; if not, degrade to native codebase reading without prompting for graph generation.
+- gstack review lanes: if the chosen lane is unavailable or not ready, describe the fallback golem lane instead of treating gstack as required.
+
 Read `graphify-out/GRAPH_REPORT.md` if it exists. Use god nodes, communities, and surprising connections as structural context for the plan.
 
 Prefer convergence over interrogation. Ask a focused question only when the plan cannot be made review-ready without resolving a security, irreversible scope, or taste decision.
@@ -42,7 +47,7 @@ This command may:
 - merge supporting material into one plan
 - clarify architecture or task boundaries
 - rewrite requirements so later reviews can operate on stable semantics
-- prepare the plan for business, design, or engineering review lanes without naming a specific provider command
+- prepare the plan for business, design, or engineering review lanes without naming a specific collaborative-tool command
 
 Do not create or mutate `.dev/plans/<plan-slug>.prompt.md` here.
 
@@ -69,4 +74,4 @@ Tell the user:
 
 - what changed in the source plan
 - whether architect review is clear or still blocking
-- whether the next action is `/plan-to-prompt`, another deep-planning pass, or a review lane through the configured provider or fallback golem
+- whether the next action is `/plan-to-prompt`, another deep-planning pass, or a review lane through the configured collaborative tool or fallback golem

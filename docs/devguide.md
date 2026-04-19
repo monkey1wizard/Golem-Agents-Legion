@@ -7,11 +7,11 @@ This document is maintainer navigation, not a second specification. Use it to de
 | If you are changing... | Ask first... | Read these source files |
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
-| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [mod/gstack.md](mod/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
+| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
 | setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh` |
 | templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
-| remote worker behavior | is this part of the main workflow or an execution-plane extension? | [mod/remote-worker.md](mod/remote-worker.md), remote worker scripts under `scripts/` |
-| Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [mod/godot.md](mod/godot.md), [mod/graphworkflow.md](mod/graphworkflow.md) |
+| remote worker behavior | is this part of the main workflow or an execution-plane extension? | [collaborative-tools/remote-worker.md](collaborative-tools/remote-worker.md), remote worker scripts under `scripts/` |
+| Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [collaborative-tools/godot.md](collaborative-tools/godot.md), [collaborative-tools/graphworkflow.md](collaborative-tools/graphworkflow.md) |
 
 If you cannot tell which layer you are touching, stop and resolve that first. Most broken refactors in GAL come from mixing README, docs, templates, scripts, and command contracts in one change.
 
@@ -51,6 +51,8 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 - Do not make an agent silently switch personas or contracts because a collaborative tool was detected.
 - The workflow decides the collaborative tool first, then the tool writes back into the same repo-owned files.
+
+The shared preflight model lives in [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
 
 ## Runtime Topology For Setup Work
 
@@ -125,7 +127,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 1. Place it in the right family via [command-index.md](command-index.md).
 2. Update the owning prompt in `commands/<command>/SKILL.template.md`.
 3. Confirm the write-back target fits the existing plan sections and workflow state machine.
-4. If it changes optional collaborative-tool semantics, also update [mod/gstack.md](mod/gstack.md).
+4. If it changes optional collaborative-tool semantics, also update [collaborative-tools/gstack.md](collaborative-tools/gstack.md) and [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) when shared preflight behavior changes.
 
 ### Changing setup, installation, or MCP merge
 
@@ -188,13 +190,14 @@ Before you finish a maintainer change, ask:
 | first-time GAL maintainer | this guide → [../commands/commands.md](../commands/commands.md) → [../scripts/scripts.md](../scripts/scripts.md) |
 | maintainer changing command behavior | [command-index.md](command-index.md) → [../commands/commands.md](../commands/commands.md) |
 | maintainer changing setup | this guide → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing workflow semantics | [command-index.md](command-index.md) → [mod/gstack.md](mod/gstack.md) → [../workflows/coding.md](../workflows/coding.md) |
+| maintainer changing workflow semantics | [command-index.md](command-index.md) → [collaborative-tools/gstack.md](collaborative-tools/gstack.md) → [../workflows/coding.md](../workflows/coding.md) |
 
 ## Related Files
 
 - [../README.md](../README.md) for the primary user entry point.
 - [command-index.md](command-index.md) for the human-facing command map.
-- [mod/gstack.md](mod/gstack.md) for optional collaborative-tool behavior.
+- [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) for shared collaborative-tool preflight behavior.
+- [collaborative-tools/gstack.md](collaborative-tools/gstack.md) for optional collaborative-tool behavior.
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract and runtime surface.
 - [../scripts/scripts.md](../scripts/scripts.md) for the script inventory and setup behavior.
 - [../templates/templates.md](../templates/templates.md) for template ownership.

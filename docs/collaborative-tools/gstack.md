@@ -18,12 +18,17 @@ Without gstack, GAL still works through native planning commands and fallback go
 - Specialist commands still write back to the same plan sections and output directories.
 - Collaborative-tool routing still happens at the workflow layer, not by silently changing an agent persona.
 
-## Two Separate Checks
+## Preflight - Shared Checking Model
 
-Keep these checks separate in implementation and documentation:
+This tool follows the shared preflight model in [checking-contract.md](checking-contract.md).
 
-- tool availability: does this machine have a supported gstack install?
-- tool readiness: does this repo or branch have the files needed for the chosen formal workflow?
+| Shared state | gstack meaning | GAL behavior |
+| --- | --- | --- |
+| `not-applicable` | The current lane does not use planning-stage review enhancement or specialist collaboration. | Continue with GAL-native planning or execution. |
+| `unavailable` | This machine does not have a supported gstack install. | Use fallback golems or GAL-native flow. |
+| `available-but-needs-init` | gstack is installed, but required machine or repo bootstrap is incomplete. | Do not auto-bootstrap during normal planning or review. |
+| `available-but-not-ready` | gstack is installed and initialized, but the current repo or branch lacks the workflow artifacts needed for the chosen lane. | Degrade to the corresponding GAL-native lane or fallback golem. |
+| `ready` | The chosen lane has the required install, bootstrap, and workflow artifacts. | Route into gstack-backed collaboration. |
 
 GAL should not treat a single `.gstack` directory or one detected file as proof that the full collaborative-tool contract is ready.
 
@@ -61,6 +66,8 @@ These are capabilities, not public GAL command names.
 | engineering review | close architecture, task, and test-readiness gaps | source plan `## Review Results`, `## Test Plan`, and `## Tasks` |
 
 These lanes happen after the source plan draft exists and before `/plan-to-prompt` materializes the execution work file.
+
+If gstack is unavailable or not ready, degrade to GAL-native planning commands and fallback golems. Do not surface gstack setup as a normal prerequisite unless the user explicitly asked for gstack-specific capability.
 
 ## Execution Specialists
 

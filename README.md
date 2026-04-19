@@ -6,7 +6,7 @@ GAL is an AI working system designed to make development more structured while a
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
-- [gstack](https://github.com/garrytan/gstack) has a strong influence on GAL's specialist workflow semantics, but in GAL it is an optional collaborative tool, not a core dependency. See [docs/mod/gstack.md](docs/mod/gstack.md).
+- [gstack](https://github.com/garrytan/gstack) has a strong influence on GAL's specialist workflow semantics, but in GAL it is an optional collaborative tool, not a core dependency. See [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md).
 
 ## Quick Start
 
@@ -220,48 +220,70 @@ Research output can feed plans or vault knowledge directly. It does not need to 
 
 ## Collaborative Tools
 
-GAL supports optional collaborative tools. These tools extend specific lanes without changing `/gal` control-plane ownership.
+GAL supports optional collaborative tools. These tools extend specific lanes without changing `/gal` control-plane ownership and are not core dependencies — GAL works fully without any of them installed.
 
-### OpenCLI
+### Shared Preflight Model
 
-An external structured-retrieval collaborative tool used from agent workflows in plugin style. See [docs/mod/opencli.md](docs/mod/opencli.md).
+Every collaborative tool goes through the same 5-state preflight check before use:
+
+```text
+applicability → availability → initialization status → readiness → route / degrade
+```
+
+| State | Meaning |
+| --- | --- |
+| `not-applicable` | The current lane or task does not need this tool — skip silently |
+| `unavailable` | The machine or runtime cannot access the tool — use the fallback path |
+| `available-but-needs-init` | The tool exists but first-time setup is incomplete — do not auto-initialize during normal flow |
+| `available-but-not-ready` | Installed and initialized, but the current repo or task lacks the required artifacts |
+| `ready` | Applicable and all preconditions satisfied — route into the tool |
+
+Core rules: never auto-install, never auto-initialize, never hide missing capabilities behind vague success language. Every tool-enabled lane has an explicit degrade path. Full spec in [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md).
+
+### graphify — Structural Context
+
+When a repo has `graphify-out/` output, planning, architect review, and staff review automatically inject knowledge graph context for better structural awareness. Without the output, behavior stays unchanged. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
+
+### OpenCLI — Structured External Retrieval
+
+A structured external retrieval tool that plugs into agent workflows for research and context enrichment. See [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md).
+
+### gstack — Planning Review Lanes
+
+GAL exposes `/planning`, `/deep-planning`, and `/plan-to-prompt` as the public planning surface, then maps business, design, and engineering review lanes to upstream gstack skills or fallback golems. You can still run the full planning flow without installing gstack at all. See [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md).
 
 ### Remote Worker
 
-Cross-machine remote task dispatch and result retrieval. See [docs/mod/remote-worker.md](docs/mod/remote-worker.md).
-
-### gstack Planning Tool
-
-gstack is now an optional specialist collaborative tool. GAL exposes `/planning`, `/deep-planning`, and `/plan-to-prompt` as the public planning surface, then maps business, design, and engineering review lanes to upstream gstack skills or fallback golems. You can still run the full planning flow without installing gstack at all.
-
-See [docs/mod/gstack.md](docs/mod/gstack.md).
+Cross-machine remote task dispatch and result retrieval. See [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md).
 
 ### Godot C Sharp
 
-Existing commands operate on Godot 4 C# repos through conventions, skills, and MCP tools. See [docs/mod/godot.md](docs/mod/godot.md).
+Existing commands operate on Godot 4 C# repos through conventions, skills, and MCP tools. See [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md).
 
 ### AI-First Game Assets
 
-Uses ComfyUI as the generation entry point and downstream tools for cleanup and export. See [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md).
+Uses ComfyUI as the generation entry point and downstream tools for cleanup and export. See [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md).
 
 ## Personalization
 
 Environment placeholders, model routing, MCP overrides, and rerun-setup instructions are collected in [docs/personalization.md](docs/personalization.md).
 
-## Docs
+## Documentation
 
-`docs/` is mainly for fast human reading and lookup. `docs/mod/` is the quick-entry and index layer for collaborative tools and adjacent lane-specific guides that GAL can use directly.
+`docs/` is mainly for fast human reading and lookup. `docs/collaborative-tools/` is the quick-entry and index layer for collaborative tools and adjacent lane-specific guides.
 
 | Path | Purpose |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | command map |
 | [docs/devguide.md](docs/devguide.md) | maintainer guide |
 | [docs/personalization.md](docs/personalization.md) | local model routing, MCP overrides, and rerun setup |
-| [docs/mod/gstack.md](docs/mod/gstack.md) | gstack collaborative tool contract for planning and specialist integration |
-| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI collaborative tool guide and routing |
-| [docs/mod/remote-worker.md](docs/mod/remote-worker.md) | remote worker topology, ownership, and patch-first convergence |
-| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# workflow guide |
-| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first game asset workflow guide |
+| [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | shared preflight checking contract for collaborative tools |
+| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | graphify structural context contract |
+| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI collaborative tool guide and routing |
+| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack collaborative tool contract for planning and specialist integration |
+| [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md) | remote worker topology, ownership, and patch-first convergence |
+| [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# workflow guide |
+| [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first game asset workflow guide |
 
 ## References
 
