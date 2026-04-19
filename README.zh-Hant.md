@@ -6,7 +6,7 @@ GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
-- [gstack](https://github.com/garrytan/gstack) 的 specialist workflow semantics 對 GAL 有明顯影響，但在 GAL 中它是可選 provider，不是核心依賴。詳見 [docs/mod/gstack.md](docs/mod/gstack.md)。
+- [gstack](https://github.com/garrytan/gstack) 的 specialist workflow semantics 對 GAL 有明顯影響，但在 GAL 中它是可選的協作工具，不是核心依賴。詳見 [docs/mod/gstack.md](docs/mod/gstack.md)。
 
 ## 快速開始
 
@@ -218,21 +218,21 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 研究產出可以餵進企劃書或 vault 知識，不需要等開發流程完成。
 
-## 延伸模組
+## 協作工具
 
-GAL 支援可插拔的工作流擴充模組。這些模組擴充特定 lane，但不改變 `/gal` 的 control-plane ownership。
+GAL 支援可選的協作工具。這些工具擴充特定 lane，但不改變 `/gal` 的 control-plane ownership。
 
 ### OpenCLI
 
-以 plugin 模式整合到 agent workflow 的結構化外部資料擷取工具。詳見 [docs/mod/opencli.md](docs/mod/opencli.md)。
+以 plugin 模式接入 agent workflow 的結構化外部資料擷取協作工具。詳見 [docs/mod/opencli.md](docs/mod/opencli.md)。
 
 ### Remote Worker
 
 跨機器的遠端任務派發與結果收集。詳見 [docs/mod/remote-worker.md](docs/mod/remote-worker.md)。
 
-### gstack 規劃模組
+### gstack 規劃協作工具
 
-gstack 現在是可選的 specialist provider。GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。你也可以完全不安裝 gstack，仍走完整規劃流程。
+gstack 現在是可選的 specialist 協作工具。GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。你也可以完全不安裝 gstack，仍走完整規劃流程。
 
 詳見 [docs/mod/gstack.md](docs/mod/gstack.md)。
 
@@ -250,18 +250,18 @@ gstack 現在是可選的 specialist provider。GAL 以 `/planning`、`/deep-pla
 
 ## 文件
 
-`docs/` 主要用於快速閱讀與查找， `docs/mod` 則是目前確定可直接整合讓 gal 使用工具的快速入門及索引。
+`docs/` 主要用於快速閱讀與查找，`docs/mod` 則是協作工具與相鄰 lane 導引的快速入門及索引。
 
 | 路徑 | 用途 |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | 指令對照表 |
 | [docs/devguide.md](docs/devguide.md) | 開法者手冊 |
 | [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋與 rerun setup |
-| [docs/mod/gstack.md](docs/mod/gstack.md) | gstack 可選 provider 模組：規劃與 specialist 整合 |
-| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI 路由與使用時機 |
+| [docs/mod/gstack.md](docs/mod/gstack.md) | gstack 協作工具契約：規劃與 specialist 整合 |
+| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI 協作工具導引與使用時機 |
 | [docs/mod/remote-worker.md](docs/mod/remote-worker.md) | 遠端 worker 拓撲、所有權與 patch-first 收斂 |
-| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# 工作流模組 |
-| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first 遊戲素材工作流模組 |
+| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# 工作流導引 |
+| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
 
 ## 參考
 

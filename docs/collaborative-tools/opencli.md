@@ -1,10 +1,10 @@
-# OpenCLI 路由
+# OpenCLI 協作工具導引
 
 這份文件定義 GAL 何時該用 OpenCLI、何時該用 MCP browser tools，以及 OpenCLI 在架構中的位置。
 
 ## 定位
 
-OpenCLI 是一個**可選的**外部 CLI plugin 模式。GAL 會把它當成一組可掛接的 site adapters 與命令集合來使用，而不是把它視為單一研究工具。研究與資料擷取是它最常被大量使用的場景，但不是它唯一的定位。它不是 MCP server、不是 `/gal` 控制面的一部分、也不是 GAL 工作的必要依賴。
+OpenCLI 是一個**可選的**外部 CLI 協作工具。GAL 會把它當成一組可掛接的 site adapters 與命令集合來使用，而不是把它視為單一研究工具。研究與資料擷取是它最常被大量使用的場景，但不是它唯一的定位。它不是 MCP server、不是 `/gal` 控制面的一部分、也不是 GAL 工作的必要依賴。
 
 這是一份 lane-specific 路由指南，不是 repo 層級的萬用工具規則。其他 GAL skills 可能設計為 MCP-first、local-first 或混合模式。
 

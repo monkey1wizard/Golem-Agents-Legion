@@ -7,7 +7,7 @@ This document is maintainer navigation, not a second specification. Use it to de
 | If you are changing... | Ask first... | Read these source files |
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
-| planning flow or optional provider semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [mod/gstack.md](mod/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
+| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [mod/gstack.md](mod/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
 | setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh` |
 | templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
 | remote worker behavior | is this part of the main workflow or an execution-plane extension? | [mod/remote-worker.md](mod/remote-worker.md), remote worker scripts under `scripts/` |
@@ -47,10 +47,10 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 - If a document exists to help humans find the real source, keep it short and directional.
 - Summaries are useful. Duplicate contracts are not.
 
-### 7. Provider routing belongs to the workflow layer
+### 7. Collaborative-tool routing belongs to the workflow layer
 
-- Do not make an agent silently switch personas or contracts because a provider was detected.
-- The workflow decides the provider first, then the provider writes back into the same repo-owned files.
+- Do not make an agent silently switch personas or contracts because a collaborative tool was detected.
+- The workflow decides the collaborative tool first, then the tool writes back into the same repo-owned files.
 
 ## Runtime Topology For Setup Work
 
@@ -125,7 +125,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 1. Place it in the right family via [command-index.md](command-index.md).
 2. Update the owning prompt in `commands/<command>/SKILL.template.md`.
 3. Confirm the write-back target fits the existing plan sections and workflow state machine.
-4. If it changes optional provider semantics, also update [mod/gstack.md](mod/gstack.md).
+4. If it changes optional collaborative-tool semantics, also update [mod/gstack.md](mod/gstack.md).
 
 ### Changing setup, installation, or MCP merge
 
@@ -178,7 +178,7 @@ Before you finish a maintainer change, ask:
 - Do specialist commands still write back to repo-owned files?
 - Did I accidentally move state back into a user-global path?
 - Can a missing tool still fail loudly instead of pretending to succeed?
-- Did I keep provider routing at the workflow layer?
+- Did I keep collaborative-tool routing at the workflow layer?
 - Do README, `command-index.md`, and this guide still have distinct jobs?
 
 ## Suggested Reading Order
@@ -194,7 +194,7 @@ Before you finish a maintainer change, ask:
 
 - [../README.md](../README.md) for the primary user entry point.
 - [command-index.md](command-index.md) for the human-facing command map.
-- [mod/gstack.md](mod/gstack.md) for optional provider behavior.
+- [mod/gstack.md](mod/gstack.md) for optional collaborative-tool behavior.
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract and runtime surface.
 - [../scripts/scripts.md](../scripts/scripts.md) for the script inventory and setup behavior.
 - [../templates/templates.md](../templates/templates.md) for template ownership.

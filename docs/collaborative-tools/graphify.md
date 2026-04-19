@@ -1,6 +1,6 @@
-# graphify Optional Provider Module
+# graphify Collaborative Tool Contract
 
-graphify is an optional structural context provider for GAL, not a core runtime dependency. If a target repo already contains graphify outputs, GAL may consume them to improve planning and review quality. If not, GAL behaves exactly as before.
+graphify is an optional structural-context collaborative tool for GAL, not a core runtime dependency. If a target repo already contains graphify outputs, GAL may consume them to improve planning and review quality. If not, GAL behaves exactly as before.
 
 ## What This Module Covers
 
@@ -20,14 +20,14 @@ This module does not document graphify installation, graph generation, rebuild c
 - `/gal` still owns the control plane.
 - Repo-local Markdown files still own plan, review, and execution state.
 - GAL does not install or require graphify.
-- Workflow routing does not silently switch providers because a report exists.
+- Workflow routing does not silently switch collaborative tools because a report exists.
 - Missing graphify outputs must not cause errors, setup prompts, or mandatory fallback steps.
 
 ## Two Separate Checks
 
 Keep these checks separate in implementation and documentation:
 
-- provider availability: does the machine or runtime have graphify installed or otherwise wired for optional live queries?
+- tool availability: does the machine or runtime have graphify installed or otherwise wired for optional live queries?
 - repo readiness: does this repo already contain `graphify-out/GRAPH_REPORT.md` for report-based context?
 
 Report-based integration uses only repo readiness. A machine with graphify installed but no repo outputs is not graph-ready for GAL.

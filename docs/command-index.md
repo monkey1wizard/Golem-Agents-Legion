@@ -49,7 +49,7 @@ Exact per-command prompts live in `commands/<command>/SKILL.template.md`. This i
 | engineering review lane | close architecture, tasking, and test readiness gaps | source plan `## Review Results`, `## Test Plan`, and `## Tasks` |
 | `/cso` | add security findings when the change touches trust boundaries | plan `## Review Results` |
 
-Planning-stage review lanes are capabilities, not public GAL command names. If gstack is installed they can be provider-routed. If not, GAL still has native planning and fallback golems. See [mod/gstack.md](mod/gstack.md).
+Planning-stage review lanes are capabilities, not public GAL command names. If gstack is installed they can be routed. If not, GAL still has native planning and fallback golems. See [mod/gstack.md](mod/gstack.md).
 
 ### Design Work
 
@@ -138,6 +138,6 @@ The only required pre-execution planning gate is engineering review readiness. B
 ## Read Next
 
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract, alias rules, and runtime surface.
-- [mod/gstack.md](mod/gstack.md) for optional provider semantics and planning-stage review integration.
+- [mod/gstack.md](mod/gstack.md) for optional collaborative-tool semantics and planning-stage review integration.
 - [../workflows/coding.md](../workflows/coding.md) for the execution state machine.
 - `commands/<command>/SKILL.template.md` for the exact prompt and write-back behavior of a specific specialist command.

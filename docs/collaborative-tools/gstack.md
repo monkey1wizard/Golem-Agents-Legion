@@ -1,6 +1,6 @@
-# gstack Optional Provider Module
+# gstack Collaborative Tool Contract
 
-gstack is an optional specialist provider for GAL, not a core runtime dependency. GAL keeps its own planning entry points, execution commands, and repo-local state model whether gstack is installed or not.
+gstack is an optional specialist collaborative tool for GAL, not a core runtime dependency. GAL keeps its own planning entry points, execution commands, and repo-local state model whether gstack is installed or not.
 
 ## What This Module Covers
 
@@ -16,16 +16,16 @@ Without gstack, GAL still works through native planning commands and fallback go
 - `/gal` still owns the control plane.
 - Repo-local Markdown files still own state.
 - Specialist commands still write back to the same plan sections and output directories.
-- Provider routing still happens at the workflow layer, not by silently changing an agent persona.
+- Collaborative-tool routing still happens at the workflow layer, not by silently changing an agent persona.
 
 ## Two Separate Checks
 
 Keep these checks separate in implementation and documentation:
 
-- provider availability: does this machine have a supported gstack install?
-- provider readiness: does this repo or branch have the files needed for the chosen formal workflow?
+- tool availability: does this machine have a supported gstack install?
+- tool readiness: does this repo or branch have the files needed for the chosen formal workflow?
 
-GAL should not treat a single `.gstack` directory or one detected file as proof that the full provider contract is ready.
+GAL should not treat a single `.gstack` directory or one detected file as proof that the full collaborative-tool contract is ready.
 
 ## Planning Integration
 
@@ -44,7 +44,7 @@ gstack-style planning works best when one plan describes one feature, not an ent
 ```text
 product idea or roadmap
     -> choose one feature
-    -> /planning or a discovery-style provider
+    -> /planning or a discovery-style collaborative tool
     -> optional business, design, and engineering review lanes
     -> /plan-to-prompt
     -> implementation, review, QA, ship

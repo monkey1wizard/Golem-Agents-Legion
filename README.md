@@ -6,7 +6,7 @@ GAL is an AI working system designed to make development more structured while a
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
-- [gstack](https://github.com/garrytan/gstack) has a strong influence on GAL's specialist workflow semantics, but in GAL it is an optional provider, not a core dependency. See [docs/mod/gstack.md](docs/mod/gstack.md).
+- [gstack](https://github.com/garrytan/gstack) has a strong influence on GAL's specialist workflow semantics, but in GAL it is an optional collaborative tool, not a core dependency. See [docs/mod/gstack.md](docs/mod/gstack.md).
 
 ## Quick Start
 
@@ -218,21 +218,21 @@ Research is separate from development and is entered through `/gal research`. It
 
 Research output can feed plans or vault knowledge directly. It does not need to wait for development work to finish.
 
-## Extension Modules
+## Collaborative Tools
 
-GAL supports pluggable workflow modules. These modules extend specific lanes without changing `/gal` control-plane ownership.
+GAL supports optional collaborative tools. These tools extend specific lanes without changing `/gal` control-plane ownership.
 
 ### OpenCLI
 
-An external structured-retrieval tool integrated into agent workflows in plugin style. See [docs/mod/opencli.md](docs/mod/opencli.md).
+An external structured-retrieval collaborative tool used from agent workflows in plugin style. See [docs/mod/opencli.md](docs/mod/opencli.md).
 
 ### Remote Worker
 
 Cross-machine remote task dispatch and result retrieval. See [docs/mod/remote-worker.md](docs/mod/remote-worker.md).
 
-### gstack Planning Module
+### gstack Planning Tool
 
-gstack is now an optional specialist provider. GAL exposes `/planning`, `/deep-planning`, and `/plan-to-prompt` as the public planning surface, then maps business, design, and engineering review lanes to upstream gstack skills or fallback golems. You can still run the full planning flow without installing gstack at all.
+gstack is now an optional specialist collaborative tool. GAL exposes `/planning`, `/deep-planning`, and `/plan-to-prompt` as the public planning surface, then maps business, design, and engineering review lanes to upstream gstack skills or fallback golems. You can still run the full planning flow without installing gstack at all.
 
 See [docs/mod/gstack.md](docs/mod/gstack.md).
 
@@ -250,18 +250,18 @@ Environment placeholders, model routing, MCP overrides, and rerun-setup instruct
 
 ## Docs
 
-`docs/` is mainly for fast human reading and lookup. `docs/mod/` is the quick-entry and index layer for modules that GAL can integrate directly.
+`docs/` is mainly for fast human reading and lookup. `docs/mod/` is the quick-entry and index layer for collaborative tools and adjacent lane-specific guides that GAL can use directly.
 
 | Path | Purpose |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | command map |
 | [docs/devguide.md](docs/devguide.md) | maintainer guide |
 | [docs/personalization.md](docs/personalization.md) | local model routing, MCP overrides, and rerun setup |
-| [docs/mod/gstack.md](docs/mod/gstack.md) | optional gstack provider module for planning and specialist integration |
-| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI routing and usage |
+| [docs/mod/gstack.md](docs/mod/gstack.md) | gstack collaborative tool contract for planning and specialist integration |
+| [docs/mod/opencli.md](docs/mod/opencli.md) | OpenCLI collaborative tool guide and routing |
 | [docs/mod/remote-worker.md](docs/mod/remote-worker.md) | remote worker topology, ownership, and patch-first convergence |
-| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# workflow module |
-| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first game asset workflow module |
+| [docs/mod/godot.md](docs/mod/godot.md) | Godot C# workflow guide |
+| [docs/mod/graphworkflow.md](docs/mod/graphworkflow.md) | AI-first game asset workflow guide |
 
 ## References
 
