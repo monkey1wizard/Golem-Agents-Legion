@@ -7,7 +7,7 @@ This document is maintainer navigation, not a second specification. Use it to de
 | If you are changing... | Ask first... | Read these source files |
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
-| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [command-index.md](command-index.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
+| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../commands/commands.md](../commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
 | setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh` |
 | templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
 | remote worker behavior | is this part of the main workflow or an execution-plane extension? | [collaborative-tools/remote-worker.md](collaborative-tools/remote-worker.md), remote worker scripts under `scripts/` |
@@ -136,7 +136,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 
 ### Adding or changing a planning command
 
-1. Place it in the right family via [command-index.md](command-index.md).
+1. Place it in the right family via [../commands/commands.md](../commands/commands.md).
 2. Update the owning prompt in `commands/<command>/SKILL.template.md`.
 3. Confirm the write-back target fits the existing plan sections and workflow state machine.
 4. If it changes optional collaborative-tool semantics, also update [collaborative-tools/gstack.md](collaborative-tools/gstack.md) and [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) when shared preflight behavior changes.
@@ -145,7 +145,7 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 
 1. Update the owning prompt in `agent/<golem>.agent.md`.
 2. Confirm the write-back target fits the existing plan sections and workflow lifecycle.
-3. Update [../agent/agents.md](../agent/agents.md), [command-index.md](command-index.md), and any README sections that route users to that specialist.
+3. Update [../agent/agents.md](../agent/agents.md), [../commands/commands.md](../commands/commands.md), and any README sections that route users to that specialist.
 4. Do not reintroduce the behavior as a standalone public command unless it is truly control-plane or planning work.
 
 ### Changing setup, installation, or MCP merge
@@ -200,21 +200,20 @@ Before you finish a maintainer change, ask:
 - Did I accidentally move state back into a user-global path?
 - Can a missing tool still fail loudly instead of pretending to succeed?
 - Did I keep collaborative-tool routing at the workflow layer?
-- Do README, `command-index.md`, and this guide still have distinct jobs?
+- Do README, `commands/commands.md`, and this guide still have distinct jobs?
 
 ## Suggested Reading Order
 
 | Reader | Suggested order |
 | --- | --- |
 | first-time GAL maintainer | this guide → [../commands/commands.md](../commands/commands.md) → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing command behavior | [command-index.md](command-index.md) → [../commands/commands.md](../commands/commands.md) |
+| maintainer changing command behavior | [../commands/commands.md](../commands/commands.md) → [../scripts/scripts.md](../scripts/scripts.md) |
 | maintainer changing setup | this guide → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing workflow semantics | [command-index.md](command-index.md) → [collaborative-tools/gstack.md](collaborative-tools/gstack.md) → [../workflows/coding.md](../workflows/coding.md) |
+| maintainer changing workflow semantics | [../commands/commands.md](../commands/commands.md) → [collaborative-tools/gstack.md](collaborative-tools/gstack.md) → [../workflows/coding.md](../workflows/coding.md) |
 
 ## Related Files
 
 - [../README.md](../README.md) for the primary user entry point.
-- [command-index.md](command-index.md) for the human-facing command map.
 - [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) for shared collaborative-tool preflight behavior.
 - [collaborative-tools/gstack.md](collaborative-tools/gstack.md) for optional collaborative-tool behavior.
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract and runtime surface.

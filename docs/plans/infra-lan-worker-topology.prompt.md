@@ -253,7 +253,6 @@ Mac Mini 的設計原則是「同一份 task/result contract，不同 worker ada
 ### Supporting Context Already In Repo
 
 - `commands/commands.md` — `/gal` control-plane contract, alias rules, and runtime surface
-- `docs/command-index.md` — specialist command map and write-back ownership
 - `docs/mod/gstack.md` — optional gstack provider semantics
 - `docs/research/20260409-infra-lan-worker-topology-mempalace-shared-memory.md` — MemPalace 是否能成為 GAL 跨 runtime 共用長期記憶層的架構評估
 

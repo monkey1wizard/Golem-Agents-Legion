@@ -78,7 +78,7 @@ gstack does not own GAL's execution-stage public surface.
 
 These are GAL-native agent contracts, whether or not gstack is installed.
 
-For the current routing map, use [../command-index.md](../command-index.md). For the control-plane contract and runtime surface, use [../../commands/commands.md](../../commands/commands.md).
+For the current public command surface, execution ownership map, and runtime surface, use [../../commands/commands.md](../../commands/commands.md). For the exact agent prompts, use [../../agent/agents.md](../../agent/agents.md).
 
 ## Upstream Semantics Mapped Into GAL
 
@@ -91,18 +91,10 @@ GAL does not claim full equivalence with upstream gstack. The goal is narrower: 
 | planning-stage design review | writes review feedback into the source plan before execution |
 | business or scope review | challenges ambition, scope, and value order before execution |
 
-## Runtime Notes
-
-| Runtime | Role |
-| --- | --- |
-| Copilot | primary interactive control plane |
-| Gemini CLI | bounded worker runtime |
-| Codex CLI | shares the same write-back contract and uses `$skill` invocation |
-
 ## Read Next
 
 - [../../README.md](../../README.md) for the main repo entry point.
-- [../command-index.md](../command-index.md) for the human-facing command map.
-- [../../commands/commands.md](../../commands/commands.md) for control-plane behavior, aliases, and runtime surface.
+- [../../commands/commands.md](../../commands/commands.md) for the public command surface, execution ownership, aliases, and runtime surface.
+- [../../agent/agents.md](../../agent/agents.md) for the specialist routing map and agent responsibilities.
 - [../../workflows/coding.md](../../workflows/coding.md) for the execution lifecycle.
 - `../../commands/<command>/SKILL.template.md` for the exact prompt and write-back behavior of a specific command.

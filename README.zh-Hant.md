@@ -268,7 +268,6 @@ Created by Garry Tan, President & CEO of Y Combinator，他將他的 startups �
 
 | 路徑 | 用途 |
 | --- | --- |
-| [docs/command-index.md](docs/command-index.md) | 指令對照表 |
 | [docs/devguide.md](docs/devguide.md) | 開發者手冊 |
 | [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋等個人化指引 |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |

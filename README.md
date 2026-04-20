@@ -268,7 +268,6 @@ Everything related to machine-local configuration that does not belong on the RE
 
 | Path | Purpose |
 | --- | --- |
-| [docs/command-index.md](docs/command-index.md) | command map |
 | [docs/devguide.md](docs/devguide.md) | maintainer guide |
 | [docs/personalization.md](docs/personalization.md) | local model routing, MCP overrides, and other personalization guidance |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | shared preflight checking contract for collaborative tools |
