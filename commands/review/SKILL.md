@@ -27,6 +27,9 @@ Read the active plan file from `.dev/state.md` — note what was intended to be 
 
 Also read `## Tasks` and `## Open Questions` from the plan's `.prompt.md` — use the task list to check completeness against the changes.
 
+Before using graphify context, resolve its state through `docs/collaborative-tools/checking-contract.md`.
+If `graphify-out/GRAPH_REPORT.md` is missing, degrade to standard diff-based review without prompting for graph regeneration.
+
 Read `graphify-out/GRAPH_REPORT.md` if it exists. Use its communities and surprising connections to cross-check whether the change introduces unexpected cross-community imports or coupling.
 
 ## Step 2 — Bug Pattern Scan
