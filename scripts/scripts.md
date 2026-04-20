@@ -13,7 +13,9 @@ Machine setup and adapter sync scripts.
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
 | `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/, bake command skills, generate Gemini custom commands, clean stale Gemini/shared installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
+| `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Same for Mac |
+| `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
 | `Invoke-GalRemoteTask.ps1` | Windows | Dispatch a task to a remote LAN worker over SSH |
