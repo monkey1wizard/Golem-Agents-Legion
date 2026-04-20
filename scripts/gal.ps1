@@ -218,15 +218,15 @@ function Write-Dispatch([hashtable]$Fields) {
 function Resolve-Golem([string]$Name) {
     $known = @('golem-architect','golem-analyst','golem-implementer',
                'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
-               'golem-scribe','golem-librarian','golem-designer','golem-researcher')
+               'golem-notewriter','golem-designer','golem-researcher')
     # accept with or without 'golem-' prefix
     $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
     if ($known -contains $full) { return $full }
     return $null
 }
 
-$domainGolems  = @('golem-architect','golem-analyst','golem-librarian','golem-designer','golem-researcher')
-$utilityGolems = @('golem-debugger','golem-scribe')
+$domainGolems  = @('golem-architect','golem-analyst','golem-designer','golem-researcher')
+$utilityGolems = @('golem-debugger','golem-notewriter')
 
 switch ($Command) {
     "init" {

@@ -18,8 +18,8 @@ Use the `obsidian` CLI to interact with a running Obsidian instance. **Requires 
 
 ## Environment
 
-- **Vault name**: `<OBSIDIAN_VAULT_NAME>`  ← your Obsidian vault name
-- **Vault path**: `<OBSIDIAN_VAULT>`  ← absolute path to your vault
+- **Vault name**: `<OBSIDIAN_VAULT_NAME>`
+- **Vault path**: `<OBSIDIAN_VAULT>`
 - Always prefix commands with `vault="<OBSIDIAN_VAULT_NAME>"` when targeting this vault explicitly.
 
 ## Availability Check

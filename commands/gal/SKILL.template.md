@@ -23,7 +23,7 @@ GAL control-plane entry point. Route based on the subcommand provided.
 | `wrap-up` | How do I close this session cleanly? | Follow the `/gal-wrap-up` procedure — do not run the script |
 | `research` | I need structured investigation | Run `gal.ps1 dispatch research [args]` — follow output block |
 | `deep-research` | I need multi-source investigation with cross-review | Run `gal.ps1 dispatch deep-research [args]` — follow output block |
-| `pipeline` | Task-driven autopilot: iterate T-NNN tasks with implement → commit → test → review per task, final verifier pass; stop only on human-required blockers, retry ceiling, curfew, or `stop-at` | Run `gal.ps1 dispatch pipeline` — follow output block |
+| `pipeline` | Task-driven autopilot: iterate T-NNN tasks with implement → commit → test → review per task, final verifier pass; stop only on human-required blockers, retry ceiling, working-hours boundary, or `stop-at` | Run `gal.ps1 dispatch pipeline` — follow output block |
 | `<golem-name>` | I want to consult a specific golem | Run `gal.ps1 dispatch <golem-name> [args]` — follow output block |
 | *(no args)* | Auto-detect and recommend | Locate the nearest ancestor repo root containing `.dev/state.md`, then follow the `/gal-whats-next` procedure |
 

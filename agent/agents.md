@@ -8,10 +8,10 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | Classification | How It Is Activated | Agents |
 | --- | --- | --- |
 | **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, reviewer, verifier |
-| **Utility** | Callable at any tier | debugger, scribe |
-| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, librarian, security, releaser |
+| **Utility** | Callable at any tier | debugger, notewriter |
+| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, security, releaser |
 
-## Why GAL Uses 13 Agents
+## Why GAL Uses 12 Agents
 
 GAL keeps these roles separate on purpose.
 
@@ -33,8 +33,7 @@ GAL keeps these roles separate on purpose.
 | [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or direct review | Review for bugs, security, architecture, conventions, and standalone staff review write-back |
 | [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
 | [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation with internal freeze discipline |
-| [golem-scribe](golem-scribe.agent.md) | Utility | Any time | End-of-day diary + shutdown enforcer |
-| [golem-librarian](golem-librarian.agent.md) | Domain | Consult / vault workflows | Obsidian vault writes — inbox processing, knowledge extraction |
+| [golem-notewriter](golem-notewriter.agent.md) | Utility | Any time | Obsidian writes, private captures, diary, shutdown ritual, and knowledge extraction |
 | [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE security review with plan write-back |
 | [golem-releaser](golem-releaser.agent.md) | Domain | Direct release prep / deploy / doc sync | Release prep, deploy orchestration, and documentation sync |
 
@@ -53,9 +52,9 @@ GAL keeps these roles separate on purpose.
 | Type | Allowed? | Rule |
 | --- | --- | --- |
 | **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `/gal [ask architect]` |
-| **Utility** | Yes | Independent helper. e.g., `/gal [run debugger]`, `/gal [run scribe]` |
+| **Utility** | Yes | Independent helper. e.g., `/gal [run debugger]`, `/gal [run notewriter]` |
 | **Pipeline** | Yes | Pipeline agents may still be invoked directly when the task is clearly bounded to their specialist contract. |
-| **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
+| **Notewriter** | Yes | Vault writes on demand. e.g., `@golem-notewriter private-capture`, `@golem-notewriter extract`. Durable knowledge writes still require `start-implementation`. |
 
 Typical direct use examples:
 
@@ -98,21 +97,22 @@ It uses a dedicated researcher golem plus shared review and vault-writing roles:
 | CROSS-REVIEW | researcher | Cross-check sources for consensus, contradiction, and bias |
 | VERIFY | Independent verifier model | Reverse-check every retained reference before documentation |
 | DOCUMENT (repo) | User / any model | Direct write to `docs/research/` |
-| DOCUMENT (vault) | librarian | Requires `start-implementation` |
+| DOCUMENT (vault) | notewriter | Private capture is lightweight; durable knowledge still requires `start-implementation` |
 
 Research Flow can run in parallel with Coding Flow. Research output feeds into plans or vault knowledge.
 
-## Curfew System
+## Working Hours
 
-All agents enforce a shutdown boundary defined in `~/.copilot/gal/conventions/curfew.md`:
+All agents enforce a shutdown boundary defined in `~/.copilot/gal/conventions/working-hours.md` when working hours are enabled in local configuration:
 
 ```text
-... normal work ... ──── 22:00 ──── shutdown window ──── 23:00 ──── hard curfew
-                       │                                    │
-                       └─ only @golem-scribe active ──────────┘ all agents refuse
+... Working Hours ... ──── After Hours ──── Wrap-up Time ─────── Hard Stop
+                               │                                     │
+                               └─ only @golem-notewriter owns ritual ┘ all agents refuse
 ```
 
-- **22:00**: Non-scribe agents block if today's diary is unwritten. Redirect to `@golem-scribe`.
-- **22:00-23:00 with diary already written**: Non-scribe agents may offer `/gal wrap-up` once, but only run it after explicit user confirmation.
-- **23:00**: ALL agents stop and use the exact hard-curfew message from `conventions/curfew.md`, including scribe.
-- **Override**: User can say "override curfew" — single-use, does not persist.
+- **Working Hours off**: All agents proceed normally.
+- **After Hours**: Outside the preferred workday, agents may proceed until Wrap-up Time.
+- **Wrap-up Time**: Non-notewriter agents block if today's diary is unwritten. Redirect to `@golem-notewriter`.
+- **Hard Stop**: ALL agents stop and use the exact Hard Stop message from `conventions/working-hours.md`, including notewriter.
+- **Override**: User can say `override working hours` — single-use, does not persist.

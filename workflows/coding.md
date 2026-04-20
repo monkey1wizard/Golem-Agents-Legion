@@ -137,7 +137,7 @@ This is manually triggered — the AI does not know when you're switching contex
 | Type | Allowed | Examples |
 | --- | --- | --- |
 | **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal [ask architect]`, `/gal [ask analyst]` |
-| **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run scribe]` |
+| **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run notewriter]` |
 | **Pipeline** | Yes | `/gal [golem-tester]`, `/gal [golem-reviewer]` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
 Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.

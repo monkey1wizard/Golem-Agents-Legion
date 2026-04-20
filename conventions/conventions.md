@@ -11,7 +11,7 @@ Portable rules that ALL Golem agents follow, regardless of which tool is being u
 | [typescript.md](typescript.md) | TypeScript: strict typing, naming, async, testing |
 | [rust.md](rust.md) | Rust: safety, naming (RFC 430), data models, thiserror/anyhow |
 | [token-budget.md](token-budget.md) | Token management: cold start priority, context handoff, knowledge flow |
-| [curfew.md](curfew.md) | 22:00 soft curfew + 23:00 hard curfew — shutdown enforcement |
+| [working-hours.md](working-hours.md) | opt-in working-hours, After Hours, Wrap-up Time, and Hard Stop enforcement |
 
 ## Shared Skills
 

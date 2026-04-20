@@ -1,6 +1,6 @@
 # Diary Template
 
-Used by `@golem-scribe` to generate daily work diaries in Obsidian.
+Used by `@golem-notewriter` diary mode to generate daily work diaries in Obsidian.
 
 ## Frontmatter
 
@@ -53,7 +53,7 @@ One or two sentences summarizing today's progress.
 - [ ] Planned next steps
 
 > [!tip] Atomizable
-> If any section contains reusable knowledge, extract it to a permanent note in `22_Permanent/`.
+> If any section contains reusable knowledge, extract it to a reusable note in the user's configured knowledge area.
 ```
 
 ## Diary Rules
@@ -66,5 +66,5 @@ One or two sentences summarizing today's progress.
 
 ## Storage
 
-- **Active**: `10_Projects/Work_Journal/YYYYMMDD_Work_Diary.md`
-- **Archive**: `30_Archives/Work_Journal/YYYY-MM/` (monthly, on 1st of next month)
+- **Active**: `<OBSIDIAN_DIARY_DIR>/YYYYMMDD_Work_Diary.md`
+- **Archive**: `<OBSIDIAN_ARCHIVE_DIR>/YYYY-MM/` (monthly, on 1st of next month)

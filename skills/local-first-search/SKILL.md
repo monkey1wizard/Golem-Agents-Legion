@@ -1,20 +1,27 @@
 ---
 name: local-first-search
-description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge, prioritizing the 20_Slipbox directory. Use before answering questions, proposing solutions, or creating new notes to adhere to the Local-First and Context-First philosophy. Activate when the user asks a conceptual question, requests information that may exist in their vault, wants to look up a cheatsheet or reference table, or needs to verify existing knowledge before creating new content.
+description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge using Local-First and Context-First retrieval. If a personal Guide exists, follow its structure first; otherwise default to a PARA-based search order. Activate before answering conceptual questions, proposing solutions, or creating new notes.
 ---
 
 # Local-First Search Strategy
 
 ## Core Philosophy
 
-**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you **MUST** first search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge, models, and concepts. Avoid generating purely generic AI responses. Your answers must be grounded in the contents of the user's curated Vault.
+**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you must search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge first. Avoid generic answers that ignore the vault.
+
+**Structure Resolution**:
+
+- If a personal Guide exists, load it and use the Guide-defined note locations, naming rules, and search priorities.
+- If no Guide exists, default to a standard PARA system: Projects, Areas, Resources, and Archives.
+- Do not assume numbered folder prefixes, Slipbox folders, MOC folders, or private naming conventions unless the Guide or vault clearly shows them.
 
 ## Semantic Search Tool (Primary Search Method)
 
-The **`obsidian-note-taking-assistant`** provides a DuckDB + BGE-M3 vector search engine over the entire Vault. Use this **before** any file-based search.
+The `obsidian-note-taking-assistant` provides a DuckDB + BGE-M3 vector search engine over the entire vault. Use this before any file-based search.
 
 ### Tool Location
-- **Project**: `<LOCAL_SEARCH_PROJECT>`  ← path to your obsidian-note-taking-assistant clone
+
+- **Project**: `<LOCAL_SEARCH_PROJECT>`
 - **Script**: `scripts/query.py`
 - **Run via**: `uv run python scripts/query.py <command> <args>`
 
@@ -22,125 +29,126 @@ The **`obsidian-note-taking-assistant`** provides a DuckDB + BGE-M3 vector searc
 
 | Command | Use Case | Example |
 | --- | --- | --- |
-| `semantic "<query>" --limit N` | General conceptual search | `semantic "Zettelkasten 知識管理" --limit 5` |
-| `graph-boosted "<query>" --seed "<slug>" --boost N` | Search amplified by Wikilink graph proximity to a known note | `graph-boosted "知識管理" --seed "20_slipbox-22_permanent-concept_xxx" --boost 1.3` |
-| `backlinks "<slug>"` | Get all notes that link to a specific note | `backlinks "concept_zettelkasten"` |
-| `connections "<slug>" --hops N` | Traverse the Wikilink graph N hops out | `connections "data-contracts" --hops 2` |
-| `shared-tags "<slug>" --min-shared N` | Find notes sharing ≥N tags with a given note | `shared-tags "data-contracts" --min-shared 2` |
+| `semantic "<query>" --limit N` | General conceptual search | `semantic "data contracts" --limit 5` |
+| `graph-boosted "<query>" --seed "<slug>" --boost N` | Search amplified by wikilink graph proximity to a known note | `graph-boosted "api design" --seed "resources-concept_data_contracts" --boost 1.3` |
+| `backlinks "<slug>"` | Get all notes that link to a specific note | `backlinks "resources-concept_data_contracts"` |
+| `connections "<slug>" --hops N` | Traverse the wikilink graph N hops out | `connections "resources-concept_data_contracts" --hops 2` |
+| `shared-tags "<slug>" --min-shared N` | Find notes sharing at least N tags with a given note | `shared-tags "resources-concept_data_contracts" --min-shared 2` |
 | `sql "<SQL>"` | Raw SQL query against DuckDB | `sql "SELECT title, slug FROM notes LIMIT 10"` |
 
 ### Slug Format
-Slugs are auto-generated from file paths. Pattern: lowercase path with `/` → `-` and spaces → `-`.
-- `20_Slipbox/22_Permanent/Concept_知識管理.md` → slug: `20_slipbox-22_permanent-concept_知識管理`
-- Use the `slug` field returned in search results to compose `graph-boosted` / `backlinks` queries.
 
-### Re-indexing (run when Vault has new notes)
+Slugs are auto-generated from file paths. Pattern: lowercase path with `/` turned into `-`, and spaces turned into `-`.
+
+- `Resources/Concept_Data_Contracts.md` becomes `resources-concept_data_contracts`
+- Use the `slug` field returned in search results to compose `graph-boosted` or `backlinks` queries.
+
+### Re-indexing
+
+Run when the vault has new notes:
+
 ```bash
 cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/ingest.py "<OBSIDIAN_VAULT>" --model "BAAI/bge-m3"
 ```
-> Note: First run downloads BGE-M3 model (~1GB). Subsequent runs use cache and take ~35 minutes.
 
----
+> First run downloads the BGE-M3 model. Subsequent runs use cache.
 
 ## Target Vault Path
 
-- **Vault Path**: `<OBSIDIAN_VAULT>`  ← absolute path to your Obsidian vault
+- **Vault Path**: `<OBSIDIAN_VAULT>`
 
 ## Search Priorities
 
-When executing a search, strictly follow this hierarchy of directories and note types:
+When executing a search, use this order:
 
-1. **`20_Slipbox/22_Permanent/Resource_*` (Highest Priority — Cheatsheets & Reference Tables)**
-   - **Definition**: Resource-type notes (`Resource_*.md`) are curated cheatsheets, reference tables, and speed-lookup guides. They contain ready-to-use, structured reference data (e.g., API type comparisons, Git command cheatsheets, .NET code hacks).
-   - **Action**: When a query matches a domain covered by a Resource note, **prioritize it above all other note types**. These notes are designed for direct lookup and should be the first result presented. Search by filename pattern `Resource_*keyword*`.
-   - **Current Resource Notes**:
-     - `Resource_API_Types_Cheatsheet.md` — API type comparison & selection
-     - `Resource_CSharp_DotNET_速查表.md` — C#/.NET code hacks
-     - `Resource_Git_進階指令速查表.md` — Advanced Git commands
+1. **Guide-defined reference or knowledge locations**
+   - If the user's Guide defines specific reference folders, knowledge folders, or indexes, search those first.
 
-2. **`20_Slipbox/22_Permanent/` (High Priority — Other Atomic Notes)**
-   - **Definition**: Contains the core "atomic notes" (Concepts, Models, Strategies, Patterns, Cases, Tools, etc.). This is the most refined and directly applicable knowledge.
-   - **Action**: Search here after checking for matching Resource notes. If relevant notes are found, read them in detail and use them as the primary basis for your answer.
+2. **Resources (default PARA highest priority)**
+   - Use Resources for reusable knowledge, cheatsheets, references, glossaries, literature summaries, and long-lived learning material.
+   - If a query looks like a direct lookup request, Resources should usually be the first PARA category searched.
 
-3. **`20_Slipbox/23_Maps/`**
-   - **Definition**: Contains Maps of Content (MOCs) and topic indices.
-   - **Action**: Search here if a single keyword search fails to find specific atomic notes, or to understand the broader context of a topic.
+3. **Projects**
+   - Search Projects when the question is about active work, plans, logs, or deliverables.
 
-4. **`20_Slipbox/21_Literature/`**
-   - **Definition**: High-value literature notes retained long-term.
-   - **Action**: Search here specifically if the user asks about particular authors, books, articles, or external reference sources.
+4. **Areas**
+   - Search Areas when the question concerns ongoing responsibilities, maintained domains, or repeated operational context.
 
-5. **`10_Projects/`**
-   - **Definition**: Active projects, planning documents, and logs.
-   - **Action**: Search here when the query relates to annual goals, investment plans, or specific project statuses.
+5. **Archives**
+   - Search Archives only when the first four steps do not produce relevant results, or when the user explicitly wants historical material.
 
-6. **`30_Archives/` (Lowest Priority)**
-   - **Definition**: Archived literature and historical records.
-   - **Action**: Perform text searches here *only* if no relevant information is found in `20_Slipbox`.
+6. **Optional inbox or capture folders**
+   - Search them only when the user asks about unprocessed captures, drafts, or raw intake material.
 
 ## Excluded Directories
 
-**ABSOLUTELY DO NOT** read or use contents from the following directories (unless explicitly requested):
+Ignore these by default unless the user explicitly asks for them:
 
-- `!Flash Idea/`
-- `!Logs/`
-- `Permanent/` (Legacy structure, distinct from `22_Permanent`)
-- Loose files in the root of the Vault.
+- Hidden, temp, log, export, or cache folders
+- Legacy folders that the Guide marks as deprecated
+- Loose root files that are clearly operational noise rather than user knowledge
 
 ## Execution Workflow: Answering Questions
 
 When you need to retrieve information to answer a user's question:
 
-### Phase 0 — Semantic Search (ALWAYS FIRST)
-Run the vector search tool before any file-based operation:
+### Phase 0 — Semantic Search (Always First)
+
+Run the vector search tool before any file-based search:
 
 ```bash
 cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
-- If a highly relevant note appears in results (similarity > 0.55), use `run_in_terminal` to read it via the slug.
-- If you know a related seed note from the results, escalate to `graph-boosted` for richer context:
-  ```bash
-  uv run python scripts/query.py graph-boosted "<query>" --seed "<slug from results>" --boost 1.3
-  ```
-- If Phase 0 returns ≥1 high-confidence result, **skip Phase 1 & 2** and go directly to reading the files.
+- If a highly relevant note appears in results, read it via the slug.
+- If you know a good seed note from the results, escalate to `graph-boosted` for richer context.
+- If Phase 0 returns at least one high-confidence result, skip the later directory-first fallbacks and go directly to reading files.
 
-### Phase 1 — Filename Search (fallback if vector search yields low scores)
-Prioritize searching by filename (e.g., `*keyword*.md`) within `22_Permanent/` and `23_Maps/`.
+### Phase 1 — Filename Search
 
-### Phase 2 — Full-Text Search (fallback if Phase 1 fails)
-If filename search fails, use a full-text search (e.g., `grep_search`).
+If vector search yields low scores, prioritize filename search in:
 
-### Phase 3 — Read & Synthesize (MANDATORY)
-1. **Read Context**: You **MUST** use the file reading tool to read the complete content of found notes. Do not guess based on text snippets.
-2. **Synthesize & Cite (MANDATORY)**:
-   - Your response must be **primarily based** on the Vault content.
-   - **CRITICAL**: Whenever you use knowledge from the vault, you **MUST explicitly cite the source article** using Wiki Link format (e.g., `[[Note Name]]`).
-   - If supplementing with external AI knowledge, explicitly state: *"The Vault does not mention this aspect. The following is supplementary..."*
+- Guide-defined knowledge or reference locations, if present
+- Resources by default
+- Projects or Areas when the question is clearly scoped there
 
-## Execution Workflow: Pre-Write & Database Update
+### Phase 2 — Full-Text Search
 
-When you are tasked with adding new knowledge, restructuring, or creating notes in the Vault, you MUST perform a "Pre-Write Search" to prevent duplication and maintain the Knowledge Network:
+If filename search fails, use full-text search.
 
-1. **Check for Duplicates (Pre-Write Search)**:
-   - Before creating any new atomic note in `22_Permanent/`, extract the core concept/keyword.
-   - Search the `22_Permanent/` directory to see if a note covering this concept already exists.
-2. **Merge vs. Create**:
-   - **If it exists**: DO NOT create a duplicate note. Read the existing note and **update/merge** the new information into the existing file.
-   - **If it does not exist**: Create the new atomic note following the standard naming and formatting rules (`Type_Keyword.md`).
-3. **Map Connection (Post-Write Search)**:
-   - After creating or updating a permanent note, you must determine its broader topic cluster.
-   - Search the `23_Maps/` directory to find an existing relevant Map of Content (MOC).
-   - If a relevant MOC is found, **update the MOC** to include a `[[backlink]]` to the newly updated/created permanent note, ensuring there are no orphaned notes in the vault.
-4. **Project Document Updates**:
-   - When asked to update a project's notes or logs, you must first search the `10_Projects/` directory in the <OBSIDIAN_VAULT_NAME> to find the corresponding project file (e.g., `10_Projects/Project_Name.md` or a sub-folder).
-   - Project documentation and planning for the knowledge base should reside in `10_Projects/` following Obsidian standards, not directly inside the completely separate codebase repository.
+### Phase 3 — Read & Synthesize
+
+1. **Read context**: Use the file reading tool to read full notes, not just snippets.
+2. **Synthesize & cite**:
+   - Responses must be primarily based on vault content.
+   - Whenever you use vault knowledge, cite the source note using wiki-link format such as `[[Note Name]]`.
+   - If you supplement with non-vault knowledge, say so explicitly.
+
+## Execution Workflow: Pre-Write Search
+
+When you are about to add new knowledge, restructure notes, or create new notes in the vault:
+
+1. **Check for duplicates**
+   - Extract the core concept or target outcome.
+   - Search the Guide-defined destination first, or the relevant PARA category if no Guide exists.
+
+2. **Merge vs. create**
+   - If a matching note already exists, update or merge instead of duplicating.
+   - If no note exists, create a new note using the Guide's naming rules, or a clear PARA-compatible name by default.
+
+3. **Indexes or maps**
+   - If the user's Guide defines maps, dashboards, indexes, or MOCs, update them when relevant.
+   - If no such structure exists, do not force index maintenance.
+
+4. **Project document updates**
+   - When updating project notes or logs, search the Guide-defined project location first, or Projects by default.
+   - Project planning for the knowledge base belongs in the vault's project area, not inside the code repository unless the user explicitly wants repo docs.
 
 ## Cross-Boundary Referencing (Vault vs. Codebase)
 
-Because the <OBSIDIAN_VAULT_NAME> and your coding repositories reside in completely different directories and use different version control systems (e.g., OneDrive vs. Git), you must respect the boundary between them:
+Because the Obsidian vault and code repositories are separate systems, respect the boundary between them:
 
-- **When writing in a Code Repository** (e.g., creating project plans like `docs/plans/` or updating READMEs): **DO NOT** use Obsidian Wiki Links (`[[Note Name]]`) to reference concepts from the vault. Code repositories cannot resolve Obsidian's logical links. Use plain text descriptions or standard absolute paths instead.
-- **When writing in the <OBSIDIAN_VAULT_NAME>**: Continue using standard Wiki Links (`[[...]]`) for internal vault references. If you need to reference a file from a code repository, use standard Markdown file links (e.g., `[file](/path/to/repo/file)`) or plain text paths, as Obsidian cannot logically track external Git files.
+- **When writing in a code repository**: Do not use Obsidian wiki links to reference vault notes. Use plain text descriptions or standard file links instead.
+- **When writing in the Obsidian vault**: Use wiki links for internal vault notes. Use standard Markdown links or plain text paths for external code-repository files.

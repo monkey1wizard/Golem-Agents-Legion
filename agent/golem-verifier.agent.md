@@ -135,15 +135,15 @@ Identify valuable knowledge in the plan that should survive plan deletion:
 #### Obsidian Vault Extraction (Optional)
 
 After repo-level extraction, check if any knowledge is **reusable across projects**:
-- Reusable patterns or models → `20_Slipbox/22_Permanent/` via librarian
-- Literature-grade research findings → `20_Slipbox/21_Literature/` via librarian
+- Reusable patterns or models → user-curated permanent-note locations via notewriter
+- Literature-grade research findings → user-curated literature locations via notewriter
 
 **This is a suggestion, not a gate.** Ask the user:
 
 > Any insights from this task worth extracting to the Obsidian vault?
 > (e.g., patterns, architecture decisions, research findings)
 
-If user says yes → invoke `@golem-librarian` for extraction. If no → proceed to 5b.
+If user says yes → invoke `@golem-notewriter` for extraction. If no → proceed to 5b.
 Do NOT block verification on vault extraction.
 
 ### 5b: Mark ABSORBED

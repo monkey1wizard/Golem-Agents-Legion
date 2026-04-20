@@ -229,15 +229,15 @@ resolve_golem() {
   case "$full" in
     golem-architect|golem-analyst|golem-implementer|\
     golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
-    golem-scribe|golem-librarian|golem-designer|golem-researcher) echo "$full" ;;
+    golem-notewriter|golem-designer|golem-researcher) echo "$full" ;;
     *) echo "" ;;
   esac
 }
 
 golem_class() {
   case "$1" in
-    golem-debugger|golem-scribe) echo utility ;;
-    golem-architect|golem-analyst|golem-librarian|golem-designer|golem-researcher) echo domain ;;
+    golem-debugger|golem-notewriter) echo utility ;;
+    golem-architect|golem-analyst|golem-designer|golem-researcher) echo domain ;;
     *) echo pipeline ;;
   esac
 }

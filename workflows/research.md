@@ -1,8 +1,8 @@
 # Research Flow
 
-A workflow for research-driven tasks: investigating technologies, checking evidence quality, and writing durable results to the repo (`docs/`) or Obsidian vault via the librarian.
+A workflow for research-driven tasks: investigating technologies, checking evidence quality, and writing durable results either to the repo (`docs/`) or to user-owned private notes via the notewriter.
 
-`golem-researcher` owns the RESEARCH, SYNTHESIZE, and CROSS-REVIEW states. Reference verification must be performed by an independent model that did not author the research findings. `librarian` remains the only vault writer.
+`golem-researcher` owns the RESEARCH, SYNTHESIZE, and CROSS-REVIEW states. Reference verification must be performed by an independent model that did not author the research findings. `golem-notewriter` remains the only public vault writer.
 
 This workflow is **independent of the Coding Flow**. It can run in parallel with active development, or as a standalone investigation.
 
@@ -97,11 +97,12 @@ No active research. Waiting for a research question or topic.
 - **Actions**:
   - Determine output destination:
     - **Repo-appropriate** → `docs/research/<slug>.md` (stays in the code repo)
-    - **Project knowledge** → `10_Projects/` via librarian (requires `start-implementation`)
-    - **Reusable insight** → `20_Slipbox/` via librarian (requires `start-implementation`)
+    - **Private capture** → `<OBSIDIAN_PRIVATE_RESEARCH_DIR>` via notewriter (non-repo path, user-owned notes)
+    - **Reusable insight** → curated vault knowledge locations via notewriter (requires `start-implementation`)
+    - **No durable write** → return the verified brief to the user without storing it
   - Write the output following the appropriate format.
   - Include a reference verification section or equivalent evidence note.
-  - For vault writes, librarian handles all formatting, naming, and Guide.md compliance.
+  - For vault writes, notewriter handles routing, naming, and either Guide-aware or generic Obsidian compliance.
 - **Exit**: Output written and confirmed.
 
 ### DONE
@@ -117,17 +118,18 @@ No active research. Waiting for a research question or topic.
 | Content Type | Destination | Agent | Auth Required? |
 | --- | --- | --- | --- |
 | Technical investigation tied to a repo | `docs/research/` | Direct write | No |
-| Project-scoped research (tied to a project) | `10_Projects/` | Librarian | Yes (`start-implementation`) |
-| Reusable knowledge (patterns, models, concepts) | `20_Slipbox/22_Permanent/` | Librarian | Yes (`start-implementation`) |
-| Literature summary (from external sources) | `20_Slipbox/21_Literature/` | Librarian | Yes (`start-implementation`) |
+| Private or personal research note | `<OBSIDIAN_PRIVATE_RESEARCH_DIR>` | Notewriter | No |
+| Reusable knowledge (patterns, models, concepts) | user-curated vault knowledge locations | Notewriter | Yes (`start-implementation`) |
+| Literature summary (from external sources) | user-curated vault literature location | Notewriter | Yes (`start-implementation`) |
+| Disposable investigation | reply only, no durable write | User / any model | No |
 
 ### Routing Rule
 
-**Default to repo** (`docs/research/`). Only route to Obsidian when the knowledge is:
+**Default to repo** (`docs/research/`). Route away from the repo only when one of these is true:
 
-- Reusable across projects (not repo-specific)
-- Worth maintaining long-term (not disposable investigation notes)
-- Explicitly requested for vault storage
+- The user explicitly asks for a private note or personal capture
+- The findings are reusable across projects and worth keeping as long-term knowledge
+- The user explicitly asks not to create a durable artifact in the repo
 
 ## Agent Activation
 
@@ -138,7 +140,7 @@ No active research. Waiting for a research question or topic.
 | CROSS-REVIEW | researcher | — |
 | VERIFY | independent verifier model | — |
 | DOCUMENT (repo) | User / any model | — |
-| DOCUMENT (vault) | librarian | — |
+| DOCUMENT (vault) | notewriter | — |
 
 ## Integration with Coding Flow
 
@@ -146,7 +148,7 @@ The Research Flow can feed into the Coding Flow:
 
 1. **Pre-plan research**: Investigate before creating a plan. Research output becomes input to `/planning`, `/deep-planning`, or the current planning author.
 2. **Mid-IMPLEMENT research**: Uncover unknowns during implementation. Research output goes to `docs/research/` and is referenced in the plan.
-3. **Post-verify extraction**: Verified findings worth keeping can be handed to librarian for vault extraction.
+3. **Post-verify extraction**: Verified findings worth keeping can be handed to notewriter for private capture or knowledge extraction.
 
 Research Flow tasks do NOT require a plan file. They are tracked informally unless the user creates one.
 
@@ -158,4 +160,4 @@ Before researching externally, always check:
 2. **Codebase docs** — `docs/` folder in the current repo
 3. **Existing plan files** — previous research that may already cover the topic
 
-This prevents duplicate work and respects the Context-First philosophy from Guide.md.
+This prevents duplicate work and respects the Context-First philosophy from the user's vault, regardless of whether a custom Guide is configured.

@@ -16,8 +16,7 @@ Default principle: formal cross-checks should use a different model from the one
 | CODER | Write implementation code following a plan | Code generation, refactoring |
 | TESTER | Write tests from plan spec + public API only | Spec-driven, usually basic unit/integration coverage |
 | REVIEWER | Review code for bugs, security, style | Higher-level critical eye, different perspective |
-| SCRIBE | End-of-day diary, shutdown enforcement | Summarization, Obsidian integration |
-| LIBRARIAN | Obsidian vault writes — inbox processing, knowledge extraction | Guide.md compliance, knowledge classification |
+| NOTEWRITER | Obsidian writes — diary, private captures, inbox processing, and knowledge extraction | Note authoring, Guide-aware fallback, private vs. durable routing |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
 ## Routing Rules
@@ -28,7 +27,7 @@ Default principle: formal cross-checks should use a different model from the one
 4. **REVIEWER should also differ from TESTER when practical** — review is a higher-level check than test generation
 5. **DESIGNER should differ from CODER when used as a formal reviewer** — keep experience review independent from implementation
 6. **RESEARCHER owns research, synthesis, and cross-review** — independent reference verification must be done by a different model
-7. **LIBRARIAN** follows Guide.md for all vault writes — any model tier works, but must load Guide.md context first
+7. **NOTEWRITER** handles all Obsidian writes — it should load the user's configured Guide when available and fall back to generic mode when not
 8. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
 9. When switching tools, update the **Current Mapping** table below only
 

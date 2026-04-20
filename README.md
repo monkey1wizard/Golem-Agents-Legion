@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 13 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
+GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 12 clearly separated Golem Agents, forming a document-driven development model. Durable state is split across two boundaries: repo-owned Markdown files such as `.dev/`, `docs/plans/`, and `docs/research/`, plus optional user-owned notes in a machine-local Obsidian vault. That allows GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow while still preserving non-repo personal notes.
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
@@ -69,7 +69,7 @@ If the change also needs business, design, or engineering review, those should b
 
 ## Golem Agents
 
-GAL is built around 13 specialized agents, each with its own `.agent.md` definition. The design principles are:
+GAL is built around 12 specialized agents, each with its own `.agent.md` definition. The design principles are:
 
 - **lean prompts**: each agent loads only its own role definition instead of wasting context on every possible concern
 - **independence**: separate tester, reviewer, and verifier roles improve trust in the result
@@ -81,8 +81,8 @@ Besides using `/gal` commands, you can also invoke a `golem-` agent directly for
 
 | Class | How it activates | Members |
 | --- | --- | --- |
-| **Utility** | callable directly at any time | debugger, scribe |
-| **Domain** | consulted by commands or directly by the user | architect, analyst, designer, researcher, librarian, security, releaser |
+| **Utility** | callable directly at any time | debugger, notewriter |
+| **Domain** | consulted by commands or directly by the user | architect, analyst, designer, researcher, security, releaser |
 | **Pipeline** | chained automatically by `/gal pipeline` | implementer, tester, reviewer, verifier |
 
 ### Utility Agents
@@ -90,7 +90,7 @@ Besides using `/gal` commands, you can also invoke a `golem-` agent directly for
 | Agent | Responsibility |
 | --- | --- |
 | **debugger** | scientific bug investigation: hypothesis, validation, and root-cause confirmation before any fix |
-| **scribe** | daily work log plus curfew enforcement |
+| **notewriter** | single Obsidian-writing surface for private captures, diary, inbox processing, knowledge extraction, and shutdown ritual |
 
 ### Domain Agents
 
@@ -102,7 +102,6 @@ Domain agents provide specialist advice and can be invoked at any stage.
 | **analyst** | business logic review: ROI, domain correctness, and user impact |
 | **designer** | design system creation, visual exploration, design-to-code build, and live UI audit |
 | **researcher** | local-first research and structured synthesis with source attribution |
-| **librarian** | writes into the Obsidian vault: inbox processing and knowledge extraction |
 | **security** | OWASP and STRIDE audit for implementation-stage security-sensitive changes |
 | **releaser** | release prep, deploy orchestration, and documentation sync |
 
@@ -138,14 +137,26 @@ In pipeline flow, GAL enforces model separation for review and test work:
 
 These rules are configured in `model-roles.local.md`.
 
-### Curfew System
+### Working Hours
 
-All agents obey curfew boundaries:
+Working Hours are now an **opt-in machine-local setting**. Agents only enforce them when the local config enables them.
 
-- **22:00**: non-scribe agents are blocked if the daily diary has not been written
-- **22:00–23:00**: if the diary is already written, agents may suggest `/gal wrap-up`
-- **23:00**: all agents stop, including scribe
-- **Override**: the user can say `override curfew` for a one-time exception
+- **Working Hours off**: all agents proceed normally
+- **After Hours**: outside the preferred workday, agents may proceed until `Wrap-up Time`
+- **Wrap-up Time**: non-`notewriter` agents are blocked if the daily diary has not been written
+- **Hard Stop**: all agents stop, including `notewriter`
+- **Override**: the user can say `override working hours` for a one-time exception
+
+Actual times are controlled by local settings such as `WORKING_HOURS_ENABLED`, `WORKDAY_START`, `WORKDAY_END`, `WRAP_UP_TIME`, and `HARD_STOP_TIME`.
+
+## Storage Boundaries
+
+GAL separates durable output into two boundaries:
+
+- **Repo-owned state**: `.dev/`, `docs/plans/`, and `docs/research/`. These files live under Git and are intended for collaboration, review, and shared project history.
+- **User-owned notes**: Obsidian vault storage configured in `config.local.env` through `OBSIDIAN_VAULT`, `OBSIDIAN_VAULT_NAME`, and vault-relative routing paths such as `OBSIDIAN_PRIVATE_RESEARCH_DIR`, `OBSIDIAN_DIARY_DIR`, and `OBSIDIAN_ARCHIVE_DIR`.
+
+If `OBSIDIAN_GUIDE_PATH` is configured and present, `notewriter` uses that guide as the user's own library manual. If no guide is configured, or the guide cannot be found, `notewriter` falls back to generic mode instead of failing the write.
 
 ## Project Files
 
@@ -158,7 +169,7 @@ All agents obey curfew boundaries:
 | `DESIGN.md` | repo-level design governance |
 | `docs/designs/<plan-slug>/` | plan-bound design assets |
 | `docs/plans/<plan-slug>.md` | human-readable plan document |
-| `docs/research/` | research reports |
+| `docs/research/` | shared research reports and the default durable research destination |
 
 ### Execution Work File
 
@@ -197,7 +208,7 @@ Normally you do not need to edit `Workflow:` by hand. It is initialized as `DRAF
 
 ## Research Workflow
 
-Research is a workflow separate from development and can run in parallel with development work.
+Research is a workflow separate from development and can run in parallel with development work. The default durable destination remains `docs/research/`, but you can explicitly direct the result to private notes, long-term knowledge capture, or no durable write.
 
 | Mode | Best for | Flow | Source requirement |
 | --- | --- | --- | --- |
@@ -211,6 +222,13 @@ IDLE -> RESEARCH -> SYNTHESIZE -> CROSS-REVIEW -> VERIFY -> DOCUMENT -> DONE
          ↑            ↑             ↑             |
          └ evidence ──┴ synthesis ──┴ source/ref ─┘
 ```
+
+The DOCUMENT destination can be one of four choices:
+
+- `repo`: write to `docs/research/` and keep the result under Git
+- `private`: write to `OBSIDIAN_PRIVATE_RESEARCH_DIR`
+- `knowledge`: hand off to `notewriter` for reusable long-term notes
+- `none`: return the verified result without creating a durable artifact
 
 ## Collaborative Tools
 

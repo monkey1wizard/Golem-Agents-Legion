@@ -1,6 +1,6 @@
 ---
 name: gal-pipeline
-description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, with a mandatory git commit gate between tasks, and a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, curfew, or a user-specified stop boundary."
+description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, with a mandatory git commit gate between tasks, and a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, working-hours boundary, or a user-specified stop boundary."
 ---
 
 # /gal-pipeline
@@ -61,12 +61,12 @@ If prerequisites are not met: tell the user what is missing and stop.
 
 Repeat for each unchecked `T-NNN` task (in order, respecting `from` / `stop-at`):
 
-### 2a — Curfew Check
+### 2a — Working Hours Check
 
-Before starting a new task, check the current time against the curfew policy in `conventions/curfew.md`.
+Before starting a new task, check the current time against the working-hours policy in `conventions/working-hours.md`.
 
-- If curfew is active: do not start the next task. Offer `/gal wrap-up` once (do not auto-run it). Wait for explicit user confirmation before proceeding. Stop here.
-- If curfew is not active: continue.
+- If the working-hours boundary is active: do not start the next task. Offer `/gal wrap-up` once (do not auto-run it). Wait for explicit user confirmation before proceeding. Stop here.
+- If the working-hours boundary is not active: continue.
 
 ### 2b — Update Cursor
 
@@ -222,6 +222,6 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | `Test Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | `Review Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
-| Curfew active before next task | STOP — offer wrap-up once, wait for confirmation |
+| Working-hours boundary active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
 | All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |

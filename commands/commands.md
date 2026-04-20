@@ -78,6 +78,7 @@ The following work no longer has a public slash command and should be routed to 
 | Spec-driven tests and real-browser QA | `golem-tester` | plan `## Test Results` |
 | Staff review and drift analysis | `golem-reviewer` | plan `## Review Results`, `## Analyze` |
 | Root-cause-first debugging | `golem-debugger` | plan debug log or `.dev/state.md` |
+| Obsidian writes, private captures, diary, and knowledge extraction | `golem-notewriter` | user-owned vault paths or shutdown diary |
 | Design system, variants, build, and live audit | `golem-designer` | `DESIGN.md`, `docs/designs/`, plan review sections |
 | Security audit | `golem-security` | plan `## Review Results` |
 | Release prep, deploy, and doc sync | `golem-releaser` | plan `## Release`, repo docs |
@@ -94,11 +95,10 @@ The following work no longer has a public slash command and should be routed to 
 | golem-analyst | Domain | consult |
 | golem-designer | Domain | consult |
 | golem-researcher | Domain | consult |
-| golem-librarian | Domain | consult |
 | golem-security | Domain | consult |
 | golem-releaser | Domain | consult |
 | golem-debugger | Utility | utility |
-| golem-scribe | Utility | utility |
+| golem-notewriter | Utility | utility |
 
 ## Planning-Stage Review Lanes
 

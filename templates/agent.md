@@ -43,13 +43,14 @@ Before starting, load context:
 2. [Rule 2]
 3. [Rule 3]
 
-## Curfew
+## Working Hours
 
-Check current time before starting work:
-- **Before 22:00**: Proceed normally
-- **22:00-23:00**: Warn user, suggest wrapping up, and offer `/gal wrap-up` once if today's diary already exists. Only run it with explicit user confirmation. Only scribe may start new work.
-- **After 23:00**: Stop. Use the exact hard-curfew message from `conventions/curfew.md`.
-- **Override**: User says "override curfew" → proceed once, re-check next task.
+Resolve working-hours behavior from `conventions/working-hours.md` before starting work.
+
+- If working hours are disabled in local config, proceed normally.
+- If working hours are enabled, follow the configured After Hours, Wrap-up Time, and Hard Stop behavior plus the diary-check rules.
+- Only the configured after-hours owner may continue the shutdown ritual during the shutdown window.
+- If the user says `override working hours` or `override curfew`, allow one invocation and then re-check on the next task.
 </rules>
 
 <output>
@@ -70,7 +71,7 @@ Check current time before starting work:
 | Category | Activation | Examples |
 | --- | --- | --- |
 | Pipeline | Specialist workflow or `/gal pipeline` | implementer, tester, reviewer, verifier |
-| Utility | No (any tier) | debugger, scribe |
+| Utility | No (any tier) | debugger, notewriter |
 | Domain | No (cross-workflow) | architect, analyst |
 
 ## Checklist
@@ -81,7 +82,7 @@ Before finalizing a new agent:
 - [ ] `<classification>` specifies category, state binding, and typical activation
 - [ ] `<role>` clearly defines single responsibility
 - [ ] `<project_context>` lists what to read on cold start
-- [ ] `<rules>` includes curfew check
+- [ ] `<rules>` includes working-hours check
 - [ ] `<output>` defines format and persistence location
 - [ ] Agent registered in `agent/agents.md`
 - [ ] If Workflow category: mapped to a state in the workflow file

@@ -1,12 +1,13 @@
 ---
 name: obsidian-knowledge-management
-description: Knowledge management protocol for the Obsidian vault. PARA + Zettelkasten hybrid system covering note creation, atomization, sanitization, naming, frontmatter, and formatting rules. Use when creating, editing, organizing, or archiving any Obsidian note, processing inbox items, atomizing literature into permanent notes, updating Maps of Content, applying frontmatter templates, naming files with type prefixes, or managing cross-references between vault and codebase.
+description: Knowledge management protocol for the Obsidian vault. Default to a PARA-based organization when no personal Guide is present, and defer to the Guide when it exists. Use when creating, editing, organizing, or archiving Obsidian notes, processing captures, extracting reusable knowledge, or managing cross-references between vault and codebase.
 ---
 
 # Obsidian Knowledge Management Protocol
 
-> **Source of Truth**: `99_System/Guide.md` in the <OBSIDIAN_VAULT_NAME>.
-> Before any write operation, always load the actual `Guide.md` and relevant `Template_*.md` for the most up-to-date rules. This skill is a quick-reference distillation.
+> **Guide Resolution**: When `<OBSIDIAN_GUIDE_MODE>` is `guide`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the guide only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
+
+> **Default Mode**: If no Guide is available, assume a standard PARA system: Projects, Areas, Resources, and Archives. Do not assume numbered folder prefixes, Slipbox folders, map folders, taxonomy files, or template files unless the user's Guide or vault clearly defines them.
 
 ## Step 0: Check Obsidian CLI Availability
 
@@ -16,144 +17,128 @@ Before any vault operation, run the availability check from the `obsidian-cli` s
 obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
 ```
 
-- **CLI available (exit 0)** → Use `obsidian` CLI for all I/O in this session (read, create, append, property:set, backlinks). This keeps Obsidian's index and graph in sync.
-- **CLI unavailable (non-zero / Obsidian closed)** → Fall back to Copilot file tools (`read_file`, `create_file`, `replace_string_in_file`) for the entire session. Follow the fallback message protocol defined in the `obsidian-cli` skill — print intent and ask user to open Obsidian if a CLI-only operation is required.
+- **CLI available (exit 0)**: Use `obsidian` CLI for all I/O in this session.
+- **CLI unavailable (non-zero / Obsidian closed)**: Fall back to Copilot file tools for the entire session. Follow the fallback message protocol defined in the `obsidian-cli` skill.
 
-> The result of this check applies for the **entire conversation session**. Do not re-check on every command.
+> The result of this check applies for the entire conversation session. Do not re-check on every command.
 
-## Prerequisite: Semantic Search (MANDATORY)
+## Prerequisite: Semantic Search (Mandatory)
 
-**Before ANY vault operation** (reading, writing, creating, or answering questions from the vault), you MUST invoke the `local-first-search` skill and execute Phase 0 — Semantic Search using `obsidian-note-taking-assistant`:
+Before any vault operation, invoke the `local-first-search` skill and execute Phase 0 semantic search:
 
 ```bash
 cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
-- This step is **not optional** and must run before any file-based search or write.
-- If results return a similarity score > 0.55, read those notes before proceeding.
-- Only after completing this semantic search may you proceed to Context Loading below.
-- This applies equally to read-only queries, note creation, inbox processing, and answering conceptual questions.
+- This step is not optional and must run before any file-based read or write.
+- If results return a similarity score above 0.55, read those notes before proceeding.
+- Only after semantic search may you continue to Context Loading.
 
-## Context Loading (Mandatory)
+## Context Loading
 
-Before ANY file creation, modification, or organization, you MUST read:
+Before any file creation, modification, or organization, resolve the active mode:
 
-1. `99_System/Guide.md` (Workflow, Naming, Formatting, Frontmatter)
-2. `99_System/Tag_Taxonomy.md` (Valid tags)
-3. `99_System/User_Context_Profile.md` (User persona)
-4. The specific `99_System/Template_*.md` required by the task
+1. If `<OBSIDIAN_GUIDE_MODE>` is `guide`, read `<OBSIDIAN_GUIDE_PATH>`.
+2. If `<OBSIDIAN_GUIDE_MODE>` is `auto` and `<OBSIDIAN_GUIDE_PATH>` exists, read it.
+3. If the Guide is unavailable or the mode is `generic`, continue with the generic PARA-first rules in this skill.
+4. Read taxonomy, templates, or system notes only if the user's Guide or actual vault structure points to them.
 
 ## Agent Mandates
 
-- **No Over-interpretation**: Execute ONLY what is explicitly requested.
-- **Strict File Operation Protocol**: Only operate on files mentioned by the user. For any other file, explain Which/Why/How and wait for approval.
-- **Pre-Write Validation**: Verify output against `Guide.md` before writing.
-- **Strict Terminology (Taiwanese/English ONLY)**: You MUST strictly avoid using Mainland Chinese terminology (e.g., 網絡端, 內核, 緩存, 虛擬機, 軟件、進程). You MUST use Taiwanese terminology (e.g., 網頁端/前端, 核心, 快取, 虛擬機器, 軟體, 程序/常駐程式) or fallback to English if unsure.
-- **Link Integrity**: When renaming a file, search all backlinks (`[[OldName]]`) and update them to `[[NewName]]`.
-- **Strict Batch Protocol**: When processing multiple files:
-  1. List ALL target files first.
-  2. Process ONE file per response.
-  3. STOP and wait for user approval before the next.
+- **No Over-interpretation**: Execute only what is explicitly requested.
+- **Strict File Operation Protocol**: Only operate on files mentioned by the user. For any other file, explain which files you want to touch and why, then wait for approval.
+- **Pre-Write Validation**: Validate output against the user's active Guide when present, otherwise validate against the generic rules in this skill.
+- **Strict Terminology (Taiwanese/English only)**: Avoid Mainland Chinese terminology. Use Taiwanese terminology or fall back to English if unsure.
+- **Link Integrity**: When renaming a file, search all backlinks and update them.
+- **Strict Batch Protocol**: When processing multiple files, list all targets first, process one file per response, and wait for approval before the next.
 
 ## Available Scripts / Tools
 
-When you encounter a PDF file in the Vault, follow the **pdf** skill for extraction.
+When you encounter a PDF file in the vault, follow the `pdf` skill for extraction.
 
-## Vault Structure (PARA + Zettelkasten)
+## Default Vault Model: PARA
 
-```text
-00_Inbox/          # Raw input. Goal: empty this (except 000_Linklist.md)
-10_Projects/       # Active projects, specs, logs
-20_Slipbox/        # Core brain
-  21_Literature/   # Long-term literature (only if user explicitly requests)
-  22_Permanent/    # Atomic notes (Concepts, Models, Strategies...)
-  23_Maps/         # MAP (Map of Content) index notes
-30_Archives/       # Read-only. Processed literature & outdated records
-99_System/         # Templates, taxonomy, guides
-```
+If no personal Guide is present, use these default categories:
 
-### Data Validity Boundary
+- **Projects**: Time-bound work, active deliverables, plans, and execution notes.
+- **Areas**: Ongoing responsibilities, maintained domains, or recurring operational knowledge.
+- **Resources**: Reusable knowledge, reference notes, literature notes, glossaries, cheatsheets, and long-lived learning material.
+- **Archives**: Inactive or historical material that should be retained but not actively maintained.
+- **Optional Inbox**: A capture area may exist, but it is not required. Only treat an inbox as canonical if the user or Guide defines one.
 
-- **Valid**: Only folders matching `NN_Title` pattern (e.g., `00_Inbox`, `10_Projects`).
-- **Invalid/Legacy**: Folders like `!Flash Idea`, `!Logs`, `Permanent` — **ignore, no read, no use**.
+### Structure Resolution Rules
 
-### Data Flow
+- If a Guide defines folder names, note types, template locations, or naming rules, follow the Guide.
+- If no Guide exists, do not invent a custom hierarchy beyond PARA.
+- Do not assume numbered prefixes, a Slipbox subtree, Map-of-Content folders, or any user-specific system folder layout.
 
-```text
-[ External Sources ]
-YouTube / Articles / News
-     │
-     ▼ (1. Collect & Sanitize)
-[ 00_Inbox / 30_Archives ]
-Clips_Text / Clips_Media
-     │
-     ├─► (2a. Extract Universal Knowledge)
-     │       │
-     │       ▼
-     │   [ 22_Permanent ]
-     │   Concept_ / Model_ / Strategy_
-     │       │
-     │       ├─► (3a. Aggregate & Index)
-     │       │       ▼
-     │       │   [ 23_Maps ]
-     │       │   Map_of_Content.md
-     │       │
-     │       └─► (3b. Provide Decision Logic) ─┐
-     │                                         │
-     └─► (2b. Personal Market Observations) ───┤
-                                               ▼
-                                       [ 10_Projects ]
-                                       Yearly Plan / Long-term Allocation
-                                               │
-                                               ▼ (4. Year or Project Ends)
-                                       [ 30_Archives ]
-                                       Historical Projects & Logs
-```
+## Data Validity Boundary
+
+- **Valid**: Guide-defined folders, or the standard PARA categories when no Guide exists.
+- **Ignore by default**: Hidden, log, temp, export, or legacy folders unless the user explicitly asks for them.
+
+## Default Data Flow
+
+When no Guide is present, use this flow:
+
+1. Capture or receive raw material.
+2. Sanitize and classify it.
+3. Route it by intent:
+   - Active outcome → Projects
+   - Ongoing responsibility → Areas
+   - Reusable knowledge or reference → Resources
+   - Historical record → Archives
+4. If the vault uses indexes, maps, or dashboards and they are explicitly present, update them. Otherwise do not invent them.
 
 ## File Naming Rules
 
 ### General
 
-- **Forbidden chars**: `: / \ ? * " < > |` → replace with `_` or `-`.
-- **Spaces** → underscore `_` (Snake_Case).
-- **Brackets** `《》[]()` → remove.
+- Forbidden characters `: / \ ? * " < > |` must be replaced with `_` or `-`.
+- Spaces should become `_` unless the user's Guide says otherwise.
+- Remove decorative brackets when they do not carry meaning.
 
-### By Directory
+### Default PARA Naming
 
-| Directory | Format | Example |
-| --- | --- | --- |
-| `21_Literature` | `YYYYMMDD_Author_Short_Title.md` | `20251208_Lailari_China_Strategy.md` |
-| `22_Permanent` | `Type_Keyword.md` | `Concept_拒止戰略_Strategy_of_Denial.md` |
-| `23_Maps` | `Topic_Name.md` | `人工智慧.md` |
+If no Guide defines naming rules:
 
-### Permanent Note Type Prefixes
+- **Projects**: Use clear project-oriented names such as `Project_Name.md` or `Project_Name_Log.md`.
+- **Areas**: Use durable topic names such as `Area_Topic.md`.
+- **Resources**: Use descriptive note names such as `Type_Keyword.md` or `Topic_Reference.md`.
+- **Archives**: Preserve the existing filename when possible; add a date prefix only if it clarifies chronology.
+
+### Optional Resource Type Prefixes
+
+Use type prefixes only when they improve clarity, or when the user's Guide expects them:
 
 | Type | Purpose |
 | --- | --- |
-| `Concept` | "What" — definitions, principles, phenomena |
-| `Strategy` | "How" — action plans, methodologies |
-| `Model` | "Mechanism" — causal, input→output structures |
-| `Pattern` | "Recurring solution/phenomenon" — empirical, repeatable |
-| `Case` | Specific real-world instance or evidence |
-| `Data` | Datasets, statistics, reference data |
-| `Resource` | Curated resource lists |
-| `Tool` | Software, services, utilities |
-| `Work` | Creative works, projects |
+| `Concept` | Definitions, principles, or phenomena |
+| `Strategy` | Action plans or methodologies |
+| `Model` | Causal or input-to-output structures |
+| `Pattern` | Repeatable solutions or recurring phenomena |
+| `Case` | Concrete examples or evidence |
+| `Data` | Datasets, statistics, or reference data |
+| `Resource` | Cheatsheets, references, or curated utilities |
+| `Tool` | Software, services, or utilities |
+| `Work` | Creative works or finished outputs |
 
 ### Atomicity Principles
 
-- **Universal concept** (reusable across contexts) → **must split** into its own file.
-- **Exception (strong coupling)**: If a concept only exists in one case and has no standalone value, merge into one file using the dominant type as prefix.
+- Universal knowledge that is reusable across contexts should usually be split into its own reusable note.
+- Strongly coupled material may stay together when splitting it would reduce clarity.
 
 ## Frontmatter Standards
 
-### Permanent Note (`Template_Permanent.md`)
+If the user's Guide or vault provides templates, use them. Otherwise use minimal frontmatter only when it adds retrieval value.
+
+### Generic Reusable Note
 
 ```yaml
 ---
-source: "[[Source_Literature_Note]]"
-type: concept          # concept | model | strategy | tool | pattern | case | data | resource | work
+source: "[[Related_Note]]"
+type: resource
 updated: "YYYY-MM-DD"
 tags:
   - domain-tag
@@ -161,13 +146,13 @@ tags:
 ---
 ```
 
-### Literature — Text (`Template_Clips_Text.md`)
+### Generic External Reference Note
 
 ```yaml
 ---
 source: {{url}}
-author: {{author}}        # Plain text, NO wiki-links
-type: literature
+author: {{author}}
+type: reference
 published: {{date}}
 tags:
   - domain-tag
@@ -175,122 +160,93 @@ tags:
 ---
 ```
 
-### Literature — Media (`Template_Clips_Media.md`)
+### Generic Project Note
 
 ```yaml
 ---
-source: {{url}}
-author: {{channel_name}}   # Plain text, NO wiki-links
-type: literature
-published: {{date}}
+type: project
+updated: "YYYY-MM-DD"
 tags:
-  - domain-tag
-  - specific-tag
----
-```
-
-### MAP (`Template_Map.md`)
-
-```yaml
----
-type: map
-updated: {{date}}
-tags:
-  - map-of-content
-  - domain-tag
+  - active-project
 ---
 ```
 
 ### Key Frontmatter Rules
 
-- `source`: Use Wiki Link `[[Note]]` if the source exists in the vault, use a URL if external, use `ai-synthesis` only for AI-generated content with no specific vault source, and use `personal-observation` for personal data.
-- `author`: **Plain text only**. No wiki-links.
-- `tags`: **English (en-US)**, **kebab-case** (e.g., `#knowledge-management`).
-- Template `<!-- ... -->` comments are meta-instructions: follow them, then **remove** from final output.
+- `source`: Use a wiki link if the source exists in the vault, a URL if external, `ai-synthesis` for AI-generated content without a specific vault source, or `personal-observation` for personal data.
+- `author`: Plain text only.
+- `tags`: English, kebab-case, unless the Guide defines a different tagging contract.
+- Template comments are meta-instructions. Follow them, then remove them from final output.
 
-## Workflow: Inbox Processing
+## Workflow: Capture Processing
 
-### Triage Logic (Decision Tree)
+### Triage Logic
 
-1. **`000_Linklist.md`**: Process its content but **never move/delete** this file.
-2. **History** (meeting notes, expired events) → move to `30_Archives/`.
-3. **Knowledge Source** (articles, videos, papers):
-   a. **Sanitize** (see below).
-   b. **Apply Template** (Text or Media).
-   c. **Atomize** (extract permanent notes).
-   d. **Archive**: Default → `30_Archives/`. Only to `21_Literature/` if user explicitly requests.
+If the user has a Guide-defined inbox or capture flow, follow it. Otherwise use this default routing:
 
-### Content Sanitization (Non-Destructive)
+1. Historical or inactive material → Archives.
+2. Active deliverable or project support material → Projects.
+3. Ongoing responsibility or recurring domain note → Areas.
+4. Reusable knowledge, references, or learning material → Resources.
 
-**Remove ONLY** (never modify existing text):
+### Content Sanitization
 
-- Banner ads, CTAs ("Subscribe", "Donate"), sidebar widgets.
-- Auto-generated "Related articles" (unless highly relevant).
-- Header (logo, nav menus, search bar — anything before H1).
-- Footer (copyright, sitemap, privacy policy).
-- Author self-promotion (keep author name only).
-- Decorative images (keep diagrams, charts, data visualizations).
+Remove only non-knowledge clutter such as banners, CTAs, unrelated navigation, decorative footers, or decorative images.
 
-**Preserve**:
-
-- Author disclosures, sponsor mentions relevant to context.
-- All knowledge-bearing images (architecture diagrams, flowcharts, data charts).
+Preserve disclosures, relevant sponsorship notes, diagrams, charts, and evidence-bearing images.
 
 ### Atomization Process
 
-1. **Identify**: Read source, ignore noise.
-2. **Extract**: Find core concepts, universal models, concrete cases.
-3. **Transform**: Create independent `.md` files in `22_Permanent/` using `Type_Keyword.md` naming.
-4. **Bi-directional Linking**:
-   - Permanent → Literature: include `source: [[Literature_Note]]` in frontmatter.
-  - Literature → Permanent: **do not edit** source text. Rely on Backlinks. Exception: append `參考: [[Related]]` at end for closely related sources only.
-5. **Archive**: Move literature to `30_Archives/`. Content must remain **verbatim** — no summarization.
+1. Identify the knowledge-bearing parts of the source.
+2. Extract reusable concepts, models, cases, or references.
+3. Transform them into separate notes in the Guide-defined knowledge area, or Resources by default.
+4. Link back to source notes when the source exists in the vault.
+5. Archive or retain the source according to user intent or Guide rules.
 
-### Auto-Tagging
+### Tagging
 
-1. Analyze content semantically → assign 3–5 tags (English, kebab-case).
-2. Write to frontmatter `tags` field.
-3. Check `99_System/Tag_Taxonomy.md` — if a new tag is needed, add its definition to the taxonomy.
+1. Analyze the content semantically and assign a small set of useful tags.
+2. Write tags to frontmatter only when the vault already uses tags or the Guide requires them.
+3. If the user has a taxonomy file, follow it. Otherwise do not invent a mandatory taxonomy document.
 
-### MAP Maintenance
+### Index Or Map Maintenance
 
-- **Trigger**: 3+ notes in `22_Permanent/` share a topic → create/update a MAP in `23_Maps/`.
-- **Structure**: Knowledge Clusters (permanent notes), Key Literature, Related Projects.
-- **Proactive**: After creating any `22_Permanent` note, search existing MAPs and add the new note if relevant.
+- If the user's Guide defines indexes, maps, dashboards, or MOCs, update them when relevant.
+- If no such structure exists, do not create one by default.
 
 ## Formatting & Style
 
 ### Link Format
 
-- **Always** use Wiki Links `[[File_Name]]`. Never use Markdown links `[title](path)` for internal notes.
+- Use wiki links for internal vault notes.
+- Use standard Markdown links only for external files or code-repository references.
 
 ### Language
 
-- Match source language (en/ja/zh).
-- Default Chinese output: **Traditional Chinese (zh-Hant/zh-TW)**. Never mix Simplified and Traditional.
-- **Strictly use Taiwanese Terminology** (e.g., 核心, 快取, 虛擬機器, 軟體). DO NOT use Mainland Chinese terminology (e.g., 內核, 緩存, 虛擬機, 軟件).
-- Keep English terms when no precise zh-Hant equivalent exists.
+- Match the source language when reasonable.
+- Default Chinese output should be Traditional Chinese.
+- Use Taiwanese terminology rather than Mainland Chinese terminology.
+- Keep English terms when there is no precise Traditional Chinese equivalent.
 
 ### Punctuation
 
-- **CJK text**: Use full-width symbols `：`、`（`、`）`、`，`、`。`.
-- **No semicolons**. Use commas or periods instead.
-- **Half-width only for**: English terms in CJK text `(example)`, full English sentences, code blocks, URLs.
+- In CJK text, use full-width punctuation.
+- Do not use semicolons.
+- Use half-width punctuation for code, URLs, and fully English sentences.
 
 ### Content Style
 
-- **No Emoji** (unless for warnings).
-- **Quality over quantity** for contextual links — only strong connections.
-- **Link validation**: Every `[[link]]` must point to an existing file. Create the file or omit the link.
-- **Hierarchy over lists**: Use heading levels (`###`, `####`) for long content instead of flat bullet lists.
-- **Flexible numbering**: Sequential (`1.`/`2.`), categorical (`A.`/`B.`), or CJK (`一、`/`二、`) — but consistent within the same level.
+- No emoji unless needed for warnings.
+- Prefer strong contextual links over link spam.
+- Every internal link must point to an existing file, or be omitted until the file exists.
+- Use headings rather than oversized flat bullet lists for long content.
 
 ### References Section
 
-Every note should end with:
+Every reusable or reference-heavy note should end with:
 
 ```markdown
-## 參考資料 (References)
+## References
 
 - [External Title](URL)
 - [[Internal_Note]]
@@ -298,48 +254,45 @@ Every note should end with:
 
 ## Note Structure Quick Reference
 
-### Permanent Note
+### Reusable Knowledge Note
 
 ```markdown
-# 中文標題 (English Title)
+# Title
 
-Brief definition/background.
+Brief definition or context.
 
-## 詳細內容 (Content)
+## Content
 
-### 核心定義 / 運作機制 (Core Definition / Mechanism)
+### Core Definition / Mechanism
 ...
 
-### 執行步驟 / 具體作法 (Execution / Tactics)
+### Execution / Tactics
 #### 1.
 ...
 
 ---
-## 脈絡連結 (Contextual Links)
+## Contextual Links
 
-- **上層概念 (Parent)**：[[Parent_Note]]
-- **相關概念 (Related)**：[[Related_Note]]
-- **應用/案例 (Applications)**：[[Case_Note]]
-- **相關索引 (Map)**：[[Map_Note]]
+- **Related Concepts**：[[Related_Note]]
+- **Applications / Cases**：[[Case_Note]]
+- **Related Projects**：[[Project_Note]]
 
-## 參考資料 (References)
+## References
 ```
 
-### MAP Note
+### Optional Index Note
 
 ```markdown
-# MAP：Topic_Name
+# Topic_Name
 
-## 關聯地圖 (Related Maps)
-- 上層地圖：[[Parent_Map]]
-- 子地圖：[[Sub_Map]]
+Use this only when the user's Guide or vault already uses index pages, dashboards, or MOCs.
 
-## 知識聚落 (Knowledge Clusters)
-- [[Permanent_Note]]: Brief context.
+## Related Notes
+- [[Reusable_Note]]：Brief context.
 
-## 關鍵文獻 (Key Literature)
-- [[Literature_Note]]：Why it matters.
+## References
+- [[Reference_Note]]：Why it matters.
 
-## 相關專案 (Related Projects)
+## Related Projects
 - [[Project_Note]]：Status/relevance.
 ```

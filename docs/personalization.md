@@ -1,6 +1,6 @@
 # Personalization
 
-This document holds the machine-local details that do not belong on the README front page: placeholders, runtime selection, model routing, MCP overrides, and when to rerun setup.
+This document holds the machine-local details that do not belong on the README front page: placeholders, runtime selection, model routing, MCP overrides, Obsidian routing, working-hours settings, and when to rerun setup.
 
 ## Runtime Selection
 
@@ -18,6 +18,18 @@ Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux
 | --- | --- | --- |
 | `<OBSIDIAN_VAULT>` | absolute path to the Obsidian vault | Obsidian agents and skills |
 | `<OBSIDIAN_VAULT_NAME>` | display name of the vault | Obsidian skills |
+| `<OBSIDIAN_GUIDE_PATH>` | vault-relative path to your personal Obsidian guide | notewriter and Obsidian knowledge workflows |
+| `<OBSIDIAN_GUIDE_MODE>` | `auto`, `guide`, or `generic` | optional Guide loading for Obsidian writes |
+| `<OBSIDIAN_PRIVATE_RESEARCH_DIR>` | vault-relative directory for private research captures | `/gal research` private-note routing |
+| `<OBSIDIAN_DIARY_DIR>` | vault-relative directory for work diaries | notewriter diary mode |
+| `<OBSIDIAN_SCRATCH_DIR>` | vault-relative directory for quick scratch logs | notewriter diary mode |
+| `<OBSIDIAN_ARCHIVE_DIR>` | vault-relative directory for diary archives | notewriter diary mode |
+| `<RESEARCH_DEFAULT_DEST>` | default durable destination for research output | `repo`, `private`, `knowledge`, or `none` |
+| `<WORKING_HOURS_ENABLED>` | whether working-hours enforcement is active on this machine | opt-in wrap-up and hard-stop enforcement |
+| `<WORKDAY_START>` | start of the preferred workday in `HH:MM` | Working Hours schedule |
+| `<WORKDAY_END>` | end of the preferred workday in `HH:MM` | After Hours boundary |
+| `<WRAP_UP_TIME>` | Wrap-up Time in `HH:MM` | shutdown-window behavior |
+| `<HARD_STOP_TIME>` | Hard Stop in `HH:MM` | stop-work behavior |
 | `<LOCAL_SEARCH_PROJECT>` | clone path for the local search project | local-first and knowledge-management skills |
 | `<GAL_SKILLS>` | skills install path | helper skills that need a stable local path |
 | `<TEMP_DIR>` | temp output directory | PDF and file-processing workflows |
@@ -38,6 +50,39 @@ Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux
 
 - Put secrets, absolute paths, and machine-specific values in `../config.local.env`.
 - Do not write local values into tracked docs, command templates, or source files.
+
+### 2a. Obsidian routing
+
+Obsidian support is machine-local and optional. GAL separates repo-owned state from user-owned notes:
+
+- Repo-owned research stays in `docs/research/` by default.
+- Private captures and reusable knowledge can route into your Obsidian vault when `OBSIDIAN_VAULT` is configured.
+- If you want GAL to follow your own library rules, set `OBSIDIAN_GUIDE_PATH` and leave `OBSIDIAN_GUIDE_MODE=auto` or force `guide`.
+- If you do not keep a personal guide, leave `OBSIDIAN_GUIDE_PATH` empty or set `OBSIDIAN_GUIDE_MODE=generic`.
+
+Vault-relative paths should not include the vault root and should not end with a trailing slash.
+
+Recommended defaults:
+
+| Setting | Typical value |
+| --- | --- |
+| `OBSIDIAN_GUIDE_PATH` | `99_System/Guide.md` |
+| `OBSIDIAN_PRIVATE_RESEARCH_DIR` | `10_Projects/Research_Private` |
+| `OBSIDIAN_DIARY_DIR` | `10_Projects/Work_Journal` |
+| `OBSIDIAN_SCRATCH_DIR` | `10_Projects/Work_Journal` |
+| `OBSIDIAN_ARCHIVE_DIR` | `30_Archives/Work_Journal` |
+| `RESEARCH_DEFAULT_DEST` | `repo` |
+
+### 2b. Working Hours
+
+Working-hours enforcement is disabled by default. If you want GAL to respect your own workday boundary, configure it in `config.local.env`:
+
+- `WORKING_HOURS_ENABLED=false` keeps all working-hours logic off.
+- `WORKDAY_START` and `WORKDAY_END` describe your preferred work window.
+- `WRAP_UP_TIME` starts reminders and shutdown-window behavior.
+- `HARD_STOP_TIME` defines the point where agents refuse further work.
+
+These values are machine-local preferences, not tracked repo policy.
 
 ### 3. MCP overrides
 
@@ -63,6 +108,8 @@ Run setup again when any of these change:
 - `config.local.env`
 - `mcp-servers.local.json`
 - `~/.gal/install-state.json`
+- Obsidian routing paths or Guide mode
+- working-hours settings
 - model routing or runtime install locations
 - GAL command or skill installation
 

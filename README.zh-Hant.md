@@ -2,7 +2,7 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 13 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。所有持久狀態都以本地 Markdown 檔案保存，例如 `.dev/` 與 `docs/plans/`，讓 GitHub Copilot、Gemini CLI、Codex CLI 共享同一套工作流程與檔案。
+GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 12 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。持久狀態分成兩個邊界：repo 共享狀態以本地 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`；使用者私人筆記則可選擇寫入本機設定的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套 workflow，同時保留使用者自己的非 repo 筆記空間。
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
@@ -69,7 +69,7 @@ init -> planning ─┬─ (scoped feature) ────────────
 
 ## Golem Agents
 
-GAL 的核心是 13 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
+GAL 的核心是 12 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
 
 - **prompt 精簡**：每個 agent 只載入自己的職責定義，不浪費 context window
 - **獨立性**：獨立的 tester / reviewer / verifier ，以確保驗證結果的可信度
@@ -81,8 +81,8 @@ GAL 的核心是 13 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 
 | 分類 | 啟動方式 | 成員 |
 | --- | --- | --- |
-| **Utility** | 任何時候直接呼叫 | debugger、scribe |
-| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、librarian、security、releaser |
+| **Utility** | 任何時候直接呼叫 | debugger、notewriter |
+| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、security、releaser |
 | **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、reviewer、verifier |
 
 ### Utility Agents
@@ -90,7 +90,7 @@ GAL 的核心是 13 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 | Agent | 職責 |
 | --- | --- |
 | **debugger** | 科學方法 bug 調查：假說、驗證、根因確認後才修 |
-| **scribe** | 每日工作日記 + 宵禁系統執行者 |
+| **notewriter** | Obsidian 寫入總入口：私人 research capture、工作日記、inbox、知識萃取、shutdown ritual |
 
 ### Domain Agents
 
@@ -102,7 +102,6 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 | **analyst** | 商業邏輯審核：ROI、domain 正確性、使用者影響 |
 | **designer** | 設計系統建立、視覺探索、design-to-code 建置、live UI audit |
 | **researcher** | 本地優先的研究與結構化綜合，帶有 source attribution |
-| **librarian** | Obsidian vault 寫入：inbox processing、知識萃取 |
 | **security** | 實作階段的 OWASP 與 STRIDE 安全審核 |
 | **releaser** | release prep、deploy orchestration、文件同步 |
 
@@ -138,14 +137,26 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 上述規則在 `model-roles.local.md` 中設定。
 
-### 宵禁系統
+### Working Hours
 
-所有 agent 遵守宵禁邊界：
+Working Hours 改為 **預設關閉** 的 machine-local 設定。只有當使用者在 `config.local.env` 啟用後，agent 才會依照設定的工作時段、After Hours、Wrap-up Time 與 Hard Stop 執行提醒與停工。
 
-- **22:00**：非 scribe agent 阻擋（若當日日記未寫）
-- **22:00–23:00**：日記已寫則可提議 `/gal wrap-up`
-- **23:00**：所有 agent 停止，包括 scribe
-- **Override**：使用者可說「override curfew」，單次有效
+- **Working Hours off**：所有 agent 正常工作
+- **After Hours**：超過工作時段後，到 Wrap-up Time 前仍可工作
+- **Wrap-up Time**：若當日日記未寫，非 `notewriter` agent 阻擋並引導進 shutdown ritual
+- **Hard Stop**：所有 agent 停止，包括 `notewriter`
+- **Override**：使用者可說 `override working hours`，單次有效
+
+實際時間由 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME` 等 local 設定控制，不再寫死在 tracked docs 中。
+
+## 儲存邊界
+
+GAL 把持久化資料分成兩個邊界：
+
+- **Repo 共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和 repo 一起追蹤、審核與協作的工作成果。
+- **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
+
+若使用者設定了 `OBSIDIAN_GUIDE_PATH` 且 Guide 存在，`notewriter` 會依該 Guide 工作；若未設定或找不到，則改走 generic mode，而不會因缺少 Guide 而中止。
 
 ## 專案檔案 (Project files)
 
@@ -158,7 +169,7 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 | `DESIGN.md` | Repo 層級設計治理 |
 | `docs/designs/<plan-slug>/` | 企劃綁定的設計資產 |
 | `docs/plans/<plan-slug>.md` | 人類可讀的企劃文件 |
-| `docs/research/` | 研究報告 |
+| `docs/research/` | repo 共享研究報告（預設 research 輸出） |
 
 ### 執行工作檔
 
@@ -197,7 +208,7 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 ## 研究工作流
 
-研究是獨立於開發的工作流程，可以和開發工作流平行運作。
+研究是獨立於開發的工作流程，可以和開發工作流平行運作。預設 durable 輸出仍寫到 `docs/research/`，但你也可以在 research 過程中明確指定要存到私人筆記區或只回傳結果不落地。
 
 | 模式 | 適用時機 | 流程 | 來源要求 |
 | --- | --- | --- | --- |
@@ -211,6 +222,13 @@ IDLE → RESEARCH → SYNTHESIZE → CROSS-REVIEW → VERIFY → DOCUMENT → DO
          ↑            ↑             ↑             │
          └─ evidence ─┴─ synthesis ─┴─ source/ref ┘
 ```
+
+DOCUMENT 階段的目標地有四種：
+
+- `repo`：寫到 `docs/research/`，這是預設值
+- `private`：寫到 `OBSIDIAN_PRIVATE_RESEARCH_DIR`
+- `knowledge`：交給 `notewriter` 轉成可重用的長期知識筆記
+- `none`：只回傳結果，不做 durable write
 
 ## 協作工具
 
@@ -260,7 +278,7 @@ Created by Garry Tan, President & CEO of Y Combinator，他將他的 startups �
 
 ## 個人化設定
 
-凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境占位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆蓋、本機 secrets 與路徑應該放在哪些 `.local.*` 檔案，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
+凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境占位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆蓋、Obsidian Vault 路徑、private research 目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
 
 ## 文件
 
