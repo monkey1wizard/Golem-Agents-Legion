@@ -126,6 +126,7 @@ echo "- Created: .dev/state.md"
 echo "- Ensured: docs/plans/"
 echo "- Generated: .github/copilot-instructions.md"
 echo "- Generated: GEMINI.md"
+echo "- Generated: CLAUDE.md"
 echo "- Generated: AGENTS.md"
 echo "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 

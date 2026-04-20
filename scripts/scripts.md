@@ -8,13 +8,13 @@ Machine setup and adapter sync scripts.
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
-| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, then generate `.github/copilot-instructions.md`, `GEMINI.md`, and `AGENTS.md` |
+| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, then generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
+| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Symlink agents/ + skills/, bake command skills, generate Gemini custom commands, clean stale Gemini/shared installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
+| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, symlink runtime targets, bake command skills, generate Gemini and Claude command files, clean stale runtime installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
-| `setup-machine.sh` | macOS | Same for Mac |
+| `setup-machine.sh` | macOS | Same for macOS/Linux |
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |

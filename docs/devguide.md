@@ -63,7 +63,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Layer | Location | Purpose |
 | --- | --- | --- |
 | Layer 1 | the GAL repo | main methodology source |
-| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, and `~/.codex/` | installed skills, generated commands, and runtime-facing symlinks |
+| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
 | Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
 | Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
 
@@ -74,15 +74,16 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal/`, and shared `~/.agents/skills/` | generated native `.toml` commands | also merges `mcpServers` into `settings.json` |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
+| Claude Code | `~/.claude/skills/` and `~/.claude/commands/` | generated command markdown plus repo-local `CLAUDE.md` | Claude MCP merge remains deferred |
 
 ### Layer 1.5 Install Topology
 
-| Source in repo | Copilot target | Gemini target | Codex target |
-| --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed |
-| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.codex/skills/<command>/` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | not required |
+| Source in repo | Copilot target | Gemini target | Codex target | Claude target |
+| --- | --- | --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed | not installed |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
+| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | not required | not required |
 
 ### Generated Runtime Files
 
@@ -90,7 +91,16 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | --- | --- |
 | `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
+| `~/.claude/commands/*.md` | Claude-native command surface generated from the baked command skill |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
+
+### Install-State
+
+The installer persists machine-local runtime selection in `~/.gal/install-state.json`.
+
+- `selectedRuntimes` controls which machine-layer targets GAL should manage.
+- `primaryRuntime` controls defaults and summaries only.
+- The tracked GAL repo remains the canonical source for agents, skills, and commands.
 
 ### MCP Management
 
@@ -107,6 +117,7 @@ Setup uses merge, not overwrite:
 - VS Code: merge missing servers into user `mcp.json`
 - Gemini CLI: merge missing servers into `settings.json` under `mcpServers`
 - Codex CLI: append missing `[mcp_servers.*]` sections into `config.toml`
+- Claude Code: deferred; no installer-managed MCP merge yet
 
 Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest, it does not take full ownership of those files.
 

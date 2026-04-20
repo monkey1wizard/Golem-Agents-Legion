@@ -1,6 +1,16 @@
 # Personalization
 
-This document holds the machine-local details that do not belong on the README front page: placeholders, model routing, MCP overrides, and when to rerun setup.
+This document holds the machine-local details that do not belong on the README front page: placeholders, runtime selection, model routing, MCP overrides, and when to rerun setup.
+
+## Runtime Selection
+
+The machine installer now persists runtime selection in `~/.gal/install-state.json`.
+
+- `selectedRuntimes` records which machine-layer targets GAL should manage.
+- `primaryRuntime` records which runtime should be treated as your default entry point.
+- The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
+
+Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
 ## Placeholders You May Need To Fill
 
@@ -44,12 +54,15 @@ The installed runtime configs remain user-owned even when GAL merges missing ent
 | Gemini CLI | `settings.json` under `mcpServers` |
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
 
+Claude Code is now part of the installer runtime surface for skills and commands, but its MCP merge remains deferred.
+
 ## When To Rerun Setup
 
 Run setup again when any of these change:
 
 - `config.local.env`
 - `mcp-servers.local.json`
+- `~/.gal/install-state.json`
 - model routing or runtime install locations
 - GAL command or skill installation
 
@@ -57,12 +70,14 @@ Windows:
 
 ```powershell
 ./scripts/Setup-Machine.ps1
+./scripts/Setup-Machine.ps1 -Reconfigure
 ```
 
-macOS:
+macOS/Linux:
 
 ```bash
 ./scripts/setup-machine.sh
+./scripts/setup-machine.sh --reconfigure
 ```
 
 ## Responsibility Boundary

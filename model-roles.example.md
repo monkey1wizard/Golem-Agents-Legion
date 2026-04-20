@@ -44,7 +44,7 @@ When you switch to a new tool, update the mapping table:
 
 | Scenario | What Changes |
 | --- | --- |
-| Adopt Claude Code | CODER → Claude Code; run `Sync-DevContext` to generate CLAUDE.md |
+| Adopt Claude Code | CODER → Claude Code; run `Setup-Machine` to install Claude runtime targets, then run `Sync-DevContext` to generate `CLAUDE.md` |
 | Adopt OmO/OpenCode | All roles → OmO discipline agents; AGENTS.md already generated |
 | Adopt Antigravity | Update table; add adapter in sync script |
 | Better local model | LOCAL → Ollama (new model); no other changes |

@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
+GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, Codex CLI, and Claude Code to share the same workflow and work files.
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
@@ -13,9 +13,13 @@ Its state management draws from the phase-based discipline in [Get Shit Done (GS
 1. Clone this repository.
 `git clone https://github.com/monkey1wizard/golem-agents-legion.git`
 
-2. Run setup from the repo root. Use `./scripts/Setup-Machine.ps1` on Windows and `./scripts/setup-machine.sh` on macOS.
+2. Run setup from the repo root. Use `./scripts/Setup-Machine.ps1` on Windows and `./scripts/setup-machine.sh` on macOS/Linux.
 
-3. Inside a target repo, open GitHub Copilot, Gemini CLI, or Codex CLI and run:
+On first run, setup now asks which AI runtimes to install, plus which runtime should be treated as your primary entry point. That machine-local choice is stored in `~/.gal/install-state.json`. Re-run setup with `-Reconfigure` or `--reconfigure` if you want to change it later.
+
+3. Inside a target repo, open your selected runtime and run the installed GAL command surface.
+
+Examples:
 
 ```text
 # Copilot / Gemini CLI (slash-command surface)
@@ -25,7 +29,7 @@ Its state management draws from the phase-based discipline in [Get Shit Done (GS
 $gal init
 ```
 
-The main installation and command surface currently targets GitHub Copilot, Gemini CLI, and Codex CLI. Other tools may still be able to read repo-local instructions, but that does not mean they are part of the same installation or command contract.
+The main machine-layer installation surface now targets GitHub Copilot, Gemini CLI, Codex CLI, and Claude Code. Claude support includes machine-local skills, generated command files, and repo-local `CLAUDE.md`; Claude MCP merge remains deferred.
 
 ## Control Commands
 

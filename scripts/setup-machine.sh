@@ -1,28 +1,35 @@
 #!/usr/bin/env bash
-# setup-machine.sh — Create symlinks from golem-agents-legion to Copilot, Gemini, and Codex runtimes
+# setup-machine.sh — Create symlinks from golem-agents-legion to Copilot, Gemini, Codex, and Claude runtimes
 #
 # Links:
 #   agent/*.agent.md  -> ~/.copilot/agents/*.agent.md
 #   skills/*/         -> ~/.copilot/skills/*/
 #   skills/*/         -> ~/.agents/skills/*/ (shared reusable skills for Gemini CLI + Codex CLI)
+#   skills/*/         -> ~/.claude/skills/*/
 #   commands/*/       -> ~/.copilot/skills/*/ + ~/.codex/skills/*/ (baked command skills)
+#   commands/*/       -> ~/.gemini/commands/*.toml + ~/.claude/commands/*.md
 #   <repo root>       -> ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
 #   Generates commands/*/SKILL.md from SKILL.template.md (baked absolute paths)
 #   Generates ~/.gemini/commands/*.toml so Gemini CLI can expose GAL commands natively
+#   Generates ~/.claude/commands/*.md so Claude Code can expose GAL commands natively
 #   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
+#   Persists machine-local runtime selection in ~/.gal/install-state.json
 #   Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
 #   Merges MCP server config from mcp-servers.example.json + mcp-servers.local.json into VS Code, Gemini, and Codex user config files
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
 #   ./scripts/setup-machine.sh --replace    # Replace existing real dirs with symlinks
-#   ./scripts/setup-machine.sh --uninstall  # Remove symlinks
-#   ./scripts/setup-machine.sh --dry-run    # Preview only
+#   ./scripts/setup-machine.sh --reconfigure # Prompt again for runtimes and primary runtime
+#   ./scripts/setup-machine.sh --uninstall   # Remove symlinks
+#   ./scripts/setup-machine.sh --dry-run     # Preview only
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GAL_STATE_ROOT="$HOME/.gal"
+INSTALL_STATE_FILE="$GAL_STATE_ROOT/install-state.json"
 
 COPILOT_ROOT="$HOME/.copilot"
 AGENTS_TARGET="$COPILOT_ROOT/agents"
@@ -50,6 +57,10 @@ CODEX_ROOT="$HOME/.codex"
 CODEX_SKILLS_TARGET="$CODEX_ROOT/skills"
 CODEX_CONFIG_FILE="$HOME/.codex/config.toml"
 
+CLAUDE_ROOT="$HOME/.claude"
+CLAUDE_SKILLS_TARGET="$CLAUDE_ROOT/skills"
+CLAUDE_COMMANDS_TARGET="$CLAUDE_ROOT/commands"
+
 MCP_MANIFEST_EXAMPLE="$REPO_ROOT/mcp-servers.example.json"
 MCP_MANIFEST_LOCAL="$REPO_ROOT/mcp-servers.local.json"
 
@@ -59,6 +70,14 @@ GAL_ROOT_GEMINI="$GEMINI_ROOT/gal"
 GAL_SKILL_COPILOT="$SKILLS_TARGET/gal"
 GAL_SKILL_CODEX="$CODEX_SKILLS_TARGET/gal"
 SKILL_TEMPLATE="$GAL_SOURCE/SKILL.template.md"
+RUNTIME_KEYS=(copilot gemini codex claude)
+RUNTIME_LABELS=("VS Code Copilot" "Gemini CLI" "Codex CLI" "Claude Code")
+RUNTIME_DESCRIPTIONS=(
+    "agents, skills, GAL commands, VS Code settings bridge, VS Code MCP bridge"
+    "native command files, GAL context, shared skills, Gemini MCP bridge"
+    "installed GAL command skills, shared skills, Codex MCP bridge"
+    "Claude skills, native command files, repo-local CLAUDE.md adapter"
+)
 COMMAND_ALIAS_NAMES=()
 while IFS= read -r -d '' _d; do
     _name="$(basename "$_d")"
@@ -72,12 +91,14 @@ COMMAND_SKILL_NAMES=(gal "${COMMAND_ALIAS_NAMES[@]}")
 UNINSTALL=false
 REPLACE=false
 DRY_RUN=false
+RECONFIGURE=false
 
 for arg in "$@"; do
     case "$arg" in
         --uninstall) UNINSTALL=true ;;
         --replace)   REPLACE=true ;;
         --dry-run)   DRY_RUN=true ;;
+        --reconfigure) RECONFIGURE=true ;;
         *)           echo "Unknown argument: $arg"; exit 1 ;;
     esac
 done
@@ -147,6 +168,18 @@ is_gal_managed_file() {
     local first_line
     first_line="$(head -n 1 "$path" 2>/dev/null || true)"
     [ "$first_line" = "$GAL_MANAGED_GEMINI_COMMAND_HEADER" ]
+}
+
+is_gal_repo_link() {
+    local path="$1"
+    local target_fragment="${2:-$REPO_ROOT}"
+    [ -L "$path" ] || return 1
+
+    local target
+    target="$(readlink "$path" 2>/dev/null || true)"
+    [ -n "$target" ] || return 1
+
+    [[ "$target" == *"$target_fragment"* ]]
 }
 
 is_gal_command_link() {
@@ -245,8 +278,304 @@ new_gemini_command_file_content() {
     }
 }
 
+new_claude_command_file_content() {
+    local skill_path="$1"
+    local command_name="$2"
+    local description
+    local body
+
+    description="$(get_skill_frontmatter_description "$skill_path")"
+    if [ -z "$description" ]; then
+        description="GAL command"
+    fi
+
+    body="$(get_skill_markdown_body "$skill_path")"
+
+    {
+        printf '%s\n' "$GAL_MANAGED_GEMINI_COMMAND_HEADER"
+        printf '%s\n' '---'
+        printf '%s\n' 'description: |'
+        while IFS= read -r line; do
+            printf '  %s\n' "$line"
+        done <<< "$description"
+        printf '%s\n\n' '---'
+        printf '# %s\n\n' "$command_name"
+        printf '%s\n\n' 'User command arguments, if any: {{args}}'
+        printf '%s\n' "$body"
+    }
+}
+
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+runtime_index() {
+    local key="$1"
+    local index
+    for index in "${!RUNTIME_KEYS[@]}"; do
+        if [ "${RUNTIME_KEYS[$index]}" = "$key" ]; then
+            printf '%s\n' "$index"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+default_primary_runtime() {
+    local selected=("$@")
+    local preferred
+    for preferred in copilot gemini codex claude; do
+        if [[ " ${selected[*]} " == *" $preferred "* ]]; then
+            printf '%s\n' "$preferred"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+read_install_state_value() {
+    local field="$1"
+    [ -f "$INSTALL_STATE_FILE" ] || return 1
+    if command_exists python3; then
+        python3 - "$INSTALL_STATE_FILE" "$field" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+field = sys.argv[2]
+data = json.loads(path.read_text(encoding='utf-8'))
+value = data.get(field)
+if isinstance(value, list):
+    print(','.join(str(item) for item in value))
+elif value is not None:
+    print(value)
+PY
+        return $?
+    fi
+    return 1
+}
+
+write_install_state() {
+    local selected_csv="$1"
+    local primary_runtime="$2"
+    local installed_at="$3"
+    local configured_at="$4"
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would save install state: $INSTALL_STATE_FILE"
+        return 0
+    fi
+
+    mkdir -p "$GAL_STATE_ROOT"
+    if command_exists python3; then
+        python3 - "$INSTALL_STATE_FILE" "$selected_csv" "$primary_runtime" "$installed_at" "$configured_at" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+selected = [item for item in sys.argv[2].split(',') if item]
+data = {
+    'schemaVersion': 1,
+    'selectedRuntimes': selected,
+    'primaryRuntime': sys.argv[3],
+    'installedAt': sys.argv[4],
+    'lastConfiguredAt': sys.argv[5],
+}
+path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+PY
+    else
+        printf '{\n  "schemaVersion": 1,\n  "selectedRuntimes": ["%s"],\n  "primaryRuntime": "%s",\n  "installedAt": "%s",\n  "lastConfiguredAt": "%s"\n}\n' "${selected_csv//,/\", \"}" "$primary_runtime" "$installed_at" "$configured_at" > "$INSTALL_STATE_FILE"
+    fi
+    echo "  [OK] Saved install state: $INSTALL_STATE_FILE"
+}
+
+detect_installed_runtimes() {
+    local detected=()
+
+    if is_gal_repo_link "$GAL_ROOT_COPILOT" || find "$AGENTS_TARGET" -maxdepth 1 -type l 2>/dev/null | grep -q . || find "$SKILLS_TARGET" -maxdepth 1 -type l 2>/dev/null | grep -q .; then
+        detected+=(copilot)
+    fi
+
+    if is_gal_repo_link "$GAL_ROOT_GEMINI" || is_gal_managed_file "$GEMINI_CONTEXT_FILE" || find "$GEMINI_COMMANDS_TARGET" -maxdepth 1 -name '*.toml' -type f 2>/dev/null | grep -q .; then
+        detected+=(gemini)
+    fi
+
+    if find "$CODEX_SKILLS_TARGET" -maxdepth 1 -type l 2>/dev/null | grep -q .; then
+        detected+=(codex)
+    fi
+
+    if find "$CLAUDE_SKILLS_TARGET" -maxdepth 1 -type l 2>/dev/null | grep -q . || find "$CLAUDE_COMMANDS_TARGET" -maxdepth 1 -name '*.md' -type f 2>/dev/null | grep -q .; then
+        detected+=(claude)
+    fi
+
+    printf '%s\n' "${detected[*]}"
+}
+
+parse_selection() {
+  local answer="$1"
+  local max_index="$2"
+  local selected=()
+  [ -z "$(printf '%s' "$answer" | xargs || true)" ] && { printf '%s\n' ""; return 0; }
+
+  local item number
+  IFS=',' read -r -a parts <<< "$answer"
+  for item in "${parts[@]}"; do
+    item="$(printf '%s' "$item" | xargs)"
+    [ -z "$item" ] && continue
+    case "$item" in
+      *[!0-9]*)
+        echo "Invalid selection '$item'." >&2
+        return 1
+        ;;
+    esac
+    number="$item"
+    if [ "$number" -lt 1 ] || [ "$number" -gt "$max_index" ]; then
+      echo "Selection '$item' is out of range." >&2
+      return 1
+    fi
+    case " ${selected[*]} " in
+      *" $number "*) ;;
+      *) selected+=("$number") ;;
+    esac
+  done
+
+  printf '%s\n' "${selected[*]}"
+}
+
+read_runtime_selection() {
+    local default_selection="$1"
+    local prompt_reason="$2"
+
+    echo "  [PROMPT] Select the AI runtimes where GAL should install machine-level integration."
+    if [ -n "$prompt_reason" ]; then
+        echo "  [INFO] $prompt_reason"
+    fi
+
+    local index
+    for index in "${!RUNTIME_KEYS[@]}"; do
+        printf '    %s. %s - %s\n' "$((index + 1))" "${RUNTIME_LABELS[$index]}" "${RUNTIME_DESCRIPTIONS[$index]}"
+    done
+
+    local default_numbers=()
+    local runtime number
+    for runtime in ${default_selection//,/ }; do
+        number="$(runtime_index "$runtime" 2>/dev/null || true)"
+        [ -n "$number" ] && default_numbers+=("$((number + 1))")
+    done
+
+    while true; do
+        local answer parsed result=()
+        read -r -p "  [PROMPT] Enter selection numbers (for example: 1,3) [default: $(IFS=,; echo "${default_numbers[*]}")]: " answer
+        if [ -z "$(printf '%s' "$answer" | xargs || true)" ]; then
+            printf '%s\n' "$default_selection"
+            return 0
+        fi
+        if parsed="$(parse_selection "$answer" "${#RUNTIME_KEYS[@]}")"; then
+            [ -z "$parsed" ] && { echo "  [WARN] Select at least one runtime." >&2; continue; }
+            for index in $parsed; do
+                result+=("${RUNTIME_KEYS[$((index - 1))]}")
+            done
+            IFS=, printf '%s\n' "${result[*]}"
+            return 0
+        fi
+        echo "  [WARN] Invalid selection. Please try again." >&2
+    done
+}
+
+read_primary_runtime() {
+    local selected_csv="$1"
+    local default_primary="$2"
+    local selected=( ${selected_csv//,/ } )
+    local choice_keys=()
+    local runtime index marker default_index=1
+
+    echo "  [PROMPT] Choose the primary runtime GAL should treat as your default entry point."
+    echo "  [INFO] The repo remains the single source of truth for agents, skills, and commands; this choice affects defaults and summaries only."
+
+    index=1
+    for runtime in "${selected[@]}"; do
+        local runtime_pos
+        runtime_pos="$(runtime_index "$runtime")"
+        marker=""
+        if [ "$runtime" = "$default_primary" ]; then
+            marker=" (default)"
+            default_index="$index"
+        fi
+        printf '    %s. %s%s\n' "$index" "${RUNTIME_LABELS[$runtime_pos]}" "$marker"
+        choice_keys+=("$runtime")
+        index=$((index + 1))
+    done
+
+    while true; do
+        local answer selected_index
+        read -r -p "  [PROMPT] Enter one number [default: $default_index]: " answer
+        if [ -z "$(printf '%s' "$answer" | xargs || true)" ]; then
+            printf '%s\n' "${choice_keys[$((default_index - 1))]}"
+            return 0
+        fi
+        case "$answer" in
+            *[!0-9]*) echo "  [WARN] Enter a valid number." >&2; continue ;;
+        esac
+        selected_index="$answer"
+        if [ "$selected_index" -lt 1 ] || [ "$selected_index" -gt "${#choice_keys[@]}" ]; then
+            echo "  [WARN] Selection is out of range." >&2
+            continue
+        fi
+        printf '%s\n' "${choice_keys[$((selected_index - 1))]}"
+        return 0
+    done
+}
+
+resolve_install_selection() {
+    local saved_selected=""
+    local saved_primary=""
+    local saved_installed_at=""
+
+    if [ -f "$INSTALL_STATE_FILE" ] && ! $RECONFIGURE; then
+        saved_selected="$(read_install_state_value selectedRuntimes 2>/dev/null || true)"
+        saved_primary="$(read_install_state_value primaryRuntime 2>/dev/null || true)"
+        saved_installed_at="$(read_install_state_value installedAt 2>/dev/null || true)"
+        if [ -n "$saved_selected" ] && [ -n "$saved_primary" ]; then
+            echo ""
+            echo "=== GAL runtime selection ==="
+            echo "  [OK] Using saved install state from $INSTALL_STATE_FILE"
+            echo "  [OK] Selected runtimes: ${saved_selected//,/ , }"
+            echo "  [OK] Primary runtime: $saved_primary"
+            SELECTED_RUNTIMES_CSV="$saved_selected"
+            PRIMARY_RUNTIME="$saved_primary"
+            return 0
+        fi
+    fi
+
+    local detected_csv
+    detected_csv="$(detect_installed_runtimes)"
+    local default_selection="$detected_csv"
+    local prompt_reason="Detected a legacy GAL machine install without install-state. Confirm or change the runtime set before continuing."
+
+    if [ -z "$default_selection" ]; then
+        default_selection="$(IFS=,; echo "${RUNTIME_KEYS[*]}")"
+        prompt_reason="First-time GAL install detected. Choose where GAL should install runtime integrations."
+    fi
+
+    echo ""
+    echo "=== GAL runtime selection ==="
+    SELECTED_RUNTIMES_CSV="$(read_runtime_selection "$default_selection" "$prompt_reason")"
+
+    local default_primary="$saved_primary"
+    if [ -z "$default_primary" ] || [[ ",$SELECTED_RUNTIMES_CSV," != *",$default_primary,"* ]]; then
+        default_primary="$(default_primary_runtime ${SELECTED_RUNTIMES_CSV//,/ })"
+    fi
+    PRIMARY_RUNTIME="$(read_primary_runtime "$SELECTED_RUNTIMES_CSV" "$default_primary")"
+
+    local configured_at installed_at
+    configured_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    installed_at="$saved_installed_at"
+    [ -z "$installed_at" ] && installed_at="$configured_at"
+    write_install_state "$SELECTED_RUNTIMES_CSV" "$PRIMARY_RUNTIME" "$installed_at" "$configured_at"
 }
 
 ensure_ripgrep() {
@@ -302,12 +631,54 @@ ensure_ripgrep() {
     fi
 }
 
-ensure_ripgrep
+if ! $UNINSTALL; then
+    resolve_install_selection
+    ensure_ripgrep
+fi
+
+SELECTED_RUNTIMES_CSV="${SELECTED_RUNTIMES_CSV:-}"
+PRIMARY_RUNTIME="${PRIMARY_RUNTIME:-}"
+
+runtime_selected() {
+    local key="$1"
+    [[ ",${SELECTED_RUNTIMES_CSV}," == *",${key},"* ]]
+}
+
+INSTALL_COPILOT=false
+INSTALL_GEMINI=false
+INSTALL_CODEX=false
+INSTALL_CLAUDE=false
+INSTALL_SHARED_SKILLS=false
+NEEDS_BAKED_COMMAND_SKILLS=false
+
+if runtime_selected copilot; then INSTALL_COPILOT=true; fi
+if runtime_selected gemini; then INSTALL_GEMINI=true; fi
+if runtime_selected codex; then INSTALL_CODEX=true; fi
+if runtime_selected claude; then INSTALL_CLAUDE=true; fi
+if $INSTALL_GEMINI || $INSTALL_CODEX; then INSTALL_SHARED_SKILLS=true; fi
+if $INSTALL_COPILOT || $INSTALL_GEMINI || $INSTALL_CODEX || $INSTALL_CLAUDE; then NEEDS_BAKED_COMMAND_SKILLS=true; fi
 
 # --- Ensure target directories ---
 
 if ! $UNINSTALL; then
-    for dir in "$COPILOT_ROOT" "$AGENTS_TARGET" "$SKILLS_TARGET" "$SHARED_AGENTS_ROOT" "$SHARED_SKILLS_TARGET" "$GEMINI_ROOT" "$GEMINI_SKILLS_TARGET" "$GEMINI_COMMANDS_TARGET" "$CODEX_ROOT" "$CODEX_SKILLS_TARGET"; do
+    dirs_to_ensure=("$GAL_STATE_ROOT")
+    if $INSTALL_COPILOT; then
+        dirs_to_ensure+=("$COPILOT_ROOT" "$AGENTS_TARGET" "$SKILLS_TARGET")
+    fi
+    if $INSTALL_SHARED_SKILLS; then
+        dirs_to_ensure+=("$SHARED_AGENTS_ROOT" "$SHARED_SKILLS_TARGET")
+    fi
+    if $INSTALL_GEMINI; then
+        dirs_to_ensure+=("$GEMINI_ROOT" "$GEMINI_SKILLS_TARGET" "$GEMINI_COMMANDS_TARGET")
+    fi
+    if $INSTALL_CODEX; then
+        dirs_to_ensure+=("$CODEX_ROOT" "$CODEX_SKILLS_TARGET")
+    fi
+    if $INSTALL_CLAUDE; then
+        dirs_to_ensure+=("$CLAUDE_ROOT" "$CLAUDE_SKILLS_TARGET" "$CLAUDE_COMMANDS_TARGET")
+    fi
+
+    for dir in "${dirs_to_ensure[@]}"; do
         if [ ! -d "$dir" ]; then
             if $DRY_RUN; then
                 echo "[DRY RUN] Would create directory: $dir"
@@ -333,7 +704,7 @@ for f in "${agent_files[@]}"; do
     name="$(basename "$f")"
     link_path="$AGENTS_TARGET/$name"
 
-    if $UNINSTALL; then
+    if $UNINSTALL || ! $INSTALL_COPILOT; then
         safe_unlink "$link_path"
     else
         if safe_link "$link_path" "$f"; then
@@ -362,7 +733,7 @@ for d in "${skill_dirs[@]}"; do
     name="$(basename "$d")"
     link_path="$SKILLS_TARGET/$name"
 
-    if $UNINSTALL; then
+    if $UNINSTALL || ! $INSTALL_COPILOT; then
         safe_unlink "$link_path"
     else
         if safe_link "$link_path" "$d"; then
@@ -423,7 +794,7 @@ for d in "${skill_dirs[@]}"; do
     name="$(basename "$d")"
     link_path="$SHARED_SKILLS_TARGET/$name"
 
-    if $UNINSTALL; then
+    if $UNINSTALL || ! $INSTALL_SHARED_SKILLS; then
         safe_unlink "$link_path"
     else
         if safe_link "$link_path" "$d"; then
@@ -434,12 +805,35 @@ for d in "${skill_dirs[@]}"; do
     fi
 done
 
+# --- Claude reusable skill symlinks (.claude/skills) ---
+
+claude_skill_ok=0
+claude_skill_fail=0
+
+echo ""
+echo "=== Claude Skills ($skill_count reusable directories) ==="
+
+for d in "${skill_dirs[@]}"; do
+    name="$(basename "$d")"
+    link_path="$CLAUDE_SKILLS_TARGET/$name"
+
+    if $UNINSTALL || ! $INSTALL_CLAUDE; then
+        safe_unlink "$link_path"
+    else
+        if safe_link "$link_path" "$d"; then
+            ((claude_skill_ok++)) || true
+        else
+            ((claude_skill_fail++)) || true
+        fi
+    fi
+done
+
 # --- Gemini gal-context.md ---
 
 echo ""
 echo "=== Gemini gal-context.md ==="
 
-if $UNINSTALL; then
+if $UNINSTALL || ! $INSTALL_GEMINI; then
     if [ -f "$GEMINI_CONTEXT_FILE" ]; then
         if $DRY_RUN; then
             echo "  [DRY RUN] Would remove: $GEMINI_CONTEXT_FILE"
@@ -472,6 +866,8 @@ echo "=== Gemini settings.json bridge ==="
 
 if $UNINSTALL; then
     echo "  [SKIP] settings.json not modified during uninstall (user-owned file)"
+elif ! $INSTALL_GEMINI; then
+    echo "  [SKIP] Gemini runtime not selected; settings.json bridge not updated"
 elif $DRY_RUN; then
     echo "  [DRY RUN] Would merge AGENTS.md into context.fileName in: $GEMINI_SETTINGS_FILE"
 else
@@ -498,6 +894,8 @@ echo "=== VS Code settings bridge ==="
 
 if $UNINSTALL; then
     echo "  [SKIP] VS Code settings.json not modified during uninstall (user-owned file)"
+elif ! $INSTALL_COPILOT; then
+    echo "  [SKIP] Copilot runtime not selected; VS Code settings bridge not updated"
 elif $DRY_RUN; then
     echo "  [DRY RUN] Would set chat.agentSkillsLocations[\"~/.agents/skills\"]=false in: $VSCODE_SETTINGS_FILE"
 else
@@ -551,9 +949,10 @@ echo "=== MCP config bridge ==="
 if $UNINSTALL; then
     echo "  [SKIP] MCP config files not modified during uninstall (user-owned files)"
 elif $DRY_RUN; then
-    echo "  [DRY RUN] Would merge MCP servers into: $VSCODE_MCP_FILE"
-    echo "  [DRY RUN] Would merge MCP servers into: $GEMINI_SETTINGS_FILE"
-    echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
+    $INSTALL_COPILOT && echo "  [DRY RUN] Would merge MCP servers into: $VSCODE_MCP_FILE"
+    $INSTALL_GEMINI && echo "  [DRY RUN] Would merge MCP servers into: $GEMINI_SETTINGS_FILE"
+    $INSTALL_CODEX && echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
+    $INSTALL_CLAUDE && echo "  [SKIP] Claude Code MCP merge remains deferred in this installer"
 else
     if [ ! -f "$MCP_MANIFEST_LOCAL" ]; then
         printf '{\n  "servers": {}\n}\n' > "$MCP_MANIFEST_LOCAL"
@@ -561,7 +960,7 @@ else
     fi
 
     if command -v python3 &>/dev/null; then
-        if python3 - "$REPO_ROOT" "$MCP_MANIFEST_EXAMPLE" "$MCP_MANIFEST_LOCAL" "$VSCODE_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" <<'PY'
+        if python3 - "$REPO_ROOT" "$MCP_MANIFEST_EXAMPLE" "$MCP_MANIFEST_LOCAL" "$VSCODE_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" <<'PY'
 import json
 import os
 import re
@@ -574,6 +973,9 @@ manifest_local = Path(sys.argv[3])
 vscode_mcp = Path(sys.argv[4])
 gemini_settings = Path(sys.argv[5])
 codex_config = Path(sys.argv[6])
+install_vscode = sys.argv[7].lower() == 'true'
+install_gemini = sys.argv[8].lower() == 'true'
+install_codex = sys.argv[9].lower() == 'true'
 
 
 def read_json(path: Path):
@@ -701,69 +1103,72 @@ if "MCP_FILESYSTEM_PATHS" not in local_env:
         defaults.append(local_env["OBSIDIAN_VAULT"])
     local_env["MCP_FILESYSTEM_PATHS"] = ",".join(dict.fromkeys(defaults))
 
-vscode_data = read_json(vscode_mcp)
-vscode_data.setdefault("servers", {})
-vscode_changed = False
-for server_name, server in servers.items():
-    provider = server.get("providers", {}).get("vscode")
-    if not provider or not provider.get("enabled"):
-        continue
-    if not provider_ready(provider, local_env):
-        print(f"  [WARN] Skipping VS Code MCP server '{server_name}' because required env is missing")
-        continue
-    key = provider.get("key", server_name)
-    if key in vscode_data["servers"]:
-        continue
-    vscode_data["servers"][key] = resolve_node(provider["config"], local_env)
-    vscode_changed = True
-    print(f"  [ADD] VS Code MCP server: {key}")
-if vscode_changed:
-    vscode_mcp.parent.mkdir(parents=True, exist_ok=True)
-    vscode_mcp.write_text(json.dumps(vscode_data, indent=2) + "\n", encoding="utf-8")
-    print(f"  [OK] {vscode_mcp}")
+if install_vscode:
+    vscode_data = read_json(vscode_mcp)
+    vscode_data.setdefault("servers", {})
+    vscode_changed = False
+    for server_name, server in servers.items():
+        provider = server.get("providers", {}).get("vscode")
+        if not provider or not provider.get("enabled"):
+            continue
+        if not provider_ready(provider, local_env):
+            print(f"  [WARN] Skipping VS Code MCP server '{server_name}' because required env is missing")
+            continue
+        key = provider.get("key", server_name)
+        if key in vscode_data["servers"]:
+            continue
+        vscode_data["servers"][key] = resolve_node(provider["config"], local_env)
+        vscode_changed = True
+        print(f"  [ADD] VS Code MCP server: {key}")
+    if vscode_changed:
+        vscode_mcp.parent.mkdir(parents=True, exist_ok=True)
+        vscode_mcp.write_text(json.dumps(vscode_data, indent=2) + "\n", encoding="utf-8")
+        print(f"  [OK] {vscode_mcp}")
 
-gemini_data = read_json(gemini_settings)
-gemini_data.setdefault("mcpServers", {})
-gemini_changed = False
-for server_name, server in servers.items():
-    provider = server.get("providers", {}).get("gemini")
-    if not provider or not provider.get("enabled"):
-        continue
-    if not provider_ready(provider, local_env):
-        print(f"  [WARN] Skipping Gemini MCP server '{server_name}' because required env is missing")
-        continue
-    key = provider.get("key", server_name)
-    if key in gemini_data["mcpServers"]:
-        continue
-    gemini_data["mcpServers"][key] = resolve_node(provider["config"], local_env)
-    gemini_changed = True
-    print(f"  [ADD] Gemini MCP server: {key}")
-if gemini_changed:
-    gemini_settings.parent.mkdir(parents=True, exist_ok=True)
-    gemini_settings.write_text(json.dumps(gemini_data, indent=2) + "\n", encoding="utf-8")
-    print(f"  [OK] {gemini_settings}")
+if install_gemini:
+    gemini_data = read_json(gemini_settings)
+    gemini_data.setdefault("mcpServers", {})
+    gemini_changed = False
+    for server_name, server in servers.items():
+        provider = server.get("providers", {}).get("gemini")
+        if not provider or not provider.get("enabled"):
+            continue
+        if not provider_ready(provider, local_env):
+            print(f"  [WARN] Skipping Gemini MCP server '{server_name}' because required env is missing")
+            continue
+        key = provider.get("key", server_name)
+        if key in gemini_data["mcpServers"]:
+            continue
+        gemini_data["mcpServers"][key] = resolve_node(provider["config"], local_env)
+        gemini_changed = True
+        print(f"  [ADD] Gemini MCP server: {key}")
+    if gemini_changed:
+        gemini_settings.parent.mkdir(parents=True, exist_ok=True)
+        gemini_settings.write_text(json.dumps(gemini_data, indent=2) + "\n", encoding="utf-8")
+        print(f"  [OK] {gemini_settings}")
 
-codex_raw = codex_config.read_text(encoding="utf-8") if codex_config.exists() else ""
-codex_sections = []
-for server_name, server in servers.items():
-    provider = server.get("providers", {}).get("codex")
-    if not provider or not provider.get("enabled"):
-        continue
-    if not provider_ready(provider, local_env):
-        print(f"  [WARN] Skipping Codex MCP server '{server_name}' because required env is missing")
-        continue
-    key = provider.get("key", server_name)
-    if re.search(rf"(?m)^\[mcp_servers\.{re.escape(key)}\]\s*$", codex_raw):
-        continue
-    codex_sections.append(codex_section(key, resolve_node(provider["config"], local_env)))
-    print(f"  [ADD] Codex MCP server: {key}")
-if codex_sections:
-    codex_config.parent.mkdir(parents=True, exist_ok=True)
-    prefix = codex_raw.rstrip()
-    if prefix:
-        prefix += "\n\n"
-    codex_config.write_text(prefix + "\n\n".join(codex_sections) + "\n", encoding="utf-8")
-    print(f"  [OK] {codex_config}")
+if install_codex:
+    codex_raw = codex_config.read_text(encoding="utf-8") if codex_config.exists() else ""
+    codex_sections = []
+    for server_name, server in servers.items():
+        provider = server.get("providers", {}).get("codex")
+        if not provider or not provider.get("enabled"):
+            continue
+        if not provider_ready(provider, local_env):
+            print(f"  [WARN] Skipping Codex MCP server '{server_name}' because required env is missing")
+            continue
+        key = provider.get("key", server_name)
+        if re.search(rf"(?m)^\[mcp_servers\.{re.escape(key)}\]\s*$", codex_raw):
+            continue
+        codex_sections.append(codex_section(key, resolve_node(provider["config"], local_env)))
+        print(f"  [ADD] Codex MCP server: {key}")
+    if codex_sections:
+        codex_config.parent.mkdir(parents=True, exist_ok=True)
+        prefix = codex_raw.rstrip()
+        if prefix:
+            prefix += "\n\n"
+        codex_config.write_text(prefix + "\n\n".join(codex_sections) + "\n", encoding="utf-8")
+        print(f"  [OK] {codex_config}")
 PY
         then
             :
@@ -773,6 +1178,7 @@ PY
     else
         echo "  [WARN] python3 not found — skipping MCP config merge"
     fi
+    $INSTALL_CLAUDE && echo "  [SKIP] Claude Code MCP merge remains deferred in this installer"
 fi
 
 # --- GAL_ROOT symlinks ---
@@ -785,8 +1191,16 @@ if $UNINSTALL; then
     safe_unlink "$GAL_ROOT_COPILOT"
     safe_unlink "$GAL_ROOT_GEMINI"
 else
-    if safe_link "$GAL_ROOT_COPILOT" "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
-    if safe_link "$GAL_ROOT_GEMINI"  "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
+    if $INSTALL_COPILOT; then
+        if safe_link "$GAL_ROOT_COPILOT" "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
+    else
+        safe_unlink "$GAL_ROOT_COPILOT"
+    fi
+    if $INSTALL_GEMINI; then
+        if safe_link "$GAL_ROOT_GEMINI"  "$REPO_ROOT"; then ((gal_root_ok++)) || true; fi
+    else
+        safe_unlink "$GAL_ROOT_GEMINI"
+    fi
 fi
 
 # --- Generated GAL command skills (bake templates -> commands/gal*/SKILL.md) ---
@@ -794,7 +1208,7 @@ fi
 echo ""
 echo "=== Generated GAL command skills ==="
 
-if $UNINSTALL; then
+if $UNINSTALL || ! $NEEDS_BAKED_COMMAND_SKILLS; then
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         baked_skill="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
         if [ -f "$baked_skill" ]; then
@@ -834,8 +1248,16 @@ if $UNINSTALL; then
 else
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
-        safe_link "$SKILLS_TARGET/$command_skill_name" "$command_skill_source"
-        safe_link "$CODEX_SKILLS_TARGET/$command_skill_name" "$command_skill_source"
+        if $INSTALL_COPILOT; then
+            safe_link "$SKILLS_TARGET/$command_skill_name" "$command_skill_source"
+        else
+            safe_unlink "$SKILLS_TARGET/$command_skill_name"
+        fi
+        if $INSTALL_CODEX; then
+            safe_link "$CODEX_SKILLS_TARGET/$command_skill_name" "$command_skill_source"
+        else
+            safe_unlink "$CODEX_SKILLS_TARGET/$command_skill_name"
+        fi
     done
 fi
 
@@ -847,13 +1269,7 @@ echo "=== Migration: .agents command cleanup ==="
 for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
     shared_command_path="$SHARED_SKILLS_TARGET/$command_skill_name"
     [ -e "$shared_command_path" ] || continue
-    if ! is_symlink "$shared_command_path"; then
-        echo "  [SKIP] User-owned shared skill preserved: $shared_command_path"
-        continue
-    fi
-
-    target="$(readlink "$shared_command_path")"
-    if [[ "$target" != *"$REPO_ROOT"* ]]; then
+    if ! is_gal_repo_link "$shared_command_path"; then
         echo "  [SKIP] User-owned shared skill preserved: $shared_command_path"
         continue
     fi
@@ -871,7 +1287,7 @@ done
 echo ""
 echo "=== Gemini custom commands ==="
 
-if $UNINSTALL; then
+if $UNINSTALL || ! $INSTALL_GEMINI; then
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_file="$GEMINI_COMMANDS_TARGET/$command_skill_name.toml"
         [ -f "$command_file" ] || continue
@@ -899,6 +1315,41 @@ else
     done
 
     echo "  [NOTE] Reload active Gemini sessions with /commands reload or restart Gemini CLI to pick up updated GAL commands."
+fi
+
+# --- Claude custom commands ---
+
+echo ""
+echo "=== Claude custom commands ==="
+
+if $UNINSTALL || ! $INSTALL_CLAUDE; then
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        command_file="$CLAUDE_COMMANDS_TARGET/$command_skill_name.md"
+        [ -f "$command_file" ] || continue
+        if ! is_gal_managed_file "$command_file"; then
+            echo "  [SKIP] User-owned Claude command preserved: $command_file"
+            continue
+        fi
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $command_file"
+        else
+            rm "$command_file"
+            echo "  [REMOVED] $command_file"
+        fi
+    done
+else
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        command_file="$CLAUDE_COMMANDS_TARGET/$command_skill_name.md"
+        skill_path="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would write: $command_file"
+        else
+            new_claude_command_file_content "$skill_path" "$command_skill_name" > "$command_file"
+            echo "  [OK] $command_file"
+        fi
+    done
+
+    echo "  [NOTE] Restart Claude Code or reload its command surface to pick up updated GAL commands."
 fi
 
 # --- Migration: remove obsolete command files from installed locations ---
@@ -933,6 +1384,32 @@ for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$SHARED_SKILLS_TARGE
             echo "  [REMOVED] Obsolete command link: $d"
         fi
     done
+done
+
+for command_file in "$CLAUDE_COMMANDS_TARGET"/*.md; do
+    [ -e "$command_file" ] || continue
+    command_name="$(basename "$command_file" .md)"
+
+    keep_file=false
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        if [ "$command_name" = "$command_skill_name" ]; then
+            keep_file=true
+            break
+        fi
+    done
+    if $keep_file; then
+        continue
+    fi
+    if ! is_gal_managed_file "$command_file"; then
+        continue
+    fi
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would remove obsolete Claude command: $command_file"
+    else
+        rm "$command_file"
+        echo "  [REMOVED] Obsolete Claude command: $command_file"
+    fi
 done
 
 for command_file in "$GEMINI_COMMANDS_TARGET"/*.toml; do
@@ -996,10 +1473,12 @@ if $UNINSTALL; then
     echo "Uninstall complete."
 elif $DRY_RUN; then
     echo "Dry run complete. No changes made."
+    echo "Selected runtimes: ${SELECTED_RUNTIMES_CSV//,/ , }"
+    echo "Primary runtime: $PRIMARY_RUNTIME"
 else
-    echo "Setup complete: agents=$agent_ok/$agent_count, skills(copilot)=$skill_ok/$skill_count, skills(shared)=$shared_skill_ok/$skill_count, gal-root=$gal_root_ok/2"
+    echo "Setup complete: runtimes=${SELECTED_RUNTIMES_CSV//,/ , }; primary=$PRIMARY_RUNTIME; agents=$agent_ok/$agent_count; skills(copilot)=$skill_ok/$skill_count; skills(shared)=$shared_skill_ok/$skill_count; skills(claude)=$claude_skill_ok/$skill_count; gal-root=$gal_root_ok/2"
     echo "Note: If SKILL.template.md changes, re-run setup-machine.sh --replace to regenerate."
-    if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ] || [ "$shared_skill_fail" -gt 0 ]; then
+    if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ] || [ "$shared_skill_fail" -gt 0 ] || [ "$claude_skill_fail" -gt 0 ]; then
         echo "Some links failed. Check warnings above."
     fi
 fi
