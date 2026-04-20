@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, Codex CLI, and Claude Code to share the same workflow and work files.
+GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
@@ -15,11 +15,7 @@ Its state management draws from the phase-based discipline in [Get Shit Done (GS
 
 2. Run setup from the repo root. Use `./scripts/Setup-Machine.ps1` on Windows and `./scripts/setup-machine.sh` on macOS/Linux.
 
-On first run, setup now asks which AI runtimes to install, plus which runtime should be treated as your primary entry point. That machine-local choice is stored in `~/.gal/install-state.json`. Re-run setup with `-Reconfigure` or `--reconfigure` if you want to change it later.
-
-3. Inside a target repo, open your selected runtime and run the installed GAL command surface.
-
-Examples:
+3. Inside a target repo, open GitHub Copilot, Gemini CLI, or Codex CLI, then run:
 
 ```text
 # Copilot / Gemini CLI (slash-command surface)
@@ -28,8 +24,6 @@ Examples:
 # Codex CLI (skill mention surface, uses $ instead of /)
 $gal init
 ```
-
-The main machine-layer installation surface now targets GitHub Copilot, Gemini CLI, Codex CLI, and Claude Code. Claude support includes machine-local skills, generated command files, and repo-local `CLAUDE.md`; Claude MCP merge remains deferred.
 
 ## Control Commands
 
@@ -40,6 +34,7 @@ The main machine-layer installation surface now targets GitHub Copilot, Gemini C
 | `/gal whats-next` | Recommend one next action |
 | `/gal wrap-up` | Converge work by writing `### Handoff Notes` and `## Session Continuity` |
 | `/gal research` | Enter the research workflow |
+| `/gal deep-research` | Enter the multi-source research workflow with cross-review |
 | `/gal pipeline` | Run tasks automatically through implementer → tester → reviewer → verifier |
 
 ## Development Workflow
@@ -200,31 +195,24 @@ Normally you do not need to edit `Workflow:` by hand. It is initialized as `DRAF
 
 ## Research Workflow
 
-Research is separate from development and is entered through `/gal research`. It has its own state machine and tier system, and can run in parallel with development work.
+Research is a workflow separate from development and can run in parallel with development work.
 
-### Tier System
-
-| Tier | Best for | States | Output |
+| Mode | Best for | Flow | Source requirement |
 | --- | --- | --- | --- |
-| R0 (Quick) | a single source lookup with a likely known answer | RESEARCH → DOCUMENT | short notes or a chat response |
-| R1 (Standard) | multi-source investigation and comparison | RESEARCH → SYNTHESIZE → DOCUMENT | research files under `docs/research/` |
-| R2 (Deep) | unknown domains, cross-day work, cross-module investigation | RESEARCH → SYNTHESIZE → REVIEW → DOCUMENT | full report plus extracted vault knowledge |
+| `/gal research` | standard structured investigation | RESEARCH -> VERIFY -> DOCUMENT | enough to answer the question |
+| `/gal deep-research` | high-risk, high-ambiguity, or cross-topic investigation | RESEARCH -> SYNTHESIZE -> CROSS-REVIEW -> VERIFY -> DOCUMENT | must attempt at least 5 sources |
 
-### Lifecycle
+Both modes require VERIFY to be performed by a model different from the research author. CROSS-REVIEW in `deep-research` is a consistency review across sources, not architecture or business review. The type of gap determines where the workflow falls back:
 
-| State | Executor | Work |
-| --- | --- | --- |
-| RESEARCH | researcher | local-first investigation and evidence gathering |
-| SYNTHESIZE | researcher | organize findings, identify gaps, and surface trade-offs |
-| REVIEW (R2) | architect, analyst, designer when needed | adversarial review from the relevant angle |
-| DOCUMENT (repo) | user or any model | write to `docs/research/` |
-| DOCUMENT (vault) | librarian | write to the Obsidian vault |
-
-Research output can feed plans or vault knowledge directly. It does not need to wait for development work to finish.
+```text
+IDLE -> RESEARCH -> SYNTHESIZE -> CROSS-REVIEW -> VERIFY -> DOCUMENT -> DONE
+         ↑            ↑             ↑             |
+         └ evidence ──┴ synthesis ──┴ source/ref ─┘
+```
 
 ## Collaborative Tools
 
-GAL supports optional collaborative tools. These tools extend specific lanes without changing `/gal` control-plane ownership and are not core dependencies — GAL works fully without any of them installed.
+GAL can also use collaborative tools. These tools strengthen specific query capabilities or agent skills across the GAL workflow, but none of them are required by `/gal`, so GAL still works fully even if none of the tools below are installed. You can install them by running `Setup-Tools`.
 
 ### Shared Preflight Model
 
@@ -244,17 +232,17 @@ applicability → availability → initialization status → readiness → route
 
 Core rules: never auto-install, never auto-initialize, never hide missing capabilities behind vague success language. Every tool-enabled lane has an explicit degrade path. Full spec in [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md).
 
-### graphify — Structural Context
+### graphify
 
-When a repo has `graphify-out/` output, planning, architect review, and staff review automatically inject knowledge graph context for better structural awareness. Without the output, behavior stays unchanged. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
+A graph-structured analysis tool. It analyzes all files in a folder, writes its outputs into `graphify-out/`, and can improve later AI query capability. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
 
-### OpenCLI — Structured External Retrieval
+### OpenCLI
 
-A structured external retrieval tool that plugs into agent workflows for research and context enrichment. See [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md).
+Turn websites, browser sessions, Electron apps, and local tools into deterministic interfaces for humans and AI agents. Reuse your logged-in browser, automate live workflows, and crystallize repeated actions into reusable CLI commands. See [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md).
 
-### gstack — Planning Review Lanes
+### gstack
 
-GAL exposes `/planning`, `/deep-planning`, and `/plan-to-prompt` as the public planning surface, then maps business, design, and engineering review lanes to upstream gstack skills or fallback golems. You can still run the full planning flow without installing gstack at all. See [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md).
+Created by Garry Tan, President & CEO of Y Combinator. It turns his startup experience into AI agents. See [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md).
 
 ### Remote Worker
 
@@ -270,21 +258,21 @@ Uses ComfyUI as the generation entry point and downstream tools for cleanup and 
 
 ## Personalization
 
-Environment placeholders, model routing, MCP overrides, and rerun-setup instructions are collected in [docs/personalization.md](docs/personalization.md).
+Everything related to machine-local configuration that does not belong on the README front page is collected in [docs/personalization.md](docs/personalization.md). It covers how to fill environment placeholders, how to choose and reconfigure execution environments, model routing, MCP overrides, which `.local.*` files should hold local secrets and paths, and when setup needs to be rerun. If you need to change the AI tools you use on this machine, model-role mappings, or MCP settings, start there.
 
 ## Documentation
 
-`docs/` is mainly for fast human reading and lookup. `docs/collaborative-tools/` is the quick-entry and index layer for collaborative tools and adjacent lane-specific guides.
+`docs/` is mainly for fast human reading and lookup. `docs/collaborative-tools/` is the quick-start and index layer for collaborative tools and workflow guides.
 
 | Path | Purpose |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | command map |
 | [docs/devguide.md](docs/devguide.md) | maintainer guide |
-| [docs/personalization.md](docs/personalization.md) | local model routing, MCP overrides, and rerun setup |
+| [docs/personalization.md](docs/personalization.md) | local model routing, MCP overrides, and other personalization guidance |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | shared preflight checking contract for collaborative tools |
-| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | graphify structural context contract |
-| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI collaborative tool guide and routing |
-| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack collaborative tool contract for planning and specialist integration |
+| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | graph-structured analysis tool |
+| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI guide and when to use it |
+| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack collaborative tool contract for planning and specialist agent integration |
 | [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md) | remote worker topology, ownership, and patch-first convergence |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# workflow guide |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first game asset workflow guide |

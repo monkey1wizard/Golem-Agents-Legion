@@ -12,7 +12,7 @@ Default principle: formal cross-checks should use a different model from the one
 | ARCHITECT | Adversarial plan review — trade-offs, over-engineering, bugs | Critical thinking, minimalism, direct communication |
 | ANALYST | Business logic review — ROI, domain correctness, user impact | Commercial awareness, domain expertise |
 | DESIGNER | Review visual design, UX flow, accessibility, and design-system consistency | Experience design judgment, user empathy |
-| RESEARCHER | Investigate unknowns, synthesize findings, and prepare research outputs | Evidence gathering, source attribution, synthesis |
+| RESEARCHER | Investigate unknowns, synthesize findings, cross-review sources, and prepare research outputs for independent verification | Evidence gathering, source attribution, synthesis |
 | CODER | Write implementation code following a plan | Code generation, refactoring |
 | TESTER | Write tests from plan spec + public API only | Spec-driven, usually basic unit/integration coverage |
 | REVIEWER | Review code for bugs, security, style | Higher-level critical eye, different perspective |
@@ -27,7 +27,7 @@ Default principle: formal cross-checks should use a different model from the one
 3. **REVIEWER should differ from CODER** — fresh perspective catches blind spots
 4. **REVIEWER should also differ from TESTER when practical** — review is a higher-level check than test generation
 5. **DESIGNER should differ from CODER when used as a formal reviewer** — keep experience review independent from implementation
-6. **RESEARCHER owns research and synthesis** — `ARCHITECT`, `ANALYST`, and `DESIGNER` join later as review specialists
+6. **RESEARCHER owns research, synthesis, and cross-review** — independent reference verification must be done by a different model
 7. **LIBRARIAN** follows Guide.md for all vault writes — any model tier works, but must load Guide.md context first
 8. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
 9. When switching tools, update the **Current Mapping** table below only
@@ -54,6 +54,8 @@ Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They
 5. REVIEW → Use a DIFFERENT model again — bugs, security, architecture; this should be a higher-level check than TEST
 6. VERIFY → Run full test suite, confirm all plan items implemented
 ```
+
+Research workflow note: `/gal research` and `/gal deep-research` have their own VERIFY state for citation checking. That VERIFY pass must use a different model from the research author.
 
 ---
 

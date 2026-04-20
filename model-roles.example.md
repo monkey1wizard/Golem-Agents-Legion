@@ -23,7 +23,8 @@ Reviewer work should be higher-level than tester work when possible.
 | --- | --- | --- | --- |
 | ARCHITECT | Claude Opus 4.6 | Different model from the planning author when practical | Adversarial plan review |
 | DESIGNER | GPT-5.4 | Different model from CODER | Visual design, UX flow, accessibility, design-system review |
-| RESEARCHER | GPT-5.4 | Frontier model for research flow | Owns RESEARCH and SYNTHESIZE |
+| RESEARCHER | GPT-5.4 | Frontier model for research flow | Owns RESEARCH, SYNTHESIZE, and CROSS-REVIEW |
+| RESEARCH-VERIFIER | Gemini CLI (Gemini 2.5 Pro) | Different model from RESEARCHER | Reverse-checks references during VERIFY |
 | CODER | Copilot Agent Mode | VS Code Copilot | Main implementation agent |
 | TESTER | Gemini CLI (Gemini 2.5 Pro) | Gemini CLI | Basic unit/integration tests |
 | REVIEWER | Copilot (GPT 4.1) or Gemini CLI | Gemini CLI | Higher-level review than tester |

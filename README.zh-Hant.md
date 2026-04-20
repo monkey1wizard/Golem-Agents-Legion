@@ -25,8 +25,6 @@ GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在
 $gal init
 ```
 
-目前的主要安裝面與 command surface 以 GitHub Copilot、Gemini CLI、Codex CLI 為主。其他工具若能讀取 repo-local instructions，可沿用部分方法論，但不代表已納入同等安裝與 command contract。
-
 ## 控制指令
 
 | 指令 | 用途 |
@@ -36,6 +34,7 @@ $gal init
 | `/gal whats-next` | 推薦單一下一步動作 |
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |
 | `/gal research` | 進入研究工作流 |
+| `/gal deep-research` | 進入多來源研究工作流，包含交互審核 |
 | `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer → verifier |
 
 ## 開發工作流
@@ -196,35 +195,28 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 ## 研究工作流
 
-研究是獨立於開發的工作流程，透過 `/gal research` 進入。研究工作流有自己的狀態機與 tier 系統，可以和開發工作流平行運作。
+研究是獨立於開發的工作流程，可以和開發工作流平行運作。
 
-### Tier 系統
-
-| Tier | 適用場景 | 狀態 | 產出 |
+| 模式 | 適用時機 | 流程 | 來源要求 |
 | --- | --- | --- | --- |
-| R0（Quick） | 單一來源查找、預期有已知答案 | RESEARCH → DOCUMENT | 簡短筆記或 chat 回覆 |
-| R1（Standard） | 多來源調查、需要比較 | RESEARCH → SYNTHESIZE → DOCUMENT | `docs/research/` 內的研究文件 |
-| R2（Deep） | 未知領域、跨天、跨模組 | RESEARCH → SYNTHESIZE → REVIEW → DOCUMENT | 完整研究報告 + vault 知識萃取 |
+| `/gal research` | 標準結構化調查 | RESEARCH → VERIFY → DOCUMENT | 足夠回答問題即可 |
+| `/gal deep-research` | 高風險、高模糊度或跨主題調查 | RESEARCH → SYNTHESIZE → CROSS-REVIEW → VERIFY → DOCUMENT | 至少嘗試 5 個來源 |
 
-### 生命週期
+兩種模式都強制要求 VERIFY 由**不同於研究作者的 model** 執行。`deep-research` 的 CROSS-REVIEW 是來源間一致性審核，不是架構或商業審核。缺口類型決定回退目標：
 
-| 狀態 | 執行者 | 工作 |
-| --- | --- | --- |
-| RESEARCH | researcher | 本地優先的調查與證據收集 |
-| SYNTHESIZE | researcher | 整理原始發現，辨識缺口與權衡 |
-| REVIEW (R2) | architect / analyst / designer（條件加入） | 對稱的對抗式審核 |
-| DOCUMENT (repo) | 使用者 / 任何模型 | 寫入 `docs/research/` |
-| DOCUMENT (vault) | librarian | 寫入 Obsidian vault |
-
-研究產出可以餵進企劃書或 vault 知識，不需要等開發流程完成。
+```text
+IDLE → RESEARCH → SYNTHESIZE → CROSS-REVIEW → VERIFY → DOCUMENT → DONE
+         ↑            ↑             ↑             │
+         └─ evidence ─┴─ synthesis ─┴─ source/ref ┘
+```
 
 ## 協作工具
 
-GAL 支援可選的協作工具（collaborative tools）。這些工具擴充特定 lane 的能力，但不改變 `/gal` 的 control-plane ownership，也不是核心依賴——沒有安裝任何一個，GAL 仍能完整運作。
+GAL 可再使用協作工具（collaborative tools），這些工具各自能強化整個 GAL 流程中的特定查詢能力或 agent skills，但是這些都不是 `/gal` 的必要工具，因此即使沒有安裝任何一個下述工具，GAL 仍能完整運作。不過你可以透過執行 `Setup-Tools` 安裝這些工具。
 
-### 共用 Preflight 機制
+### 啟動前檢查機制
 
-所有協作工具在使用前都走同一套 5 狀態 preflight 檢查：
+所有協作工具在使用前都走同一套啟動前檢查機制：
 
 ```text
 applicability → availability → initialization status → readiness → route / degrade
@@ -232,25 +224,25 @@ applicability → availability → initialization status → readiness → route
 
 | 狀態 | 意義 |
 | --- | --- |
-| `not-applicable` | 目前 lane 或任務不需要此工具，直接跳過 |
-| `unavailable` | 機器或 runtime 無法存取此工具，走 fallback |
+| `not-applicable` | 目前工作流程或任務不需要此工具，直接跳過 |
+| `unavailable` | 機器無法存取此工具，或是無法執行，走備援方案 |
 | `available-but-needs-init` | 工具存在但尚未完成首次設定，不在正常流程中自動初始化 |
-| `available-but-not-ready` | 已安裝且已初始化，但當前 repo 或任務缺少所需 artifact |
+| `available-but-not-ready` | 已安裝且已初始化，但當前 repo 或任務缺少所需產物 |
 | `ready` | 適用且所有前置條件滿足，進入工具能力 |
 
-核心行為規則：不自動安裝、不自動初始化、不以模糊成功語言掩蓋缺失。每個工具啟用的 lane 都有明確的 degrade path。完整規格見 [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md)。
+核心行為規則：不主動安裝、不主動初始化、不以模糊成功語言掩蓋缺失。每個工具啟用的流程都有明確的降級路線。完整規格見 [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md)。
 
-### graphify — 結構化 Context
+### graphify
 
-當 repo 存在 `graphify-out/` 產出時，planning、architect review 與 staff review 會自動注入 knowledge graph context，提升結構感知的準確度。沒有產出時維持原有行為。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力，詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
-### OpenCLI — 結構化外部擷取
+### OpenCLI
 
-以 plugin 模式接入 agent workflow 的結構化外部資料擷取工具，用於研究與 context 補充。詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
+把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉成適合人類與 AI agent 使用的可預測介面。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
 
-### gstack — 規劃審核 Lane
+### gstack
 
-GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入口，再把 business / design / engineering review lanes 映射到 upstream gstack skills 或 fallback golems。不安裝 gstack 仍走完整規劃流程。詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
+Created by Garry Tan, President & CEO of Y Combinator，他將他的 startups 經驗轉換成 AI agents，詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
 
 ### Remote Worker
 
@@ -266,21 +258,21 @@ GAL 以 `/planning`、`/deep-planning`、`/plan-to-prompt` 作為公開規劃入
 
 ## 個人化設定
 
-環境占位符、模型路由、MCP 覆蓋與 rerun setup 的操作說明，集中在 [docs/personalization.md](docs/personalization.md)。
+凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境占位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆蓋、本機 secrets 與路徑應該放在哪些 `.local.*` 檔案，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
 
 ## 文件
 
-`docs/` 主要用於快速閱讀與查找，`docs/collaborative-tools/` 則是協作工具與相鄰 lane 導引的快速入門及索引。
+`docs/` 主要用於快速閱讀與查找，`docs/collaborative-tools/` 則是協作工具與流程導引的快速入門及索引。
 
 | 路徑 | 用途 |
 | --- | --- |
 | [docs/command-index.md](docs/command-index.md) | 指令對照表 |
 | [docs/devguide.md](docs/devguide.md) | 開發者手冊 |
-| [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋與 rerun setup |
+| [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋等個人化指引 |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |
-| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | graphify 結構化 context 契約 |
-| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 協作工具導引與使用時機 |
-| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與 specialist 整合 |
+| [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | 圖形結構化工具 |
+| [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 工具指引與使用時機 |
+| [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與專家 agents 整合 |
 | [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md) | 遠端 worker 拓撲、所有權與 patch-first 收斂 |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# 工作流導引 |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first 遊戲素材工作流導引 |

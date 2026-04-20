@@ -34,6 +34,7 @@ AI slash commands map onto the same subcommands, with `/gal` as the primary entr
 | `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
 | `/gal wrap-up` | Close the session cleanly — converge handoff updates, update `.dev/state.md`, prompt for commit |
 | `/gal research` | Enter structured investigation mode |
+| `/gal deep-research` | Enter multi-source investigation mode with cross-review and reference verification |
 
 Alias slash commands:
 

@@ -27,7 +27,7 @@ GAL keeps these roles separate on purpose.
 | [golem-architect](golem-architect.agent.md) | Domain | Consult / deep-planning review | Adversarial plan review — trade-offs, over-engineering, bugs |
 | [golem-analyst](golem-analyst.agent.md) | Domain | Consult / conditional planning review | Business logic review — ROI, domain correctness, user impact |
 | [golem-designer](golem-designer.agent.md) | Domain | Consult / conditional planning review / design review workflows | Review visual design, UX flow, accessibility, and design-system consistency |
-| [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research` or direct consult | Local-first research and structured synthesis with source attribution |
+| [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research`, `/gal deep-research`, or direct consult | Local-first research, cross-source synthesis, and reference-ready findings |
 | [golem-implementer](golem-implementer.agent.md) | Pipeline | `/gal pipeline` | Execute approved plans with atomic commits |
 | [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` | Write tests from spec only (never reads implementation) |
 | [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or review workflows | Review for bugs, security, architecture, conventions |
@@ -91,7 +91,8 @@ It uses a dedicated researcher golem plus shared review and vault-writing roles:
 | --- | --- | --- |
 | RESEARCH | researcher | Local-first investigation and evidence gathering |
 | SYNTHESIZE | researcher | Organize raw findings, identify gaps and trade-offs |
-| REVIEW (R2) | architect (conditional), analyst (conditional), designer (conditional) | Shared adversarial review roles |
+| CROSS-REVIEW | researcher | Cross-check sources for consensus, contradiction, and bias |
+| VERIFY | Independent verifier model | Reverse-check every retained reference before documentation |
 | DOCUMENT (repo) | User / any model | Direct write to `docs/research/` |
 | DOCUMENT (vault) | librarian | Requires `start-implementation` |
 

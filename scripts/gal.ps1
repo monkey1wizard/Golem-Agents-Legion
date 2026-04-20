@@ -15,7 +15,7 @@ function Show-Usage {
     Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
     Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
     Write-Host ""
-    Write-Host "Script-dispatched subcommands: init, research"
+    Write-Host "Script-dispatched subcommands: init, research, deep-research"
     Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
 }
 
@@ -237,7 +237,7 @@ switch ($Command) {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
 
-        $subcommands = @('init','research','pipeline')
+        $subcommands = @('init','research','deep-research','pipeline')
         if ($subcommands -contains $intent) {
             $action = "Execute the $intent workflow step."
             $onComplete = 'Report result to user.'
@@ -250,6 +250,10 @@ switch ($Command) {
                 'research' {
                     $action = 'Activate the /gal research skill for structured investigation.'
                     $onComplete = 'Synthesize findings and surface RESEARCH_COMPLETE to the user.'
+                }
+                'deep-research' {
+                    $action = 'Activate the /gal deep-research skill for multi-source investigation with cross-review and independent reference verification.'
+                    $onComplete = 'Synthesize findings, verify references, and surface RESEARCH_COMPLETE to the user.'
                 }
                 'pipeline' {
                     $action = 'Follow the /gal-pipeline procedure to chain implement → test → review using model-roles for multi-vendor AI assignment.'
@@ -286,7 +290,7 @@ switch ($Command) {
         if ($intent -and $subcommands -notcontains $intent) {
             Write-Dispatch @{
                 COMMAND = 'error'
-                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/research/pipeline) or a golem name."
+                ACTION = "Unknown argument: '$intent'. Use a subcommand (init/research/deep-research/pipeline) or a golem name."
             }
             break
         }

@@ -31,6 +31,7 @@ The control-plane contract, dispatch block schema, alias behavior, and runtime s
 | `/gal whats-next` | What should happen next? | reads state plus review, test, ship, and deploy sections |
 | `/gal wrap-up` | How do I stop cleanly? | updates `### Handoff Notes` and session continuity |
 | `/gal research` | How do I enter structured research mode? | routes into the research workflow |
+| `/gal deep-research` | How do I enter multi-source research mode? | routes into the deep-research workflow |
 | `/gal pipeline` | How do tasks move through implementation, test, review, and verification? | reads active prompt, `## Tasks`, `## Test Plan`, and model routing |
 
 ## Specialist Families

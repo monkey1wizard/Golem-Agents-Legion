@@ -24,7 +24,7 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 
 - **Primary control-plane entry** — `/gal` is the main interface. It routes subcommands, consults golems, and handles state-aware dispatch.
 - **Substantive alias skills** — `/gal-status`, `/gal-whats-next`, and `/gal-wrap-up` contain full procedures and do not dispatch through the script.
-- **Script-dispatched subcommands** — `init` and `research` still route through `gal.ps1 dispatch`.
+- **Script-dispatched subcommands** — `init`, `research`, and `deep-research` still route through `gal.ps1 dispatch`.
 - **Discoverability aliases** — `/gal-init`, `/gal-status`, `/gal-whats-next`, `/gal-wrap-up` exist so typing `/gal-` exposes controls in slash-command autocomplete.
 - **Baked absolute paths** — `Setup-Machine.ps1` and `setup-machine.sh` replace `{{GAL_ROOT}}` with the absolute repo path before installation.
 - **Runtime-agnostic procedures** — shared command templates refer to installed skill names rather than a Copilot-only path.
@@ -47,6 +47,7 @@ Codex note: installed GAL skills are available as Codex skills, but Codex explic
 | `/gal whats-next` | What do I do next? | Read state and recommend single next action or command |
 | `/gal wrap-up` | How do I close this session? | Converge handoff updates and update session continuity |
 | `/gal research` | I need structured investigation | Invoke research golem via script |
+| `/gal deep-research` | I need multi-source investigation with cross-review | Invoke deep-research workflow via script |
 | `/gal <golem-name>` | Consult a specific golem | Invoke that golem via script |
 
 ### `gal-*` — Discoverability Aliases
@@ -72,7 +73,7 @@ For Codex CLI, use the equivalent skill names with `$` invocation:
 
 ### Dispatch Output Protocol
 
-For script-dispatched subcommands (`init`, `research`, golem names), the CLI emits a block that the AI reads and executes:
+For script-dispatched subcommands (`init`, `research`, `deep-research`, golem names), the CLI emits a block that the AI reads and executes:
 
 ```text
 --- GAL DISPATCH ---

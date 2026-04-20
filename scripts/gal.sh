@@ -10,7 +10,7 @@ Commands:
   init [targetPath] [projectName]    Initialize .dev/ and docs/plans/
   dispatch [subcommand|golem] [text] Route to subcommand or golem via /gal skill
 
-Script-dispatched subcommands: init, research
+Script-dispatched subcommands: init, research, deep-research
 Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up
 EOF
 }
@@ -250,7 +250,7 @@ case "$command" in
     intent="${1:-}"
     sub_text="${*:2}"
     case "$intent" in
-      init|research|pipeline)
+      init|research|deep-research|pipeline)
         action="Execute the $intent workflow step."
         on_complete="Report result to user."
         case "$intent" in
@@ -261,6 +261,10 @@ case "$command" in
           research)
             action="Activate the /gal research skill for structured investigation."
             on_complete="Synthesize findings and surface RESEARCH_COMPLETE to the user."
+            ;;
+          deep-research)
+            action="Activate the /gal deep-research skill for multi-source investigation with cross-review and independent reference verification."
+            on_complete="Synthesize findings, verify references, and surface RESEARCH_COMPLETE to the user."
             ;;
           pipeline)
             action="Follow the /gal-pipeline procedure to chain implement → test → review using model-roles for multi-vendor AI assignment."
@@ -294,7 +298,7 @@ case "$command" in
           action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
           write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
         else
-          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research/pipeline) or a golem name."
+          write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research/deep-research/pipeline) or a golem name."
         fi
         ;;
     esac
