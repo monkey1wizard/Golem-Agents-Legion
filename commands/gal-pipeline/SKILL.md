@@ -139,8 +139,8 @@ All gates passed for `T-NNN`:
    ```
    Last activity: YYYY-MM-DD — T-NNN complete (commit: <Task Final Commit>)
    ```
-3. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
-4. Otherwise: advance to the next unchecked task and return to 2a.
+1. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
+2. Otherwise: advance to the next unchecked task and return to 2a.
 
 ---
 
@@ -148,7 +148,7 @@ All gates passed for `T-NNN`:
 
 After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-level goal-backward verification pass.
 
-**IMPORTANT:** Invoke `golem-verifier` for **Steps 1–4 only** (produce a VERIFIED / GAPS_FOUND / BLOCKED verdict). Do **NOT** trigger Step 5 (lifecycle ending: ABSORBED marking + plan file deletion) — that remains a post-`/ship` action.
+**IMPORTANT:** Invoke `golem-verifier` for **Steps 1–4 only** (produce a VERIFIED / GAPS_FOUND / BLOCKED verdict). Do **NOT** trigger Step 5 (lifecycle ending: ABSORBED marking + plan file deletion) — that remains a post-release action.
 
 Run:
 ```
@@ -159,8 +159,8 @@ Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan AB
 
 Check result:
 - **VERIFIED**: proceed to Step 4 (final gate)
-- **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before running `/ship`.
-- **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before running `/ship`.
+- **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before handing off to `golem-releaser`.
+- **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before release work starts.
 
 ---
 
@@ -178,10 +178,10 @@ Tasks completed: N of N
 
 Verifier: VERIFIED
 
-Overall: READY FOR SHIP
+Overall: READY FOR RELEASE
 ```
 
-Tell the user to run `/ship` as the next step.
+Tell the user to route the next step to `golem-releaser`.
 
 If any task or verifier is blocked, report with detail:
 
@@ -224,4 +224,4 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
 | Curfew active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
-| All tasks + verifier VERIFIED | Natural completion — READY FOR SHIP |
+| All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |

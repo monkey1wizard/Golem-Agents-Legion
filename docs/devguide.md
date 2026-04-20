@@ -24,12 +24,13 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 ### 2. `/gal` only solves control-plane problems
 
-- `/gal` should not wrap a second copy of `/review`, `/qa`, `/ship`, or other specialist workflows.
-- Specialist commands can run directly, but they must write back to files and sections that `/gal` understands.
+- `/gal` should not wrap a second copy of tester, reviewer, designer, security, debugger, or releaser work.
+- Execution-stage specialist behavior belongs in agents.
+- Planning commands can run directly because they are still part of the public command surface.
 
 ### 3. Repo-local state is the ownership boundary
 
-- `.dev/`, `docs/plans/`, `docs/designs/`, `docs/qa-reports/`, and similar repo-local files are the shared working state.
+- `.dev/`, `docs/plans/`, `docs/designs/`, and similar repo-local files are the shared working state.
 - Do not move GAL's core state back into user-global storage.
 
 ### 4. Missing tools must not look like success
@@ -133,12 +134,19 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 2. Check whether the change is contract-level behavior or only install/runtime presentation.
 3. If it affects generated command files, inspect the setup scripts and the relevant `commands/*/SKILL.template.md`.
 
-### Adding or changing a specialist command
+### Adding or changing a planning command
 
 1. Place it in the right family via [command-index.md](command-index.md).
 2. Update the owning prompt in `commands/<command>/SKILL.template.md`.
 3. Confirm the write-back target fits the existing plan sections and workflow state machine.
 4. If it changes optional collaborative-tool semantics, also update [collaborative-tools/gstack.md](collaborative-tools/gstack.md) and [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) when shared preflight behavior changes.
+
+### Adding or changing an execution specialist
+
+1. Update the owning prompt in `agent/<golem>.agent.md`.
+2. Confirm the write-back target fits the existing plan sections and workflow lifecycle.
+3. Update [../agent/agents.md](../agent/agents.md), [command-index.md](command-index.md), and any README sections that route users to that specialist.
+4. Do not reintroduce the behavior as a standalone public command unless it is truly control-plane or planning work.
 
 ### Changing setup, installation, or MCP merge
 

@@ -26,8 +26,10 @@ Reviewer work should be higher-level than tester work when possible.
 | RESEARCHER | GPT-5.4 | Frontier model for research flow | Owns RESEARCH, SYNTHESIZE, and CROSS-REVIEW |
 | RESEARCH-VERIFIER | Gemini CLI (Gemini 2.5 Pro) | Different model from RESEARCHER | Reverse-checks references during VERIFY |
 | CODER | Copilot Agent Mode | VS Code Copilot | Main implementation agent |
-| TESTER | Gemini CLI (Gemini 2.5 Pro) | Gemini CLI | Basic unit/integration tests |
+| TESTER | Gemini CLI (Gemini 2.5 Pro) | Gemini CLI | Spec-driven tests and browser QA; different model from CODER |
 | REVIEWER | Copilot (GPT 4.1) or Gemini CLI | Gemini CLI | Higher-level review than tester |
+| SECURITY | Copilot Agent Mode or Gemini CLI | Different model from CODER when practical | OWASP and STRIDE audit before release-sensitive work |
+| RELEASER | Copilot Agent Mode | Same machine as CODER is acceptable | Release prep, deploy orchestration, and doc sync |
 | LOCAL | Ollama: Breeze2-8B, TAIDE-LX-8B | Ollama: larger models | Privacy-sensitive and local-language tasks |
 
 ## Ollama Models

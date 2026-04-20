@@ -37,7 +37,7 @@ GAL 執行平面——透過 SSH 將文字導向任務從主控 PC 派發到 LAN
 | Source plan | `docs/plans/<plan-slug>.md` | 可更新，但只限 scope / rationale / requirements 層級 | 預設不可 |
 | Plan 層級執行 | `.dev/plans/<plan-slug>.prompt.md` | 是——主要寫入者 | 預設不可；僅在明確許可時以 patch-first 方式 |
 | 遠端 runtime（暫態） | `status.json`、`summary.md`、`worker.log`、`result.patch` | 否 | 是——唯一擁有者，永不 commit |
-| 持久輸出 | `docs/research/`、`docs/qa-reports/` 等 | 是 | 是——透過 result.patch；主控 PC 審閱後套用 |
+| 持久輸出 | `docs/research/` 與其他 durable outputs | 是 | 是——透過 result.patch；主控 PC 審閱後套用 |
 
 ### 狀態收斂流程
 

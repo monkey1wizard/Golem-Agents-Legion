@@ -11,7 +11,7 @@ When `graphify-out/GRAPH_REPORT.md` exists at the repo root, GAL may read it in 
 - `/planning` to judge whether scope crosses module boundaries
 - `/deep-planning` to add structure-aware context before converging a source plan
 - `golem-architect` to reason about core abstractions, coupling, and module boundaries
-- `/review` to cross-check whether code changes create unexpected cross-community edges
+- `golem-reviewer` to cross-check whether code changes create unexpected cross-community edges
 
 This module does not document graphify installation, graph generation, rebuild commands, or full query usage. Those remain upstream responsibilities.
 

@@ -2,7 +2,7 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window 。核心由 11 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。所有持久狀態都以本地 Markdown 檔案保存，例如 `.dev/` 與 `docs/plans/`，讓 GitHub Copilot、Gemini CLI、Codex CLI 共享同一套工作流程與檔案。
+GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 13 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。所有持久狀態都以本地 Markdown 檔案保存，例如 `.dev/` 與 `docs/plans/`，讓 GitHub Copilot、Gemini CLI、Codex CLI 共享同一套工作流程與檔案。
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
@@ -25,7 +25,7 @@ GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在
 $gal init
 ```
 
-## 控制指令
+## 公開指令
 
 | 指令 | 用途 |
 | --- | --- |
@@ -36,6 +36,9 @@ $gal init
 | `/gal research` | 進入研究工作流 |
 | `/gal deep-research` | 進入多來源研究工作流，包含交互審核 |
 | `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer → verifier |
+| `/planning` | 建立 source plan |
+| `/deep-planning` | 把 source plan 收斂到可實作 |
+| `/plan-to-prompt` | 產生 execution prompt |
 
 ## 開發工作流
 
@@ -66,7 +69,7 @@ init -> planning ─┬─ (scoped feature) ────────────
 
 ## Golem Agents
 
-GAL 的核心是 11 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
+GAL 的核心是 13 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
 
 - **prompt 精簡**：每個 agent 只載入自己的職責定義，不浪費 context window
 - **獨立性**：獨立的 tester / reviewer / verifier ，以確保驗證結果的可信度
@@ -79,7 +82,7 @@ GAL 的核心是 11 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 | 分類 | 啟動方式 | 成員 |
 | --- | --- | --- |
 | **Utility** | 任何時候直接呼叫 | debugger、scribe |
-| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、librarian |
+| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、librarian、security、releaser |
 | **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、reviewer、verifier |
 
 ### Utility Agents
@@ -97,9 +100,11 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 | --- | --- |
 | **architect** | 對抗式的企劃審核：權衡分析、過度設計偵測、bug surface、公開 API 風險 |
 | **analyst** | 商業邏輯審核：ROI、domain 正確性、使用者影響 |
-| **designer** | 視覺設計：UI/UX、設計系統一致性 |
+| **designer** | 設計系統建立、視覺探索、design-to-code 建置、live UI audit |
 | **researcher** | 本地優先的研究與結構化綜合，帶有 source attribution |
 | **librarian** | Obsidian vault 寫入：inbox processing、知識萃取 |
+| **security** | 實作階段的 OWASP 與 STRIDE 安全審核 |
+| **releaser** | release prep、deploy orchestration、文件同步 |
 
 ### Pipeline Agents
 
@@ -117,11 +122,11 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> git commit ─
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
 | **implementer** | 依照企劃與當前 `T-NNN` 任務完成實作 | 一旦踩到架構邊界或發現企劃不足，必須停止並回 `/deep-planning` |
-| **tester** | 根據規格與 public API 撰寫或補齊測試，驗證實作是否符合要求 | 不讀實作，且必須與 implementer 使用不同模型 |
+| **tester** | 根據規格與 public API 撰寫或補齊測試，必要時執行 browser QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
 | **reviewer** | 以資深工程師的標準審核變更差異、風險與完整性 | 若發現阻塞問題，必須退回 implementer 修正；使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
 | **verifier** | 在所有任務完成後，從企劃目標反向驗證成果是否真的達成 | 負責確認企劃是否可關閉，並把值得保留的知識抽回 `docs/` |
 
-Pipeline agent 的正式執行權限只來自 `/gal pipeline`。單獨呼叫時視為諮詢，不會進入正式流程。Domain agent 和 utility agent 則可隨時直接呼叫。
+`/gal pipeline` 仍是完整串接流程。Domain agent 和 utility agent 可隨時直接呼叫，Pipeline agent 也可在明確界定的 specialist 工作中直接呼叫。
 
 ### AI 模型與 Agent 規則
 
@@ -148,13 +153,11 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 | --- | --- |
 | `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
 | `.dev/state.md` | 活動企劃索引、阻塞點、工作階段連續性 |
-| `.dev/learnings.jsonl` | Repo 本地制度化記憶 |
 | `.dev/plans/<plan-slug>.prompt.md` | AI 執行工作檔案 |
 | `CLAUDE.md` | Repo 本地操作備注 |
 | `DESIGN.md` | Repo 層級設計治理 |
 | `docs/designs/<plan-slug>/` | 企劃綁定的設計資產 |
 | `docs/plans/<plan-slug>.md` | 人類可讀的企劃文件 |
-| `docs/qa-reports/` | QA 報告 |
 | `docs/research/` | 研究報告 |
 
 ### 執行工作檔
@@ -183,13 +186,12 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 | --- | --- | --- |
 | `## Open Questions` | 還有需求、假設、邊界沒定案時 | 集中列出尚未解決的問題 |
 | `## Tasks` | 要知道這個企劃實際要做哪些事時 | 任務清單，也是 pipeline 逐步執行的依據 |
-| `## Analyze` | 想確認目前變更是否仍在原本企劃範圍內時 | 記錄 `/review` 對變更是否偏離企劃範圍 |
-| `## Review Results` | 想看審核結果時 | 集中放各種審核的結果 |
+| `## Analyze` | 想確認目前變更是否仍在原本企劃範圍內時 | 記錄 reviewer 對變更是否偏離企劃範圍 |
+| `## Review Results` | 想看審核結果時 | 集中放 reviewer、designer、security 等審核結果 |
 | `## Test Plan` | 還沒開始測試，想知道應該測什麼時 | 記錄預計驗證的測試範圍 |
-| `## Test Results` | 測試或 QA 跑完之後 | 記錄測試結果 |
+| `## Test Results` | 測試或 browser QA 跑完之後 | 記錄測試結果 |
 | `### Handoff Notes` | 中途停下來，想知道上次做到哪裡時 | 提供下次接手時的上下文 |
-| `## Ship` | 準備合併或已經完成 ship 時 | 記錄 ship 階段結果 |
-| `## Deploy` | 已進入部署階段時 | 記錄部署結果與驗證 |
+| `## Release` | 準備合併、部署或同步文件時 | 記錄 release 階段結果 |
 
 `/gal status` 和 `/gal whats-next` 主要就是讀這些已回寫的內容，來判斷目前進度與下一步，而不是只看單一欄位。
 

@@ -81,10 +81,10 @@ Based on the current plan files and progress markers, list the commands that are
 | --- | --- |
 | Draft source plan, no execution prompt yet | `/deep-planning`, `/plan-to-prompt` |
 | Execution prompt exists, no eng review yet | Business review lane via configured provider or `/gal golem-analyst`; design review lane via configured provider or `/gal golem-designer`; engineering review lane via configured provider or `/gal golem-architect` |
-| Tasks initialized, work remaining | `/gal pipeline`, `/review`, `/investigate`, `/careful`, `/design-consultation` |
-| Review-stage audit for customer-facing UI work with `DESIGN.md` in place | `/design-review` |
-| Security-sensitive work touching auth, data handling, input handling, or public API surface | `/cso` |
-| Review clean, QA not yet run | `/qa`, `/qa-only` |
-| Blocking review findings or failed tests | `/investigate`, return to implementation, then `/review` |
-| High-risk work on production systems, live data, or shared risky config | `/guard` |
-| Ready to hand off or pause | `/gal whats-next`, `/gal wrap-up`, `/learn`, `/browse` |
+| Tasks initialized, work remaining | `/gal pipeline`, `golem-reviewer`, `golem-debugger`, `golem-designer` |
+| Review-stage audit for customer-facing UI work with `DESIGN.md` in place | `golem-designer` in `audit` mode |
+| Security-sensitive work touching auth, data handling, input handling, or public API surface | `golem-security` |
+| Review clean, QA not yet run | `golem-tester` |
+| Blocking review findings or failed tests | `golem-debugger`, return to implementation, then `golem-reviewer` |
+| High-risk work on production systems, live data, or shared risky config | explicit user confirmation plus the relevant owning agent |
+| Ready to hand off or pause | `/gal whats-next`, `/gal wrap-up`, `golem-releaser` |

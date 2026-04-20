@@ -41,7 +41,7 @@ Key files to read:
 Write a `summary.md` in the task output directory with:
 
 - What was done
-- Key findings (for research/review) or changes made (for docs)
+- Key findings (for research or review) or changes made (for docs)
 - Any blockers or open questions discovered
 
 ### result.patch

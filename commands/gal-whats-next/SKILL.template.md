@@ -39,15 +39,15 @@ Apply this decision tree in order:
 | No eng review recorded | Run the engineering review lane for the active plan through the configured provider, or use `/gal golem-architect` as the fallback |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
-| Implementation complete, no test results | `/qa` for full QA, or `/qa-only` for focused test run |
+| Implementation complete, no test results | `golem-tester` in `browser-qa` or `spec` mode, depending on the missing verification surface |
 | Tests failing | Return to implementation — summarize what needs fixing |
-| Tests passing, no review recorded | `/review` for code review |
+| Tests passing, no review recorded | `golem-reviewer` for code review |
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
-| Review clean, security-sensitive scope, and no security review recorded | `/cso` for a security audit before wrap-up or ship |
-| `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `/review` to update verdict |
+| Review clean, security-sensitive scope, and no security review recorded | `golem-security` for a security audit before release work |
+| `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `golem-reviewer` to update verdict |
 | `## Tasks` has incomplete items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
-| Review clean, plan not yet verified | `/gal wrap-up` to close the session for handoff |
+| Review clean, plan not yet verified | `golem-releaser` for release prep, or `/gal wrap-up` if the user is pausing instead of landing |
 | Blocker listed in `.dev/state.md` | State the blocker and what resolves it before any other action |
 | Session continuity shows interrupted work | Resume from "Stopped at" in `.dev/state.md` `## Session Continuity` |
 

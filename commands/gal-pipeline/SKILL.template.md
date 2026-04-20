@@ -19,7 +19,7 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 
 ## Syntax
 
-```
+```text
 /gal pipeline [from T-NNN] [stop-at T-NNN]
 ```
 
@@ -46,6 +46,7 @@ Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
 Read the active plan file from `.dev/state.md`.
 
 Verify:
+
 - `## Tasks` exists with at least one `T-NNN` task
 - `## Test Plan` exists in the plan file (required for golem-tester)
 - No unresolved `BLOCKING` items in `## Review Results` at the root level
@@ -71,7 +72,8 @@ Before starting a new task, check the current time against the curfew policy in 
 ### 2b — Update Cursor
 
 Update plan `## Status`:
-```
+
+```text
 Current Task: T-NNN
 Task Base Commit: —
 Task Final Commit: —
@@ -83,11 +85,13 @@ Workflow: IMPLEMENT
 ### 2c — Implement (CODER model)
 
 Run:
-```
+
+```powershell
 {{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-implementer
 ```
 
 Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
+
 1. Record `Task Base Commit` in `## Status` before any changes
 2. Implement only the work required by `T-NNN`
 3. Record `Task Final Commit` in `## Status` when done
@@ -100,13 +104,15 @@ Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
 Update plan `## Status`: set `Workflow: TEST`
 
 Run:
-```
+
+```powershell
 {{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-tester
 ```
 
 Invoke in task-scoped mode for `T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
 
 Check result:
+
 - **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
@@ -116,13 +122,15 @@ Check result:
 ### 2e — Review (REVIEWER model — different vendor from CODER and TESTER)
 
 Run:
-```
+
+```powershell
 {{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-reviewer
 ```
 
 Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
 
 Check result:
+
 - **APPROVE (no BLOCKING)**: proceed to 2f
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`
@@ -134,13 +142,16 @@ Check result:
 ### 2f — Mark Task Complete
 
 All gates passed for `T-NNN`:
+
 1. Mark `T-NNN` as complete in `## Tasks` (check the checkbox)
 2. Update plan `## Status`:
-   ```
+
+  ```text
    Last activity: YYYY-MM-DD — T-NNN complete (commit: <Task Final Commit>)
    ```
-3. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
-4. Otherwise: advance to the next unchecked task and return to 2a.
+
+1. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
+2. Otherwise: advance to the next unchecked task and return to 2a.
 
 ---
 
@@ -148,19 +159,21 @@ All gates passed for `T-NNN`:
 
 After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-level goal-backward verification pass.
 
-**IMPORTANT:** Invoke `golem-verifier` for **Steps 1–4 only** (produce a VERIFIED / GAPS_FOUND / BLOCKED verdict). Do **NOT** trigger Step 5 (lifecycle ending: ABSORBED marking + plan file deletion) — that remains a post-`/ship` action.
+**IMPORTANT:** Invoke `golem-verifier` for **Steps 1–4 only** (produce a VERIFIED / GAPS_FOUND / BLOCKED verdict). Do **NOT** trigger Step 5 (lifecycle ending: ABSORBED marking + plan file deletion) — that remains a post-release action.
 
 Run:
-```
+
+```powershell
 {{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-verifier
 ```
 
 Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan ABSORBED or delete the plan file."
 
 Check result:
+
 - **VERIFIED**: proceed to Step 4 (final gate)
-- **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before running `/ship`.
-- **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before running `/ship`.
+- **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before handing off to `golem-releaser`.
+- **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before release work starts.
 
 ---
 
@@ -168,7 +181,7 @@ Check result:
 
 Report the combined verdict:
 
-```
+```text
 --- PIPELINE COMPLETE ---
 
 Tasks completed: N of N
@@ -178,14 +191,14 @@ Tasks completed: N of N
 
 Verifier: VERIFIED
 
-Overall: READY FOR SHIP
+Overall: READY FOR RELEASE
 ```
 
-Tell the user to run `/ship` as the next step.
+Tell the user to route the next step to `golem-releaser`.
 
 If any task or verifier is blocked, report with detail:
 
-```
+```text
 --- PIPELINE BLOCKED ---
 
 Task:    T-NNN
@@ -201,12 +214,15 @@ Action required: [what the user needs to do]
 ## Non-Script Fallback
 
 If the script cannot be run (e.g. macOS / Linux), run:
-```
+
+```bash
 {{GAL_ROOT}}/scripts/gal.sh dispatch golem-implementer
 ```
+
 (and equivalent for tester, reviewer, verifier)
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
+
 - `agent/golem-implementer.agent.md`
 - `agent/golem-tester.agent.md`
 - `agent/golem-reviewer.agent.md`
@@ -224,4 +240,4 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
 | Curfew active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
-| All tasks + verifier VERIFIED | Natural completion — READY FOR SHIP |
+| All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |

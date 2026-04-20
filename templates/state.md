@@ -1,6 +1,6 @@
 # GAL State
 
-<!-- Per-task state (workflow step, deviations, test/review results) lives in the plan file's ## Status section, not here. This file tracks repo-level concerns only. -->
+<!-- Per-task state (workflow step, deviations, test and review results) lives in the plan file's ## Status section, not here. This file tracks repo-level concerns only. -->
 
 ## Active Plans
 

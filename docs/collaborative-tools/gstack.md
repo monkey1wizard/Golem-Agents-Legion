@@ -1,13 +1,10 @@
 # gstack Collaborative Tool Contract
 
-gstack is an optional specialist collaborative tool for GAL, not a core runtime dependency. GAL keeps its own planning entry points, execution commands, and repo-local state model whether gstack is installed or not.
+gstack is an optional planning-stage collaborative tool for GAL, not a core runtime dependency. GAL keeps its own planning entry points, agent-owned execution model, and repo-local state whether gstack is installed or not.
 
 ## What This Module Covers
 
-When gstack is installed, GAL can use it for two kinds of enhancement:
-
-1. planning-stage review capabilities such as discovery-style planning, business review, design review, and engineering review
-2. specialist execution commands whose outputs still write back into GAL-owned files
+When gstack is installed, GAL can use it to enhance planning-stage review capabilities such as discovery-style planning, business review, design review, and engineering review.
 
 Without gstack, GAL still works through native planning commands and fallback golems.
 
@@ -15,7 +12,7 @@ Without gstack, GAL still works through native planning commands and fallback go
 
 - `/gal` still owns the control plane.
 - Repo-local Markdown files still own state.
-- Specialist commands still write back to the same plan sections and output directories.
+- Specialist work is still written back to the same plan sections and output directories.
 - Collaborative-tool routing still happens at the workflow layer, not by silently changing an agent persona.
 
 ## Preflight - Shared Checking Model
@@ -69,18 +66,19 @@ These lanes happen after the source plan draft exists and before `/plan-to-promp
 
 If gstack is unavailable or not ready, degrade to GAL-native planning commands and fallback golems. Do not surface gstack setup as a normal prerequisite unless the user explicitly asked for gstack-specific capability.
 
-## Execution Specialists
+## Execution Surface Boundary
 
-The execution-stage commands do not depend on gstack planning being present. Their value is that they keep a disciplined write-back model.
+gstack does not own GAL's execution-stage public surface.
 
-| Command family | Examples | Primary write-back |
-| --- | --- | --- |
-| design execution | `/design-consultation`, `/design-shotgun`, `/design-html`, `/design-review` | `DESIGN.md`, `docs/designs/`, `docs/design-reports/`, plan review sections |
-| review and QA | `/review`, `/qa`, `/qa-only`, `/cso` | plan `## Review Results`, `## Analyze`, `## Test Results`, `docs/qa-reports/` |
-| release | `/ship`, `/land-and-deploy`, `/document-release` | plan `## Ship`, `## Deploy`, and repo docs |
-| safety and memory | `/learn`, `/careful`, `/freeze`, `/guard`, `/unfreeze` | `.dev/learnings.jsonl` or session-only state |
+- design execution and audit are owned by `golem-designer`
+- QA is owned by `golem-tester`
+- code review is owned by `golem-reviewer`
+- security review is owned by `golem-security`
+- release work is owned by `golem-releaser`
 
-For the full command map, use [../command-index.md](../command-index.md). For the control-plane contract and runtime surface, use [../../commands/commands.md](../../commands/commands.md).
+These are GAL-native agent contracts, whether or not gstack is installed.
+
+For the current routing map, use [../command-index.md](../command-index.md). For the control-plane contract and runtime surface, use [../../commands/commands.md](../../commands/commands.md).
 
 ## Upstream Semantics Mapped Into GAL
 
@@ -90,10 +88,8 @@ GAL does not claim full equivalence with upstream gstack. The goal is narrower: 
 | --- | --- |
 | discovery-style feature planning | creates a source plan in `docs/plans/` |
 | engineering review lane | writes `## Test Plan` and `## Tasks` into the source plan before execution |
-| staff-style code review | writes a drift-readable verdict into `## Analyze` |
-| QA run with persistent report | writes `## Test Results` and stores reports in `docs/qa-reports/` |
-| design variant exploration | stores files in `docs/designs/` |
-| sprint learnings | stores repo-local learnings in `.dev/learnings.jsonl` |
+| planning-stage design review | writes review feedback into the source plan before execution |
+| business or scope review | challenges ambition, scope, and value order before execution |
 
 ## Runtime Notes
 

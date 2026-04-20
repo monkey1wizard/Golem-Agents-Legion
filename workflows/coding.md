@@ -1,7 +1,7 @@
 # Coding Flow
 
-The primary development workflow is command-driven, not dispatcher-state-driven.
-Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist commands write back to the active execution prompt.
+The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
+Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist agents write back to the active execution prompt.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -11,9 +11,9 @@ Not every change needs the same amount of planning. GAL uses command choice, not
 
 | Situation | Recommended Flow | Architect | Notes |
 | --- | --- | --- | --- |
-| Obvious local fix | Direct implement, optional `/review`, optional `/qa` | Optional consult | Use when scope and impact are already clear |
-| Scoped feature or known-cause bug | `/planning` → `/plan-to-prompt` → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
-| Structural, cross-cutting, or uncertain change | `/planning` → `/deep-planning` → `/plan-to-prompt` → implement → `/review` → conditional `/design-review` or `/cso` → `/qa` → `/ship` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
+| Obvious local fix | Direct implement, optional `golem-reviewer`, optional `golem-tester` | Optional consult | Use when scope and impact are already clear |
+| Scoped feature or known-cause bug | `/planning` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
+| Structural, cross-cutting, or uncertain change | `/planning` -> `/deep-planning` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
 
 If implementation uncovers architectural uncertainty, stop and return to `/deep-planning` before continuing.
 
@@ -21,17 +21,17 @@ If implementation uncovers architectural uncertainty, stop and return to `/deep-
 
 GAL's coding flow is expressed as write-back command phases.
 
-| Phase | Entry Signal | Commands | Main Files / Outputs |
+| Phase | Entry Signal | Owners | Main Files / Outputs |
 | --- | --- | --- | --- |
 | **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
 | **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
 | **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, code changes |
-| **Review-stage audits** | Implementation reached a meaningful checkpoint | `/review`, conditional `/design-review`, conditional `/cso`, `/qa`, `/qa-only` | `## Analyze`, `## Review Results`, `## Test Results` |
-| **Wrap-up or ship** | Work is paused or ready to land | `/gal wrap-up`, `/ship`, `/land-and-deploy` | `### Handoff Notes`, `.dev/state.md`, `## Ship`, `## Deploy` |
+| **Review-stage audits** | Implementation reached a meaningful checkpoint | `golem-reviewer`, conditional `golem-designer`, conditional `golem-security`, `golem-tester` | `## Analyze`, `## Review Results`, `## Test Results` |
+| **Wrap-up or release** | Work is paused or ready to land | `/gal wrap-up`, `golem-releaser` | `### Handoff Notes`, `.dev/state.md`, `## Release` |
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
-`/review` and `/design-review` both belong to the post-implementation review stage. `/review` audits correctness, completeness, and scope drift in the code changes; `/design-review` audits the running UI against `DESIGN.md`; `/cso` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
+`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews
 
@@ -50,7 +50,7 @@ Before planning, review, or specialist lanes attempt to use a collaborative tool
 | Workflow phase | Tools that may apply | Degrade behavior |
 | --- | --- | --- |
 | `/planning` and `/deep-planning` | graphify for structural context, gstack for optional review lanes | Continue with native planning and fallback golems |
-| `/review` | graphify for cross-community coupling checks | Continue with standard diff-based review |
+| review-stage audit | graphify for cross-community coupling checks | Continue with standard diff-based review |
 | research workflows | OpenCLI for structured external retrieval | Fall back to MCP retrieval or browser tools |
 
 Do not treat a missing collaborative tool as a workflow error. Do not prompt for install or initialization unless the user explicitly asked for the tool-specific capability.
@@ -72,9 +72,11 @@ These changes need an architect-reviewed plan before implementation continues.
 
 ## Session Safety Mode
 
-`/guard` is a high-risk-only safety mode. Use it when the work touches production systems, live data, shared risky config, or any task where you want `/careful` plus a strict edit boundary from `/freeze` in one command.
+Session safety is now agent-internal discipline, not a public command family.
 
-For normal feature work, `/careful` is the lighter default. `/guard` should not be treated as a universal readiness step.
+- `golem-debugger` owns freeze-style scope control during investigations
+- destructive shell operations still require explicit caution and user clarity
+- do not reintroduce session-safety slash commands as public workflow steps
 
 ## Protected Paths
 
@@ -136,9 +138,9 @@ This is manually triggered — the AI does not know when you're switching contex
 | --- | --- | --- |
 | **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal [ask architect]`, `/gal [ask analyst]` |
 | **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run scribe]` |
-| **Pipeline** | Direct invocation is consult-only | `/gal [golem-tester]`, `/gal [golem-reviewer]` for scoped advice; full execution authority comes from `/gal pipeline` |
+| **Pipeline** | Yes | `/gal [golem-tester]`, `/gal [golem-reviewer]` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
-Consult output is advice, not a formal APPROVE or REVIEW verdict. Formal outcomes come from the specialist commands and the files and sections they update.
+Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
 ## Per-Phase Model Assignment
 

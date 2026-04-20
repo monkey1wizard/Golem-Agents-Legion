@@ -1,6 +1,6 @@
 # Agents
 
-Specialist agent definitions for GAL's command-driven execution model.
+Specialist agent definitions for GAL's agent-owned execution model.
 These are `.agent.md` files for VS Code Copilot custom agents.
 
 ## Specialist Classifications
@@ -9,9 +9,9 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | --- | --- | --- |
 | **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, reviewer, verifier |
 | **Utility** | Callable at any tier | debugger, scribe |
-| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, librarian |
+| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, librarian, security, releaser |
 
-## Why GAL Uses 11 Agents
+## Why GAL Uses 13 Agents
 
 GAL keeps these roles separate on purpose.
 
@@ -26,15 +26,17 @@ GAL keeps these roles separate on purpose.
 | --- | --- | --- | --- |
 | [golem-architect](golem-architect.agent.md) | Domain | Consult / deep-planning review | Adversarial plan review — trade-offs, over-engineering, bugs |
 | [golem-analyst](golem-analyst.agent.md) | Domain | Consult / conditional planning review | Business logic review — ROI, domain correctness, user impact |
-| [golem-designer](golem-designer.agent.md) | Domain | Consult / conditional planning review / design review workflows | Review visual design, UX flow, accessibility, and design-system consistency |
+| [golem-designer](golem-designer.agent.md) | Domain | Consult / design execution / live audit | Own the design system, variant exploration, design-to-code build, and live UI audit |
 | [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research`, `/gal deep-research`, or direct consult | Local-first research, cross-source synthesis, and reference-ready findings |
 | [golem-implementer](golem-implementer.agent.md) | Pipeline | `/gal pipeline` | Execute approved plans with atomic commits |
-| [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` | Write tests from spec only (never reads implementation) |
-| [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or review workflows | Review for bugs, security, architecture, conventions |
+| [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` or direct verification | Run spec-driven tests and real-browser QA |
+| [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or direct review | Review for bugs, security, architecture, conventions, and standalone staff review write-back |
 | [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
-| [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation |
+| [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation with internal freeze discipline |
 | [golem-scribe](golem-scribe.agent.md) | Utility | Any time | End-of-day diary + shutdown enforcer |
 | [golem-librarian](golem-librarian.agent.md) | Domain | Consult / vault workflows | Obsidian vault writes — inbox processing, knowledge extraction |
+| [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE security review with plan write-back |
+| [golem-releaser](golem-releaser.agent.md) | Domain | Direct release prep / deploy / doc sync | Release prep, deploy orchestration, and documentation sync |
 
 ## Planning Reviews
 
@@ -44,7 +46,7 @@ GAL keeps these roles separate on purpose.
 - **Analyst** (conditional): add when the plan changes business rules, pricing, permissions, or customer-visible behavior
 - **Designer** (conditional): add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions
 
-`reviewer` and `debugger` remain implementation-stage specialists. They are not default planning reviewers.
+`reviewer`, `debugger`, `security`, and `releaser` remain implementation-stage specialists. They are not default planning reviewers.
 
 ## Direct Agent Invocation
 
@@ -52,15 +54,17 @@ GAL keeps these roles separate on purpose.
 | --- | --- | --- |
 | **Consult** (Domain) | Yes | Read-only advice, no formal verdict. e.g., `/gal [ask architect]` |
 | **Utility** | Yes | Independent helper. e.g., `/gal [run debugger]`, `/gal [run scribe]` |
-| **Pipeline** | Consult-only by direct invocation | Full execution authority comes from `/gal pipeline` or another specialist workflow, not dispatcher state. |
+| **Pipeline** | Yes | Pipeline agents may still be invoked directly when the task is clearly bounded to their specialist contract. |
 | **Librarian** | Yes | Vault writes on demand. e.g., `@golem-librarian inbox`, `@golem-librarian extract`. Requires `start-implementation` for vault writes. |
 
 Typical direct use examples:
 
 - `/gal [ask designer]`
 - `/gal [golem-researcher]`
+- `@golem-security audit this branch`
+- `@golem-releaser prepare release`
 
-Consult output is advice, not an APPROVE/REVIEW verdict. Formal verdicts come from DISCUSS/REVIEW states only.
+Consult output is advice unless the named agent's contract explicitly includes formal write-back for its specialist stage.
 Workflow specialists may be explicitly named, but doing so does not skip PLAN, TEST, REVIEW, or VERIFY gates.
 
 ## Model Role Enforcement

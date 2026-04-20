@@ -78,9 +78,9 @@ Review Retry Count: 0
 
 ## Analyze
 
-[Written by /review — verdict: CLEAR | DRIFT-OPEN | NOT-RUN]
+[Written by golem-reviewer — verdict: CLEAR | DRIFT-OPEN | NOT-RUN]
 
-<!-- Sole writer: /review. /ship, /gal status, /gal whats-next consume verdict only — they do not recalculate drift. -->
+<!-- Sole writer: golem-reviewer. golem-releaser, /gal status, /gal whats-next consume verdict only — they do not recalculate drift. -->
 
 ## Test Plan
 

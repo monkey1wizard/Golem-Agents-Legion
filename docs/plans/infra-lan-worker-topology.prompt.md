@@ -64,7 +64,7 @@
 | `.dev/state.md` | 可更新，但只限 active-plan index、blockers、session continuity、next step 改變時 | 否 | repo-level index，不是 per-task log |
 | `docs/plans/<plan-slug>.md` | 可更新 | 預設否 | source plan，不是 live runtime 狀態 |
 | `.dev/plans/<plan-slug>.prompt.md` | 是，為主要 writer | 預設否；僅在後續 policy 明確允許時才可透過 patch-first 提案 | 詳細 per-task state 的正式來源 |
-| `docs/research/`, `docs/qa-reports/`, `docs/design-reports/` 等 durable outputs | 是 | 是，限 patch-first 任務 | remote 可產生這些檔案，但由 Main PC 審核整合 |
+| `docs/research/`, `docs/design-reports/` 與其他 durable outputs | 是 | 是，限 patch-first 任務 | remote 可產生這些檔案，但由 Main PC 審核整合 |
 | `status.json`, `summary.md`, `worker.log` | 否 | 是 | 僅存在 task-scoped temp，不屬於主要檔案狀態 |
 
 ### File Ownership And Commit Strategy
@@ -127,8 +127,8 @@ plan prompt 與 `.dev/state.md` 是正式 workflow state。即使 remote worker 
 | Command / Output Class | Offload Policy | Write-Back Strategy |
 | --- | --- | --- |
 | `/gal research`, bounded repo scan, docs rewrite | 可 offload | remote 直接產生 repo-path outputs，Main PC 以 patch-first 整合 |
-| `/review`, `/qa` | 條件式 | remote 可執行 bounded analysis 或 test run，但正式 `## Review Results` / `## Test Results` 預設由 Main PC 回寫 |
-| engineering review lane, discovery-style planning provider, `/ship`, `/gal wrap-up` | Main PC only | 這些流程直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
+| `golem-reviewer`, `golem-tester` | 條件式 | remote 可執行 bounded analysis 或 test run，但正式 `## Review Results` / `## Test Results` 預設由 Main PC 回寫 |
+| engineering review lane, discovery-style planning provider, `golem-releaser`, `/gal wrap-up` | Main PC only | 這些流程直接擁有 plan sections 或 repo-level state，不應交給 disposable remote worker |
 | `## Status`, `## Tasks`, `## Analyze` 的常規更新 | Primary Feature Worktree only | 屬於主要 workflow state，不預設由 remote worker 持有 |
 
 ### Mac Mini Resource Allocation

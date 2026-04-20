@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 11 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
+GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing context. Its core is a `/gal` control plane plus 13 clearly separated Golem Agents, forming a document-driven development model. All durable state is stored in local Markdown files such as `.dev/` and `docs/plans/`, allowing GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow and work files.
 
 Its state management draws from the phase-based discipline in [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done): explicit state in `.dev/state.md`, verification gates, and a structured execution lifecycle. That is what allows `/gal status` and `/gal whats-next` to project the current state of work in a repo.
 
@@ -25,7 +25,7 @@ Its state management draws from the phase-based discipline in [Get Shit Done (GS
 $gal init
 ```
 
-## Control Commands
+## Public Commands
 
 | Command | Purpose |
 | --- | --- |
@@ -36,6 +36,9 @@ $gal init
 | `/gal research` | Enter the research workflow |
 | `/gal deep-research` | Enter the multi-source research workflow with cross-review |
 | `/gal pipeline` | Run tasks automatically through implementer → tester → reviewer → verifier |
+| `/planning` | Create a source plan |
+| `/deep-planning` | Harden a source plan for implementation |
+| `/plan-to-prompt` | Materialize the execution prompt |
 
 ## Development Workflow
 
@@ -66,7 +69,7 @@ If the change also needs business, design, or engineering review, those should b
 
 ## Golem Agents
 
-GAL is built around 11 specialized agents, each with its own `.agent.md` definition. The design principles are:
+GAL is built around 13 specialized agents, each with its own `.agent.md` definition. The design principles are:
 
 - **lean prompts**: each agent loads only its own role definition instead of wasting context on every possible concern
 - **independence**: separate tester, reviewer, and verifier roles improve trust in the result
@@ -79,7 +82,7 @@ Besides using `/gal` commands, you can also invoke a `golem-` agent directly for
 | Class | How it activates | Members |
 | --- | --- | --- |
 | **Utility** | callable directly at any time | debugger, scribe |
-| **Domain** | consulted by commands or directly by the user | architect, analyst, designer, researcher, librarian |
+| **Domain** | consulted by commands or directly by the user | architect, analyst, designer, researcher, librarian, security, releaser |
 | **Pipeline** | chained automatically by `/gal pipeline` | implementer, tester, reviewer, verifier |
 
 ### Utility Agents
@@ -97,9 +100,11 @@ Domain agents provide specialist advice and can be invoked at any stage.
 | --- | --- |
 | **architect** | adversarial plan review: trade-offs, over-design detection, bug surface, and public API risk |
 | **analyst** | business logic review: ROI, domain correctness, and user impact |
-| **designer** | visual design: UI/UX and design-system consistency |
+| **designer** | design system creation, visual exploration, design-to-code build, and live UI audit |
 | **researcher** | local-first research and structured synthesis with source attribution |
 | **librarian** | writes into the Obsidian vault: inbox processing and knowledge extraction |
+| **security** | OWASP and STRIDE audit for implementation-stage security-sensitive changes |
+| **releaser** | release prep, deploy orchestration, and documentation sync |
 
 ### Pipeline Agents
 
@@ -117,11 +122,11 @@ all tasks complete: ──> verifier ──> confirm the plan goal was actually 
 | Agent | Responsibility | Key rule |
 | --- | --- | --- |
 | **implementer** | implement the current `T-NNN` task against the plan | if it hits an architectural boundary or the plan is insufficient, it must stop and return to `/deep-planning` |
-| **tester** | write or extend tests from the spec and public API, then verify the implementation | it must not read implementation code and must use a different model than implementer |
+| **tester** | write or extend tests from the spec and public API, and run browser QA when needed | spec mode must not read implementation code and must use a different model than implementer |
 | **reviewer** | review the diff for risk, correctness, and completeness | if it finds blocking issues, work must go back to implementer. its model should differ from implementer and should not be weaker |
 | **verifier** | work backward from the original goal after all tasks are done | it decides whether the plan can close and what knowledge should be absorbed back into `docs/` |
 
-Pipeline authority only comes from `/gal pipeline`. Directly invoking a pipeline agent is consultation, not formal execution. Domain and utility agents can still be called directly at any time.
+`/gal pipeline` remains the full chained execution path. Domain and utility agents can be called directly, and pipeline agents may also be invoked directly for bounded specialist work.
 
 ### AI Model And Agent Rules
 
@@ -148,13 +153,11 @@ All agents obey curfew boundaries:
 | --- | --- |
 | `.dev/project.md` | repo summary, stack, goals, and constraints |
 | `.dev/state.md` | active plan index, blockers, and session continuity |
-| `.dev/learnings.jsonl` | repo-local institutional memory |
 | `.dev/plans/<plan-slug>.prompt.md` | AI execution work file |
 | `CLAUDE.md` | repo-local operational notes |
 | `DESIGN.md` | repo-level design governance |
 | `docs/designs/<plan-slug>/` | plan-bound design assets |
 | `docs/plans/<plan-slug>.md` | human-readable plan document |
-| `docs/qa-reports/` | QA reports |
 | `docs/research/` | research reports |
 
 ### Execution Work File
@@ -183,13 +186,12 @@ Normally you do not need to edit `Workflow:` by hand. It is initialized as `DRAF
 | --- | --- | --- |
 | `## Open Questions` | when requirements, assumptions, or boundaries are still unresolved | central list of unresolved issues |
 | `## Tasks` | when you need to know what work the plan actually contains | task list and basis for pipeline execution |
-| `## Analyze` | when you want to check whether the current diff still matches the original plan scope | records `/review` drift analysis |
-| `## Review Results` | when you want review outcomes | collects review results from different specialists |
+| `## Analyze` | when you want to check whether the current diff still matches the original plan scope | records reviewer drift analysis |
+| `## Review Results` | when you want review outcomes | collects review results from reviewer, designer, and security specialists |
 | `## Test Plan` | before testing starts, when you want to know what should be verified | records intended verification scope |
-| `## Test Results` | after tests or QA are complete | records test outcomes |
+| `## Test Results` | after tests or browser QA are complete | records test outcomes |
 | `### Handoff Notes` | when you pause and need to know where work last stopped | provides resume context for the next session |
-| `## Ship` | when preparing to merge or after shipping | records ship-stage results |
-| `## Deploy` | once deployment has started | records deployment result and verification |
+| `## Release` | when preparing to merge, deploying, or syncing docs | records release-stage results |
 
 `/gal status` and `/gal whats-next` read these written sections to determine state and next action. They do not rely on one field alone.
 
