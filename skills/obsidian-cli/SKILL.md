@@ -59,7 +59,7 @@ If Obsidian is closed and the task depends on a write, state the exact command y
 
 ## Command reference
 
-Run `obsidian help` to see all available commands. This is always up to date. Full docs: https://help.obsidian.md/cli
+Run `obsidian help` to see all available commands. This is always up to date. Full docs: https://obsidian.md/help/cli
 
 ## Syntax
 

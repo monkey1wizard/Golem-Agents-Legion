@@ -36,8 +36,6 @@ Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux
 | `<MCP_FILESYSTEM_PATHS>` | allowed root paths for the filesystem MCP server | MCP manifest merge |
 | `<MCP_MEMORY_FILE_PATH>` | path to the persistent MCP memory JSON file | MCP manifest merge |
 | `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP manifest merge |
-| `<OBSIDIAN_API_KEY>` | Obsidian Local REST API key | Obsidian MCP |
-| `<OBSIDIAN_BASE_URL>` | Obsidian Local REST API base URL | Obsidian MCP |
 
 ## Common Personalization Steps
 
@@ -64,6 +62,7 @@ If you want a machine-local customization for a specific command skill that shou
 
 Obsidian support is machine-local and optional. GAL separates repo-owned state from user-owned notes:
 
+- GAL's Obsidian automation now uses the built-in `obsidian` CLI, not the old Local REST API MCP bridge.
 - Repo-owned research stays in `docs/research/` by default.
 - Private captures and reusable knowledge can route into your Obsidian vault when `OBSIDIAN_VAULT` is configured.
 - If you want GAL to follow your own library rules, set `OBSIDIAN_GUIDE_PATH` and leave `OBSIDIAN_GUIDE_MODE=auto` or force `guide`.

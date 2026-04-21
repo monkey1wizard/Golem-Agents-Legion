@@ -1112,10 +1112,6 @@ servers = manifest.get("servers", {})
 local_env = read_env_file(repo_root / "config.local.env")
 if "MCP_MEMORY_FILE_PATH" not in local_env:
     local_env["MCP_MEMORY_FILE_PATH"] = str(Path.home() / "mcp-memory.json")
-if "OBSIDIAN_VERIFY_SSL" not in local_env:
-    local_env["OBSIDIAN_VERIFY_SSL"] = "false"
-if "OBSIDIAN_ENABLE_CACHE" not in local_env:
-    local_env["OBSIDIAN_ENABLE_CACHE"] = "true"
 if "MCP_FILESYSTEM_PATHS" not in local_env:
     defaults = [str(repo_root.parent)]
     if local_env.get("OBSIDIAN_VAULT"):

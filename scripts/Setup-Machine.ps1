@@ -566,14 +566,6 @@ function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues) {
         $values['MCP_MEMORY_FILE_PATH'] = Join-Path $env:USERPROFILE 'mcp-memory.json'
     }
 
-    if (-not $values.Contains('OBSIDIAN_VERIFY_SSL')) {
-        $values['OBSIDIAN_VERIFY_SSL'] = 'false'
-    }
-
-    if (-not $values.Contains('OBSIDIAN_ENABLE_CACHE')) {
-        $values['OBSIDIAN_ENABLE_CACHE'] = 'true'
-    }
-
     if (-not $values.Contains('MCP_FILESYSTEM_PATHS')) {
         $paths = @((Split-Path $repoRoot -Parent))
         $obsidianVault = Get-ConfiguredValue $values 'OBSIDIAN_VAULT'
