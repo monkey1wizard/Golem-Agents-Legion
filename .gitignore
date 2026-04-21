@@ -18,3 +18,4 @@ openclaw.json
 config.local.env
 mcp-servers.local.json
 model-roles.local.md
+commands/*/SKILL.local.md

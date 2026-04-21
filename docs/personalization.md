@@ -51,7 +51,16 @@ Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux
 - Put secrets, absolute paths, and machine-specific values in `../config.local.env`.
 - Do not write local values into tracked docs, command templates, or source files.
 
-### 2a. Obsidian routing
+### 2a. Command skill local overlays
+
+If you want a machine-local customization for a specific command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`.
+
+- `SKILL.local.md` is gitignored and treated as user-owned machine-local input.
+- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating Gemini and Claude command files.
+- Do not edit `commands/<command>/SKILL.md` directly. It remains a generated file and will be replaced on the next setup run.
+- Keep `SKILL.local.md` to additional instruction content only. Do not add a second frontmatter block.
+
+### 2b. Obsidian routing
 
 Obsidian support is machine-local and optional. GAL separates repo-owned state from user-owned notes:
 
@@ -73,7 +82,7 @@ Recommended defaults:
 | `OBSIDIAN_ARCHIVE_DIR` | `30_Archives/Work_Journal` |
 | `RESEARCH_DEFAULT_DEST` | `repo` |
 
-### 2b. Working Hours
+### 2c. Working Hours
 
 Working-hours enforcement is disabled by default. If you want GAL to respect your own workday boundary, configure it in `config.local.env`:
 
@@ -107,6 +116,7 @@ Run setup again when any of these change:
 
 - `config.local.env`
 - `mcp-servers.local.json`
+- any `commands/*/SKILL.local.md`
 - `~/.gal/install-state.json`
 - Obsidian routing paths or Guide mode
 - working-hours settings

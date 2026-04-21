@@ -90,7 +90,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 
 | Generated file | Why it exists |
 | --- | --- |
-| `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` |
+| `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
 | `~/.claude/commands/*.md` | Claude-native command surface generated from the baked command skill |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |

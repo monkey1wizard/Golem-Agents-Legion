@@ -9,7 +9,7 @@
 #   commands/*/       -> ~/.copilot/skills/*/ + ~/.codex/skills/*/ (baked command skills)
 #   commands/*/       -> ~/.gemini/commands/*.toml + ~/.claude/commands/*.md
 #   <repo root>       -> ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
-#   Generates commands/*/SKILL.md from SKILL.template.md (baked absolute paths)
+#   Generates commands/*/SKILL.md from SKILL.template.md (baked absolute paths) plus optional gitignored SKILL.local.md overlays
 #   Generates ~/.gemini/commands/*.toml so Gemini CLI can expose GAL commands natively
 #   Generates ~/.claude/commands/*.md so Claude Code can expose GAL commands natively
 #   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
@@ -191,6 +191,25 @@ is_gal_command_link() {
     [ -n "$target" ] || return 1
 
     [[ "$target" == *"$REPO_ROOT"*"/commands/"* ]]
+}
+
+get_baked_command_skill_content() {
+    local template_path="$1"
+    local local_override_path="$2"
+    local baked
+
+    baked="$(sed "s|{{GAL_ROOT}}|$REPO_ROOT|g" "$template_path")"
+
+    if [ ! -f "$local_override_path" ] || ! [ -s "$local_override_path" ]; then
+        printf '%s\n' "$baked"
+        return
+    fi
+
+    printf '%s\n\n' "$baked"
+    printf '%s\n' '<!-- GAL LOCAL OVERRIDE START -->'
+    printf '%s\n' '<!-- Source: SKILL.local.md (gitignored machine-local overlay) -->'
+    cat "$local_override_path"
+    printf '\n%s\n' '<!-- GAL LOCAL OVERRIDE END -->'
 }
 
 get_skill_frontmatter_description() {
@@ -1220,16 +1239,25 @@ else
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
         command_skill_template="$command_skill_source/SKILL.template.md"
+        local_override_path="$command_skill_source/SKILL.local.md"
         if [ ! -f "$command_skill_template" ]; then
             echo "  [WARN] Template not found: $command_skill_template"
         else
-            baked="$(sed "s|{{GAL_ROOT}}|$REPO_ROOT|g" "$command_skill_template")"
             baked_skill="$command_skill_source/SKILL.md"
             if $DRY_RUN; then
-                echo "  [DRY RUN] Would write baked: $baked_skill"
+                if [ -f "$local_override_path" ]; then
+                    echo "  [DRY RUN] Would write baked with local overlay: $baked_skill"
+                else
+                    echo "  [DRY RUN] Would write baked: $baked_skill"
+                fi
             else
+                baked="$(get_baked_command_skill_content "$command_skill_template" "$local_override_path")"
                 printf '%s\n' "$baked" > "$baked_skill"
-                echo "  [OK] $baked_skill"
+                if [ -f "$local_override_path" ]; then
+                    echo "  [OK] $baked_skill (with local overlay)"
+                else
+                    echo "  [OK] $baked_skill"
+                fi
             fi
         fi
     done
@@ -1477,7 +1505,7 @@ elif $DRY_RUN; then
     echo "Primary runtime: $PRIMARY_RUNTIME"
 else
     echo "Setup complete: runtimes=${SELECTED_RUNTIMES_CSV//,/ , }; primary=$PRIMARY_RUNTIME; agents=$agent_ok/$agent_count; skills(copilot)=$skill_ok/$skill_count; skills(shared)=$shared_skill_ok/$skill_count; skills(claude)=$claude_skill_ok/$skill_count; gal-root=$gal_root_ok/2"
-    echo "Note: If SKILL.template.md changes, re-run setup-machine.sh --replace to regenerate."
+    echo "Note: If SKILL.template.md or SKILL.local.md changes, re-run setup-machine.sh --replace to regenerate."
     if [ "$agent_fail" -gt 0 ] || [ "$skill_fail" -gt 0 ] || [ "$shared_skill_fail" -gt 0 ] || [ "$claude_skill_fail" -gt 0 ]; then
         echo "Some links failed. Check warnings above."
     fi

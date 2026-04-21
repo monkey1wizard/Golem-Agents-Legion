@@ -11,7 +11,7 @@
             - commands/*/       → ~/.copilot/skills/*/ + ~/.codex/skills/*/ (baked command skills)
             - commands/*/       → ~/.gemini/commands/*.toml + ~/.claude/commands/*.md
             - <repo root>       → ~/.copilot/gal/ + ~/.gemini/gal/ (GAL_ROOT dir symlinks)
-    - Generates commands/*/SKILL.md from SKILL.template.md (baked absolute paths)
+    - Generates commands/*/SKILL.md from SKILL.template.md (baked absolute paths) plus optional gitignored SKILL.local.md overlays
     - Generates ~/.gemini/commands/*.toml so Gemini CLI can expose GAL commands natively
     - Generates ~/.claude/commands/*.md so Claude Code can expose GAL commands natively
     - Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
@@ -212,6 +212,29 @@ function Test-GalManagedFile([string]$Path) {
     catch {
         return $false
     }
+}
+
+function Get-BakedCommandSkillContent([string]$TemplatePath, [string]$LocalOverridePath) {
+    $baked = (Get-Content $TemplatePath -Raw) -replace [regex]::Escape('{{GAL_ROOT}}'), $repoRoot
+
+    if (-not (Test-Path $LocalOverridePath)) {
+        return $baked
+    }
+
+    $localOverride = Get-Content $LocalOverridePath -Raw
+    if ([string]::IsNullOrWhiteSpace($localOverride)) {
+        return $baked
+    }
+
+    return @(
+        $baked.TrimEnd("`r", "`n")
+        ''
+        '<!-- GAL LOCAL OVERRIDE START -->'
+        '<!-- Source: SKILL.local.md (gitignored machine-local overlay) -->'
+        $localOverride.Trim("`r", "`n")
+        '<!-- GAL LOCAL OVERRIDE END -->'
+        ''
+    ) -join "`n"
 }
 
 function Test-GalRepoLink([string]$Path, [string]$TargetFragment = $repoRoot) {
@@ -1348,13 +1371,24 @@ if ($Uninstall -or -not $needsBakedCommandSkills) {
         if (-not (Test-Path $commandSkill.Template)) {
             Write-Host "  [WARN] Template not found: $($commandSkill.Template)"
         } else {
-            $baked = (Get-Content $commandSkill.Template -Raw) -replace [regex]::Escape('{{GAL_ROOT}}'), $repoRoot
+            $localOverridePath = Join-Path $commandSkill.Source 'SKILL.local.md'
+            $baked = Get-BakedCommandSkillContent -TemplatePath $commandSkill.Template -LocalOverridePath $localOverridePath
             $bakedSkill = Join-Path $commandSkill.Source "SKILL.md"
             if ($DryRun) {
-                Write-Host "  [DRY RUN] Would write baked: $bakedSkill"
+                if (Test-Path $localOverridePath) {
+                    Write-Host "  [DRY RUN] Would write baked with local overlay: $bakedSkill"
+                }
+                else {
+                    Write-Host "  [DRY RUN] Would write baked: $bakedSkill"
+                }
             } else {
                 [System.IO.File]::WriteAllText($bakedSkill, $baked, $utf8NoBom)
-                Write-Host "  [OK] $bakedSkill"
+                if (Test-Path $localOverridePath) {
+                    Write-Host "  [OK] $bakedSkill (with local overlay)"
+                }
+                else {
+                    Write-Host "  [OK] $bakedSkill"
+                }
             }
         }
     }
@@ -1571,7 +1605,7 @@ elseif ($DryRun) {
 }
 else {
     Write-Host ('Setup complete: runtimes={0}; primary={1}; agents={2}/{3}; skills(copilot)={4}/{5}; skills(shared)={6}/{7}; skills(claude)={8}/{9}; gal-root={10}/2' -f ($selectedRuntimes -join ', '), $primaryRuntime, $agentOk, $agentFiles.Count, $skillOk, $skillDirs.Count, $sharedSkillOk, $skillDirs.Count, $claudeSkillOk, $skillDirs.Count, $galRootOk)
-    Write-Host "Note: If SKILL.template.md changes, re-run Setup-Machine.ps1 -Replace to regenerate."
+    Write-Host "Note: If SKILL.template.md or SKILL.local.md changes, re-run Setup-Machine.ps1 -Replace to regenerate."
     if ($agentFail -gt 0 -or $skillFail -gt 0 -or $sharedSkillFail -gt 0 -or $claudeSkillFail -gt 0) {
         Write-Host "Some links failed. Check warnings above." -ForegroundColor Yellow
         Write-Host "Tip: Enable Developer Mode in Windows Settings > Privacy & Security > For Developers" -ForegroundColor Yellow

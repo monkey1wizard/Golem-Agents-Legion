@@ -12,7 +12,7 @@ Machine setup and adapter sync scripts.
 | `init-repo.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, symlink runtime targets, bake command skills, generate Gemini and Claude command files, clean stale runtime installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
+| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, symlink runtime targets, bake command skills with optional `SKILL.local.md` overlays, generate Gemini and Claude command files, clean stale runtime installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Same for macOS/Linux |
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
@@ -90,7 +90,7 @@ The setup script creates these symlinks:
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
-Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path), then symlinks those command directories into Copilot and Codex skill targets while generating Gemini native command files from the same baked content.
+Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. Setup-Machine then symlinks those command directories into Copilot and Codex skill targets while generating Gemini native command files from the same baked content.
 
 For Gemini CLI, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` files so Gemini exposes native slash commands without colliding with Agent Skills.
 

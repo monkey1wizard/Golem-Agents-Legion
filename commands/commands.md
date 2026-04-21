@@ -147,6 +147,9 @@ Managed by `Setup-Machine.ps1` and `setup-machine.sh`. The scripts:
 
 1. Create `~/.copilot/gal/` and `~/.gemini/gal/` -> GAL repo root symlinks.
 2. Scan all remaining `commands/*/SKILL.template.md` files, replacing `{{GAL_ROOT}}` with the absolute path.
-3. Write baked `SKILL.md` files into each remaining `commands/*/` directory.
-4. Symlink command directories into `~/.copilot/skills/` and `~/.codex/skills/`.
-5. Generate Gemini native command files in `~/.gemini/commands/` from the baked `SKILL.md` content.
+3. Append any gitignored `commands/*/SKILL.local.md` overlay to the baked content.
+4. Write baked `SKILL.md` files into each remaining `commands/*/` directory.
+5. Symlink command directories into `~/.copilot/skills/` and `~/.codex/skills/`.
+6. Generate Gemini native command files in `~/.gemini/commands/` from the baked `SKILL.md` content.
+
+If you need a machine-local customization that should survive setup reruns, put it in `commands/<command>/SKILL.local.md`. Do not edit `commands/<command>/SKILL.md` directly.

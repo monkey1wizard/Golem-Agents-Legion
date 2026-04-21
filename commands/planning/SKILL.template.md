@@ -24,6 +24,8 @@ Read `.dev/project.md` if it exists.
 
 Read the current request and any directly referenced files. Prefer a low-interruption planning pass: infer reasonable defaults, write assumptions explicitly, and record unresolved items in `## Open Questions`.
 
+Read `graphify-out/GRAPH_REPORT.md` if it exists. Use communities and surprising connections to judge whether the request crosses module boundaries or hides coupling that should be called out in scope.
+
 Escalate to a direct user question only when one of these is true:
 
 - the decision affects security or trust boundaries
