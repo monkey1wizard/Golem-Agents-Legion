@@ -13,6 +13,7 @@ Close out the current work session and leave the repo in a resumable state.
 - Updates `.dev/state.md` session continuity with the current stopped-at state
 - Reports which files changed and are ready to commit
 - Leaves a clear signal that can be read by `/gal whats-next` in a future session
+- Reminds the user to rerun `/graphify .` before the next graph-aware planning or review pass when this session changed repo structure or implementation work
 
 ## Step 1 — Collect Active State
 
@@ -57,6 +58,7 @@ Tell the user:
 1. What was written to `### Handoff Notes`
 2. What was written to `## Session Continuity`
 3. Which files changed and need to be committed
+4. If this session changed code, structure, or plan-relevant architecture context and the repo uses graphify, remind them to rerun `/graphify .` before the next graph-aware planning or review pass
 
 Suggest the git commit:
 

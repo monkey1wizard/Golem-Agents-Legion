@@ -30,6 +30,7 @@ GSTACK_SETUP_VERSION_FILE="$GSTACK_STATE_DIR/.last-setup-version"
 GSTACK_WELCOME_FILE="$GSTACK_STATE_DIR/.welcome-seen"
 GRAPHIFY_OUT_DIR="$REPO_ROOT/graphify-out"
 GRAPHIFY_REPORT_FILE="$GRAPHIFY_OUT_DIR/GRAPH_REPORT.md"
+GRAPHIFY_VERSION_FILE="$GRAPHIFY_OUT_DIR/GAL_GRAPHIFY_VERSION.txt"
 OPENCLI_REPO_URL="https://github.com/jackwener/OpenCLI"
 OPENCLI_RELEASES_URL="https://github.com/jackwener/OpenCLI/releases"
 OPENCLI_LATEST_API_URL="https://api.github.com/repos/jackwener/OpenCLI/releases/latest"
@@ -134,6 +135,10 @@ PY
 graphify_module_exists() {
   local python_cmd="$1"
   "$python_cmd" -m graphify --version >/dev/null 2>&1
+}
+
+get_graphify_version() {
+  graphify --version 2>/dev/null | head -n 1 | tr -d '\r'
 }
 
 can_install_bun() {
@@ -268,13 +273,24 @@ check_graphify() {
   fi
 
   if [ ! -d "$GRAPHIFY_OUT_DIR" ]; then
-    set_status graphify available-but-needs-init "graphify is installed, but graphify-out/ has not been generated for this repo yet." false "Run /graphify . to generate graphify-out/ for this repo."
+    set_status graphify available-but-needs-init "graphify is installed, but graphify-out/ has not been generated for this repo yet." false "Run /graphify . to generate graphify-out/ now. New repos initialized with /gal init will auto-run graphify when the CLI is already on PATH."
     return
   fi
 
   if [ ! -f "$GRAPHIFY_REPORT_FILE" ]; then
     set_status graphify available-but-not-ready "graphify-out/ exists, but GRAPH_REPORT.md is missing." false "Regenerate graphify outputs so graphify-out/GRAPH_REPORT.md exists."
     return
+  fi
+
+  if [ -f "$GRAPHIFY_VERSION_FILE" ]; then
+    local current_version stamped_version
+    current_version="$(get_graphify_version || true)"
+    stamped_version="$(tr -d '\r' < "$GRAPHIFY_VERSION_FILE")"
+
+    if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$GRAPHIFY_REPORT_FILE" -nt "$GRAPHIFY_VERSION_FILE" ]]; then
+      set_status graphify available-but-not-ready "graphify version changed since GAL last stamped this report (report: $stamped_version, installed: $current_version)." false "Rerun /graphify . so graphify-out/ matches the installed graphify version."
+      return
+    fi
   fi
 
   set_status graphify ready "graphify CLI and graphify-out/GRAPH_REPORT.md are both present." false "No action required."

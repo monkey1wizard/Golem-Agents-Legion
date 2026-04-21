@@ -2,7 +2,7 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 12 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。持久狀態分成兩個邊界：repo 共享狀態以本地 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`；使用者私人筆記則可選擇寫入本機設定的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套 workflow，同時保留使用者自己的非 repo 筆記空間。
+GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 12 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。持久狀態分成兩個邊界：repo 共享狀態以本地 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`。使用者私人筆記則可選擇寫入本機設定的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套 workflow，同時保留使用者自己的非 repo 筆記空間。
 
 狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
 
@@ -122,7 +122,7 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> git commit ─
 | --- | --- | --- |
 | **implementer** | 依照企劃與當前 `T-NNN` 任務完成實作 | 一旦踩到架構邊界或發現企劃不足，必須停止並回 `/deep-planning` |
 | **tester** | 根據規格與 public API 撰寫或補齊測試，必要時執行 browser QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
-| **reviewer** | 以資深工程師的標準審核變更差異、風險與完整性 | 若發現阻塞問題，必須退回 implementer 修正；使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
+| **reviewer** | 以資深工程師的標準審核變更差異、風險與完整性 | 若發現阻塞問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
 | **verifier** | 在所有任務完成後，從企劃目標反向驗證成果是否真的達成 | 負責確認企劃是否可關閉，並把值得保留的知識抽回 `docs/` |
 
 `/gal pipeline` 仍是完整串接流程。Domain agent 和 utility agent 可隨時直接呼叫，Pipeline agent 也可在明確界定的 specialist 工作中直接呼叫。
@@ -156,7 +156,7 @@ GAL 把持久化資料分成兩個邊界：
 - **Repo 共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和 repo 一起追蹤、審核與協作的工作成果。
 - **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
 
-若使用者設定了 `OBSIDIAN_GUIDE_PATH` 且 Guide 存在，`notewriter` 會依該 Guide 工作；若未設定或找不到，則改走 generic mode，而不會因缺少 Guide 而中止。
+若使用者設定了 `OBSIDIAN_GUIDE_PATH` 且 Guide 存在，`notewriter` 會依該 Guide 工作。若未設定或找不到，則改走 generic mode，而不會因缺少 Guide 而中止。
 
 ## 專案檔案 (Project files)
 
@@ -254,7 +254,7 @@ applicability → availability → initialization status → readiness → route
 
 ### graphify
 
-圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力，詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。若已安裝了 graphify CLI，`gal init` 現在會在 repo bootstrap 階段自動產生 `graphify-out/`，並替產生出的 report 寫入當前 graphify 版本 stamp。GAL 不會自動偵測程式庫的變更，但 `setup-tools`、`/gal status`、`/gal whats-next` 現在可以在 stamped report 與已安裝 graphify 版本不一致時提出警示，而 `/gal pipeline` 與 `/gal wrap-up` 也會在實作工作後提醒你重新執行 `/graphify .`。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
 ### OpenCLI
 

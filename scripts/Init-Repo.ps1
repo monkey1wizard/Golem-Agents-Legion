@@ -9,6 +9,75 @@ $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
+$graphifyVersionFileName = 'GAL_GRAPHIFY_VERSION.txt'
+
+function Test-CommandAvailable([string]$Name) {
+    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+function Get-GraphifyVersion {
+    try {
+        $versionOutput = & graphify --version 2>$null
+        if ($LASTEXITCODE -eq 0 -and $versionOutput) {
+            return ($versionOutput | Select-Object -First 1).Trim()
+        }
+    }
+    catch {
+    }
+
+    return $null
+}
+
+function Write-GraphifyVersionStamp([string]$RepoPath, [string]$Version) {
+    $graphVersionPath = Join-Path $RepoPath (Join-Path 'graphify-out' $graphifyVersionFileName)
+    Set-Content -Path $graphVersionPath -Value $Version
+}
+
+function Invoke-GraphifyAutoInit([string]$RepoPath) {
+    if (-not (Test-CommandAvailable 'graphify')) {
+        return
+    }
+
+    $graphReportPath = Join-Path $RepoPath "graphify-out\GRAPH_REPORT.md"
+    $graphVersionPath = Join-Path $RepoPath (Join-Path 'graphify-out' $graphifyVersionFileName)
+    $currentVersion = Get-GraphifyVersion
+    if (Test-Path $graphReportPath) {
+        Write-Host "- Detected: existing graphify-out/GRAPH_REPORT.md"
+        if ((Test-Path $graphVersionPath) -and $currentVersion) {
+            $stampedVersion = (Get-Content -Path $graphVersionPath -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $reportInfo = Get-Item $graphReportPath
+            $stampInfo = Get-Item $graphVersionPath
+            if ($stampedVersion -and $stampedVersion.Trim() -ne $currentVersion -and $reportInfo.LastWriteTimeUtc -le $stampInfo.LastWriteTimeUtc) {
+                Write-Warning "graphify version changed (report: $($stampedVersion.Trim()), installed: $currentVersion). Rerun /graphify . before the next graph-aware planning or review pass."
+            }
+        }
+        Write-Host "- Skipped: graphify auto-run"
+        return
+    }
+
+    Write-Host "- Detected: graphify CLI on PATH"
+    Write-Host "- Running: graphify ."
+
+    Push-Location $RepoPath
+    try {
+        & graphify .
+        if ($LASTEXITCODE -ne 0) {
+            throw "graphify exited with code $LASTEXITCODE"
+        }
+
+        if ($currentVersion) {
+            Write-GraphifyVersionStamp -RepoPath $RepoPath -Version $currentVersion
+            Write-Host "- Stamped: graphify-out/$graphifyVersionFileName ($currentVersion)"
+        }
+        Write-Host "- Generated: graphify-out/"
+    }
+    catch {
+        Write-Warning "graphify auto-run failed; init completed without graphify artifacts. Rerun /graphify . from the repo root after fixing graphify."
+    }
+    finally {
+        Pop-Location
+    }
+}
 
 if (-not (Test-Path $TargetPath)) {
     throw "Target path does not exist: $TargetPath"
@@ -125,6 +194,7 @@ Set-Content -Path $projectTargetPath -Value $projectContent
 Set-Content -Path $stateTargetPath -Value $stateContent
 
 & (Join-Path $scriptRoot "Sync-DevContext.ps1") -TargetPath $resolvedTarget
+Invoke-GraphifyAutoInit -RepoPath $resolvedTarget
 
 Write-Host "Initialized repo context in: $resolvedTarget"
 Write-Host "- Created: .dev/project.md"

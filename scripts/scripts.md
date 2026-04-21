@@ -8,7 +8,7 @@ Machine setup and adapter sync scripts.
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
-| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, then generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` |
+| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then auto-run graphify when the CLI is already available and stamp the generated report with the graphify version |
 | `init-repo.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
@@ -29,7 +29,7 @@ AI slash commands map onto the same subcommands, with `/gal` as the primary entr
 
 | Command | Purpose |
 | --- | --- |
-| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/` |
+| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/`; if graphify is already installed, also generate `graphify-out/` and stamp the generated report with the current graphify version |
 | `/gal status` | Show current plan progress, active plan, review and test status, blockers, and specialist readiness |
 | `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
 | `/gal wrap-up` | Close the session cleanly — converge handoff updates, update `.dev/state.md`, prompt for commit |

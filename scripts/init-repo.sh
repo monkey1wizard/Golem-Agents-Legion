@@ -5,6 +5,7 @@ set -euo pipefail
 blank=false
 target_path="$PWD"
 project_name=""
+graphify_version_file_name="GAL_GRAPHIFY_VERSION.txt"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -30,6 +31,62 @@ fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+get_graphify_version() {
+  graphify --version 2>/dev/null | head -n 1 | tr -d '\r'
+}
+
+write_graphify_version_stamp() {
+  local repo_path="$1"
+  local version="$2"
+  local graph_version_path="$repo_path/graphify-out/$graphify_version_file_name"
+
+  printf '%s\n' "$version" > "$graph_version_path"
+}
+
+run_graphify_auto_init() {
+  local repo_path="$1"
+  local graph_report_path="$repo_path/graphify-out/GRAPH_REPORT.md"
+  local graph_version_path="$repo_path/graphify-out/$graphify_version_file_name"
+  local current_version=""
+  local stamped_version=""
+
+  if ! command_exists graphify; then
+    return
+  fi
+
+  current_version="$(get_graphify_version || true)"
+
+  if [[ -f "$graph_report_path" ]]; then
+    echo "- Detected: existing graphify-out/GRAPH_REPORT.md"
+    if [[ -f "$graph_version_path" ]]; then
+      stamped_version="$(tr -d '\r' < "$graph_version_path")"
+      if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$graph_report_path" -nt "$graph_version_path" ]]; then
+        echo "- Warning: graphify version changed (report: $stamped_version, installed: $current_version)"
+        echo "- Next: rerun /graphify . before the next graph-aware planning or review pass"
+      fi
+    fi
+    echo "- Skipped: graphify auto-run"
+    return
+  fi
+
+  echo "- Detected: graphify CLI on PATH"
+  echo "- Running: graphify ."
+  if (cd "$repo_path" && graphify .); then
+    if [[ -n "$current_version" ]]; then
+      write_graphify_version_stamp "$repo_path" "$current_version"
+      echo "- Stamped: graphify-out/$graphify_version_file_name ($current_version)"
+    fi
+    echo "- Generated: graphify-out/"
+  else
+    echo "- Warning: graphify auto-run failed; init completed without graphify artifacts"
+    echo "- Next: rerun /graphify . from the repo root after fixing graphify"
+  fi
+}
 
 if [[ ! -d "$target_path" ]]; then
   echo "Target path does not exist: $target_path" >&2
@@ -92,7 +149,13 @@ if [[ "$blank" != "true" ]]; then
   detect_stack "Gemfile"         "Ruby"
   detect_stack "pom.xml"         "Java/Maven"
   # Deduplicate
-  mapfile -t tech_hints < <(printf '%s\n' "${tech_hints[@]}" | sort -u)
+  if [[ ${#tech_hints[@]} -gt 0 ]]; then
+    deduped_tech_hints=()
+    while IFS= read -r tech; do
+      [[ -n "$tech" ]] && deduped_tech_hints+=("$tech")
+    done < <(printf '%s\n' "${tech_hints[@]}" | sort -u)
+    tech_hints=("${deduped_tech_hints[@]}")
+  fi
 fi
 
 # --- Generate project.md ---
@@ -119,6 +182,7 @@ echo -e "$project_content" > "$project_target"
 cp "$state_template" "$state_target"
 
 "$script_dir/sync-dev-context.sh" "$target_path"
+run_graphify_auto_init "$target_path"
 
 echo "Initialized repo context in: $target_path"
 echo "- Created: .dev/project.md"

@@ -31,7 +31,7 @@ Before reviewing, load context:
 2. **Read `.dev/state.md`** — current position, recent decisions
 3. **Read the plan file** being reviewed (if any)
 4. **Read `copilot-instructions.md`** — project-specific rules
-5. **Read `graphify-out/GRAPH_REPORT.md` if it exists** — use god nodes to identify core abstractions, communities for module boundary awareness, and surprising connections for hidden coupling; treat `INFERRED` edges as advisory unless live query support is enabled
+5. **Read `graphify-out/GRAPH_REPORT.md` if it exists** — use god nodes to identify core abstractions, communities for module boundary awareness, and surprising connections for hidden coupling; treat `INFERRED` edges as advisory unless live query support is enabled. If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the current graphify version differs while the report is not newer than the stamp, ignore the report and tell the user to rerun `/graphify .` before the next graph-aware planning or review pass.
 6. **Scan existing codebase patterns** — how does current code solve similar problems?
 </project_context>
 

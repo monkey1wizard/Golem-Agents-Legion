@@ -254,7 +254,7 @@ Core rules: never auto-install, never auto-initialize, never hide missing capabi
 
 ### graphify
 
-A graph-structured analysis tool. It analyzes all files in a folder, writes its outputs into `graphify-out/`, and can improve later AI query capability. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
+A graph-structured analysis tool. It analyzes all files in a folder, writes its outputs into `graphify-out/`, and can improve later AI query capability. If the graphify CLI is already installed, `gal init` now generates `graphify-out/` during repo bootstrap and stamps the generated report with the current graphify version. GAL does not auto-detect codebase drift, but `setup-tools`, `/gal status`, and `/gal whats-next` can now warn when a stamped report no longer matches the installed graphify version, and `/gal pipeline` plus `/gal wrap-up` remind you to rerun `/graphify .` after implementation work. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
 
 ### OpenCLI
 

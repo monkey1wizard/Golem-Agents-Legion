@@ -19,3 +19,6 @@ config.local.env
 mcp-servers.local.json
 model-roles.local.md
 commands/*/SKILL.local.md
+
+# Local graphify outputs and virtual environment
+graphify-out/

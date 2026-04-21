@@ -196,6 +196,8 @@ Overall: READY FOR RELEASE
 
 Tell the user to route the next step to `golem-releaser`.
 
+Also remind the user to rerun `/graphify .` before the next graph-aware planning or review pass so `graphify-out/` reflects the implementation that just completed.
+
 If any task or verifier is blocked, report with detail:
 
 ```text

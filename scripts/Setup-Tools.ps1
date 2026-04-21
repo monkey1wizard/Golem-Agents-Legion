@@ -44,6 +44,7 @@ $gstackStateDir = Join-Path $env:USERPROFILE '.gstack'
 $gstackConfigFile = Join-Path $gstackStateDir 'config.yaml'
 $graphifyOutDir = Join-Path $repoRoot 'graphify-out'
 $graphifyReportFile = Join-Path $graphifyOutDir 'GRAPH_REPORT.md'
+$graphifyVersionFile = Join-Path $graphifyOutDir 'GAL_GRAPHIFY_VERSION.txt'
 $openCliRepoUrl = 'https://github.com/jackwener/OpenCLI'
 $openCliReleasesUrl = 'https://github.com/jackwener/OpenCLI/releases'
 $openCliLatestApiUrl = 'https://api.github.com/repos/jackwener/OpenCLI/releases/latest'
@@ -182,6 +183,23 @@ function Test-PythonGraphifyModule([object]$Launcher) {
     catch {
         return $false
     }
+
+    function Get-GraphifyVersion {
+        if (-not (Test-CommandAvailable 'graphify')) {
+            return $null
+        }
+
+        try {
+            $version = & graphify --version 2>$null
+            if ($LASTEXITCODE -eq 0 -and $version) {
+                return ($version | Select-Object -First 1).Trim()
+            }
+        }
+        catch {
+        }
+
+        return $null
+    }
 }
 
 function Get-NodeMajorVersion {
@@ -292,11 +310,22 @@ function Get-GraphifyStatus {
     }
 
     if (-not (Test-Path $graphifyOutDir)) {
-        return New-ToolStatus -Name 'graphify' -Status 'available-but-needs-init' -Reason 'graphify is installed, but graphify-out/ has not been generated for this repo yet.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Run /graphify . to generate graphify-out/ for this repo.' -ManualStep ''
+        return New-ToolStatus -Name 'graphify' -Status 'available-but-needs-init' -Reason 'graphify is installed, but graphify-out/ has not been generated for this repo yet.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Run /graphify . to generate graphify-out/ now. New repos initialized with /gal init will auto-run graphify when the CLI is already on PATH.' -ManualStep ''
     }
 
     if (-not (Test-Path $graphifyReportFile)) {
         return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason 'graphify-out/ exists, but GRAPH_REPORT.md is missing.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Regenerate graphify outputs so graphify-out/GRAPH_REPORT.md exists.' -ManualStep ''
+    }
+
+    if (Test-Path $graphifyVersionFile) {
+        $currentVersion = Get-GraphifyVersion
+        $stampedVersion = (Get-Content -Path $graphifyVersionFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+        $reportInfo = Get-Item $graphifyReportFile
+        $stampInfo = Get-Item $graphifyVersionFile
+
+        if ($currentVersion -and $stampedVersion -and $stampedVersion.Trim() -ne $currentVersion -and $reportInfo.LastWriteTimeUtc -le $stampInfo.LastWriteTimeUtc) {
+            return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason ("graphify version changed since GAL last stamped this report (report: {0}, installed: {1})." -f $stampedVersion.Trim(), $currentVersion) -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Rerun /graphify . so graphify-out/ matches the installed graphify version.' -ManualStep ''
+        }
     }
 
     return New-ToolStatus -Name 'graphify' -Status 'ready' -Reason 'graphify CLI and graphify-out/GRAPH_REPORT.md are both present.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'No action required.' -ManualStep ''

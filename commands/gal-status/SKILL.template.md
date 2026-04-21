@@ -15,6 +15,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **Repo is initialized but no active plan. Use `/planning` to start sprint planning.**
 - If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
+- Also inspect `graphify-out/GRAPH_REPORT.md` and the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file.
 
 ## Step 2 — Project
 
@@ -72,6 +73,15 @@ From `.dev/state.md` `## Session Continuity`:
 - Stopped at
 - Next step
 - Active context
+
+### Graphify Freshness
+
+From `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and the current `graphify --version` output when available:
+
+- **State**: `NOT-PRESENT` / `FRESH` / `STALE-BY-TOOL-VERSION` / `UNSTAMPED`
+- **Report stamp**: stamped graphify version if the version file exists; otherwise *Not stamped*
+- **Installed version**: current graphify version if available; otherwise *Unavailable*
+- **Action**: if stale, tell the user to rerun `/graphify .` before the next graph-aware planning or review pass; otherwise say whether no action is required or freshness cannot be verified automatically
 
 ### Specialist Readiness
 

@@ -108,7 +108,10 @@ if [[ -d "$skills_root" ]]; then
   done < <(find "$skills_root" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 fi
 
-mapfile -t convention_files < <(find "$conventions_dir" -maxdepth 1 -type f -name '*.md' | sort)
+declare -a convention_files=()
+while IFS= read -r convention_file; do
+  [[ -n "$convention_file" ]] && convention_files+=("$convention_file")
+done < <(find "$conventions_dir" -maxdepth 1 -type f -name '*.md' | sort)
 mkdir -p "$copilot_dir"
 
 build_adapter \
