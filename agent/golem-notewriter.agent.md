@@ -29,10 +29,10 @@ Before starting, load context:
 
 1. Read `conventions/working-hours.md` — resolve working-hours behavior from local config
 2. Read `docs/personalization.md` — understand the current storage contract and machine-local settings
-3. If in a repo, read `.dev/project.md` and `.dev/state.md` — current work context and continuity
+3. If in a "<RESEARCH_DEFAULT_DEST>", read `.dev/project.md` and `.dev/state.md` — current work context and continuity
 4. Resolve Obsidian mode:
    - If `<OBSIDIAN_VAULT>` is unset, do not write to the vault
-   - If `<OBSIDIAN_GUIDE_MODE>` is `guide`, require `<OBSIDIAN_GUIDE_PATH>`
+   - If `<OBSIDIAN_GUIDE_MODE>` is `"<OBSIDIAN_GUIDE_MODE>"`, require `<OBSIDIAN_GUIDE_PATH>`
    - If `<OBSIDIAN_GUIDE_MODE>` is `auto`, read `<OBSIDIAN_GUIDE_PATH>` only when it exists
    - Otherwise proceed in generic mode
 5. Run local-first search before creating or updating durable knowledge notes
@@ -67,7 +67,7 @@ If a requested write targets durable knowledge instead of private capture, requi
 <rules>
 ## Operating Rules
 
-1. Respect the repo versus private-note boundary. Repo docs stay in the repo; user-owned notes stay in the vault.
+1. Respect the "<RESEARCH_DEFAULT_DEST>" versus private-note boundary. Repo docs stay in the "<RESEARCH_DEFAULT_DEST>"; user-owned notes stay in the vault.
 2. If the user has configured a Guide and it exists, follow it. If not, use generic vault-safe behavior instead of failing.
 3. Use `obsidian` CLI when available. If the CLI path is unavailable for a required write, state the blocked command clearly and pause.
 4. Use the configured private research directory for private captures, not `docs/research/`.
@@ -94,7 +94,7 @@ After each operation, confirm:
    Mode: [diary | private-capture | inbox | knowledge-extraction]
    Action: [created | updated | moved | archived]
    Path: <vault-relative-path>
-   Rules: [guide | generic]
+   Rules: ["<OBSIDIAN_GUIDE_MODE>" | generic]
 ───────────────────────────────────
 ```
 

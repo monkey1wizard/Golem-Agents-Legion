@@ -341,11 +341,40 @@ runtime_index() {
     return 1
 }
 
+normalize_runtime_csv() {
+    local raw="$1"
+    local normalized=()
+    local token
+
+    for token in $(printf '%s' "$raw" | tr ',' ' '); do
+        case " ${RUNTIME_KEYS[*]-} " in
+            *" $token "*)
+                case " ${normalized[*]-} " in
+                    *" $token "*) ;;
+                    *) normalized+=("$token") ;;
+                esac
+                ;;
+        esac
+    done
+
+    local joined=""
+    for token in "${normalized[@]-}"; do
+        if [ -n "$joined" ]; then
+            joined+=",$token"
+        else
+            joined="$token"
+        fi
+    done
+
+    printf '%s\n' "$joined"
+}
+
 default_primary_runtime() {
     local selected=("$@")
+    [ "$#" -eq 0 ] && return 1
     local preferred
     for preferred in copilot gemini codex claude; do
-        if [[ " ${selected[*]} " == *" $preferred "* ]]; then
+        if [[ " ${selected[*]-} " == *" $preferred "* ]]; then
             printf '%s\n' "$preferred"
             return 0
         fi
@@ -431,7 +460,7 @@ detect_installed_runtimes() {
         detected+=(claude)
     fi
 
-    printf '%s\n' "${detected[*]}"
+    printf '%s\n' "${detected[*]-}"
 }
 
 parse_selection() {
@@ -456,27 +485,27 @@ parse_selection() {
       echo "Selection '$item' is out of range." >&2
       return 1
     fi
-    case " ${selected[*]} " in
+        case " ${selected[*]-} " in
       *" $number "*) ;;
       *) selected+=("$number") ;;
     esac
   done
 
-  printf '%s\n' "${selected[*]}"
+    printf '%s\n' "${selected[*]-}"
 }
 
 read_runtime_selection() {
     local default_selection="$1"
     local prompt_reason="$2"
 
-    echo "  [PROMPT] Select the AI runtimes where GAL should install machine-level integration."
+    echo "  [PROMPT] Select the AI runtimes where GAL should install machine-level integration." >&2
     if [ -n "$prompt_reason" ]; then
-        echo "  [INFO] $prompt_reason"
+        echo "  [INFO] $prompt_reason" >&2
     fi
 
     local index
     for index in "${!RUNTIME_KEYS[@]}"; do
-        printf '    %s. %s - %s\n' "$((index + 1))" "${RUNTIME_LABELS[$index]}" "${RUNTIME_DESCRIPTIONS[$index]}"
+        printf '    %s. %s - %s\n' "$((index + 1))" "${RUNTIME_LABELS[$index]}" "${RUNTIME_DESCRIPTIONS[$index]}" >&2
     done
 
     local default_numbers=()
@@ -488,7 +517,7 @@ read_runtime_selection() {
 
     while true; do
         local answer parsed result=()
-        read -r -p "  [PROMPT] Enter selection numbers (for example: 1,3) [default: $(IFS=,; echo "${default_numbers[*]}")]: " answer
+        read -r -p "  [PROMPT] Enter selection numbers (for example: 1,3) [default: $(IFS=,; echo "${default_numbers[*]-}")]: " answer
         if [ -z "$(printf '%s' "$answer" | xargs || true)" ]; then
             printf '%s\n' "$default_selection"
             return 0
@@ -498,7 +527,7 @@ read_runtime_selection() {
             for index in $parsed; do
                 result+=("${RUNTIME_KEYS[$((index - 1))]}")
             done
-            IFS=, printf '%s\n' "${result[*]}"
+            printf '%s\n' "$(normalize_runtime_csv "$(IFS=' '; echo "${result[*]-}")")"
             return 0
         fi
         echo "  [WARN] Invalid selection. Please try again." >&2
@@ -512,8 +541,8 @@ read_primary_runtime() {
     local choice_keys=()
     local runtime index marker default_index=1
 
-    echo "  [PROMPT] Choose the primary runtime GAL should treat as your default entry point."
-    echo "  [INFO] The repo remains the single source of truth for agents, skills, and commands; this choice affects defaults and summaries only."
+    echo "  [PROMPT] Choose the primary runtime GAL should treat as your default entry point." >&2
+    echo "  [INFO] The repo remains the single source of truth for agents, skills, and commands; this choice affects defaults and summaries only." >&2
 
     index=1
     for runtime in "${selected[@]}"; do
@@ -524,7 +553,7 @@ read_primary_runtime() {
             marker=" (default)"
             default_index="$index"
         fi
-        printf '    %s. %s%s\n' "$index" "${RUNTIME_LABELS[$runtime_pos]}" "$marker"
+        printf '    %s. %s%s\n' "$index" "${RUNTIME_LABELS[$runtime_pos]}" "$marker" >&2
         choice_keys+=("$runtime")
         index=$((index + 1))
     done
@@ -550,12 +579,14 @@ read_primary_runtime() {
 }
 
 resolve_install_selection() {
+    local saved_selected_raw=""
     local saved_selected=""
     local saved_primary=""
     local saved_installed_at=""
 
     if [ -f "$INSTALL_STATE_FILE" ] && ! $RECONFIGURE; then
-        saved_selected="$(read_install_state_value selectedRuntimes 2>/dev/null || true)"
+        saved_selected_raw="$(read_install_state_value selectedRuntimes 2>/dev/null || true)"
+        saved_selected="$(normalize_runtime_csv "$saved_selected_raw")"
         saved_primary="$(read_install_state_value primaryRuntime 2>/dev/null || true)"
         saved_installed_at="$(read_install_state_value installedAt 2>/dev/null || true)"
         if [ -n "$saved_selected" ] && [ -n "$saved_primary" ]; then
@@ -566,6 +597,11 @@ resolve_install_selection() {
             echo "  [OK] Primary runtime: $saved_primary"
             SELECTED_RUNTIMES_CSV="$saved_selected"
             PRIMARY_RUNTIME="$saved_primary"
+            if [ "$saved_selected" != "$saved_selected_raw" ]; then
+                local configured_at="$saved_installed_at"
+                [ -z "$configured_at" ] && configured_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                write_install_state "$saved_selected" "$saved_primary" "$configured_at" "$configured_at"
+            fi
             return 0
         fi
     fi
@@ -582,7 +618,7 @@ resolve_install_selection() {
 
     echo ""
     echo "=== GAL runtime selection ==="
-    SELECTED_RUNTIMES_CSV="$(read_runtime_selection "$default_selection" "$prompt_reason")"
+    SELECTED_RUNTIMES_CSV="$(normalize_runtime_csv "$(read_runtime_selection "$default_selection" "$prompt_reason")")"
 
     local default_primary="$saved_primary"
     if [ -z "$default_primary" ] || [[ ",$SELECTED_RUNTIMES_CSV," != *",$default_primary,"* ]]; then
@@ -616,25 +652,25 @@ ensure_ripgrep() {
     local answer=""
     if [[ "${OSTYPE:-}" == darwin* ]] && command_exists brew; then
         read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via Homebrew? [Y/n] " answer
-        case "${answer,,}" in
+        case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
             n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
         esac
         brew install ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
     elif command_exists apt-get; then
         read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via apt-get? [Y/n] " answer
-        case "${answer,,}" in
+        case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
             n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
         esac
         sudo apt-get update && sudo apt-get install -y ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
     elif command_exists dnf; then
         read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via dnf? [Y/n] " answer
-        case "${answer,,}" in
+        case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
             n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
         esac
         sudo dnf install -y ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }
     elif command_exists pacman; then
         read -r -p "  [PROMPT] ripgrep (rg) was not found. Install it now via pacman? [Y/n] " answer
-        case "${answer,,}" in
+        case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
             n|no) echo "  [SKIP] ripgrep installation skipped"; return 0 ;;
         esac
         sudo pacman -Sy --noconfirm ripgrep || { echo "  [WARN] ripgrep installation failed"; return 0; }

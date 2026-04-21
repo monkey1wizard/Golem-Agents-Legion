@@ -87,7 +87,7 @@ Workflow: IMPLEMENT
 Run:
 
 ```powershell
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-implementer
+/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-implementer
 ```
 
 Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
@@ -106,7 +106,7 @@ Update plan `## Status`: set `Workflow: TEST`
 Run:
 
 ```powershell
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-tester
+/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-tester
 ```
 
 Invoke in task-scoped mode for `T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
@@ -124,7 +124,7 @@ Check result:
 Run:
 
 ```powershell
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-reviewer
+/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-reviewer
 ```
 
 Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
@@ -164,7 +164,7 @@ After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-lev
 Run:
 
 ```powershell
-C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-verifier
+/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-verifier
 ```
 
 Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan ABSORBED or delete the plan file."
@@ -216,7 +216,7 @@ Action required: [what the user needs to do]
 If the script cannot be run (e.g. macOS / Linux), run:
 
 ```bash
-C:\Code\Golem-Agents-Legion/scripts/gal.sh dispatch golem-implementer
+/Users/tzylee/Code/Golem-Agents-Legion/scripts/gal.sh dispatch golem-implementer
 ```
 
 (and equivalent for tester, reviewer, verifier)

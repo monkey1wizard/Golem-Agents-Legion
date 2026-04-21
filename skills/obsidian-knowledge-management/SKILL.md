@@ -5,7 +5,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 
 # Obsidian Knowledge Management Protocol
 
-> **Guide Resolution**: When `<OBSIDIAN_GUIDE_MODE>` is `guide`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the guide only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
+> **Guide Resolution**: When `<OBSIDIAN_GUIDE_MODE>` is `"<OBSIDIAN_GUIDE_MODE>"`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the "<OBSIDIAN_GUIDE_MODE>" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
 
 > **Default Mode**: If no Guide is available, assume a standard PARA system: Projects, Areas, Resources, and Archives. Do not assume numbered folder prefixes, Slipbox folders, map folders, taxonomy files, or template files unless the user's Guide or vault clearly defines them.
 
@@ -39,7 +39,7 @@ uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 
 Before any file creation, modification, or organization, resolve the active mode:
 
-1. If `<OBSIDIAN_GUIDE_MODE>` is `guide`, read `<OBSIDIAN_GUIDE_PATH>`.
+1. If `<OBSIDIAN_GUIDE_MODE>` is `"<OBSIDIAN_GUIDE_MODE>"`, read `<OBSIDIAN_GUIDE_PATH>`.
 2. If `<OBSIDIAN_GUIDE_MODE>` is `auto` and `<OBSIDIAN_GUIDE_PATH>` exists, read it.
 3. If the Guide is unavailable or the mode is `generic`, continue with the generic PARA-first rules in this skill.
 4. Read taxonomy, templates, or system notes only if the user's Guide or actual vault structure points to them.
@@ -219,7 +219,7 @@ Preserve disclosures, relevant sponsorship notes, diagrams, charts, and evidence
 ### Link Format
 
 - Use wiki links for internal vault notes.
-- Use standard Markdown links only for external files or code-repository references.
+- Use standard Markdown links only for external files or code-"<RESEARCH_DEFAULT_DEST>"sitory references.
 
 ### Language
 

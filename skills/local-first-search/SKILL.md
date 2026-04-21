@@ -144,11 +144,11 @@ When you are about to add new knowledge, restructure notes, or create new notes 
 
 4. **Project document updates**
    - When updating project notes or logs, search the Guide-defined project location first, or Projects by default.
-   - Project planning for the knowledge base belongs in the vault's project area, not inside the code repository unless the user explicitly wants repo docs.
+   - Project planning for the knowledge base belongs in the vault's project area, not inside the code "<RESEARCH_DEFAULT_DEST>"sitory unless the user explicitly wants "<RESEARCH_DEFAULT_DEST>" docs.
 
 ## Cross-Boundary Referencing (Vault vs. Codebase)
 
-Because the Obsidian vault and code repositories are separate systems, respect the boundary between them:
+Because the Obsidian vault and code "<RESEARCH_DEFAULT_DEST>"sitories are separate systems, respect the boundary between them:
 
-- **When writing in a code repository**: Do not use Obsidian wiki links to reference vault notes. Use plain text descriptions or standard file links instead.
-- **When writing in the Obsidian vault**: Use wiki links for internal vault notes. Use standard Markdown links or plain text paths for external code-repository files.
+- **When writing in a code "<RESEARCH_DEFAULT_DEST>"sitory**: Do not use Obsidian wiki links to reference vault notes. Use plain text descriptions or standard file links instead.
+- **When writing in the Obsidian vault**: Use wiki links for internal vault notes. Use standard Markdown links or plain text paths for external code-"<RESEARCH_DEFAULT_DEST>"sitory files.

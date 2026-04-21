@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # setup-tools.sh — interactive installer for optional GAL collaborative tools.
 
+if [ -n "${BASH_VERSINFO:-}" ] && [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  for candidate in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    if [ -x "$candidate" ]; then
+      exec "$candidate" "$0" "$@"
+    fi
+  done
+
+  echo "setup-tools.sh requires Bash 4+." >&2
+  echo "Install newer Bash with Homebrew, then rerun this script." >&2
+  exit 1
+fi
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -10,14 +22,20 @@ CHECK_ONLY=false
 TOOLS=()
 SUPPORTED_TOOLS=(gstack graphify opencli)
 
-GSTACK_ROOT="$HOME/.claude/skills/gstack"
+GSTACK_ROOT="$HOME/gstack"
+GSTACK_STATE_DIR="$HOME/.gstack"
 GSTACK_CONFIG_FILE="$HOME/.gstack/config.yaml"
+GSTACK_PROJECTS_DIR="$GSTACK_STATE_DIR/projects"
+GSTACK_SETUP_VERSION_FILE="$GSTACK_STATE_DIR/.last-setup-version"
+GSTACK_WELCOME_FILE="$GSTACK_STATE_DIR/.welcome-seen"
 GRAPHIFY_OUT_DIR="$REPO_ROOT/graphify-out"
 GRAPHIFY_REPORT_FILE="$GRAPHIFY_OUT_DIR/GRAPH_REPORT.md"
 OPENCLI_REPO_URL="https://github.com/jackwener/OpenCLI"
 OPENCLI_RELEASES_URL="https://github.com/jackwener/OpenCLI/releases"
 OPENCLI_LATEST_API_URL="https://api.github.com/repos/jackwener/OpenCLI/releases/latest"
 OPENCLI_DOWNLOAD_ROOT="${HOME}/Downloads"
+UV_TOOL_BIN_DIR="${HOME}/.local/bin"
+BUN_BIN_DIR="${HOME}/.bun/bin"
 
 print_section() {
   echo ""
@@ -28,12 +46,22 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+ensure_path_dir() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+  case ":$PATH:" in
+    *":$dir:"*) ;;
+    *) export PATH="$dir:$PATH" ;;
+  esac
+}
+
 normalize_tools() {
   if [ "$#" -eq 0 ]; then
     TOOLS=("${SUPPORTED_TOOLS[@]}")
     return
   fi
 
+  TOOLS=()
   local seen=""
   local arg item normalized
   for arg in "$@"; do
@@ -65,15 +93,34 @@ normalize_tools() {
 }
 
 get_python_cmd() {
-  if command_exists python3; then
-    echo python3
-    return 0
+  local candidate
+
+  if command_exists uv; then
+    for candidate in 3.14 3.13 3.12 3.11 3.10; do
+      candidate="$(uv python find "$candidate" 2>/dev/null | head -n 1 || true)"
+      if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done
   fi
-  if command_exists python; then
-    echo python
-    return 0
-  fi
+
+  for candidate in python3.14 python3.13 python3.12 python3.11 python3.10 python3 python; do
+    if command_exists "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
   return 1
+}
+
+get_python_version_request() {
+  local python_cmd="$1"
+  "$python_cmd" - <<'PY' 2>/dev/null
+import sys
+print(f"{sys.version_info[0]}.{sys.version_info[1]}")
+PY
 }
 
 python_at_least_310() {
@@ -87,6 +134,38 @@ PY
 graphify_module_exists() {
   local python_cmd="$1"
   "$python_cmd" -m graphify --version >/dev/null 2>&1
+}
+
+can_install_bun() {
+  if [[ "${OSTYPE:-}" == darwin* ]] && command_exists brew; then
+    return 0
+  fi
+  command_exists curl
+}
+
+install_bun() {
+  if command_exists bun; then
+    return 0
+  fi
+
+  print_section "Install Bun"
+
+  if [[ "${OSTYPE:-}" == darwin* ]] && command_exists brew; then
+    echo "  [INFO] Installing Bun via Homebrew (official tap)."
+    brew tap oven-sh/bun
+    brew install bun
+  elif command_exists curl; then
+    echo "  [INFO] Installing Bun via the official install script."
+    curl -fsSL https://bun.com/install | bash
+    ensure_path_dir "$BUN_BIN_DIR"
+  else
+    echo "Bun installation requires Homebrew on macOS or curl for the official installer." >&2
+    return 1
+  fi
+
+  ensure_path_dir "$BUN_BIN_DIR"
+  command_exists bun || { echo "Bun install completed, but the bun command is still not available in this shell." >&2; return 1; }
+  echo "  [OK] Bun is installed and available."
 }
 
 get_node_major() {
@@ -125,14 +204,21 @@ set_status() {
 
 check_gstack() {
   local missing=()
+  local bun_missing=false
   command_exists git || missing+=("Git is missing")
-  command_exists bun || missing+=("Bun v1.0+ is missing")
+  command_exists bun || { missing+=("Bun v1.0+ is missing"); bun_missing=true; }
   if [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* ]]; then
     command_exists node || missing+=("Node.js is required on Windows")
   fi
 
   if [ "${#missing[@]}" -gt 0 ]; then
-    set_status gstack unavailable "${missing[*]}" false "Install the missing prerequisites, then rerun this installer."
+    local can_install=false
+    local next_step="Install the missing prerequisites, then rerun this installer."
+    if $bun_missing && [ "${#missing[@]}" -eq 1 ] && can_install_bun; then
+      can_install=true
+      next_step="This installer can install Bun, then clone gstack and run ./setup."
+    fi
+    set_status gstack unavailable "${missing[*]}" "$can_install" "$next_step"
     return
   fi
 
@@ -141,12 +227,15 @@ check_gstack() {
     return
   fi
 
-  if [ ! -f "$GSTACK_CONFIG_FILE" ]; then
-    set_status gstack available-but-needs-init "gstack checkout exists, but $GSTACK_CONFIG_FILE is missing" true "Run the official gstack setup flow so GAL can use machine-side collaboration lanes."
+  if [ ! -f "$GSTACK_CONFIG_FILE" ] \
+    && [ ! -d "$GSTACK_PROJECTS_DIR" ] \
+    && [ ! -f "$GSTACK_SETUP_VERSION_FILE" ] \
+    && [ ! -f "$GSTACK_WELCOME_FILE" ]; then
+    set_status gstack available-but-needs-init "gstack checkout exists at $GSTACK_ROOT, but machine bootstrap markers are missing under $GSTACK_STATE_DIR" true "This installer can run: cd $GSTACK_ROOT && ./setup"
     return
   fi
 
-  set_status gstack ready "Official checkout and ~/.gstack/config.yaml are present." false "No action required."
+  set_status gstack ready "Official checkout and gstack machine bootstrap markers are present under $GSTACK_STATE_DIR." false "No action required."
 }
 
 check_graphify() {
@@ -260,13 +349,13 @@ parse_selection() {
       echo "Selection '$item' is out of range." >&2
       return 1
     fi
-    case " ${selected[*]} " in
+    case " ${selected[*]-} " in
       *" $number "*) ;;
       *) selected+=("$number") ;;
     esac
   done
 
-  printf '%s\n' "${selected[*]}"
+  printf '%s\n' "${selected[*]-}"
 }
 
 prompt_for_install_selection() {
@@ -290,7 +379,7 @@ prompt_for_install_selection() {
     local tool_name="${candidates[0]}"
     local answer
     read -r -p "  [PROMPT] ${tool_name} is not currently ready. Install ${tool_name} now? [Y/n] " answer
-    case "${answer,,}" in
+    case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
       n|no)
         echo "  [SKIP] ${tool_name} installation skipped by user." >&2
         printf '%s\n' ""
@@ -315,7 +404,7 @@ prompt_for_install_selection() {
       for index in $parsed; do
         result+=("${candidates[$((index - 1))]}")
       done
-      printf '%s\n' "${result[*]}"
+      printf '%s\n' "${result[*]-}"
       return 0
     fi
     echo "  [WARN] Invalid selection. Please try again." >&2
@@ -324,8 +413,8 @@ prompt_for_install_selection() {
 
 install_gstack() {
   print_section "Install gstack"
+  install_bun
   echo "  [INFO] Running the official gstack clone + setup flow."
-  mkdir -p "$HOME/.claude/skills"
   if [ ! -d "$GSTACK_ROOT/.git" ]; then
     git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git "$GSTACK_ROOT"
   fi
@@ -345,12 +434,23 @@ install_graphify() {
     return 1
   fi
 
-  echo "  [INFO] Installing the official graphifyy package."
-  "$python_cmd" -m pip install graphifyy
+  local python_request
+  python_request="$(get_python_version_request "$python_cmd")"
+
+  if command_exists uv; then
+    echo "  [INFO] Installing the official graphifyy package via uv tool install."
+    uv tool install --force --python "$python_request" graphifyy
+    ensure_path_dir "$UV_TOOL_BIN_DIR"
+  else
+    echo "  [INFO] Installing the official graphifyy package via pip."
+    "$python_cmd" -m pip install graphifyy
+  fi
 
   echo "  [INFO] Running the official graphify install command."
   if command_exists graphify; then
     graphify install
+  elif command_exists uvx; then
+    uvx --python "$python_request" --from graphifyy graphify install
   else
     "$python_cmd" -m graphify install
   fi
@@ -469,6 +569,9 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+ensure_path_dir "$UV_TOOL_BIN_DIR"
+ensure_path_dir "$BUN_BIN_DIR"
+
 normalize_tools "${TOOLS[@]}"
 
 for tool in "${TOOLS[@]}"; do
@@ -484,7 +587,7 @@ fi
 selection_line="$(prompt_for_install_selection)"
 read -r -a SELECTED_TOOLS <<< "$selection_line"
 
-selected_lookup=" ${SELECTED_TOOLS[*]} "
+selected_lookup=" ${SELECTED_TOOLS[*]-} "
 
 for tool in "${TOOLS[@]}"; do
   BEFORE_STATUS["$tool"]="${tool_status_state[$tool]}"
