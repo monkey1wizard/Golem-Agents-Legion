@@ -1,6 +1,6 @@
 ---
 name: planning
-description: "GAL-native planning entry. Converts a new request into a formal source plan in docs/plans without materializing execution state yet."
+description: "GAL-native planning entry. Converts a new request into a formal source plan in docs/plans without generating execution state yet."
 ---
 
 # /planning
@@ -64,5 +64,5 @@ Tell the user:
 
 - which source plan file was written
 - the chosen `plan-slug`
-- whether the plan is ready for `/plan-to-prompt` or should go through `/deep-planning` for architect review first
-- whether the next concern is prompt materialization or another planning-stage review lane
+- whether the plan should go through `/deep-planning` for architect review first, or can move on to `/refining-plan` to lock the implementation contract
+- whether the next concern is architecture convergence or locking the implementation contract

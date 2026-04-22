@@ -16,7 +16,7 @@ This command includes an architect review pass before the plan is treated as imp
 
 - A source plan exists but needs restructuring, splitting, or convergence
 - The input is a gstack plan, research memo, architecture draft, or other planning-stage text document
-- The user wants another pass before prompt materialization or planning-stage review lanes
+- The user wants another pass before prompt generation or planning-stage review lanes
 - The task changes shared structure, dependencies, public interfaces, or other architecture-sensitive areas
 
 ## Step 1 — Read Planning Inputs
@@ -77,3 +77,4 @@ Tell the user:
 - what changed in the source plan
 - whether architect review is clear or still blocking
 - whether the next action is `/plan-to-prompt`, another deep-planning pass, or a review lane through the configured collaborative tool or fallback golem
+- if `## Tasks` and `## Test Plan` still remain placeholders in the source plan, the next step is `/refining-plan`, then `/plan-to-prompt`

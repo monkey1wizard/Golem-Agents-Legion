@@ -38,30 +38,46 @@ $gal init
 | `/gal pipeline` | Run tasks automatically through implementer → tester → reviewer → verifier |
 | `/planning` | Create a source plan |
 | `/deep-planning` | Harden a source plan for implementation |
-| `/plan-to-prompt` | Materialize the execution prompt |
+| `/plan-to-prompt` | Generate the execution prompt |
+| `/refining-plan` | Populate `## Tasks`, `## Test Plan`, and Engineering Review in the source plan |
 
 ## Development Workflow
 
 ```text
-init -> planning ─┬─ (scoped feature) ──────────────> plan-to-prompt -> gal-pipeline
-                  ↓                                        ↑
-                  │                                        │
-                  └─ (structural change) -> deep-planning ─┘
+                   init
+                    │
+                    v
+                 planning
+                    │
+          ┌─────────┴──────────┐
+          │                    │
+          │                    v
+          │               deep-planning
+          v                    │
+     refining-plan <───────────┘
+          │
+          v
+     plan-to-prompt
+          │
+          v
+     gal-pipeline
 ```
-
-Not every change needs the full path. A small scoped feature can go from `/planning` directly to `/plan-to-prompt`. Only structural changes need `/deep-planning` first.
 
 ### planning
 
 `/planning` turns a new request into a formal source plan and writes it to `docs/plans/<plan-slug>.md`.
 
-The point of this stage is to turn goals, requirements, and assumptions into a stable human-readable document, while recording unresolved items in `## Open Questions`. `/planning` does not create the execution work file. It only decides whether the plan is ready to move directly into `/plan-to-prompt` or should go through `/deep-planning` for more convergence and architectural review.
+The point of this stage is to turn goals, requirements, and assumptions into a stable human-readable document, while recording unresolved items in `## Open Questions`. `/planning` does not create the execution work file. It only decides whether the plan should first go through `/deep-planning` for more convergence and architectural review, or can move on to `/refining-plan` to lock the implementation contract.
 
 ### deep-planning
 
-`/deep-planning` takes an existing source plan and pushes it toward implementation readiness. It writes planning material back into the same `docs/plans/<plan-slug>.md` file and records architecture review results in `## Review Results > ### Architecture Review` and `## Approval > Architect review`. If the architecture review still has blocking issues, the work remains in deep-planning until those are resolved. Only once the plan is sufficiently converged does it move into `/plan-to-prompt`.
+`/deep-planning` takes an existing source plan and pushes it toward implementation readiness. It writes planning material back into the same `docs/plans/<plan-slug>.md` file and records architecture review results in `## Review Results > ### Architecture Review` and `## Approval > Architect review`. If the architecture review still has blocking issues, the work remains in deep-planning until those are resolved. Only once the plan is sufficiently converged does it move into `/refining-plan`, and then `/plan-to-prompt`.
 
 If the change also needs business, design, or engineering review, those should be treated as advanced planning-stage review passes that strengthen the plan, not replace it.
+
+### refining-plan
+
+`/refining-plan` reads the source plan and writes the three sections that must be settled before prompt generation: `## Tasks` with a `T-NNN` checklist, `## Test Plan` with a `TP-NNN` matrix aligned to those tasks, and `## Review Results > ### Engineering Review` stamped either CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) or BLOCKING with a list of issues. It replaces `plan-eng-review`, closes the gap between planning and `/plan-to-prompt`, and lets the generated execution prompt inherit a runnable implementation contract. `/refining-plan` does not implement code, run tests, or change `## Status`.
 
 ### plan-to-prompt
 

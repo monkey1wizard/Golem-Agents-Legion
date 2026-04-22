@@ -39,33 +39,49 @@ $gal init
 | `/planning` | 建立 source plan |
 | `/deep-planning` | 把 source plan 收斂到可實作 |
 | `/plan-to-prompt` | 產生 execution prompt |
+| `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審核結果寫入 source plan |
 
 ## 開發工作流
 
 ```text
-init -> planning ─┬─ (scoped feature) ──────────────> plan-to-prompt -> gal-pipeline
-                  ↓                                        ↑
-                  │                                        │
-                  └─ (structural change) -> deep-planning ─┘
+                   init
+                    │
+                    v
+                 planning
+                    │
+          ┌─────────┴──────────┐
+          │                    │
+          │                    v
+          │               deep-planning
+          v                    │
+     refining-plan <───────────┘
+          │ 
+          v
+     plan-to-prompt
+          │
+          v
+     gal-pipeline
 ```
-
-不是每個改動都需要走完全程，小範圍功能變更可以從 `/planning` 直接進 `/plan-to-prompt`，只有結構性改動才需要先經過 `/deep-planning` 收斂。
 
 ### planning
 
 `/planning` 會把新的需求整理成正式的企劃文件(source plan)，寫入 `docs/plans/<plan-slug>.md`。
 
-這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的企劃文件是否已經適合直接進 `/plan-to-prompt`，或應先進 `/deep-planning` 做進一步收斂與架構審核。
+這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的企劃文件是否應先進 `/deep-planning` 做進一步收斂與架構審核，或可以往下進 `/refining-plan` 鎖定 implementation contract。
 
 ### deep-planning
 
-`/deep-planning` 會對既有企劃文件進行深度規劃，會把規劃材料整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審核的結果寫回企劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審核仍有阻塞問題，工作就留在 deep-planning 繼續修正。只有在企劃文件已經收斂到足以進入執行階段時，才往下進 `/plan-to-prompt`。
+`/deep-planning` 會對既有企劃文件進行深度規劃，會把規劃材料整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審核的結果寫回企劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審核仍有阻塞問題，工作就留在 deep-planning 繼續修正。只有在企劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
 
 如果此功能變更還需要商務、設計或工程審核，這些審核應視為企劃階段的進階項目審查，以此用來補強企劃文件內容，而不是取代企劃文件本身。
 
+### refining-plan
+
+`/refining-plan` 讀取 source plan，並把 prompt 產生前必須先定案的三個章節寫回企劃文件：`## Tasks`（含 `T-NNN` 清單）、`## Test Plan`（與 tasks 對齊的 `TP-NNN` 矩陣），以及 `## Review Results > ### Engineering Review`（標記 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並列出阻塞問題）。若有安裝 gstack 也可使用其 `plan-eng-review` 作為替代。它補上 planning 與 `/plan-to-prompt` 之間的缺口，讓後續產生出的 execution prompt 可以直接繼承可執行的 implementation contract。`/refining-plan` 不會實作程式碼、執行測試，也不會更動 `## Status`。
+
 ### plan-to-prompt
 
-`/plan-to-prompt` 會把企劃文件依照模板轉換成 `.dev/plans/<plan-slug>.prompt.md` 作為執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next` ，系統會掃描執行工作檔並回答你。有了執行工作檔了以後， `/gal pipeline` 才能正常執行。若企劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保企劃文件與 prompt 的內容保持一致。
+`/plan-to-prompt` 會把企劃文件依照模板轉換成 `.dev/plans/<plan-slug>.prompt.md` 作為執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next` ，系統會掃描執行工作檔並回答你。有了執行工作檔了以後，方可 `/gal pipeline` 正常執行。若企劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保企劃文件與執行工作檔案的內容保持一致。
 
 ## Golem Agents
 

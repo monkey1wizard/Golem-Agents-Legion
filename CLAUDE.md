@@ -719,10 +719,10 @@ Not every change needs the same amount of planning. GAL uses command choice, not
 | Situation | Recommended Flow | Architect | Notes |
 | --- | --- | --- | --- |
 | Obvious local fix | Direct implement, optional `golem-reviewer`, optional `golem-tester` | Optional consult | Use when scope and impact are already clear |
-| Scoped feature or known-cause bug | `/planning` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
-| Structural, cross-cutting, or uncertain change | `/planning` -> `/deep-planning` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
+| Scoped feature or known-cause bug | `/planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
+| Structural, cross-cutting, or uncertain change | `/planning` -> `/deep-planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
 
-If implementation uncovers architectural uncertainty, stop and return to `/deep-planning` before continuing.
+If implementation uncovers architectural uncertainty, stop and return to `/deep-planning` before continuing. After planning-stage changes, rerun `/refining-plan` before regenerating the execution prompt with `/plan-to-prompt`.
 
 ## Execution Lifecycle
 
@@ -730,8 +730,8 @@ GAL's coding flow is expressed as write-back command phases.
 
 | Phase | Entry Signal | Owners | Main Files / Outputs |
 | --- | --- | --- | --- |
-| **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
-| **Planning reviews** | Execution prompt exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
+| **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/refining-plan`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
+| **Planning reviews** | Source plan exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
 | **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, code changes |
 | **Review-stage audits** | Implementation reached a meaningful checkpoint | `golem-reviewer`, conditional `golem-designer`, conditional `golem-security`, `golem-tester` | `## Analyze`, `## Review Results`, `## Test Results` |
 | **Wrap-up or release** | Work is paused or ready to land | `/gal wrap-up`, `golem-releaser` | `### Handoff Notes`, `.dev/state.md`, `## Release` |
@@ -797,12 +797,13 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 
 1. **`/planning` creates the source plan** → `docs/plans/<type>-<slug>.md`
 2. **`/deep-planning` refines the source plan when needed** → keeps scope and rationale review-ready
-3. **`/plan-to-prompt` creates the execution prompt** → `.dev/plans/<type>-<slug>.prompt.md`
-4. **The execution prompt self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
-5. **Implementation updates progress** during execution (not `.dev/state.md`)
-6. **Testing and review write results** → execution prompt `## Test Results`, `## Review Results`, `## Analyze`
-7. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
-8. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
+3. **`/refining-plan` writes the implementation contract into the source plan** → `## Tasks`, `## Test Plan`, `## Review Results > ### Engineering Review`
+4. **`/plan-to-prompt` creates or refreshes the execution prompt from that reviewed source plan** → `.dev/plans/<type>-<slug>.prompt.md`
+5. **The execution prompt self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
+6. **Implementation updates progress** during execution (not `.dev/state.md`)
+7. **Testing and review write results** → execution prompt `## Test Results`, `## Review Results`, `## Analyze`
+8. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
+9. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
 
 ### Plan Filename Convention
 
@@ -900,7 +901,7 @@ Default principle: formal cross-checks should use a different model from the one
 
 ## Planning Review Rules
 
-`/deep-planning` is the default architect-reviewed planning pass before prompt materialization.
+`/deep-planning` is the default architect-reviewed planning pass before prompt generation.
 
 | Reviewer | When Included | Verdict Required? |
 | --- | --- | --- |

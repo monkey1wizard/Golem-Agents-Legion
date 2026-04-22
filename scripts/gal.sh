@@ -279,7 +279,7 @@ case "$command" in
         if [[ "$STATE_KIND" == uninitialized ]]; then
           write_dispatch COMMAND suggest ACTION "No .dev/state.md found. Run /gal init to initialize this repository." ON_COMPLETE "Run /gal init"
         elif [[ "$STATE_KIND" == idle ]]; then
-          write_dispatch COMMAND suggest ACTION "Repo is initialized but no active workflow is recorded. Use /planning to create a source plan, then /plan-to-prompt to create the execution prompt, or /gal status for details." ON_COMPLETE "Run /gal status or /planning"
+          write_dispatch COMMAND suggest ACTION "Repo is initialized but no active workflow is recorded. Use /planning to create a source plan, then /refining-plan to lock the implementation contract, then /plan-to-prompt to generate the execution prompt, or /gal status for details." ON_COMPLETE "Run /gal status or /planning"
         elif [[ "$STATE_KIND" == state-error ]]; then
           write_dispatch COMMAND suggest ACTION "Repo is initialized, but the active plan reference is invalid. Inspect .dev/state.md Active Plans and $STATE_ACTIVE_PLAN." ON_COMPLETE "Fix repo state, then run /gal status"
         else

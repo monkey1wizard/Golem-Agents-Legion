@@ -36,8 +36,8 @@ Apply this decision tree in order:
 | Condition | Next Action |
 | --- | --- |
 | No active plan, no work in progress | Repo is already initialized; use `/planning` to start sprint planning |
-| Active plan points to source plan only, no execution prompt yet | `/plan-to-prompt` to create `.dev/plans/<slug>.prompt.md` before specialist review |
-| No eng review recorded | Run the engineering review lane for the active plan through the configured provider, or use `/gal golem-architect` as the fallback |
+| Active plan points to source plan only, no execution prompt yet | Run `/refining-plan` to lock the implementation contract into the source plan |
+| No eng review recorded | Run the engineering review lane for the source plan through the configured provider, or use `/refining-plan` as the fallback, then refresh the prompt with `/plan-to-prompt` |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
 | Implementation complete, no test results | `golem-tester` in `browser-qa` or `spec` mode, depending on the missing verification surface |

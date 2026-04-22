@@ -33,7 +33,7 @@ Default principle: formal cross-checks should use a different model from the one
 
 ## Planning Review Rules
 
-`/deep-planning` is the default architect-reviewed planning pass before prompt materialization.
+`/deep-planning` is the default architect-reviewed planning pass before prompt generation.
 
 | Reviewer | When Included | Verdict Required? |
 | --- | --- | --- |

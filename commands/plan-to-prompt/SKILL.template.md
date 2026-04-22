@@ -9,12 +9,13 @@ Create or refresh the execution prompt for a source plan.
 
 ## Role
 
-Execution-prompt generator. Your job is to transform a stable source plan into the mutable execution work file that GAL and specialist commands use for stateful workflow operations.
+Execution-prompt generator. Your job is to transform a stable source plan into the mutable execution work file that GAL and specialist commands use for stateful workflow operations, while preserving execution-owned state during refresh.
 
 ## When to Use
 
 - A source plan exists and no execution prompt has been created yet
-- The source plan has changed materially and the execution prompt should be regenerated before reviews begin
+- The source plan has changed significantly and the execution prompt should be regenerated after planning-stage reviews are complete
+- An execution prompt needs to be generated or refreshed without advancing downstream workflow by side effect
 
 ## Step 0 — Select Plan
 
@@ -91,8 +92,9 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 - If the source plan already contains execution-style sections (drift), salvage their content into the matching standard mutable sections instead of copying the non-standard structure.
 - `## Status`, `## Analyze`, `## Test Results`, `### Deviations`, `### Handoff Notes` are mutable execution-state sections. Initialize them from the template scaffold unless refreshing an existing prompt whose progress should be preserved.
 - `## Open Questions` — carry forward existing `OQ-NNN` items. Format: `- [ ] OQ-NNN — description *(raised by: source)*`
-- `## Review Results`, `## Test Plan`, and `## Tasks` may carry forward existing planning-stage content when it belongs in the matching standard section.
-- Carry forward architecture review content from the source plan into `## Review Results > ### Architecture Review` and `## Approval > Architect review`.
+- Carry forward planning-stage review content from the source plan into the matching prompt sections, including `## Review Results > ### Architecture Review`, `## Review Results > ### Engineering Review`, and `## Approval > Architect review`.
+- The source plan is expected to already contain the implementation contract from `/refining-plan`; seed the execution prompt from that `## Tasks`, `## Test Plan`, and engineering review content.
+- In refresh mode, preserve `## Tasks`, `## Test Plan`, and `## Review Results > ### Engineering Review` from the existing execution prompt only when those sections have execution-state changes that would be lost by replacement; otherwise refresh them from the source plan.
 
 ### Status Section Scaffold
 
@@ -116,7 +118,7 @@ The execution prompt is a **machine-readable work file** and must be entirely in
 
 ### Scope Guard
 
-This command only creates or refreshes the execution prompt. It must not decide scope, initialize engineering tasks, produce a test matrix, or write `<!-- ENG_REVIEW: CLEAR -->`.
+This command only creates or refreshes the execution prompt. It must not decide scope, invent engineering tasks or a test matrix on its own, add a review verdict that does not exist in the source plan, or invoke downstream workflow steps.
 
 When refreshing an existing prompt, do not wipe completed tasks, review history, or handoff notes unless the user explicitly asks for a reset.
 
@@ -130,4 +132,6 @@ Tell the user:
 
 - which execution prompt was created or updated
 - whether existing mutable sections were preserved or reset
-- that the next step is usually a planning-stage review lane
+- whether the prompt is generated only, or already runnable because the source plan already supplied the implementation contract or the existing prompt preserved it
+- if required execution-owned sections are still placeholders, state that implementation cannot start yet because the source plan still needs `/refining-plan` before the prompt can be regenerated into a runnable state
+- do this as readiness guidance only; do not name or invoke any downstream command in this handoff

@@ -72,7 +72,7 @@ Review Retry Count: 0
 
 ## Tasks
 
-[Written by the engineering review lane after Eng Review is CLEAR. Implementation updates completion state only — do not rewrite task semantics.]
+[Copied from the source plan after `/refining-plan` marks Engineering Review CLEAR. Implementation updates completion state only — do not rewrite task semantics.]
 
 <!-- Format: - [ ] T-NNN — task description (Verify: how to confirm done) -->
 
@@ -84,7 +84,7 @@ Review Retry Count: 0
 
 ## Test Plan
 
-[Written by the engineering review lane after ENG_REVIEW is CLEAR]
+[Copied from the source plan after `/refining-plan` marks ENG_REVIEW CLEAR]
 
 ## Test Results
 

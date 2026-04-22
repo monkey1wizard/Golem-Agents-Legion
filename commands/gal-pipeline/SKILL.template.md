@@ -54,7 +54,7 @@ Verify:
 
 If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task.
 
-If prerequisites are not met: tell the user what is missing and stop.
+If prerequisites are not met: tell the user what is missing and stop. If the execution prompt is still stubbed, run `/refining-plan` on the source plan and then rerun `/plan-to-prompt` before attempting the pipeline again.
 
 ---
 

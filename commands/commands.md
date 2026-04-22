@@ -1,9 +1,9 @@
 # Commands
 
-GAL now exposes a deliberately small public command surface: 9 commands total.
+GAL now exposes a deliberately small public command surface: 10 commands total.
 
 - Control plane: `/gal`, `/gal-init`, `/gal-status`, `/gal-whats-next`, `/gal-wrap-up`, `/gal-pipeline`
-- Planning: `/planning`, `/deep-planning`, `/plan-to-prompt`
+- Planning: `/planning`, `/deep-planning`, `/plan-to-prompt`, `/refining-plan`
 
 Everything else that used to live behind execution-stage slash commands is now owned by golem agents.
 
@@ -67,7 +67,8 @@ For Codex CLI, use the equivalent skill names with `$` invocation.
 | --- | --- | --- |
 | `/planning` | Create a source plan from a request | `docs/plans/<plan-slug>.md` |
 | `/deep-planning` | Refine a source plan until it is implementation-ready | `docs/plans/<plan-slug>.md` |
-| `/plan-to-prompt` | Materialize the execution prompt from the reviewed source plan | `.dev/plans/<plan-slug>.prompt.md` |
+| `/plan-to-prompt` | Generate the execution prompt from the reviewed source plan | `.dev/plans/<plan-slug>.prompt.md` |
+| `/refining-plan` | Populate source-plan `## Tasks`, `## Test Plan`, and `## Review Results > ### Engineering Review`; emit `<!-- ENG_REVIEW: CLEAR -->` when the plan passes | `docs/plans/<plan-slug>.md` |
 
 ## Agent-Owned Execution Surface
 
@@ -139,7 +140,7 @@ ON_COMPLETE: <next-step hint>
 | `commands/gal-pipeline/SKILL.template.md` | Alias template for `/gal-pipeline` |
 | `commands/planning/SKILL.template.md` | Planning source template |
 | `commands/deep-planning/SKILL.template.md` | Deep-planning source template |
-| `commands/plan-to-prompt/SKILL.template.md` | Prompt materialization source template |
+| `commands/plan-to-prompt/SKILL.template.md` | Prompt generation source template |
 
 ## Installation
 

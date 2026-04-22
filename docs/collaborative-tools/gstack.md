@@ -62,7 +62,7 @@ These are capabilities, not public GAL command names.
 | design review | close UX, accessibility, and design-system gaps | source plan `## Review Results` and `## Open Questions` |
 | engineering review | close architecture, task, and test-readiness gaps | source plan `## Review Results`, `## Test Plan`, and `## Tasks` |
 
-These lanes happen after the source plan draft exists and before `/plan-to-prompt` materializes the execution work file.
+These lanes happen after the source plan draft exists and before `/plan-to-prompt` generates the execution work file.
 
 If gstack is unavailable or not ready, degrade to GAL-native planning commands and fallback golems. Do not surface gstack setup as a normal prerequisite unless the user explicitly asked for gstack-specific capability.
 
