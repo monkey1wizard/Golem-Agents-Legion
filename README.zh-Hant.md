@@ -35,26 +35,33 @@ $gal init
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |
 | `/gal research` | 進入研究工作流 |
 | `/gal deep-research` | 進入多來源研究工作流，包含交互審核 |
-| `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer → verifier |
-| `/planning` | 建立 source plan |
-| `/deep-planning` | 把 source plan 收斂到可實作 |
-| `/plan-to-prompt` | 產生 execution prompt |
-| `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審核結果寫入 source plan |
+| `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer，若變更涉及 security-sensitive surface 則插入條件式 `golem-security` 審核，最後再由 verifier 收尾 |
+| `/planning` | 建立企劃文件(source plan) |
+| `/deep-planning` | 把企劃文件收斂到可實作 |
+| `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審核結果寫入企劃文件 |
+| `/plan-to-prompt` | 產生執行工作檔案(execution prompt) |
 
 ## 開發工作流
 
 ```text
-                   init
-                    │
-                    v
-                 planning
-                    │
-          ┌─────────┴──────────┐
-          │                    │
-          │                    v
-          │               deep-planning
-          v                    │
-     refining-plan <───────────┘
+         init
+          │
+          v
+       planning
+          │
+          v
+     source plan (docs/plans/*)
+          │
+     ┌────┴──────────────┐
+     │                   │
+     │ 直接使用           │ 若使用 deep-planning
+     │ analyst/designer  │ 則 architect 必定啟動
+     │ 在內容需要時審查    │ analyst/designer 則
+     │                   │ 依內容併行啟動
+     └────┬──────────────┘
+          │ 
+          v
+     refining-plan
           │ 
           v
      plan-to-prompt
@@ -71,13 +78,13 @@ $gal init
 
 ### deep-planning
 
-`/deep-planning` 會對既有企劃文件進行深度規劃，會把規劃材料整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審核的結果寫回企劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審核仍有阻塞問題，工作就留在 deep-planning 繼續修正。只有在企劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
+`/deep-planning` 會對既有企劃文件進行深度規劃，而且 architect 在這個指令內一定會啟動。規劃材料會整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審核結果寫回企劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審核仍有阻塞問題，工作就留在 deep-planning 繼續修正。只有在企劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
 
-如果此功能變更還需要商務、設計或工程審核，這些審核應視為企劃階段的進階項目審查，以此用來補強企劃文件內容，而不是取代企劃文件本身。
+若企劃涉及商務邏輯、定價、權限、通知、onboarding 或身份驗證，analyst 會與 architect 同時啟動；若涉及客戶接觸面（customer-facing flows）、布局、狀態、組件或無障礙設計，designer 也會一併加入。如果只需要商務或設計層面的專家審查，不打算進行完整架構檢視，也可以直接針對企劃文件啟用對應的工作領域。
 
 ### refining-plan
 
-`/refining-plan` 讀取 source plan，並把 prompt 產生前必須先定案的三個章節寫回企劃文件：`## Tasks`（含 `T-NNN` 清單）、`## Test Plan`（與 tasks 對齊的 `TP-NNN` 矩陣），以及 `## Review Results > ### Engineering Review`（標記 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並列出阻塞問題）。若有安裝 gstack 也可使用其 `plan-eng-review` 作為替代。它補上 planning 與 `/plan-to-prompt` 之間的缺口，讓後續產生出的 execution prompt 可以直接繼承可執行的 implementation contract。`/refining-plan` 不會實作程式碼、執行測試，也不會更動 `## Status`。
+`/refining-plan` 完成 prompt 執行前必須定案的三個關鍵章節：`## Tasks`（列出 `T-NNN` 任務清單）、`## Test Plan`（建立與任務對應的 `TP-NNN` 測試表單），以及 `## Review Results > ### Engineering Review`（標記為 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並說明阻塞問題）。這個步驟透過執行細部設計來補足 planning 與 `/plan-to-prompt` 間的空隙。`/refining-plan` 不涉及程式碼實作、測試執行或 `## Status` 變更。若已安裝 gstack，也可改用其 `plan-eng-review` 替代。
 
 ### plan-to-prompt
 
@@ -123,16 +130,18 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 
 ### Pipeline Agents
 
-Pipeline 是 GAL 的自動化執行核心。執行 `/gal pipeline` 後，每個任務會依序串接四個 agent：
+Pipeline 是 GAL 的自動化執行核心。它的固定主鏈仍是四個 agent，但若實作後的變更觸及 security-sensitive surface，`/gal pipeline` 會在 task closeout 前插入條件式 `golem-security` 審核。
 
 ```text
-T-NNN ──> implementer ──> tester ──> reviewer ──> git commit ──> T-NNN+1
+T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional security] ──> git commit ──> T-NNN+1
                ↑                         │
                │                         ↓
      auto-fix by review result <────── REJECT
 
 所有任務完成後：──> verifier ──> 確認企劃目標達成
 ```
+
+`[conditional security]` 代表只有在變更觸及 authentication、sensitive data handling、input handling、public API surface，或 deployment / environment trust boundary 時，才會啟動 `golem-security`。
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
@@ -141,7 +150,7 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> git commit ─
 | **reviewer** | 以資深工程師的標準審核變更差異、風險與完整性 | 若發現阻塞問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
 | **verifier** | 在所有任務完成後，從企劃目標反向驗證成果是否真的達成 | 負責確認企劃是否可關閉，並把值得保留的知識抽回 `docs/` |
 
-`/gal pipeline` 仍是完整串接流程。Domain agent 和 utility agent 可隨時直接呼叫，Pipeline agent 也可在明確界定的 specialist 工作中直接呼叫。
+`golem-security` 屬於 domain agent，由 `/gal pipeline` 在安全敏感變更時有條件啟動，不參與常態執行。Domain 與 utility agent 可隨時直接呼叫，pipeline agent 亦可在明確界定的工作中直接呼叫。
 
 ### AI 模型與 Agent 規則
 
@@ -155,7 +164,7 @@ Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
 
 ### Working Hours
 
-Working Hours 改為 **預設關閉** 的 machine-local 設定。只有當使用者在 `config.local.env` 啟用後，agent 才會依照設定的工作時段、After Hours、Wrap-up Time 與 Hard Stop 執行提醒與停工。
+Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `config.local.env` 啟用後，agent 才會依照設定的工作時段、After Hours、Wrap-up Time 與 Hard Stop 執行提醒與停工。
 
 - **Working Hours off**：所有 agent 正常工作
 - **After Hours**：超過工作時段後，到 Wrap-up Time 前仍可工作
@@ -163,7 +172,7 @@ Working Hours 改為 **預設關閉** 的 machine-local 設定。只有當使用
 - **Hard Stop**：所有 agent 停止，包括 `notewriter`
 - **Override**：使用者可說 `override working hours`，單次有效
 
-實際時間由 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME` 等 local 設定控制，不再寫死在 tracked docs 中。
+可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設置啟動時間，詳細請看 [docs/personalization.md](docs/personalization.md)。
 
 ## 儲存邊界
 
@@ -224,7 +233,7 @@ GAL 把持久化資料分成兩個邊界：
 
 ## 研究工作流
 
-研究是獨立於開發的工作流程，可以和開發工作流平行運作。預設 durable 輸出仍寫到 `docs/research/`，但你也可以在 research 過程中明確指定要存到私人筆記區或只回傳結果不落地。
+研究是獨立於開發的工作流程，可以和開發工作流平行運作。預設 durable 輸出仍寫到 `docs/research/`，但你也可以在研究過程中明確指定要存到私人筆記區或只回傳結果不落地。
 
 | 模式 | 適用時機 | 流程 | 來源要求 |
 | --- | --- | --- | --- |
@@ -274,7 +283,7 @@ applicability → availability → initialization status → readiness → route
 
 ### OpenCLI
 
-把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉成適合人類與 AI agent 使用的可預測介面。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
+把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉換成命令列介面。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
 
 ### gstack
 

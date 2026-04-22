@@ -33,6 +33,12 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Treat repo-owned Markdown files as the durable workflow state — temporary runtime output must not replace `.dev/` or plan files.
 - Generated adapters must come from tracked templates and scripts, not hand-edited machine-local outputs.
 
+## Response Style
+
+- Keep answers minimal, professional, and straight to the point.
+- Unless I explicitly ask for it, do not proactively suggest next steps or offer a summary of proposed changes at the end of the response.
+- Remove unnecessary pleasantries and closing remarks.
+
 ## Protected Paths
 
 - `commands/` — changing the public command surface affects every runtime.

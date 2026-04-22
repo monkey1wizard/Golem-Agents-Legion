@@ -35,7 +35,7 @@ $gal init
 | `/gal wrap-up` | Converge work by writing `### Handoff Notes` and `## Session Continuity` |
 | `/gal research` | Enter the research workflow |
 | `/gal deep-research` | Enter the multi-source research workflow with cross-review |
-| `/gal pipeline` | Run tasks automatically through implementer → tester → reviewer → verifier |
+| `/gal pipeline` | Run tasks automatically through implementer → tester → reviewer, insert conditional `golem-security` audit for security-sensitive changes, then verifier |
 | `/planning` | Create a source plan |
 | `/deep-planning` | Harden a source plan for implementation |
 | `/plan-to-prompt` | Generate the execution prompt |
@@ -44,17 +44,25 @@ $gal init
 ## Development Workflow
 
 ```text
-                   init
-                    │
-                    v
-                 planning
-                    │
-          ┌─────────┴──────────┐
-          │                    │
-          │                    v
-          │               deep-planning
-          v                    │
-     refining-plan <───────────┘
+          init
+          │
+          v
+          planning
+          │
+          v
+      source plan
+      docs/plans/*
+          │
+    ┌─────┴───────────────┐
+    │                     │
+    │ direct domain lane  │ /deep-planning
+    │ analyst/designer    │ architect always
+    │ when content needs  │ analyst/designer
+    │ specialist review   │ when content touches
+    └─────┬───────────────┘ relevant scope
+          │
+          v
+     refining-plan
           │
           v
      plan-to-prompt
@@ -71,13 +79,13 @@ The point of this stage is to turn goals, requirements, and assumptions into a s
 
 ### deep-planning
 
-`/deep-planning` takes an existing source plan and pushes it toward implementation readiness. It writes planning material back into the same `docs/plans/<plan-slug>.md` file and records architecture review results in `## Review Results > ### Architecture Review` and `## Approval > Architect review`. If the architecture review still has blocking issues, the work remains in deep-planning until those are resolved. Only once the plan is sufficiently converged does it move into `/refining-plan`, and then `/plan-to-prompt`.
+`/deep-planning` takes an existing source plan and pushes it toward implementation readiness. Architect review always activates inside this command and writes its results back into the same `docs/plans/<plan-slug>.md` file under `## Review Results > ### Architecture Review` and `## Approval > Architect review`. If the architecture review still has blocking issues, the work remains in deep-planning until those are resolved. Only once the plan is sufficiently converged does it move into `/refining-plan`, and then `/plan-to-prompt`.
 
-If the change also needs business, design, or engineering review, those should be treated as advanced planning-stage review passes that strengthen the plan, not replace it.
+If the source plan touches business logic, pricing, permissions, notifications, onboarding, or identity verification, analyst review auto-activates alongside architect review. If it touches customer-facing flows, layout, states, components, or accessibility, designer review auto-activates alongside architect review. If you only need business or design specialist review and do not intend to run a full architecture pass, you can invoke the corresponding domain lane directly against the source plan.
 
 ### refining-plan
 
-`/refining-plan` reads the source plan and writes the three sections that must be settled before prompt generation: `## Tasks` with a `T-NNN` checklist, `## Test Plan` with a `TP-NNN` matrix aligned to those tasks, and `## Review Results > ### Engineering Review` stamped either CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) or BLOCKING with a list of issues. It replaces `plan-eng-review`, closes the gap between planning and `/plan-to-prompt`, and lets the generated execution prompt inherit a runnable implementation contract. `/refining-plan` does not implement code, run tests, or change `## Status`.
+`/refining-plan` reads the source plan and settles the three sections that must be finalized before prompt generation: `## Tasks` with a `T-NNN` checklist, `## Test Plan` with a `TP-NNN` matrix aligned to those tasks, and `## Review Results > ### Engineering Review` stamped either CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) or BLOCKING with a list of issues. This step fills the gap between planning and `/plan-to-prompt` by turning the source plan into a runnable implementation contract. `/refining-plan` does not implement code, run tests, or change `## Status`. If gstack is installed, you can use its `plan-eng-review` as an alternative.
 
 ### plan-to-prompt
 
@@ -123,16 +131,18 @@ Domain agents provide specialist advice and can be invoked at any stage.
 
 ### Pipeline Agents
 
-Pipeline is GAL's automated execution core. When you run `/gal pipeline`, each task passes through four agents in order:
+Pipeline is GAL's automated execution core. Its always-on chain remains four agents, but `/gal pipeline` inserts a conditional `golem-security` audit before task closeout when the implemented change touches a security-sensitive surface.
 
 ```text
-T-NNN ──> implementer ──> tester ──> reviewer ──> git commit ──> T-NNN+1
+T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional security] ──> git commit ──> T-NNN+1
                ↑                         │
                │                         ↓
      auto-fix by review result <────── REJECT
 
 all tasks complete: ──> verifier ──> confirm the plan goal was actually achieved
 ```
+
+`[conditional security]` means dispatch `golem-security` only when the implemented change touches auth, sensitive data handling, input handling, public API surface, or deployment and environment trust boundaries.
 
 | Agent | Responsibility | Key rule |
 | --- | --- | --- |
@@ -141,7 +151,7 @@ all tasks complete: ──> verifier ──> confirm the plan goal was actually 
 | **reviewer** | review the diff for risk, correctness, and completeness | if it finds blocking issues, work must go back to implementer. its model should differ from implementer and should not be weaker |
 | **verifier** | work backward from the original goal after all tasks are done | it decides whether the plan can close and what knowledge should be absorbed back into `docs/` |
 
-`/gal pipeline` remains the full chained execution path. Domain and utility agents can be called directly, and pipeline agents may also be invoked directly for bounded specialist work.
+`golem-security` remains a domain agent. `/gal pipeline` activates it only for security-sensitive implemented changes, and it does not participate in the default execution chain. Domain and utility agents can still be called directly, and pipeline agents may still be invoked directly for bounded specialist work.
 
 ### AI Model And Agent Rules
 
@@ -294,7 +304,7 @@ Uses ComfyUI as the generation entry point and downstream tools for cleanup and 
 
 ## Personalization
 
-Everything related to machine-local configuration that does not belong on the README front page is collected in [docs/personalization.md](docs/personalization.md). It covers how to fill environment placeholders, how to choose and reconfigure execution environments, model routing, MCP overrides, which `.local.*` files should hold local secrets and paths, and when setup needs to be rerun. If you need to change the AI tools you use on this machine, model-role mappings, or MCP settings, start there.
+Everything related to machine-local configuration that does not belong on the README front page is collected in [docs/personalization.md](docs/personalization.md). It covers how to fill environment placeholders, how to choose and reconfigure execution environments, model routing, MCP overrides, Obsidian Vault paths, private research directories, the optional Guide path, Working Hours settings, and when setup needs to be rerun. If you need to change the AI tools you use on this machine, model-role mappings, or MCP settings, start there.
 
 ## Documentation
 

@@ -29,7 +29,7 @@ Your job: make customer-facing work intentional, consistent, accessible, and spe
 <classification>
 - **Category**: Domain
 - **Bound to state**: none
-- **Typical activation**: consult, conditional deep-planning review, design execution, live UI audit
+- **Typical activation**: consult, conditional planning-stage design review, design execution, live UI audit
 - **Required skills**: none
 </classification>
 
@@ -220,9 +220,9 @@ If this task has no meaningful UI/UX surface, state:
 
 ## Planning-Stage Design Review Lane
 
-When you are invoked as the fallback for the design review lane, write or prepare write-back content for the active execution prompt instead of stopping at freeform chat feedback.
+When you are invoked as the fallback for the design review lane, write or prepare write-back content for the source plan (`docs/plans/<slug>.md`) instead of stopping at freeform chat feedback.
 
-Required outputs for the active execution prompt:
+Required outputs for the source plan:
 - Append `### Design Review` under `## Review Results`
 - Record unresolved design questions in `## Open Questions` with stable `OQ-NNN` IDs
 - Keep recommendations grounded in user journeys, state coverage, accessibility, and design-system fit

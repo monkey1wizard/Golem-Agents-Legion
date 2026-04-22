@@ -101,7 +101,7 @@ The installer persists machine-local runtime selection in `~/.gal/install-state.
 
 - `selectedRuntimes` controls which machine-layer targets GAL should manage.
 - `primaryRuntime` controls defaults and summaries only.
-- The tracked GAL repo remains the canonical source for agents, skills, and commands.
+- The tracked GAL repo remains the primary source for agents, skills, and commands.
 
 ### MCP Management
 

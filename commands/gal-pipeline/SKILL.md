@@ -1,15 +1,15 @@
 ---
 name: gal-pipeline
-description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, with a mandatory git commit gate between tasks, and a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, working-hours boundary, or a user-specified stop boundary."
+description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, inserts a conditional `golem-security` audit for security-sensitive implemented changes, keeps a mandatory git commit gate between tasks, and runs a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, working-hours boundary, or a user-specified stop boundary."
 ---
 
 # /gal-pipeline
 
-Run the full implementation pipeline task by task: for each `T-NNN` task in the active plan, run implement → commit → test → review in sequence, then advance to the next task. Each phase uses a different AI vendor per `model-roles.local.md`. After all tasks complete, run a final verifier pass.
+Run the full implementation pipeline task by task: for each `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Each core phase uses a different AI vendor per `model-roles.local.md`. After all tasks complete, run a final verifier pass.
 
 ## Role
 
-Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + test + review gate is fully clean, and stopping only when a genuine human-required condition is encountered.
+Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + test + review gate, plus any required conditional security audit gate, is fully clean, and stopping only when a genuine human-required condition is encountered.
 
 ## When to Use
 
@@ -38,6 +38,8 @@ Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
 | Test | `golem-tester` | TESTER | Must not read implementation — writes tests from spec only |
 | Review | `golem-reviewer` | REVIEWER | Must differ from CODER — fresh eyes on bugs and architecture |
 | Verify | `golem-verifier` | VERIFIER | Must differ from CODER — goal-backward plan verification |
+
+`golem-security` is not an always-on fifth pipeline phase. It remains a domain specialist that `/gal pipeline` dispatches only when the implemented change touches auth, data storage or sensitive data handling, user input processing, public API surface, or deployment and environment trust boundaries.
 
 ---
 
@@ -139,7 +141,34 @@ Check result:
 
 **Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
 
-### 2f — Mark Task Complete
+### 2f — Conditional Security Audit
+
+Decide whether `T-NNN` needs a specialist security pass.
+
+Run `golem-security` only when the implemented change touches one or more of these surfaces:
+
+- authentication
+- data storage or sensitive data handling
+- user input processing
+- public API surface
+- deployment or environment trust boundaries
+
+If none apply: skip this step and proceed to 2g.
+
+If any apply, run:
+
+```powershell
+/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch golem-security
+```
+
+Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The security specialist writes a task-scoped subsection under `## Review Results`.
+
+Check result:
+
+- **Security review clear**: proceed to 2g
+- **High or critical findings remain open**: **STOP immediately**. Do not auto-fix inside the pipeline. Surface the findings and request human intervention before task closeout
+
+### 2g — Mark Task Complete
 
 All gates passed for `T-NNN`:
 
@@ -186,7 +215,7 @@ Report the combined verdict:
 
 Tasks completed: N of N
   T-001  ✓ implement · test · review
-  T-002  ✓ implement · test · review
+  T-002  ✓ implement · test · review · security (when run)
   ...
 
 Verifier: VERIFIED
@@ -204,7 +233,7 @@ If any task or verifier is blocked, report with detail:
 --- PIPELINE BLOCKED ---
 
 Task:    T-NNN
-Phase:   [IMPLEMENT | TEST | REVIEW]
+Phase:   [IMPLEMENT | TEST | REVIEW | SECURITY]
 Reason:  [description]
 Retry Count: N of 3
 
@@ -221,13 +250,14 @@ If the script cannot be run (e.g. macOS / Linux), run:
 /Users/tzylee/Code/Golem-Agents-Legion/scripts/gal.sh dispatch golem-implementer
 ```
 
-(and equivalent for tester, reviewer, verifier)
+(and equivalent for tester, reviewer, security, verifier)
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
 
 - `agent/golem-implementer.agent.md`
 - `agent/golem-tester.agent.md`
 - `agent/golem-reviewer.agent.md`
+- `agent/golem-security.agent.md`
 - `agent/golem-verifier.agent.md`
 
 ---
@@ -237,6 +267,7 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Condition | Action |
 | --- | --- |
 | BLOCKING security vuln or Protected Path | STOP immediately — human required |
+| Conditional security audit leaves high or critical findings open | STOP immediately — human required |
 | `Test Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | `Review Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |

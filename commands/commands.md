@@ -9,7 +9,7 @@ Everything else that used to live behind execution-stage slash commands is now o
 
 ## Architecture
 
-Command skills are installed into Copilot and Codex skill directories, while Gemini native slash commands are generated into `~/.gemini/commands/` via `Setup-Machine`. Shared reusable non-command skills remain in `.agents/skills`.
+Command skills are installed into Copilot and Codex skill directories, while Gemini and Claude native command files are generated into `~/.gemini/commands/` and `~/.claude/commands/` via `Setup-Machine`. Shared reusable non-command skills remain in `~/.agents/skills`, and Claude also receives direct skill links in `~/.claude/skills/`.
 
 Codex note: installed GAL skills are available as Codex skills, but explicit invocation uses `$skill-name`, not custom slash-command syntax. Example: use `$gal status`, not `/gal status`.
 
@@ -47,7 +47,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal wrap-up` | How do I close this session? | Converge handoff updates and update session continuity |
 | `/gal research` | I need structured investigation | Invoke research golem via script |
 | `/gal deep-research` | I need multi-source investigation with cross-review | Invoke deep-research workflow via script |
-| `/gal <golem-name>` | Route to a specialist agent | Invoke that golem via script |
+| `/gal <golem-name>` | Route to a supported specialist agent | Invoke a dispatcher-supported golem such as `architect`, `analyst`, `designer`, `researcher`, `debugger`, `notewriter`, `implementer`, `tester`, `reviewer`, or `verifier` |
 
 ### `gal-*` — Discoverability Aliases
 
@@ -57,7 +57,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal-status` | Active | Full state projection |
 | `/gal-whats-next` | Active | Next-action recommendation |
 | `/gal-wrap-up` | Active | Session close-out |
-| `/gal-pipeline` | Active | Task execution through implementer -> tester -> reviewer -> verifier |
+| `/gal-pipeline` | Active | Task execution through implementer -> tester -> reviewer, with conditional security audit for security-sensitive changes, then verifier |
 
 For Codex CLI, use the equivalent skill names with `$` invocation.
 
@@ -84,6 +84,8 @@ The following work no longer has a public slash command and should be routed to 
 | Security audit | `golem-security` | plan `## Review Results` |
 | Release prep, deploy, and doc sync | `golem-releaser` | plan `## Release`, repo docs |
 
+Ownership does not imply that every specialist currently has a dispatcher entry through `/gal <golem-name>`. The dispatcher scripts are the source of truth for which golems can be invoked directly.
+
 ### Golem Classification
 
 | Golem | Class | Default Mode |
@@ -96,8 +98,8 @@ The following work no longer has a public slash command and should be routed to 
 | golem-analyst | Domain | consult |
 | golem-designer | Domain | consult |
 | golem-researcher | Domain | consult |
-| golem-security | Domain | consult |
-| golem-releaser | Domain | consult |
+| golem-security | Domain | direct specialist |
+| golem-releaser | Domain | direct specialist |
 | golem-debugger | Utility | utility |
 | golem-notewriter | Utility | utility |
 
@@ -109,7 +111,7 @@ GAL keeps planning as a native command family and routes planning-stage review b
 | --- | --- | --- | --- |
 | Business / Scope review | Upstream gstack business review provider when installed | `/gal golem-analyst` | `## Review Results` + `## Open Questions` |
 | Design review | Upstream gstack design review provider when installed | `/gal golem-designer` | `## Review Results` + `## Open Questions` |
-| Engineering review | Upstream gstack engineering review provider when installed | `/gal golem-architect` | `## Review Results` + `## Open Questions` + `## Test Plan` + `## Tasks` + `<!-- ENG_REVIEW: CLEAR -->` |
+| Engineering review | Upstream gstack engineering review provider when installed | `/gal golem-architect` | Architect feedback feeds the source plan; `/refining-plan` remains the command that writes `## Tasks`, `## Test Plan`, and `<!-- ENG_REVIEW: CLEAR -->` |
 
 Legacy gstack planning command names are not part of GAL's public command catalog. They survive only as provider semantics in integration contracts.
 
@@ -141,6 +143,7 @@ ON_COMPLETE: <next-step hint>
 | `commands/planning/SKILL.template.md` | Planning source template |
 | `commands/deep-planning/SKILL.template.md` | Deep-planning source template |
 | `commands/plan-to-prompt/SKILL.template.md` | Prompt generation source template |
+| `commands/refining-plan/SKILL.template.md` | Engineering-review contract source template |
 
 ## Installation
 
@@ -151,6 +154,7 @@ Managed by `Setup-Machine.ps1` and `setup-machine.sh`. The scripts:
 3. Append any gitignored `commands/*/SKILL.local.md` overlay to the baked content.
 4. Write baked `SKILL.md` files into each remaining `commands/*/` directory.
 5. Symlink command directories into `~/.copilot/skills/` and `~/.codex/skills/`.
-6. Generate Gemini native command files in `~/.gemini/commands/` from the baked `SKILL.md` content.
+6. Generate Gemini and Claude native command files in `~/.gemini/commands/` and `~/.claude/commands/` from the baked `SKILL.md` content.
+7. Symlink reusable skills into the runtime skill directories, including `~/.claude/skills/`.
 
 If you need a machine-local customization that should survive setup reruns, put it in `commands/<command>/SKILL.local.md`. Do not edit `commands/<command>/SKILL.md` directly.

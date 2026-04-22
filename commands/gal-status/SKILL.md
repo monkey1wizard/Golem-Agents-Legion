@@ -90,7 +90,7 @@ Based on the current plan files and progress markers, list the commands that are
 | Signal | Appropriate Commands |
 | --- | --- |
 | Draft source plan, no execution prompt yet | `/deep-planning`, `/refining-plan` |
-| Execution prompt exists, no eng review yet | Business review lane via configured provider or `/gal golem-analyst`; design review lane via configured provider or `/gal golem-designer`; engineering review lane via configured provider or `/refining-plan`, then refresh with `/plan-to-prompt` |
+| Source plan exists, planning-stage domain reviews not yet run | `/deep-planning`; business review lane via configured provider or `/gal analyst`; design review lane via configured provider or `/gal designer`; if engineering review contract is still uninitialized, run `/refining-plan`, then refresh with `/plan-to-prompt` |
 | Tasks initialized, work remaining | `/gal pipeline`, `golem-reviewer`, `golem-debugger`, `golem-designer` |
 | Review-stage audit for customer-facing UI work with `DESIGN.md` in place | `golem-designer` in `audit` mode |
 | Security-sensitive work touching auth, data handling, input handling, or public API surface | `golem-security` |

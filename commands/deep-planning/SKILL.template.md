@@ -53,7 +53,9 @@ This command may:
 
 Do not create or mutate `.dev/plans/<plan-slug>.prompt.md` here.
 
-## Step 3 — Run Architect Review
+## Step 3 — Run Planning-Stage Domain Reviews
+
+### Step 3a — Architect Review (Always Mandatory)
 
 Read `agent/golem-architect.agent.md` and apply its review standards to the converged source plan.
 
@@ -64,7 +66,15 @@ Write the architect outcome back into the source plan:
 
 If the architect review finds blocking issues, keep the plan in deep-planning. Revise the source plan before recommending `/plan-to-prompt`.
 
-Business or design review lanes may still follow, but architect review is the default deep-planning gate.
+Architect review is the mandatory deep-planning gate before `/plan-to-prompt`.
+
+### Step 3b — Designer Review (Content-Triggered)
+
+If the source plan touches customer-facing flows, layout, states, components, or accessibility, run the design review lane concurrently against the source plan through the configured collaborative tool or fallback golem.
+
+### Step 3c — Analyst Review (Content-Triggered)
+
+If the source plan touches business rules, pricing, permissions, notifications, onboarding, or eligibility, run the business review lane concurrently against the source plan through the configured collaborative tool or fallback golem.
 
 ## Step 4 — Update Repo State
 

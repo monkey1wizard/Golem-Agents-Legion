@@ -65,4 +65,5 @@ Tell the user:
 - which source plan file was written
 - the chosen `plan-slug`
 - whether the plan should go through `/deep-planning` for architect review first, or can move on to `/refining-plan` to lock the implementation contract
+- whether the plan should invoke a specific domain lane directly against the source plan when business or design review is needed without an architect-led `/deep-planning` pass
 - whether the next concern is architecture convergence or locking the implementation contract

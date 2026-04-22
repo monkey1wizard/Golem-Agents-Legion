@@ -6,8 +6,8 @@
 ## Adapter Rules
 
 - This is the repo-local adapter for Claude Code.
-- All skills in this repo's skills/ directory are inlined below so Claude Code has full skill context even when machine-level install differs by environment.
-- This generator only writes repo-local adapters such as CLAUDE.md; machine-level Claude setup belongs to Setup-Machine.
+- All skills in this repo's `skills/` directory are inlined below so Claude Code has full skill context even when machine-level install differs by environment.
+- This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `Setup-Machine`.
 
 <!-- Source: .dev/project.md -->
 # Golem-Agents-Legion
@@ -44,6 +44,12 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Keep cross-runtime behavior aligned across Copilot, Gemini CLI, Codex CLI, and Claude Code — command drift breaks the control plane.
 - Treat repo-owned Markdown files as the durable workflow state — temporary runtime output must not replace `.dev/` or plan files.
 - Generated adapters must come from tracked templates and scripts, not hand-edited machine-local outputs.
+
+## Response Style
+
+- Keep answers minimal, professional, and straight to the point.
+- Unless I explicitly ask for it, do not proactively suggest next steps or offer a summary of proposed changes at the end of the response.
+- Remove unnecessary pleasantries and closing remarks.
 
 ## Protected Paths
 
@@ -95,7 +101,6 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Multi-machine execution-plane rollout remains open and is tracked separately from this repo-bootstrap closeout.
 - Community getting-started and contribution documentation remain future milestone work.
 
-
 <!-- Source: conventions/conventions.md -->
 # Conventions
 
@@ -120,7 +125,6 @@ Universal cross-project guidance now lives in standalone skills:
 - [structured-logging](../skills/structured-logging/SKILL.md)
 - [result-pattern](../skills/result-pattern/SKILL.md)
 - [markdown-formatting](../skills/markdown-formatting/SKILL.md)
-
 
 <!-- Source: conventions/csharp.md -->
 # C# / .NET Conventions
@@ -365,7 +369,6 @@ public partial class PlayerController : CharacterBody2D
 }
 ```
 
-
 <!-- Source: conventions/go.md -->
 # Go Conventions
 
@@ -424,7 +427,6 @@ func TestAdd(t *testing.T) {
 }
 ```
 
-
 <!-- Source: conventions/rust.md -->
 # Rust Conventions
 
@@ -482,7 +484,6 @@ pub struct PriceItem {
 - Always check pointers for null before dereferencing in `ffi.rs`
 - All comments and docs in English (CJK allowed in string literals for testing only)
 
-
 <!-- Source: conventions/token-budget.md -->
 # Token Budget
 
@@ -539,7 +540,6 @@ docs/ (permanent, low token cost to reference)
 
 **Principle**: The more stable the knowledge, the closer it lives to `project.md`. The more transient, the closer it lives to the plan or scratch file.
 
-
 <!-- Source: conventions/typescript.md -->
 # TypeScript Conventions
 
@@ -588,7 +588,6 @@ async function getUserData(id: string): Promise<User> {
 
 - Jest or Vitest preferred
 - Mock external dependencies for unit isolation
-
 
 <!-- Source: conventions/working-hours.md -->
 # Working Hours Convention
@@ -703,12 +702,11 @@ If the user explicitly says `override working hours`, `skip working hours`, or `
 
 This is an optional self-imposed boundary to enforce healthy work habits. The agents serve the user, and when working hours are enabled they should protect the user from overwork without pretending the policy is repo-global.
 
-
 <!-- Source: workflows/coding.md -->
 # Coding Flow
 
 The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
-Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist agents write back to the active execution prompt.
+Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, and execution-stage specialists write back to the `.dev/plans/<slug>.prompt.md` execution file.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -738,15 +736,19 @@ GAL's coding flow is expressed as write-back command phases.
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
-`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
+`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews
 
-`/deep-planning` includes an architect review by default before a plan is treated as implementation-ready.
+`/deep-planning` always activates architect review before a plan is treated as implementation-ready.
 
-- **Architect**: default reviewer for `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
-- **Analyst**: add when the plan changes business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
-- **Designer**: add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+- **Architect**: always activates (mandatory) in `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
+- **Analyst**: auto-activates when content touches business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
+- **Designer**: auto-activates when content touches customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+
+Each domain lane can also be invoked directly against the source plan outside of `/deep-planning` when that specialist review is needed without an architect-led deep-planning pass.
+
+Planning-stage security concerns still sit with architect during `/deep-planning`, especially around trust boundaries, risky interfaces, and security-sensitive design decisions. `golem-security` does not replace that planning review; it audits the implemented branch once code exists.
 
 Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
@@ -844,11 +846,11 @@ This is manually triggered — the AI does not know when you're switching contex
 
 | Type | Allowed | Examples |
 | --- | --- | --- |
-| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal [ask architect]`, `/gal [ask analyst]` |
-| **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run notewriter]` |
-| **Pipeline** | Yes | `/gal [golem-tester]`, `/gal [golem-reviewer]` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
+| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal architect`, `/gal analyst` |
+| **Utility** | Yes — independent helper | `/gal debugger`, `/gal notewriter` |
+| **Pipeline** | Yes | `/gal tester`, `/gal reviewer` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
-Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
+Examples above use the literal dispatcher-facing golem names. Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
 ## Per-Phase Model Assignment
 
@@ -863,7 +865,6 @@ Key rules:
 - **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
 - **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
 - **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger
-
 
 <!-- Source: model-roles.md -->
 # Model Roles
@@ -930,7 +931,6 @@ Research workflow note: `/gal research` and `/gal deep-research` have their own 
 
 Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
 with your own machines, models, and tools. The local file is git-ignored.
-
 
 <!-- Source: skills/defuddle/SKILL.md -->
 ---
@@ -1013,7 +1013,6 @@ defuddle parse <url> -p domain
 | `--json` | JSON with both HTML and markdown |
 | (none) | HTML |
 | `-p <name>` | Specific metadata property |
-
 
 <!-- Source: skills/doc-coauthoring/SKILL.md -->
 ---
@@ -1405,7 +1404,6 @@ Announce document completion. Provide a few final tips:
 - Each iteration should make meaningful improvements
 - The goal is a document that actually works for readers
 
-
 <!-- Source: skills/game-2d-assets/SKILL.md -->
 ---
 name: game-2d-assets
@@ -1745,7 +1743,6 @@ When asked for a commit message:
 1. Pick the correct type.
 2. Choose the most relevant scope and use a scoped header.
 3. Return only the commit message unless the user asks for explanation.
-
 
 <!-- Source: skills/godot-asset-pipeline/SKILL.md -->
 ---
@@ -2366,18 +2363,17 @@ If validation fails, check for duplicate IDs, dangling edge references, or malfo
 - [JSON Canvas Spec 1.0](https://jsoncanvas.org/spec/1.0/)
 - [JSON Canvas GitHub](https://github.com/obsidianmd/jsoncanvas)
 
-
 <!-- Source: skills/local-first-search/SKILL.md -->
 ---
 name: local-first-search
-description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge using Local-First and Context-First retrieval. If a personal Guide exists, follow its structure first; otherwise default to a PARA-based search order. Activate before answering conceptual questions, proposing solutions, or creating new notes.
+description: Search the existing Obsidian Vault for knowledge using Local-First and Context-First retrieval. If a personal Guide exists, follow its structure first; otherwise default to a PARA-based search order. Activate before answering conceptual questions, proposing solutions, or creating new notes.
 ---
 
 # Local-First Search Strategy
 
 ## Core Philosophy
 
-**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you must search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge first. Avoid generic answers that ignore the vault.
+**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you must search the user's Obsidian Vault for existing knowledge first. Avoid generic answers that ignore the vault.
 
 **Structure Resolution**:
 
@@ -2391,7 +2387,7 @@ The `obsidian-note-taking-assistant` provides a DuckDB + BGE-M3 vector search en
 
 ### Tool Location
 
-- **Project**: `<LOCAL_SEARCH_PROJECT>`
+- **Project**: `C:\Users\leetz\obsidian-note-taking-assistant`
 - **Script**: `scripts/query.py`
 - **Run via**: `uv run python scripts/query.py <command> <args>`
 
@@ -2418,15 +2414,15 @@ Slugs are auto-generated from file paths. Pattern: lowercase path with `/` turne
 Run when the vault has new notes:
 
 ```bash
-cd <LOCAL_SEARCH_PROJECT>
-uv run python scripts/ingest.py "<OBSIDIAN_VAULT>" --model "BAAI/bge-m3"
+cd C:\Users\leetz\obsidian-note-taking-assistant
+uv run python scripts/ingest.py "C:\Users\leetz\OneDrive\Obsidian Vault" --model "BAAI/bge-m3"
 ```
 
 > First run downloads the BGE-M3 model. Subsequent runs use cache.
 
 ## Target Vault Path
 
-- **Vault Path**: `<OBSIDIAN_VAULT>`
+- **Vault Path**: `C:\Users\leetz\OneDrive\Obsidian Vault`
 
 ## Search Priorities
 
@@ -2468,7 +2464,7 @@ When you need to retrieve information to answer a user's question:
 Run the vector search tool before any file-based search:
 
 ```bash
-cd <LOCAL_SEARCH_PROJECT>
+cd C:\Users\leetz\obsidian-note-taking-assistant
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
@@ -2514,15 +2510,14 @@ When you are about to add new knowledge, restructure notes, or create new notes 
 
 4. **Project document updates**
    - When updating project notes or logs, search the Guide-defined project location first, or Projects by default.
-   - Project planning for the knowledge base belongs in the vault's project area, not inside the code repository unless the user explicitly wants repo docs.
+   - Project planning for the knowledge base belongs in the vault's project area, not inside the code "<RESEARCH_DEFAULT_DEST>"sitory unless the user explicitly wants "<RESEARCH_DEFAULT_DEST>" docs.
 
 ## Cross-Boundary Referencing (Vault vs. Codebase)
 
-Because the Obsidian vault and code repositories are separate systems, respect the boundary between them:
+Because the Obsidian vault and code "<RESEARCH_DEFAULT_DEST>"sitories are separate systems, respect the boundary between them:
 
-- **When writing in a code repository**: Do not use Obsidian wiki links to reference vault notes. Use plain text descriptions or standard file links instead.
-- **When writing in the Obsidian vault**: Use wiki links for internal vault notes. Use standard Markdown links or plain text paths for external code-repository files.
-
+- **When writing in a code "<RESEARCH_DEFAULT_DEST>"sitory**: Do not use Obsidian wiki links to reference vault notes. Use plain text descriptions or standard file links instead.
+- **When writing in the Obsidian vault**: Use wiki links for internal vault notes. Use standard Markdown links or plain text paths for external code-"<RESEARCH_DEFAULT_DEST>"sitory files.
 
 <!-- Source: skills/markdown-formatting/SKILL.md -->
 ---
@@ -2589,7 +2584,6 @@ When editing Markdown:
 1. Preserve structure
 2. Normalize formatting to these rules
 3. Do not introduce style churn unrelated to the requested change
-
 
 <!-- Source: skills/mcp-builder/SKILL.md -->
 ---
@@ -2839,7 +2833,6 @@ Load these resources as needed during development:
   - XML format specifications
   - Example questions and answers
   - Running an evaluation with the provided scripts
-
 
 <!-- Source: skills/obsidian-bases/SKILL.md -->
 ---
@@ -3340,7 +3333,6 @@ formulas:
 - [Formulas](https://help.obsidian.md/formulas)
 - [Complete Functions Reference](references/FUNCTIONS_REFERENCE.md)
 
-
 <!-- Source: skills/obsidian-cli/SKILL.md -->
 ---
 name: obsidian-cli
@@ -3499,7 +3491,6 @@ obsidian dev:mobile on
 
 Run `obsidian help` to see additional developer commands including CDP and debugger controls.
 
-
 <!-- Source: skills/obsidian-knowledge-management/SKILL.md -->
 ---
 name: obsidian-knowledge-management
@@ -3508,7 +3499,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 
 # Obsidian Knowledge Management Protocol
 
-> **Guide Resolution**: When `<OBSIDIAN_GUIDE_MODE>` is `guide`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the guide only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
+> **Guide Resolution**: When `guide` is `"guide"`, load `99_System\Guide.md` before writing. When the mode is `auto`, load the "guide" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
 
 > **Default Mode**: If no Guide is available, assume a standard PARA system: Projects, Areas, Resources, and Archives. Do not assume numbered folder prefixes, Slipbox folders, map folders, taxonomy files, or template files unless the user's Guide or vault clearly defines them.
 
@@ -3517,7 +3508,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 Before any vault operation, run the availability check from the `obsidian-cli` skill:
 
 ```bash
-obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
+obsidian vault="Obsidian Vault" tags total
 ```
 
 - **CLI available (exit 0)**: Use `obsidian` CLI for all I/O in this session.
@@ -3530,7 +3521,7 @@ obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
 Before any vault operation, invoke the `local-first-search` skill and execute Phase 0 semantic search:
 
 ```bash
-cd <LOCAL_SEARCH_PROJECT>
+cd C:\Users\leetz\obsidian-note-taking-assistant
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
@@ -3542,8 +3533,8 @@ uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 
 Before any file creation, modification, or organization, resolve the active mode:
 
-1. If `<OBSIDIAN_GUIDE_MODE>` is `guide`, read `<OBSIDIAN_GUIDE_PATH>`.
-2. If `<OBSIDIAN_GUIDE_MODE>` is `auto` and `<OBSIDIAN_GUIDE_PATH>` exists, read it.
+1. If `guide` is `"guide"`, read `99_System\Guide.md`.
+2. If `guide` is `auto` and `99_System\Guide.md` exists, read it.
 3. If the Guide is unavailable or the mode is `generic`, continue with the generic PARA-first rules in this skill.
 4. Read taxonomy, templates, or system notes only if the user's Guide or actual vault structure points to them.
 
@@ -3568,7 +3559,7 @@ If no personal Guide is present, use these default categories:
 - **Areas**: Ongoing responsibilities, maintained domains, or recurring operational knowledge.
 - **Resources**: Reusable knowledge, reference notes, literature notes, glossaries, cheatsheets, and long-lived learning material.
 - **Archives**: Inactive or historical material that should be retained but not actively maintained.
-- **Optional Inbox**: A capture area may exist, but it is not required. Only treat an inbox as canonical if the user or Guide defines one.
+- **Optional Inbox**: A capture area may exist, but it is not required. Only treat an inbox as formally defined if the user or Guide defines one.
 
 ### Structure Resolution Rules
 
@@ -3722,7 +3713,7 @@ Preserve disclosures, relevant sponsorship notes, diagrams, charts, and evidence
 ### Link Format
 
 - Use wiki links for internal vault notes.
-- Use standard Markdown links only for external files or code-repository references.
+- Use standard Markdown links only for external files or code-"<RESEARCH_DEFAULT_DEST>"sitory references.
 
 ### Language
 
@@ -3799,7 +3790,6 @@ Use this only when the user's Guide or vault already uses index pages, dashboard
 ## Related Projects
 - [[Project_Note]]：Status/relevance.
 ```
-
 
 <!-- Source: skills/obsidian-markdown/SKILL.md -->
 ---
@@ -3999,7 +3989,6 @@ Reviewed in [[Meeting Notes 2024-01-10#Decisions]].
 - [Callouts](https://help.obsidian.md/callouts)
 - [Properties](https://help.obsidian.md/properties)
 
-
 <!-- Source: skills/opencli-research/SKILL.md -->
 ---
 name: opencli-research
@@ -4110,7 +4099,7 @@ This guide covers essential PDF processing operations using Python libraries and
 
 A convenience script `scripts/read_pdf.py` (pypdf-based) is bundled for quick text extraction with page markers:
 ```powershell
-python "<GAL_SKILLS>/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "<TEMP_DIR>"
+python "c:\Users\leetz\.copilot\skills/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "C:\Temp"
 ```
 
 ## Quick Start
@@ -4403,7 +4392,7 @@ with open("encrypted.pdf", "wb") as output:
 | Merge PDFs | pypdf | `writer.add_page(page)` |
 | Split PDFs | pypdf | One page per file |
 | Extract text | pdfplumber | `page.extract_text()` |
-| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir <TEMP_DIR>` |
+| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir C:\Temp` |
 | Extract tables | pdfplumber | `page.extract_tables()` |
 | Create PDFs | reportlab | Canvas or Platypus |
 | Command line merge | qpdf | `qpdf --empty --pages ...` |
@@ -4416,7 +4405,6 @@ with open("encrypted.pdf", "wb") as output:
 - For JavaScript libraries (pdf-lib), see reference.md
 - If you need to fill out a PDF form, follow the instructions in forms.md
 - For troubleshooting guides, see reference.md
-
 
 <!-- Source: skills/result-pattern/SKILL.md -->
 ---
@@ -4506,7 +4494,6 @@ When designing or reviewing error handling:
 1. Classify the failure as expected or unexpected
 2. Use a Result-style return for expected outcomes
 3. Use exceptions only for abnormal faults
-
 
 <!-- Source: skills/skill-creator/SKILL.md -->
 ---
@@ -5006,7 +4993,6 @@ Please add steps to your TodoList, if you have such a thing, to make sure you do
 
 Good luck!
 
-
 <!-- Source: skills/structured-logging/SKILL.md -->
 ---
 name: structured-logging
@@ -5090,7 +5076,6 @@ When asked to add or improve logs:
 2. Keep the message short
 3. Put searchable data into fields
 4. Avoid secrets and noisy repetition
-
 
 <!-- Source: skills/webapp-testing/SKILL.md -->
 ---
@@ -5213,4 +5198,3 @@ with sync_playwright() as p:
   - `element_discovery.py` - Discovering buttons, links, and inputs on a page
   - `static_html_automation.py` - Using file:// URLs for local HTML
   - `console_logging.py` - Capturing console logs during automation
-

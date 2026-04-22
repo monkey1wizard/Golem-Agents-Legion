@@ -65,7 +65,7 @@ If no personal Guide is present, use these default categories:
 - **Areas**: Ongoing responsibilities, maintained domains, or recurring operational knowledge.
 - **Resources**: Reusable knowledge, reference notes, literature notes, glossaries, cheatsheets, and long-lived learning material.
 - **Archives**: Inactive or historical material that should be retained but not actively maintained.
-- **Optional Inbox**: A capture area may exist, but it is not required. Only treat an inbox as canonical if the user or Guide defines one.
+- **Optional Inbox**: A capture area may exist, but it is not required. Only treat an inbox as formally defined if the user or Guide defines one.
 
 ### Structure Resolution Rules
 

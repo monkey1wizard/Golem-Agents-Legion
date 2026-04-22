@@ -6,8 +6,8 @@
 ## Adapter Rules
 
 - This is the repo-local adapter for GitHub Copilot.
-- Skills in this repo's skills/ directory are listed by name only — Copilot discovers GAL commands from the global runtime install.
-- This generator never modifies ~/.copilot/skills/ or any other machine-level configuration.
+- Skills in this repo's `skills/` directory are listed by name only — Copilot discovers GAL commands from the global runtime install.
+- This generator never modifies `~/.copilot/skills/` or any other machine-level configuration.
 
 <!-- Source: .dev/project.md -->
 # Golem-Agents-Legion
@@ -44,6 +44,12 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Keep cross-runtime behavior aligned across Copilot, Gemini CLI, Codex CLI, and Claude Code — command drift breaks the control plane.
 - Treat repo-owned Markdown files as the durable workflow state — temporary runtime output must not replace `.dev/` or plan files.
 - Generated adapters must come from tracked templates and scripts, not hand-edited machine-local outputs.
+
+## Response Style
+
+- Keep answers minimal, professional, and straight to the point.
+- Unless I explicitly ask for it, do not proactively suggest next steps or offer a summary of proposed changes at the end of the response.
+- Remove unnecessary pleasantries and closing remarks.
 
 ## Protected Paths
 
@@ -95,7 +101,6 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Multi-machine execution-plane rollout remains open and is tracked separately from this repo-bootstrap closeout.
 - Community getting-started and contribution documentation remain future milestone work.
 
-
 <!-- Source: conventions/conventions.md -->
 # Conventions
 
@@ -120,7 +125,6 @@ Universal cross-project guidance now lives in standalone skills:
 - [structured-logging](../skills/structured-logging/SKILL.md)
 - [result-pattern](../skills/result-pattern/SKILL.md)
 - [markdown-formatting](../skills/markdown-formatting/SKILL.md)
-
 
 <!-- Source: conventions/csharp.md -->
 # C# / .NET Conventions
@@ -365,7 +369,6 @@ public partial class PlayerController : CharacterBody2D
 }
 ```
 
-
 <!-- Source: conventions/go.md -->
 # Go Conventions
 
@@ -424,7 +427,6 @@ func TestAdd(t *testing.T) {
 }
 ```
 
-
 <!-- Source: conventions/rust.md -->
 # Rust Conventions
 
@@ -482,7 +484,6 @@ pub struct PriceItem {
 - Always check pointers for null before dereferencing in `ffi.rs`
 - All comments and docs in English (CJK allowed in string literals for testing only)
 
-
 <!-- Source: conventions/token-budget.md -->
 # Token Budget
 
@@ -539,7 +540,6 @@ docs/ (permanent, low token cost to reference)
 
 **Principle**: The more stable the knowledge, the closer it lives to `project.md`. The more transient, the closer it lives to the plan or scratch file.
 
-
 <!-- Source: conventions/typescript.md -->
 # TypeScript Conventions
 
@@ -588,7 +588,6 @@ async function getUserData(id: string): Promise<User> {
 
 - Jest or Vitest preferred
 - Mock external dependencies for unit isolation
-
 
 <!-- Source: conventions/working-hours.md -->
 # Working Hours Convention
@@ -703,12 +702,11 @@ If the user explicitly says `override working hours`, `skip working hours`, or `
 
 This is an optional self-imposed boundary to enforce healthy work habits. The agents serve the user, and when working hours are enabled they should protect the user from overwork without pretending the policy is repo-global.
 
-
 <!-- Source: workflows/coding.md -->
 # Coding Flow
 
 The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
-Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist agents write back to the active execution prompt.
+Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, and execution-stage specialists write back to the `.dev/plans/<slug>.prompt.md` execution file.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -738,15 +736,19 @@ GAL's coding flow is expressed as write-back command phases.
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
-`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
+`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews
 
-`/deep-planning` includes an architect review by default before a plan is treated as implementation-ready.
+`/deep-planning` always activates architect review before a plan is treated as implementation-ready.
 
-- **Architect**: default reviewer for `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
-- **Analyst**: add when the plan changes business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
-- **Designer**: add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+- **Architect**: always activates (mandatory) in `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
+- **Analyst**: auto-activates when content touches business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
+- **Designer**: auto-activates when content touches customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+
+Each domain lane can also be invoked directly against the source plan outside of `/deep-planning` when that specialist review is needed without an architect-led deep-planning pass.
+
+Planning-stage security concerns still sit with architect during `/deep-planning`, especially around trust boundaries, risky interfaces, and security-sensitive design decisions. `golem-security` does not replace that planning review; it audits the implemented branch once code exists.
 
 Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
@@ -844,11 +846,11 @@ This is manually triggered — the AI does not know when you're switching contex
 
 | Type | Allowed | Examples |
 | --- | --- | --- |
-| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal [ask architect]`, `/gal [ask analyst]` |
-| **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run notewriter]` |
-| **Pipeline** | Yes | `/gal [golem-tester]`, `/gal [golem-reviewer]` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
+| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal architect`, `/gal analyst` |
+| **Utility** | Yes — independent helper | `/gal debugger`, `/gal notewriter` |
+| **Pipeline** | Yes | `/gal tester`, `/gal reviewer` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
-Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
+Examples above use the literal dispatcher-facing golem names. Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
 ## Per-Phase Model Assignment
 
@@ -863,7 +865,6 @@ Key rules:
 - **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
 - **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
 - **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger
-
 
 <!-- Source: model-roles.md -->
 # Model Roles
@@ -930,5 +931,3 @@ Research workflow note: `/gal research` and `/gal deep-research` have their own 
 
 Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
 with your own machines, models, and tools. The local file is git-ignored.
-
-

@@ -34,16 +34,20 @@ GAL keeps these roles separate on purpose.
 | [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
 | [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation with internal freeze discipline |
 | [golem-notewriter](golem-notewriter.agent.md) | Utility | Any time | Obsidian writes, private captures, diary, shutdown ritual, and knowledge extraction |
-| [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE security review with plan write-back |
+| [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE code-review-level security audit with plan write-back |
 | [golem-releaser](golem-releaser.agent.md) | Domain | Direct release prep / deploy / doc sync | Release prep, deploy orchestration, and documentation sync |
 
 ## Planning Reviews
 
-`/deep-planning` runs an architect review by default before a source plan is treated as implementation-ready.
+`/deep-planning` always runs an architect review before a source plan is treated as implementation-ready.
 
-- **Architect** (default in `/deep-planning`): trade-off analysis, over-engineering, bug surface, dependency pollution, and public API risk
-- **Analyst** (conditional): add when the plan changes business rules, pricing, permissions, or customer-visible behavior
-- **Designer** (conditional): add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions
+- **Architect** (always in `/deep-planning`): trade-off analysis, over-engineering, bug surface, dependency pollution, and public API risk
+- **Analyst** (conditional): auto-activates when content touches business rules, pricing, permissions, or customer-visible behavior
+- **Designer** (conditional): auto-activates when content touches customer-facing flows, layout, states, components, or accessibility-sensitive interactions
+
+Each of these domain lanes can also be invoked directly against the source plan outside of `/deep-planning`.
+
+Planning-stage security review remains part of architect's job in `/deep-planning`; `golem-security` is reserved for auditing implemented changes.
 
 `reviewer`, `debugger`, `security`, and `releaser` remain implementation-stage specialists. They are not default planning reviewers.
 

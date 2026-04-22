@@ -1,7 +1,7 @@
 # Coding Flow
 
 The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
-Every AI agent follows the same work-file model: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, and specialist agents write back to the active execution prompt.
+Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, and execution-stage specialists write back to the `.dev/plans/<slug>.prompt.md` execution file.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -31,15 +31,19 @@ GAL's coding flow is expressed as write-back command phases.
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
 
-`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is the security audit for branches that touch auth, data handling, input handling, or public API surface.
+`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews
 
-`/deep-planning` includes an architect review by default before a plan is treated as implementation-ready.
+`/deep-planning` always activates architect review before a plan is treated as implementation-ready.
 
-- **Architect**: default reviewer for `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
-- **Analyst**: add when the plan changes business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
-- **Designer**: add when the plan changes customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+- **Architect**: always activates (mandatory) in `/deep-planning`; checks trade-offs, over-engineering, bug surface, dependency pollution, and public API risk.
+- **Analyst**: auto-activates when content touches business rules, pricing, permissions, notifications, onboarding, eligibility, or other customer-visible logic.
+- **Designer**: auto-activates when content touches customer-facing flows, layout, states, components, or accessibility-sensitive interactions.
+
+Each domain lane can also be invoked directly against the source plan outside of `/deep-planning` when that specialist review is needed without an architect-led deep-planning pass.
+
+Planning-stage security concerns still sit with architect during `/deep-planning`, especially around trust boundaries, risky interfaces, and security-sensitive design decisions. `golem-security` does not replace that planning review; it audits the implemented branch once code exists.
 
 Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
@@ -137,11 +141,11 @@ This is manually triggered — the AI does not know when you're switching contex
 
 | Type | Allowed | Examples |
 | --- | --- | --- |
-| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal [ask architect]`, `/gal [ask analyst]` |
-| **Utility** | Yes — independent helper | `/gal [run debugger]`, `/gal [run notewriter]` |
-| **Pipeline** | Yes | `/gal [golem-tester]`, `/gal [golem-reviewer]` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
+| **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal architect`, `/gal analyst` |
+| **Utility** | Yes — independent helper | `/gal debugger`, `/gal notewriter` |
+| **Pipeline** | Yes | `/gal tester`, `/gal reviewer` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
-Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
+Examples above use the literal dispatcher-facing golem names. Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
 ## Per-Phase Model Assignment
 
