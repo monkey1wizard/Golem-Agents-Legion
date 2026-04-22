@@ -10,7 +10,7 @@ Run the dispatch script as `init`, then follow the output block exactly.
 ## Invoke
 
 **Windows:**
-`/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch init [args]`
+`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch init [args]`
 
 **macOS / Linux:**
 `/Users/tzylee/Code/Golem-Agents-Legion/scripts/gal.sh dispatch init [args]`

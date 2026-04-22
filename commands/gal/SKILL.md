@@ -43,7 +43,7 @@ If the user's message contains any of the following intents, treat it as `/gal p
 ## Invoke (for script-dispatched subcommands)
 
 **Windows:**
-`/Users/tzylee/Code/Golem-Agents-Legion\scripts\gal.ps1 dispatch [args]`
+`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch [args]`
 
 **macOS / Linux:**
 `/Users/tzylee/Code/Golem-Agents-Legion/scripts/gal.sh dispatch [args]`
@@ -70,3 +70,4 @@ For `status`, `whats-next`, and `wrap-up`, do not run the script. Instead, load 
 - `wrap-up` → load the installed `gal-wrap-up` skill procedure
 
 Treat those delegated skill procedures as the single source of truth for substantive control-plane behavior.
+
