@@ -21,6 +21,9 @@ Machine setup and adapter sync scripts.
 | `Invoke-GalRemoteTask.ps1` | Windows | Dispatch a task to a remote LAN worker over SSH |
 | `Start-GalWorker.ps1` | Windows | Run a task on the local worker node via Gemini CLI (invoked remotely) |
 | `Get-GalRemoteResult.ps1` | Windows | Retrieve results from a completed remote task and clean up the worktree |
+| `Invoke-GalLocalTask.sh` | macOS | SSH from Mac Mini — dispatch a task to a remote LAN worker |
+| `Start-GalWorker.sh` | macOS | Run a task on the local worker node via Gemini CLI (invoked remotely) |
+| `Get-GalLocalResult.sh` | macOS | Retrieve results from a completed remote task and clean up the worktree |
 
 ## Command Surface
 
