@@ -20,3 +20,9 @@ Last session:
 Stopped at:
 Next step:
 Context:
+
+## Session Execution Context
+
+Dispatched node:
+Execution mode:
+Notes:
