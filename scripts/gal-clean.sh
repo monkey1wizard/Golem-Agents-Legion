@@ -25,6 +25,17 @@ fi
 declare -a KEYS=()
 declare -a VALS=()
 
+should_filter_key() {
+    case "$1" in
+        OBSIDIAN_VAULT|OBSIDIAN_VAULT_NAME|OBSIDIAN_GUIDE_PATH|OBSIDIAN_PRIVATE_RESEARCH_DIR|OBSIDIAN_DIARY_DIR|OBSIDIAN_SCRATCH_DIR|OBSIDIAN_ARCHIVE_DIR|LOCAL_SEARCH_PROJECT|GAL_SKILLS|TEMP_DIR|MCP_FILESYSTEM_PATHS|MCP_MEMORY_FILE_PATH)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 while IFS= read -r line || [ -n "$line" ]; do
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     [[ -z "${line// /}" ]] && continue
@@ -32,6 +43,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     key="${line%%=*}"
     val="${line#*=}"
 
+    should_filter_key "$key" || continue
     [ -z "$val" ] && continue
 
     KEYS+=("$key")

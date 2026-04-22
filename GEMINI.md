@@ -2366,14 +2366,14 @@ If validation fails, check for duplicate IDs, dangling edge references, or malfo
 <!-- Source: skills/local-first-search/SKILL.md -->
 ---
 name: local-first-search
-description: Search the existing Obsidian Vault for knowledge using Local-First and Context-First retrieval. If a personal Guide exists, follow its structure first; otherwise default to a PARA-based search order. Activate before answering conceptual questions, proposing solutions, or creating new notes.
+description: Search the existing <OBSIDIAN_VAULT_NAME> for knowledge using Local-First and Context-First retrieval. If a personal Guide exists, follow its structure first; otherwise default to a PARA-based search order. Activate before answering conceptual questions, proposing solutions, or creating new notes.
 ---
 
 # Local-First Search Strategy
 
 ## Core Philosophy
 
-**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you must search the user's Obsidian Vault for existing knowledge first. Avoid generic answers that ignore the vault.
+**Context First, Local First**: Before answering questions, proposing solutions, or creating new notes, you must search the user's <OBSIDIAN_VAULT_NAME> for existing knowledge first. Avoid generic answers that ignore the vault.
 
 **Structure Resolution**:
 
@@ -2387,7 +2387,7 @@ The `obsidian-note-taking-assistant` provides a DuckDB + BGE-M3 vector search en
 
 ### Tool Location
 
-- **Project**: `C:\Users\leetz\obsidian-note-taking-assistant`
+- **Project**: `<LOCAL_SEARCH_PROJECT>`
 - **Script**: `scripts/query.py`
 - **Run via**: `uv run python scripts/query.py <command> <args>`
 
@@ -2414,15 +2414,15 @@ Slugs are auto-generated from file paths. Pattern: lowercase path with `/` turne
 Run when the vault has new notes:
 
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
-uv run python scripts/ingest.py "C:\Users\leetz\OneDrive\Obsidian Vault" --model "BAAI/bge-m3"
+cd <LOCAL_SEARCH_PROJECT>
+uv run python scripts/ingest.py "<OBSIDIAN_VAULT>" --model "BAAI/bge-m3"
 ```
 
 > First run downloads the BGE-M3 model. Subsequent runs use cache.
 
 ## Target Vault Path
 
-- **Vault Path**: `C:\Users\leetz\OneDrive\Obsidian Vault`
+- **Vault Path**: `<OBSIDIAN_VAULT>`
 
 ## Search Priorities
 
@@ -2464,7 +2464,7 @@ When you need to retrieve information to answer a user's question:
 Run the vector search tool before any file-based search:
 
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
+cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
@@ -3499,7 +3499,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 
 # Obsidian Knowledge Management Protocol
 
-> **Guide Resolution**: When `guide` is `"guide"`, load `99_System\Guide.md` before writing. When the mode is `auto`, load the "guide" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
+> **Guide Resolution**: When `guide` is `"guide"`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the "guide" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
 
 > **Default Mode**: If no Guide is available, assume a standard PARA system: Projects, Areas, Resources, and Archives. Do not assume numbered folder prefixes, Slipbox folders, map folders, taxonomy files, or template files unless the user's Guide or vault clearly defines them.
 
@@ -3508,7 +3508,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 Before any vault operation, run the availability check from the `obsidian-cli` skill:
 
 ```bash
-obsidian vault="Obsidian Vault" tags total
+obsidian vault="<OBSIDIAN_VAULT_NAME>" tags total
 ```
 
 - **CLI available (exit 0)**: Use `obsidian` CLI for all I/O in this session.
@@ -3521,7 +3521,7 @@ obsidian vault="Obsidian Vault" tags total
 Before any vault operation, invoke the `local-first-search` skill and execute Phase 0 semantic search:
 
 ```bash
-cd C:\Users\leetz\obsidian-note-taking-assistant
+cd <LOCAL_SEARCH_PROJECT>
 uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 ```
 
@@ -3533,8 +3533,8 @@ uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 
 Before any file creation, modification, or organization, resolve the active mode:
 
-1. If `guide` is `"guide"`, read `99_System\Guide.md`.
-2. If `guide` is `auto` and `99_System\Guide.md` exists, read it.
+1. If `guide` is `"guide"`, read `<OBSIDIAN_GUIDE_PATH>`.
+2. If `guide` is `auto` and `<OBSIDIAN_GUIDE_PATH>` exists, read it.
 3. If the Guide is unavailable or the mode is `generic`, continue with the generic PARA-first rules in this skill.
 4. Read taxonomy, templates, or system notes only if the user's Guide or actual vault structure points to them.
 
@@ -4099,7 +4099,7 @@ This guide covers essential PDF processing operations using Python libraries and
 
 A convenience script `scripts/read_pdf.py` (pypdf-based) is bundled for quick text extraction with page markers:
 ```powershell
-python "c:\Users\leetz\.copilot\skills/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "C:\Temp"
+python "<GAL_SKILLS>/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "<TEMP_DIR>"
 ```
 
 ## Quick Start
@@ -4392,7 +4392,7 @@ with open("encrypted.pdf", "wb") as output:
 | Merge PDFs | pypdf | `writer.add_page(page)` |
 | Split PDFs | pypdf | One page per file |
 | Extract text | pdfplumber | `page.extract_text()` |
-| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir C:\Temp` |
+| Extract text (quick) | read_pdf.py (bundled) | `python scripts/read_pdf.py <file.pdf> --outdir <TEMP_DIR>` |
 | Extract tables | pdfplumber | `page.extract_tables()` |
 | Create PDFs | reportlab | Canvas or Platypus |
 | Command line merge | qpdf | `qpdf --empty --pages ...` |
