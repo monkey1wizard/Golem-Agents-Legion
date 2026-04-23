@@ -51,6 +51,10 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 - Unless I explicitly ask for it, do not proactively suggest next steps or offer a summary of proposed changes at the end of the response.
 - Remove unnecessary pleasantries and closing remarks.
 
+## Freshness
+
+- Always get today's date first, then use that date when querying for the latest information or other time-sensitive context.
+
 ## Protected Paths
 
 - `commands/` — changing the public command surface affects every runtime.
