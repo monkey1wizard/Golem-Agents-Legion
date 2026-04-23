@@ -10,10 +10,10 @@ Run the dispatch script as `init`, then follow the output block exactly.
 ## Invoke
 
 **Windows:**
-`{{GAL_ROOT}}\scripts\gal.ps1 dispatch init [args]`
+`.\scripts\gal.ps1 dispatch init [args]`
 
 **macOS / Linux:**
-`{{GAL_ROOT}}/scripts/gal.sh dispatch init [args]`
+`./scripts/gal.sh dispatch init [args]`
 
 Pass any text the user typed after `/gal-init` as `[args]`.
 

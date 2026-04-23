@@ -89,7 +89,7 @@ Workflow: IMPLEMENT
 Run:
 
 ```powershell
-{{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-implementer
+.\scripts\gal.ps1 dispatch golem-implementer
 ```
 
 Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
@@ -108,7 +108,7 @@ Update plan `## Status`: set `Workflow: TEST`
 Run:
 
 ```powershell
-{{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-tester
+.\scripts\gal.ps1 dispatch golem-tester
 ```
 
 Invoke in task-scoped mode for `T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
@@ -126,7 +126,7 @@ Check result:
 Run:
 
 ```powershell
-{{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-reviewer
+.\scripts\gal.ps1 dispatch golem-reviewer
 ```
 
 Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
@@ -158,7 +158,7 @@ If none apply: skip this step and proceed to 2g.
 If any apply, run:
 
 ```powershell
-{{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-security
+.\scripts\gal.ps1 dispatch golem-security
 ```
 
 Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The security specialist writes a task-scoped subsection under `## Review Results`.
@@ -193,7 +193,7 @@ After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-lev
 Run:
 
 ```powershell
-{{GAL_ROOT}}\scripts\gal.ps1 dispatch golem-verifier
+.\scripts\gal.ps1 dispatch golem-verifier
 ```
 
 Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan ABSORBED or delete the plan file."
@@ -247,7 +247,7 @@ Action required: [what the user needs to do]
 If the script cannot be run (e.g. macOS / Linux), run:
 
 ```bash
-{{GAL_ROOT}}/scripts/gal.sh dispatch golem-implementer
+./scripts/gal.sh dispatch golem-implementer
 ```
 
 (and equivalent for tester, reviewer, security, verifier)

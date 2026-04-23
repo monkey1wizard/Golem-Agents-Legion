@@ -19,6 +19,16 @@ fi
 declare -a VALS=()
 declare -a KEYS=()
 
+# Some config.local.env keys are machine-local knobs but not sensitive.
+# Their example values can legitimately appear in docs and should not block commits.
+declare -A NON_SENSITIVE_KEYS=(
+    [OBSIDIAN_GUIDE_MODE]=1
+    [RESEARCH_DEFAULT_DEST]=1
+    [WORKING_HOURS_ENABLED]=1
+    [GAL_NODE_ID]=1
+    [GAL_NODE_CAPABILITIES]=1
+)
+
 while IFS= read -r line || [ -n "$line" ]; do
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     [[ -z "${line// /}" ]] && continue
@@ -26,6 +36,10 @@ while IFS= read -r line || [ -n "$line" ]; do
     key="${line%%=*}"
     val="${line#*=}"
     [ -z "$val" ] && continue
+
+    if [ -n "${NON_SENSITIVE_KEYS[$key]+x}" ]; then
+        continue
+    fi
 
     KEYS+=("$key")
     VALS+=("$val")

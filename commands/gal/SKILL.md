@@ -43,10 +43,10 @@ If the user's message contains any of the following intents, treat it as `/gal p
 ## Invoke (for script-dispatched subcommands)
 
 **Windows:**
-`C:\Code\Golem-Agents-Legion\scripts\gal.ps1 dispatch [args]`
+`.\scripts\gal.ps1 dispatch [args]`
 
 **macOS / Linux:**
-`/Users/tzylee/Code/Golem-Agents-Legion/scripts/gal.sh dispatch [args]`
+`./scripts/gal.sh dispatch [args]`
 
 ## Follow the Output
 
