@@ -33,12 +33,13 @@ Key files to read:
 - Do not commit changes — produce a diff (result.patch) only
 - Do not interact with external services beyond what is needed for the task
 - Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file — these are primary project files owned by the primary control plane and must never be modified directly by a remote worker
+- Do not manually create `summary.md`, `status.json`, `worker.log`, or `result.patch` — those runtime outputs are owned by the worker wrapper, not by the model
 
 ## Output Format
 
-### summary.md
+### Final assistant response
 
-Write a `summary.md` in the task output directory with:
+End with a concise final assistant response that the worker wrapper can capture into `summary.md`. Include:
 
 - What was done
 - Key findings (for research or review) or changes made (for docs)
@@ -48,8 +49,9 @@ Write a `summary.md` in the task output directory with:
 
 If the task produces file changes:
 
-- Run `git diff HEAD` in the worktree and save to `result.patch`
-- If the task is read-only, `result.patch` may be empty
+- Modify tracked files in the disposable worktree as needed
+- The worker wrapper will run `git diff HEAD` and write `result.patch` automatically
+- If the task is read-only, `result.patch` will be empty
 
 ## Acceptance Criteria
 

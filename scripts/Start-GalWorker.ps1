@@ -97,6 +97,7 @@ $taskPrompt = Get-Content -Path $TaskSpec -Raw
 # --yolo skips tool-use approval prompts.
 # Environment variables (e.g. GOOGLE_GEMINI_API_KEY) are inherited by child processes.
 $geminiExitCode = 0
+$capacityExhausted = $false
 
 $geminiJob = Start-Job -ScriptBlock {
     param($wt, $prompt, $log)
@@ -106,20 +107,42 @@ $geminiJob = Start-Job -ScriptBlock {
 } -ArgumentList $WorktreePath, $taskPrompt, $logPath
 
 $timeoutSeconds = $TimeoutMinutes * 60
-$finished = Wait-Job $geminiJob -Timeout $timeoutSeconds
+$deadline = (Get-Date).AddSeconds($timeoutSeconds)
 
-if (-not $finished) {
-    Stop-Job $geminiJob
-    Remove-Job $geminiJob -Force
-    $geminiExitCode = -1
-    "`nTIMEOUT: Gemini CLI exceeded ${TimeoutMinutes}m — task killed" | Add-Content -Path $logPath
-    Write-StatusJson "timeout" -ExitCode -1 -ErrorMessage "Task exceeded ${TimeoutMinutes}m timeout — split the task or increase -TimeoutMinutes"
-    exit 1
+while ($true) {
+    $finished = Wait-Job $geminiJob -Timeout 5
+    if ($finished) {
+        break
+    }
+
+    if (Test-Path $logPath) {
+        $capacityMarker = Select-String -Path $logPath -Pattern 'MODEL_CAPACITY_EXHAUSTED|No capacity available for model' -Quiet -ErrorAction SilentlyContinue
+        if ($capacityMarker) {
+            $capacityExhausted = $true
+            "`nCAPACITY_EXHAUSTED: Gemini model capacity unavailable — task killed early" | Add-Content -Path $logPath
+            Stop-Job $geminiJob -ErrorAction SilentlyContinue
+            break
+        }
+    }
+
+    if ((Get-Date) -ge $deadline) {
+        Stop-Job $geminiJob
+        Remove-Job $geminiJob -Force
+        $geminiExitCode = -1
+        "`nTIMEOUT: Gemini CLI exceeded ${TimeoutMinutes}m — task killed" | Add-Content -Path $logPath
+        Write-StatusJson "timeout" -ExitCode -1 -ErrorMessage "Task exceeded ${TimeoutMinutes}m timeout — split the task or increase -TimeoutMinutes"
+        exit 1
+    }
 }
 
 try {
     $jobOutput = Receive-Job $geminiJob -ErrorVariable jobErrors 2>$null
-    $geminiExitCode = if ($null -ne $jobOutput) { [int]($jobOutput | Select-Object -Last 1) } else { 0 }
+    if ($capacityExhausted) {
+        $geminiExitCode = 75
+    }
+    else {
+        $geminiExitCode = if ($null -ne $jobOutput) { [int]($jobOutput | Select-Object -Last 1) } else { 0 }
+    }
     if ($jobErrors) {
         $jobErrors | ForEach-Object { "JOB ERROR: $_" | Add-Content -Path $logPath }
     }
@@ -147,16 +170,44 @@ catch {
 }
 
 # ── Extract summary from log ──────────────────────────────────────────────────
-# Tries three strategies to extract human-readable text from stream-json output:
-#   1. Top-level .text field
-#   2. .content.parts[].text (Gemini content block)
-#   3. .candidates[].content.parts[].text
-# Falls back to the last 20 non-empty log lines if no JSON text is found.
+# Prefers the final contiguous assistant-text block from stream-json output.
+# Falls back to the last 20 non-empty log lines if no assistant text is found.
 $summaryContent = ""
 try {
     $logLines = Get-Content -Path $logPath -ErrorAction SilentlyContinue
     if ($logLines) {
-        $textParts = [System.Collections.Generic.List[string]]::new()
+        $currentParts = [System.Collections.Generic.List[string]]::new()
+        $lastParts = [System.Collections.Generic.List[string]]::new()
+
+        function Get-LineSummaryText($obj) {
+            if ($obj.type -eq "message" -and $obj.role -eq "assistant" -and $obj.content) {
+                return [string]$obj.content
+            }
+
+            if ($obj.text) {
+                return [string]$obj.text
+            }
+
+            $parts = [System.Collections.Generic.List[string]]::new()
+
+            if ($obj.content -and $obj.content.parts) {
+                foreach ($part in $obj.content.parts) {
+                    if ($part.text) { $parts.Add([string]$part.text) }
+                }
+            }
+
+            if ($obj.candidates) {
+                foreach ($cand in $obj.candidates) {
+                    if ($cand.content -and $cand.content.parts) {
+                        foreach ($part in $cand.content.parts) {
+                            if ($part.text) { $parts.Add([string]$part.text) }
+                        }
+                    }
+                }
+            }
+
+            return ($parts -join "")
+        }
 
         foreach ($line in $logLines) {
             if ($line -notmatch '^\s*\{') { continue }
@@ -164,33 +215,27 @@ try {
                 $obj = $line | ConvertFrom-Json -ErrorAction SilentlyContinue
                 if (-not $obj) { continue }
 
-                # Strategy 1: top-level .text field
-                if ($obj.text) { $textParts.Add([string]$obj.text); continue }
-
-                # Strategy 2: .content.parts[].text
-                if ($obj.content -and $obj.content.parts) {
-                    foreach ($part in $obj.content.parts) {
-                        if ($part.text) { $textParts.Add([string]$part.text) }
-                    }
-                    continue
+                $lineText = Get-LineSummaryText $obj
+                if ($lineText) {
+                    $currentParts.Add($lineText)
                 }
-
-                # Strategy 3: .candidates[].content.parts[].text
-                if ($obj.candidates) {
-                    foreach ($cand in $obj.candidates) {
-                        if ($cand.content -and $cand.content.parts) {
-                            foreach ($part in $cand.content.parts) {
-                                if ($part.text) { $textParts.Add([string]$part.text) }
-                            }
-                        }
+                elseif ($currentParts.Count -gt 0) {
+                    $lastParts = [System.Collections.Generic.List[string]]::new()
+                    foreach ($part in $currentParts) {
+                        $lastParts.Add($part)
                     }
+                    $currentParts.Clear()
                 }
             }
             catch { }
         }
 
-        if ($textParts.Count -gt 0) {
-            $summaryContent = $textParts -join ""
+        if ($currentParts.Count -gt 0) {
+            $lastParts = $currentParts
+        }
+
+        if ($lastParts.Count -gt 0) {
+            $summaryContent = $lastParts -join ""
         }
         else {
             $lastLines = ($logLines | Where-Object { $_ -match '\S' } | Select-Object -Last 20) -join "`n"
@@ -205,7 +250,7 @@ catch {
 $summaryLines = @(
     "# Task Summary: $TaskId",
     "",
-    "**Status**: $(if ($geminiExitCode -eq 0) { 'success' } else { "failed (exit $geminiExitCode)" })",
+    "**Status**: $(if ($capacityExhausted) { 'failed (model capacity exhausted)' } elseif ($geminiExitCode -eq 0) { 'success' } else { "failed (exit $geminiExitCode)" })",
     "",
     "## Output",
     "",
@@ -229,9 +274,14 @@ $exitCodeMessages = @{
     44 = "Gemini CLI sandbox error — check worker sandbox configuration"
     52 = "Gemini CLI config error — check GEMINI.md or settings.json on worker"
     53 = "Gemini CLI turn limit reached — split task into smaller pieces"
+    75 = "Gemini model capacity exhausted — retry later or change the configured model"
 }
 
-if ($geminiExitCode -eq 0) {
+if ($capacityExhausted) {
+    Write-StatusJson "failed" -ExitCode 75 -ErrorMessage $exitCodeMessages[75]
+    Write-Host "Worker finished: $TaskId — FAILED (model capacity exhausted)"
+}
+elseif ($geminiExitCode -eq 0) {
     Write-StatusJson "success"
     Write-Host "Worker finished: $TaskId — success"
 }

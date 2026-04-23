@@ -36,12 +36,13 @@ Key files to read:
 - Do not commit changes — produce a diff (`result.patch`) only.
 - Do not interact with external services beyond what is needed to complete this bounded repo scan.
 - Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file.
+- Do not manually create `summary.md`, `status.json`, `worker.log`, or `result.patch` — the worker wrapper owns those runtime outputs.
 
 ## Output Format
 
-### summary.md
+### Final assistant response
 
-Write a `summary.md` in the task output directory with:
+End with a concise final assistant response that the worker wrapper can capture into `summary.md`. Include:
 
 - Whether the worker successfully read the required files
 - A short explanation of what the Mac Mini async lane currently does
@@ -51,7 +52,7 @@ Write a `summary.md` in the task output directory with:
 ### result.patch
 
 - This task is read-only.
-- `result.patch` should be empty.
+- The worker wrapper should produce an empty `result.patch`.
 
 ## Acceptance Criteria
 

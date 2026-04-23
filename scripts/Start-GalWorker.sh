@@ -139,17 +139,39 @@ ENGINE_PID=$!
 ) &
 WATCHDOG_PID=$!
 
+(
+    while kill -0 "$ENGINE_PID" 2>/dev/null; do
+        if grep -qE 'MODEL_CAPACITY_EXHAUSTED|No capacity available for model' "$LOG_PATH" 2>/dev/null; then
+            echo "" >>"$LOG_PATH"
+            echo "CAPACITY_EXHAUSTED: Gemini model capacity unavailable — task killed early" >>"$LOG_PATH"
+            kill -TERM "-$ENGINE_PID" 2>/dev/null || kill -TERM "$ENGINE_PID" 2>/dev/null
+            sleep 2
+            kill -KILL "-$ENGINE_PID" 2>/dev/null || kill -KILL "$ENGINE_PID" 2>/dev/null
+            break
+        fi
+        sleep 5
+    done
+) &
+CAPACITY_WATCHDOG_PID=$!
+
 wait "$ENGINE_PID"
 ENGINE_EXIT=$?
 
 # Reap the watchdog if engine finished first
 kill "$WATCHDOG_PID" 2>/dev/null || true
 wait "$WATCHDOG_PID" 2>/dev/null || true
+kill "$CAPACITY_WATCHDOG_PID" 2>/dev/null || true
+wait "$CAPACITY_WATCHDOG_PID" 2>/dev/null || true
 
 # Detect timeout (engine killed by watchdog)
 TIMED_OUT=0
 if grep -q "^TIMEOUT: $ENGINE CLI exceeded" "$LOG_PATH" 2>/dev/null; then
     TIMED_OUT=1
+fi
+
+CAPACITY_EXHAUSTED=0
+if grep -q "^CAPACITY_EXHAUSTED: Gemini model capacity unavailable" "$LOG_PATH" 2>/dev/null; then
+    CAPACITY_EXHAUSTED=1
 fi
 
 # ── Generate result patch ─────────────────────────────────────────────────────
@@ -159,22 +181,46 @@ fi
 
 # ── Extract summary from stream-json log (3-strategy parser) ─────────────────
 extract_summary() {
-    local content
-    # Strategy 1: top-level .text
-    # Strategy 2: .content.parts[].text
-    # Strategy 3: .candidates[].content.parts[].text
-    # Strategy 4: Gemini CLI 0.38+  type=message, role=assistant, content=<string>
-    #             (delta chunks are concatenated by the streaming reader)
-    content="$(jq -rR '
-        fromjson? // empty
-        | (.text // empty),
-          (.content.parts[]?.text // empty),
-          (.candidates[]?.content.parts[]?.text // empty),
-          (select(.type == "message" and .role == "assistant") | .content // empty)
-    ' "$LOG_PATH" 2>/dev/null | tr -d '\r' | sed '/^$/d' )"
+    local current_block=""
+    local last_block=""
+    local line_text=""
 
-    if [[ -n "$content" ]]; then
-        printf '%s' "$content"
+    # Prefer the final contiguous assistant-text block from stream-json output.
+    # This avoids capturing intermediate planning chatter and produces a stable
+    # human-readable summary for summary.md.
+    while IFS= read -r line; do
+        line_text="$(printf '%s' "$line" | jq -r '
+            if .type == "message" and .role == "assistant" then
+                .content // ""
+            else
+                [
+                    (.text // empty),
+                    (.content.parts[]?.text // empty),
+                    (.candidates[]?.content.parts[]?.text // empty)
+                ]
+                | map(select(length > 0))
+                | join("")
+            end
+        ' 2>/dev/null || true)"
+
+        line_text="${line_text//$'\r'/}"
+        if [[ -n "$line_text" ]]; then
+            current_block+="$line_text"
+            continue
+        fi
+
+        if [[ -n "$current_block" ]]; then
+            last_block="$current_block"
+            current_block=""
+        fi
+    done < "$LOG_PATH"
+
+    if [[ -n "$current_block" ]]; then
+        last_block="$current_block"
+    fi
+
+    if [[ -n "$last_block" ]]; then
+        printf '%s' "$last_block"
         return 0
     fi
 
@@ -190,6 +236,8 @@ SUMMARY_BODY="$(extract_summary)"
 
 if [[ "$TIMED_OUT" -eq 1 ]]; then
     SUMMARY_STATUS="timeout"
+elif [[ "$CAPACITY_EXHAUSTED" -eq 1 ]]; then
+    SUMMARY_STATUS="failed (model capacity exhausted)"
 elif [[ "$ENGINE_EXIT" -eq 0 ]]; then
     SUMMARY_STATUS="success"
 else
@@ -216,6 +264,7 @@ engine_exit_message() {
         41) echo "Gemini CLI auth failed — re-auth required on worker before next task" ;;
         42) echo "Gemini CLI input error — task spec may be malformed" ;;
         44) echo "Gemini CLI sandbox error — check worker sandbox configuration" ;;
+        75) echo "Gemini model capacity exhausted — retry later or change the configured model" ;;
         52) echo "Gemini CLI config error — check GEMINI.md or settings.json on worker" ;;
         53) echo "Gemini CLI turn limit reached — split task into smaller pieces" ;;
         *)  echo "Gemini CLI exited with code $1 — check worker.log" ;;
@@ -225,6 +274,12 @@ engine_exit_message() {
 if [[ "$TIMED_OUT" -eq 1 ]]; then
     write_status "timeout" -1 "Task exceeded ${TIMEOUT_MINUTES}m timeout — split the task or raise --timeout-minutes"
     echo "Worker finished: $TASK_ID — TIMEOUT" >&2
+    exit 1
+fi
+
+if [[ "$CAPACITY_EXHAUSTED" -eq 1 ]]; then
+    write_status "failed" 75 "Gemini model capacity exhausted — retry later or change the configured model"
+    echo "Worker finished: $TASK_ID — FAILED (model capacity exhausted)" >&2
     exit 1
 fi
 
