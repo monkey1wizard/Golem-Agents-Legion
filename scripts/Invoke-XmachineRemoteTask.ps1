@@ -89,24 +89,29 @@ $remoteStartScript = "$RemoteScriptsPath\Start-xMachine.ps1"
 # ── Create remote temp directory ──────────────────────────────────────────────
 Write-Host "[1/4] Creating remote temp directory..."
 $mkdirCmd = "New-Item -ItemType Directory -Force -Path '$remoteTemp' | Out-Null"
-ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$mkdirCmd`""
+$sshArgs = "-o", "BatchMode=yes", "${RemoteUser}@${RemoteHost}", "pwsh -NoProfile -Command `"$mkdirCmd`""
+$errOutput = & ssh @sshArgs 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to create remote temp directory."
+    if ($errOutput -match "Permission denied|publickey") {
+        Write-Error "ERROR: SSH authentication failed. Automated task dispatch requires passwordless key-based login. Please ensure your SSH Public Key is added to the controlled machine and check permissions.`nDetails: $errOutput"
+    } else {
+        Write-Error "Failed to create remote temp directory.`nDetails: $errOutput"
+    }
     exit 1
 }
 
 # ── Copy task spec to remote ──────────────────────────────────────────────────
 Write-Host "[2/4] Copying task spec to remote..."
-scp -q $TaskSpec "${RemoteUser}@${RemoteHost}:$remoteTemp/"
+scp -o BatchMode=yes -q $TaskSpec "${RemoteUser}@${RemoteHost}:$remoteTemp/"
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to copy task spec to remote."
+    Write-Error "Failed to copy task spec to remote via SCP."
     exit 1
 }
 
 # ── Create isolated git worktree on remote ────────────────────────────────────
 Write-Host "[3/4] Creating git worktree on remote..."
 $worktreeCmd = "Set-Location '$RemoteRepoPath'; git worktree add --detach '$remoteWorktree' HEAD"
-ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$worktreeCmd`""
+ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$worktreeCmd`""
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to create git worktree on remote."
     exit 1
@@ -115,11 +120,11 @@ if ($LASTEXITCODE -ne 0) {
 # ── Invoke runtime script on remote (background, detached) ───────────────────
 Write-Host "[4/4] Starting remote task run..."
 $runtimeCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp','-TimeoutMinutes','$TimeoutMinutes' -WindowStyle Hidden"
-ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$runtimeCmd`""
+ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$runtimeCmd`""
 if ($LASTEXITCODE -ne 0) {
     Write-Warning "Failed to start the remote task run. Cleaning up orphaned worktree..."
     $cleanupCmd = "git -C '$RemoteRepoPath' worktree remove --force '$remoteWorktree' 2>&1"
-    ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$cleanupCmd`"" 2>&1 | Out-Null
+    ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$cleanupCmd`"" 2>&1 | Out-Null
     Write-Error "Failed to start the remote task process."
     exit 1
 }

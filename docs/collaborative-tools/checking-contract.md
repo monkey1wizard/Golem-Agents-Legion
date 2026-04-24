@@ -51,7 +51,7 @@ Use these distinctions when documenting or implementing a tool:
 
 - `availability` answers whether the tool can be reached from the current machine or runtime.
 - `initialization status` answers whether one-time setup has already been completed.
-- `readiness` answers whether the current repo or task has the files, adapters, schema, or state required for the requested lane.
+- `readiness` answers whether the current repo or task has the files, adapters, schema, or state required for the requested lane. For SSH-based tools (like xmachine), `readiness` also includes verifying that a passwordless connection can be established; if a password is required, the tool is not `ready`.
 
 ## Current Tool Mappings
 

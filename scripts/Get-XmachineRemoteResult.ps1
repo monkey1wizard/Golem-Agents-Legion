@@ -82,7 +82,7 @@ if ($Wait) {
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 
     while ((Get-Date) -lt $deadline) {
-        $rawStatus = ssh $sshTarget "pwsh -NoProfile -Command `"Get-Content -Path '$remoteStatusPath' -Raw -ErrorAction SilentlyContinue`"" 2>$null
+        $rawStatus = ssh -o BatchMode=yes $sshTarget "pwsh -NoProfile -Command `"Get-Content -Path '$remoteStatusPath' -Raw -ErrorAction SilentlyContinue`"" 2>$null
         if ($rawStatus) {
             try {
                 $statusObj = $rawStatus | ConvertFrom-Json
@@ -115,7 +115,7 @@ foreach ($outputFile in $outputFiles) {
     $remotePath = "$RemoteOutputDir/$outputFile"
     $localPath  = Join-Path $LocalOutputDir $outputFile
 
-    scp -q "${sshTarget}:$remotePath" $localPath 2>$null
+    scp -o BatchMode=yes -q "${sshTarget}:$remotePath" $localPath 2>$null
     if ($LASTEXITCODE -eq 0) {
         $retrieved += $outputFile
     }
@@ -219,7 +219,7 @@ Write-Host '  Output dir removed.'
         $cleanupCmd = "Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
     }
 
-    ssh $sshTarget "pwsh -NoProfile -Command `"$cleanupCmd`""
+    ssh -o BatchMode=yes $sshTarget "pwsh -NoProfile -Command `"$cleanupCmd`""
 
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Remote cleanup encountered errors. Manual cleanup may be needed:"

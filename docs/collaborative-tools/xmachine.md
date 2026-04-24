@@ -41,8 +41,23 @@ xmachine is repo-owned rather than a third-party package. `Setup-Tools.ps1` ther
 
 - Every controlling machine must have an SSH client and permission to reach the selected controlled machine.
 - Every controlled machine must have SSH enabled and expose the repo checkout that xmachine will use.
+- **Mandatory**: You MUST configure SSH Key-based (passwordless) authentication between the controlling and controlled machines. xmachine scripts run in non-interactive mode (`BatchMode=yes`); if a connection requires a password, the task dispatch will fail with an error.
 - Every controlled machine must have Zellij installed. The `local-async` lane uses it directly today, and the broader xmachine contract standardizes on it as the detached execution primitive.
 - Lane-specific runtimes still apply on top of that baseline. For example, the current bash-based local lane also needs `git`, `jq`, `script`, and the configured engine CLI.
+
+## SSH Troubleshooting
+
+If task dispatch fails with "Permission denied" or continues to ask for a password despite adding keys:
+
+1.  **Account Matching**: Ensure your connection string specifies the correct remote user (e.g., `tzylee@host`). By default, SSH may try to use your local Windows/Mac username.
+2.  **Permission Modes (Linux/macOS)**: SSH requires strict permissions. On the controlled machine, run:
+    - `chmod 700 ~/.ssh`
+    - `chmod 600 ~/.ssh/authorized_keys`
+    - `chmod go-w ~` (Your home directory must not be group-writable)
+3.  **Windows Administrators**: If the remote user is in the `Administrators` group on Windows, OpenSSH ignores `~/.ssh/authorized_keys` by default. You must either:
+    - Add the key to `C:\ProgramData\ssh\administrators_authorized_keys` (with restricted ACLs), OR
+    - Comment out the `Match Group administrators` block at the bottom of `C:\ProgramData\ssh\sshd_config` and restart the `sshd` service.
+4.  **BatchMode Check**: Test your connection manually with `ssh -o BatchMode=yes user@host`. If this fails, xmachine will also fail.
 
 ## Lane Model
 
