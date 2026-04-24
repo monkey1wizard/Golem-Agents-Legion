@@ -1,32 +1,32 @@
 <#
 .SYNOPSIS
-    Dispatch a task to a remote LAN worker over SSH.
+    Dispatch a task to a remote LAN machine over SSH.
 
 .DESCRIPTION
-    Copies a task spec to the remote worker, creates an isolated git worktree,
-    and invokes Start-GalWorker.ps1 on the remote machine to run the task headlessly.
+    Copies a task spec to the remote machine, creates an isolated git worktree,
+    and invokes Start-xMachine.ps1 on the remote machine to run the task headlessly.
 
-    The task ID is printed on completion. Use Get-GalRemoteResult.ps1 to retrieve
-    results once the worker finishes.
+    The task ID is printed on completion. Use Get-XmachineRemoteResult.ps1 to retrieve
+    results once the task run finishes.
 
 .PARAMETER RemoteHost
-    SSH hostname or IP of the worker node.
+    SSH hostname or IP of the remote machine.
 
 .PARAMETER RemoteUser
-    SSH username on the worker node.
+    SSH username on the remote machine.
 
 .PARAMETER RemoteRepoPath
-    Absolute path to the repo clone on the worker (e.g. C:\Code\MyRepo).
+    Absolute path to the repo clone on the remote machine (e.g. C:\Code\MyRepo).
 
 .PARAMETER TaskSpec
     Path to the local task spec file (Markdown, following templates/task.md).
 
 .PARAMETER RemoteScriptsPath
-    Path to the GAL scripts directory on the remote worker.
+    Path to the GAL scripts directory on the remote machine.
     Defaults to the same relative path as this script in the remote repo.
 
 .EXAMPLE
-    .\Invoke-GalRemoteTask.ps1 `
+    .\Invoke-XmachineRemoteTask.ps1 `
         -RemoteHost notebook `
         -RemoteUser alice `
         -RemoteRepoPath "C:\Code\Golem-Agents-Legion" `
@@ -67,16 +67,16 @@ $randPart = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 6 | ForEa
 $taskId = "$datePart-$randPart"
 
 Write-Host "GAL Remote Task: $taskId"
-Write-Host "  Worker:   $RemoteUser@$RemoteHost"
+Write-Host "  Machine:  $RemoteUser@$RemoteHost"
 Write-Host "  Repo:     $RemoteRepoPath"
 Write-Host "  TaskSpec: $taskSpecName"
 Write-Host "  Timeout:  ${TimeoutMinutes}m"
 Write-Host ""
 
 # ── Derive remote paths ───────────────────────────────────────────────────────
-$remoteTemp   = "C:\Windows\Temp\gal-worker\$taskId"
+$remoteTemp   = "C:\Windows\Temp\gal-xmachine\task-$taskId"
 $remoteSpec   = "$remoteTemp\$taskSpecName"
-$remoteWorktree = "$RemoteRepoPath-worker-$taskId"
+$remoteWorktree = "$RemoteRepoPath-xmachine-$taskId"
 
 if ($RemoteScriptsPath -eq "") {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -84,7 +84,7 @@ if ($RemoteScriptsPath -eq "") {
     # Assume same relative layout on remote
     $RemoteScriptsPath = "$RemoteRepoPath\scripts"
 }
-$remoteStartScript = "$RemoteScriptsPath\Start-GalWorker.ps1"
+$remoteStartScript = "$RemoteScriptsPath\Start-xMachine.ps1"
 
 # ── Create remote temp directory ──────────────────────────────────────────────
 Write-Host "[1/4] Creating remote temp directory..."
@@ -112,15 +112,15 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ── Invoke worker script on remote (background, detached) ────────────────────
-Write-Host "[4/4] Starting remote worker..."
-$workerCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp','-TimeoutMinutes','$TimeoutMinutes' -WindowStyle Hidden"
-ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$workerCmd`""
+# ── Invoke runtime script on remote (background, detached) ───────────────────
+Write-Host "[4/4] Starting remote task run..."
+$runtimeCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp','-TimeoutMinutes','$TimeoutMinutes' -WindowStyle Hidden"
+ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$runtimeCmd`""
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning "Failed to start remote worker. Cleaning up orphaned worktree..."
+    Write-Warning "Failed to start the remote task run. Cleaning up orphaned worktree..."
     $cleanupCmd = "git -C '$RemoteRepoPath' worktree remove --force '$remoteWorktree' 2>&1"
     ssh "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$cleanupCmd`"" 2>&1 | Out-Null
-    Write-Error "Failed to start remote worker process."
+    Write-Error "Failed to start the remote task process."
     exit 1
 }
 
@@ -133,4 +133,4 @@ Write-Host "  Remote output:  $remoteTemp"
 Write-Host "  Worktree:       $remoteWorktree"
 Write-Host ""
 Write-Host "Retrieve results when done:"
-Write-Host "  .\Get-GalRemoteResult.ps1 -RemoteHost $RemoteHost -RemoteUser $RemoteUser -TaskId $taskId -RemoteOutputDir '$remoteTemp' -RemoteRepoPath '$RemoteRepoPath' -Wait"
+Write-Host "  .\Get-XmachineRemoteResult.ps1 -RemoteHost $RemoteHost -RemoteUser $RemoteUser -TaskId $taskId -RemoteOutputDir '$remoteTemp' -RemoteRepoPath '$RemoteRepoPath' -Wait"

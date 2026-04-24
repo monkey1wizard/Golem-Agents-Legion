@@ -75,13 +75,13 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 | Path | Type | Notes |
 | --- | --- | --- |
 | `README.md` | README | |
+| `docs/collaborative-tools/xmachine.md` | docs | |
 | `docs/research/20260409-infra-lan-worker-topology-mempalace-shared-memory.md` | docs | |
 | `docs/personalization.md` | docs | |
 | `docs/plans/infra-lan-worker-topology.prompt.md` | docs | |
 | `docs/devguide.md` | docs | |
 | `docs/collaborative-tools/graphworkflow.md` | docs | |
 | `docs/collaborative-tools/gstack.md` | docs | |
-| `docs/collaborative-tools/remote-worker.md` | docs | |
 | `docs/collaborative-tools/godot.md` | docs | |
 | `docs/collaborative-tools/graphify.md` | docs | |
 | `docs/collaborative-tools/checking-contract.md` | docs | |
@@ -3503,7 +3503,7 @@ description: Knowledge management protocol for the Obsidian vault. Default to a 
 
 # Obsidian Knowledge Management Protocol
 
-> **Guide Resolution**: When `guide` is `"guide"`, load `<OBSIDIAN_GUIDE_PATH>` before writing. When the mode is `auto`, load the "guide" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
+> **Guide Resolution**: When `guide` is `"guide"`, load `99_System\Guide.md` before writing. When the mode is `auto`, load the "guide" only if the file exists. When the mode is `generic`, skip Guide loading and use the generic PARA-first rules in this skill.
 
 > **Default Mode**: If no Guide is available, assume a standard PARA system: Projects, Areas, Resources, and Archives. Do not assume numbered folder prefixes, Slipbox folders, map folders, taxonomy files, or template files unless the user's Guide or vault clearly defines them.
 
@@ -3537,8 +3537,8 @@ uv run python scripts/query.py semantic "<extracted keywords>" --limit 5
 
 Before any file creation, modification, or organization, resolve the active mode:
 
-1. If `guide` is `"guide"`, read `<OBSIDIAN_GUIDE_PATH>`.
-2. If `guide` is `auto` and `<OBSIDIAN_GUIDE_PATH>` exists, read it.
+1. If `guide` is `"guide"`, read `99_System\Guide.md`.
+2. If `guide` is `auto` and `99_System\Guide.md` exists, read it.
 3. If the Guide is unavailable or the mode is `generic`, continue with the generic PARA-first rules in this skill.
 4. Read taxonomy, templates, or system notes only if the user's Guide or actual vault structure points to them.
 
@@ -4103,7 +4103,7 @@ This guide covers essential PDF processing operations using Python libraries and
 
 A convenience script `scripts/read_pdf.py` (pypdf-based) is bundled for quick text extraction with page markers:
 ```powershell
-python "<GAL_SKILLS>/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "<TEMP_DIR>"
+python "c:\Users\leetz\.copilot\skills/pdf/scripts/read_pdf.py" "path/to/input.pdf" --outdir "<TEMP_DIR>"
 ```
 
 ## Quick Start

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Invoke-GalLocalTask.sh — Mac Mini always-on local async dispatcher.
+# Invoke-XmachineLocalTask.sh — macOS/Linux local async dispatcher.
 #
-# Hosts each task in a detached Zellij session named "gal-task-<taskId>" so the
-# worker survives:
+# Hosts each task in a detached Zellij session named "task-<taskId>" so the
+# task run survives:
 #   - VS Code Remote-SSH disconnect
 #   - SSH session drop
-#   - Win11 main PC shutdown (because the lane runs entirely on Mac Mini)
+#   - controller disconnect while the controlled machine stays online
 #
-# Companion to Invoke-GalRemoteTask.ps1 (which dispatches over SSH to a Win
-# burst worker). Same task/result contract: status.json, summary.md, worker.log,
-# result.patch under <output-dir>.
+# Companion to Invoke-XmachineRemoteTask.ps1 (which dispatches over SSH to a Win
+# burst machine). Same task/result contract: status.json, summary.md, runtime log
+# runtime.log, and result.patch under <output-dir>.
 #
 # Usage:
-#   Invoke-GalLocalTask.sh \
+#   Invoke-XmachineLocalTask.sh \
 #       --task-spec /path/to/task.md \
 #       --repo-path /Users/tzylee/Code/Golem-Agents-Legion \
 #       [--timeout-minutes 30] \
@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$TASK_SPEC" || -z "$REPO_PATH" ]]; then
-    echo "Usage: Invoke-GalLocalTask.sh --task-spec <file> --repo-path <repo> [--timeout-minutes N] [--task-id ID]" >&2
+    echo "Usage: Invoke-XmachineLocalTask.sh --task-spec <file> --repo-path <repo> [--timeout-minutes N] [--task-id ID]" >&2
     exit 2
 fi
 if [[ ! -f "$TASK_SPEC" ]]; then
@@ -59,12 +59,12 @@ for tool in zellij git jq script; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKER_SCRIPT="$SCRIPT_DIR/Start-GalWorker.sh"
-if [[ ! -x "$WORKER_SCRIPT" ]]; then
-    chmod +x "$WORKER_SCRIPT" 2>/dev/null || true
+RUNTIME_SCRIPT="$SCRIPT_DIR/Start-xMachine.sh"
+if [[ ! -x "$RUNTIME_SCRIPT" ]]; then
+    chmod +x "$RUNTIME_SCRIPT" 2>/dev/null || true
 fi
-if [[ ! -f "$WORKER_SCRIPT" ]]; then
-    echo "Worker script missing: $WORKER_SCRIPT" >&2
+if [[ ! -f "$RUNTIME_SCRIPT" ]]; then
+    echo "Runtime script missing: $RUNTIME_SCRIPT" >&2
     exit 2
 fi
 
@@ -74,9 +74,9 @@ if [[ -z "$TASK_ID" ]]; then
     TASK_ID="$(date -u +%Y%m%d)-$rand"
 fi
 
-OUTPUT_DIR="${TMPDIR:-/tmp}/gal-worker/$TASK_ID"
-WORKTREE="${REPO_PATH%/}-worker-$TASK_ID"
-SESSION="gal-task-$TASK_ID"
+OUTPUT_DIR="${TMPDIR:-/tmp}/gal-xmachine/task-$TASK_ID"
+WORKTREE="${REPO_PATH%/}-xmachine-$TASK_ID"
+SESSION="task-$TASK_ID"
 TASK_SPEC_LOCAL="$OUTPUT_DIR/task.md"
 
 mkdir -p "$OUTPUT_DIR"
@@ -94,13 +94,13 @@ if ! git -C "$REPO_PATH" \
     exit 3
 fi
 
-# ── Spawn worker inside a detached Zellij session ─────────────────────────────
+# ── Spawn the task runtime inside a detached Zellij session ──────────────────
 # Pattern (verified on macOS 26 / zellij 0.44.1):
 #   script -q /dev/null zellij attach --create-background <name>
 # `script` provides the pty zellij requires; `--create-background` keeps the
 # session detached so this dispatcher returns immediately.
 #
-# Then `zellij --session <name> run -- ...` launches the worker as a new pane
+# Then `zellij --session <name> run -- ...` launches the task runtime as a new pane
 # inside that session. The pane survives terminal close, SSH drop, and Win11
 # shutdown.
 echo "Spawning detached Zellij session: $SESSION"
@@ -128,9 +128,9 @@ if ! session_exists; then
     exit 4
 fi
 
-# Launch the worker as a pane inside the detached session
+# Launch the task runtime as a pane inside the detached session
 zellij --session "$SESSION" run --close-on-exit -- \
-    bash "$WORKER_SCRIPT" \
+    bash "$RUNTIME_SCRIPT" \
         --task-id        "$TASK_ID" \
         --worktree       "$WORKTREE" \
         --task-spec      "$TASK_SPEC_LOCAL" \
@@ -151,5 +151,5 @@ Dispatched local async task.
 Inspect live:
   zellij attach $SESSION              # detach with Ctrl-p, d
 Retrieve when done:
-  scripts/Get-GalLocalResult.sh --task-id $TASK_ID --output-dir $OUTPUT_DIR
+    scripts/Get-XmachineLocalResult.sh --task-id $TASK_ID --output-dir $OUTPUT_DIR
 EOF

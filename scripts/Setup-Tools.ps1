@@ -3,7 +3,7 @@
     Interactive installer for optional GAL collaborative tools.
 
 .DESCRIPTION
-    Checks gstack, graphify, and OpenCLI, offers interactive installation for
+    Checks gstack, graphify, OpenCLI, and xmachine, offers interactive installation for
     installable tools, installs only the selected tools using official upstream
     methods, and then verifies whether GAL can collaborate with each tool.
 
@@ -17,7 +17,7 @@
 
 .PARAMETER Tool
     Limit the run to one or more tools. Accepts repeated values and comma-
-    separated lists. Valid values: gstack, graphify, opencli.
+    separated lists. Valid values: gstack, graphify, opencli, xmachine.
 
 .EXAMPLE
     .\scripts\Setup-Tools.ps1
@@ -38,7 +38,7 @@ $ErrorActionPreference = 'Stop'
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 
-$supportedTools = @('gstack', 'graphify', 'opencli')
+$supportedTools = @('gstack', 'graphify', 'opencli', 'xmachine')
 $gstackRoot = Join-Path $env:USERPROFILE '.claude\skills\gstack'
 $gstackStateDir = Join-Path $env:USERPROFILE '.gstack'
 $gstackConfigFile = Join-Path $gstackStateDir 'config.yaml'
@@ -362,11 +362,40 @@ function Get-OpenCliStatus {
     return New-ToolStatus -Name 'opencli' -Status 'available-but-needs-init' -Reason $reason -CanInstall $true -InstallLabel 'Install OpenCLI / download Browser Bridge' -NextStep $manualStep -ManualStep $manualStep
 }
 
+function Get-XmachineStatus {
+    $requiredPaths = @(
+        'docs\collaborative-tools\xmachine.md',
+        'scripts\Test-Xmachine.ps1',
+        'scripts\Test-Xmachine.sh',
+        'scripts\Invoke-XmachineRemoteTask.ps1',
+        'scripts\Get-XmachineRemoteResult.ps1',
+        'scripts\Start-xMachine.ps1',
+        'scripts\Invoke-XmachineLocalTask.sh',
+        'scripts\Get-XmachineLocalResult.sh',
+        'scripts\Start-xMachine.sh'
+    )
+
+    $missing = New-Object System.Collections.Generic.List[string]
+    foreach ($relativePath in $requiredPaths) {
+        $fullPath = Join-Path $repoRoot $relativePath
+        if (-not (Test-Path $fullPath)) {
+            [void]$missing.Add($relativePath)
+        }
+    }
+
+    if ($missing.Count -gt 0) {
+        return New-ToolStatus -Name 'xmachine' -Status 'available-but-not-ready' -Reason ("Repo-owned xmachine assets are missing: {0}" -f ($missing -join '; ')) -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Restore the missing xmachine scripts or docs in this repo checkout.' -ManualStep ''
+    }
+
+    return New-ToolStatus -Name 'xmachine' -Status 'ready' -Reason 'Repo-owned xmachine scripts and docs are present. Lane-specific transport checks happen when the chosen lane is invoked.' -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'No action required.' -ManualStep ''
+}
+
 function Get-ToolStatus([string]$Name) {
     switch ($Name) {
         'gstack' { return Get-GstackStatus }
         'graphify' { return Get-GraphifyStatus }
         'opencli' { return Get-OpenCliStatus }
+        'xmachine' { return Get-XmachineStatus }
         default { throw "Unsupported tool '$Name'." }
     }
 }

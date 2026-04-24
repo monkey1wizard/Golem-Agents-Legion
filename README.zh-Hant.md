@@ -2,26 +2,24 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失 context window。核心由 12 個分工明確的 Golem Agent 加上 `/gal` 控制平面構成，採文件驅動開發模型。持久狀態分成兩個邊界：repo 共享狀態以本地 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`。使用者私人筆記則可選擇寫入本機設定的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套 workflow，同時保留使用者自己的非 repo 筆記空間。
+GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失上下文視窗（Context Window）。核心由 12 個分工明確的 Golem 代理程式（Agents）加上 `/gal` 控制平面構成，採文件驅動開發模式。狀態持久化分為兩個範疇：儲存庫 (Repo) 共享狀態以本機 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`。使用者個人筆記則可選擇寫入本機配置的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套工作流程，同時保留使用者自己的非儲存庫筆記空間。
 
-狀態管理借鏡自 [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done) 的 phase-based discipline：explicit state (`.dev/state.md`)、 verification gates 與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力投影整個 repo 的工作進度。
-
-- [gstack](https://github.com/garrytan/gstack) 的 specialist workflow semantics 對 GAL 有明顯影響，但在 GAL 中它是可選的協作工具，不是核心依賴。詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
+狀態管理借鏡自 Get Shit Done (GSD) 的階段式規範：明確狀態 (`.dev/state.md`)、驗證關卡與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力呈現整個儲存庫的工作進度。
 
 ## 快速開始
 
-1. git clone 本專案
+1. 複製（Clone）此專案。
 `git clone https://github.com/monkey1wizard/golem-agents-legion.git`。
 
-2. 進入資料夾後執行安裝， Windows 使用 `./scripts/Setup-Machine.ps1` ， macOS 使用 `./scripts/setup-machine.sh` ，完成後即可開始於專案中使用。
+2. 進入專案目錄後執行安裝，Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`，完成後即可開始於儲存庫中使用。
 
-3. 進入目標 repo 後開啟 GitHub Copilot、Gemini CLI 或 Codex CLI，然後執行：
+3. 進入目標儲存庫後開啟 GitHub Copilot、Gemini CLI 或 Codex CLI，然後執行：
 
 ```text
-# Copilot / Gemini CLI（slash-command 介面）
+# Copilot / Gemini CLI（斜線指令介面）
 /gal init
 
-# Codex CLI（skill mention 介面，使用 $ 前綴，不是 /）
+# Codex CLI（技能提及介面，使用 $ 前綴，不是 /）
 $gal init
 ```
 
@@ -29,17 +27,17 @@ $gal init
 
 | 指令 | 用途 |
 | --- | --- |
-| `/gal init` | 初始化 repo：建立 `.dev/project.md` 與 `.dev/state.md` |
-| `/gal status` | 完整狀態投影：活動企劃、審核/測試狀態、阻塞點、連續性 |
+| `/gal init` | 初始化儲存庫：建立 `.dev/project.md` 與 `.dev/state.md` |
+| `/gal status` | 完整狀態呈現：活動企劃、審查/測試狀態、阻擋點、連續性 |
 | `/gal whats-next` | 推薦單一下一步動作 |
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |
 | `/gal research` | 進入研究工作流 |
-| `/gal deep-research` | 進入多來源研究工作流，包含交互審核 |
-| `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer，若變更涉及 security-sensitive surface 則插入條件式 `golem-security` 審核，最後再由 verifier 收尾 |
-| `/planning` | 建立企劃文件(source plan) |
-| `/deep-planning` | 把企劃文件收斂到可實作 |
-| `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審核結果寫入企劃文件 |
-| `/plan-to-prompt` | 產生執行工作檔案(execution prompt) |
+| `/gal deep-research` | 進入多來源研究工作流，包含交叉審查 |
+| `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer，若變更涉及安全性敏感面（security-sensitive surface）則插入條件式 `golem-security` 審查，最後再由 verifier 收尾 |
+| `/planning` | 建立規劃文件（source plan） |
+| `/deep-planning` | 把規劃文件收斂到可實作 |
+| `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審查結果寫入規劃文件 |
+| `/plan-to-prompt` | 產生執行工作檔（execution prompt） |
 
 ## 開發工作流
 
@@ -72,30 +70,30 @@ $gal init
 
 ### planning
 
-`/planning` 會把新的需求整理成正式的企劃文件(source plan)，寫入 `docs/plans/<plan-slug>.md`。
+`/planning` 會把新的需求整理成正式的規劃文件（source plan），寫入 `docs/plans/<plan-slug>.md`。
 
-這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的企劃文件是否應先進 `/deep-planning` 做進一步收斂與架構審核，或可以往下進 `/refining-plan` 鎖定 implementation contract。
+這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的規劃文件是否應先進 `/deep-planning` 做進一步收斂與架構審查，或可以往下進 `/refining-plan` 鎖定實作契約（implementation contract）。
 
 ### deep-planning
 
-`/deep-planning` 會對既有企劃文件進行深度規劃，而且 architect 在這個指令內一定會啟動。規劃材料會整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審核結果寫回企劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審核仍有阻塞問題，工作就留在 deep-planning 繼續修正。只有在企劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
+`/deep-planning` 會對既有規劃文件進行深度規劃，而且 architect 在這個指令內一定會啟動。規劃材料會整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審查結果寫回規劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審查仍有阻擋問題，工作就留在 deep-planning 繼續修正。只有在規劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
 
-若企劃涉及商務邏輯、定價、權限、通知、onboarding 或身份驗證，analyst 會與 architect 同時啟動；若涉及客戶接觸面（customer-facing flows）、布局、狀態、組件或無障礙設計，designer 也會一併加入。如果只需要商務或設計層面的專家審查，不打算進行完整架構檢視，也可以直接針對企劃文件啟用對應的工作領域。
+若規劃涉及商業邏輯、定價、權限、通知、新手引導（onboarding）或身分驗證，analyst 會與 architect 同時啟動。若涉及客戶接觸面（customer-facing flows）、版面配置、狀態、元件（components）或無障礙設計，designer 也會一併加入。如果只需要商業或設計層面的專家審查，不打算進行完整架構檢視，也可以直接針對規劃文件啟用對應的 Domain Lane。
 
 ### refining-plan
 
-`/refining-plan` 完成 prompt 執行前必須定案的三個關鍵章節：`## Tasks`（列出 `T-NNN` 任務清單）、`## Test Plan`（建立與任務對應的 `TP-NNN` 測試表單），以及 `## Review Results > ### Engineering Review`（標記為 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並說明阻塞問題）。這個步驟透過執行細部設計來補足 planning 與 `/plan-to-prompt` 間的空隙。`/refining-plan` 不涉及程式碼實作、測試執行或 `## Status` 變更。若已安裝 gstack，也可改用其 `plan-eng-review` 替代。
+`/refining-plan` 完成 prompt 執行前必須定案的三個關鍵章節：`## Tasks`（列出 `T-NNN` 任務清單）、`## Test Plan`（建立與任務對應的 `TP-NNN` 測試表單），以及 `## Review Results > ### Engineering Review`（標記為 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並說明阻擋問題）。這個步驟透過執行細部設計來補足 planning 與 `/plan-to-prompt` 間的空隙。`/refining-plan` 不涉及程式碼實作、測試執行或 `## Status` 變更。若已安裝 gstack，也可改用其 `plan-eng-review` 替代。
 
 ### plan-to-prompt
 
-`/plan-to-prompt` 會把企劃文件依照模板轉換成 `.dev/plans/<plan-slug>.prompt.md` 作為執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next` ，系統會掃描執行工作檔並回答你。有了執行工作檔了以後，方可 `/gal pipeline` 正常執行。若企劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保企劃文件與執行工作檔案的內容保持一致。
+`/plan-to-prompt` 會把規劃文件依照範本轉換成 `.dev/plans/<plan-slug>.prompt.md` 作為執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next`，系統會掃描執行工作檔並回答你。有了執行工作檔了以後，方可正常執行 `/gal pipeline`。若規劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保規劃文件與執行工作檔內容保持一致。
 
 ## Golem Agents
 
 GAL 的核心是 12 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
 
-- **prompt 精簡**：每個 agent 只載入自己的職責定義，不浪費 context window
-- **獨立性**：獨立的 tester / reviewer / verifier ，以確保驗證結果的可信度
+- **prompt 精簡**：每個 agent 只載入自己的職責定義，不浪費脈絡視窗（context window）
+- **獨立性**：獨立的 tester / reviewer / verifier，以確保驗證結果的可信度
 - **可組合**：按任務風險等級決定啟用哪些 agent，不是一體全開
 
 除了使用 `/gal` 指令以外，你也能直接呼叫 `golem-` 進行指定類型的工作。
@@ -113,7 +111,7 @@ GAL 的核心是 12 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 | Agent | 職責 |
 | --- | --- |
 | **debugger** | 科學方法 bug 調查：假說、驗證、根因確認後才修 |
-| **notewriter** | Obsidian 寫入總入口：私人 research capture、工作日記、inbox、知識萃取、shutdown ritual |
+| **notewriter** | Obsidian 寫入總入口：私人研究擷取（research capture）、工作日記、收件匣（inbox）、知識萃取、收工儀式（shutdown ritual） |
 
 ### Domain Agents
 
@@ -121,16 +119,16 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 
 | Agent | 職責 |
 | --- | --- |
-| **architect** | 對抗式的企劃審核：權衡分析、過度設計偵測、bug surface、公開 API 風險 |
-| **analyst** | 商業邏輯審核：ROI、domain 正確性、使用者影響 |
-| **designer** | 設計系統建立、視覺探索、design-to-code 建置、live UI audit |
-| **researcher** | 本地優先的研究與結構化綜合，帶有 source attribution |
-| **security** | 實作階段的 OWASP 與 STRIDE 安全審核 |
-| **releaser** | release prep、deploy orchestration、文件同步 |
+| **architect** | 對抗式的規劃審查：權衡分析、過度設計偵測、bug 表面區域、公開 API 風險 |
+| **analyst** | 商業邏輯審查：ROI、領域（Domain）正確性、使用者影響 |
+| **designer** | 設計系統建立、視覺探索、design-to-code 建置、即時 UI 稽核 |
+| **researcher** | 本機優先的研究與結構化統整，帶有來源歸屬（source attribution） |
+| **security** | 實作階段的 OWASP 與 STRIDE 安全性審查 |
+| **releaser** | 發布準備（release prep）、部署編排（deploy orchestration）、文件同步 |
 
 ### Pipeline Agents
 
-Pipeline 是 GAL 的自動化執行核心。它的固定主鏈仍是四個 agent，但若實作後的變更觸及 security-sensitive surface，`/gal pipeline` 會在 task closeout 前插入條件式 `golem-security` 審核。
+Pipeline 是 GAL 的自動化執行核心。它的固定主鏈仍是四個 agent，但若實作後的變更觸及安全性敏感面，`/gal pipeline` 會在 task closeout 前插入條件式 `golem-security` 審查。
 
 ```text
 T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional security] ──> git commit ──> T-NNN+1
@@ -138,23 +136,23 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional s
                │                         ↓
      auto-fix by review result <────── REJECT
 
-所有任務完成後：──> verifier ──> 確認企劃目標達成
+所有任務完成後：──> verifier ──> 確認規劃目標達成
 ```
 
-`[conditional security]` 代表只有在變更觸及 authentication、sensitive data handling、input handling、public API surface，或 deployment / environment trust boundary 時，才會啟動 `golem-security`。
+`[conditional security]` 代表只有在變更觸及身分驗證、敏感資料處理、輸入處理、公開 API 介面，或部署/環境信任邊界時，才會啟動 `golem-security`。
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
-| **implementer** | 依照企劃與當前 `T-NNN` 任務完成實作 | 一旦踩到架構邊界或發現企劃不足，必須停止並回 `/deep-planning` |
-| **tester** | 根據規格與 public API 撰寫或補齊測試，必要時執行 browser QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
-| **reviewer** | 以資深工程師的標準審核變更差異、風險與完整性 | 若發現阻塞問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
-| **verifier** | 在所有任務完成後，從企劃目標反向驗證成果是否真的達成 | 負責確認企劃是否可關閉，並把值得保留的知識抽回 `docs/` |
+| **implementer** | 依照規劃與當前 `T-NNN` 任務完成實作 | 一旦踩到架構邊界或發現規劃不足，必須停止並回 `/deep-planning` |
+| **tester** | 根據規格與公開 API 撰寫或補齊測試，必要時執行瀏覽器 QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
+| **reviewer** | 以資深工程師的標準審查變更差異、風險與完整性 | 若發現阻擋問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
+| **verifier** | 在所有任務完成後，從規劃目標反向驗證成果是否真的達成 | 負責確認規劃是否可關閉，並把值得保留的知識抽回 `docs/` |
 
-`golem-security` 屬於 domain agent，由 `/gal pipeline` 在安全敏感變更時有條件啟動，不參與常態執行。Domain 與 utility agent 可隨時直接呼叫，pipeline agent 亦可在明確界定的工作中直接呼叫。
+`golem-security` 屬於 domain agent，由 `/gal pipeline` 在安全性敏感變更時有條件啟動，不參與常態執行。Domain 與 utility agent 可隨時直接呼叫，pipeline agent 亦可在明確界定的工作中直接呼景呼叫。
 
 ### AI 模型與 Agent 規則
 
-Pipeline 流程中，GAL 強制以不同模型進行審核與測試：
+Pipeline 流程中，GAL 強制以不同模型進行審查與測試：
 
 - Tester **必須**與 implementer 使用不同模型
 - Reviewer **應**與 implementer 不同，能力不應弱於 implementer
@@ -168,8 +166,8 @@ Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `c
 
 - **Working Hours off**：所有 agent 正常工作
 - **After Hours**：超過工作時段後，到 Wrap-up Time 前仍可工作
-- **Wrap-up Time**：若當日日記未寫，非 `notewriter` agent 阻擋並引導進 shutdown ritual
-- **Hard Stop**：所有 agent 停止，包括 `notewriter`
+- **Wrap-up Time**：若當日日記未寫，非 `notewriter` agent 會阻擋並引導進入收工儀式
+- **Hard Stop**：所有 agent 停止工作，包括 `notewriter`
 - **Override**：使用者可說 `override working hours`，單次有效
 
 可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設置啟動時間，詳細請看 [docs/personalization.md](docs/personalization.md)。
@@ -178,7 +176,7 @@ Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `c
 
 GAL 把持久化資料分成兩個邊界：
 
-- **Repo 共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和 repo 一起追蹤、審核與協作的工作成果。
+- **儲存庫共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和儲存庫一起追蹤、審查與協作的工作成果。
 - **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
 
 若使用者設定了 `OBSIDIAN_GUIDE_PATH` 且 Guide 存在，`notewriter` 會依該 Guide 工作。若未設定或找不到，則改走 generic mode，而不會因缺少 Guide 而中止。
@@ -187,21 +185,21 @@ GAL 把持久化資料分成兩個邊界：
 
 | 路徑 | 用途 |
 | --- | --- |
-| `.dev/project.md` | Repo 摘要、技術棧、目標、限制 |
-| `.dev/state.md` | 活動企劃索引、阻塞點、工作階段連續性 |
-| `.dev/plans/<plan-slug>.prompt.md` | AI 執行工作檔案 |
-| `CLAUDE.md` | Repo 本地操作備注 |
-| `DESIGN.md` | Repo 層級設計治理 |
-| `docs/designs/<plan-slug>/` | 企劃綁定的設計資產 |
-| `docs/plans/<plan-slug>.md` | 人類可讀的企劃文件 |
-| `docs/research/` | repo 共享研究報告（預設 research 輸出） |
+| `.dev/project.md` | 儲存庫摘要、技術堆疊（Tech Stack）、目標、限制 |
+| `.dev/state.md` | 活動規劃索引、阻擋點、工作階段連續性 |
+| `.dev/plans/<plan-slug>.prompt.md` | AI 執行工作檔 |
+| `CLAUDE.md` | 儲存庫本機操作備註 |
+| `DESIGN.md` | 儲存庫層級設計治理 |
+| `docs/designs/<plan-slug>/` | 規劃綁定的設計資產 |
+| `docs/plans/<plan-slug>.md` | 人類可讀的規劃文件 |
+| `docs/research/` | 儲存庫共享研究報告（預設 research 輸出） |
 
 ### 執行工作檔
 
 當你執行 `/plan-to-prompt` 之後，GAL 會建立 `.dev/plans/<plan-slug>.prompt.md`。你可以把它想成這個任務的工作看板。第一次使用時，主要只要看兩類資訊：
 
 - `## Status > Workflow`：目前做到哪一個階段
-- 其他回寫區段：規劃、測試、審核、交接的結果寫在哪裡
+- 其他回寫區段：規劃、測試、審查、交接的結果寫在哪裡
 
 一般情況下，你不需要手動改 `Workflow:`。它會在建立執行工作檔時先設成 `DRAFT`，之後隨著工作的執行自動往下推進。
 
@@ -212,8 +210,8 @@ GAL 把持久化資料分成兩個邊界：
 | `DRAFT` | 執行工作檔剛建立，還沒正式進入任務執行 |
 | `IMPLEMENT` | 正在做某個 `T-NNN` 任務的實作 |
 | `TEST` | 實作已完成，正在測試 |
-| `REVIEW` | 測試已通過，正在做程式碼審核 |
-| `REVIEW — N阻塞問題s found` | 審核發現阻塞問題，必須修正後再重跑 |
+| `REVIEW` | 測試已通過，正在做程式碼審查（Code Review） |
+| `REVIEW — N阻塞問題s found` | 審查發現阻擋問題，必須修正後再重跑 |
 | `ABSORBED` | 已確認目標達成，準備關閉企劃 |
 
 #### 回寫區段
@@ -226,7 +224,7 @@ GAL 把持久化資料分成兩個邊界：
 | `## Review Results` | 想看審核結果時 | 集中放 reviewer、designer、security 等審核結果 |
 | `## Test Plan` | 還沒開始測試，想知道應該測什麼時 | 記錄預計驗證的測試範圍 |
 | `## Test Results` | 測試或 browser QA 跑完之後 | 記錄測試結果 |
-| `### Handoff Notes` | 中途停下來，想知道上次做到哪裡時 | 提供下次接手時的上下文 |
+| `### Handoff Notes` | 中途停下來，想知道上次做到哪裡時 | 提供下次接手時的上下文（Context） |
 | `## Release` | 準備合併、部署或同步文件時 | 記錄 release 階段結果 |
 
 `/gal status` 和 `/gal whats-next` 主要就是讀這些已回寫的內容，來判斷目前進度與下一步，而不是只看單一欄位。
@@ -240,7 +238,7 @@ GAL 把持久化資料分成兩個邊界：
 | `/gal research` | 標準結構化調查 | RESEARCH → VERIFY → DOCUMENT | 足夠回答問題即可 |
 | `/gal deep-research` | 高風險、高模糊度或跨主題調查 | RESEARCH → SYNTHESIZE → CROSS-REVIEW → VERIFY → DOCUMENT | 至少嘗試 5 個來源 |
 
-兩種模式都強制要求 VERIFY 由**不同於研究作者的 model** 執行。`deep-research` 的 CROSS-REVIEW 是來源間一致性審核，不是架構或商業審核。缺口類型決定回退目標：
+兩種模式都強制要求 VERIFY 由**不同於研究作者的 model** 執行。`deep-research` 的 CROSS-REVIEW 是來源間一致性審查，不是架構或商業審核。缺口類型決定回退目標：
 
 ```text
 IDLE → RESEARCH → SYNTHESIZE → CROSS-REVIEW → VERIFY → DOCUMENT → DONE
@@ -252,7 +250,7 @@ DOCUMENT 階段的目標地有四種：
 
 - `repo`：寫到 `docs/research/`，這是預設值
 - `private`：寫到 `OBSIDIAN_PRIVATE_RESEARCH_DIR`
-- `knowledge`：交給 `notewriter` 轉成可重用的長期知識筆記
+- `knowledge`：交給 `notewriter`轉成可重用的長期知識筆記
 - `none`：只回傳結果，不做 durable write
 
 ## 協作工具
@@ -272,38 +270,38 @@ applicability → availability → initialization status → readiness → route
 | `not-applicable` | 目前工作流程或任務不需要此工具，直接跳過 |
 | `unavailable` | 機器無法存取此工具，或是無法執行，走備援方案 |
 | `available-but-needs-init` | 工具存在但尚未完成首次設定，不在正常流程中自動初始化 |
-| `available-but-not-ready` | 已安裝且已初始化，但當前 repo 或任務缺少所需產物 |
+| `available-but-not-ready` | 已安裝且已初始化，但當前儲存庫或任務缺少所需產物 |
 | `ready` | 適用且所有前置條件滿足，進入工具能力 |
 
 核心行為規則：不主動安裝、不主動初始化、不以模糊成功語言掩蓋缺失。每個工具啟用的流程都有明確的降級路線。完整規格見 [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md)。
 
 ### graphify
 
-圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。若已安裝了 graphify CLI，`gal init` 現在會在 repo bootstrap 階段自動產生 `graphify-out/`，並替產生出的 report 寫入當前 graphify 版本 stamp。GAL 不會自動偵測程式庫的變更，但 `setup-tools`、`/gal status`、`/gal whats-next` 現在可以在 stamped report 與已安裝 graphify 版本不一致時提出警示，而 `/gal pipeline` 與 `/gal wrap-up` 也會在實作工作後提醒你重新執行 `/graphify .`。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。若已安裝了 graphify CLI，`gal init` 現在會在儲存庫 bootstrap 階段自動產生 `graphify-out/`，並替產生出的 report 寫入當前 graphify 版本標記（stamp）。GAL 不會自動偵測儲存庫的變更，但 `setup-tools`、`/gal status`、`/gal whats-next` 現在可以在 stamped report 與已安裝 graphify 版本不一致時提出警示，而 `/gal pipeline` 與 `/gal wrap-up` 也會在實作工作後提醒你重新執行 `/graphify .`。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
 ### OpenCLI
 
-把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉換成命令列介面。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
+把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉換成命令列介面（CLI）。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
 
 ### gstack
 
-Created by Garry Tan, President & CEO of Y Combinator，他將他的 startups 經驗轉換成 AI agents，詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
+Created by Garry Tan, President & CEO of Y Combinator，他將他的新創（startups）經驗轉換成 AI agents，詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
 
-### Remote Worker
+### xmachine
 
-跨機器的遠端任務派發與結果收集。詳見 [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md)。
+xmachine 是 GAL 的協作式執行工具，透過 SSH 將工作分配到受控 Machine Lane。所有控制端與受控端都必須提供 SSH，且受控端必須安裝 Zellij。詳見 [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md)。
 
 ### Godot C Sharp
 
-現有指令透過 convention、skill 與 MCP 工具直接操作 Godot 4 C# repo。詳見 [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md)。
+現有指令透過慣例（convention）、技能（skill）與 MCP 工具直接操作 Godot 4 C# 儲存庫。詳見 [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md)。
 
 ### AI-First 遊戲素材
 
-以 ComfyUI 為生成入口，搭配後段工具做整理與導出。詳見 [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md)。
+以 ComfyUI 為生成入口，搭配後段工具做整理與匯出。詳見 [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md)。
 
 ## 個人化設定
 
-凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境占位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆蓋、Obsidian Vault 路徑、private research 目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
+凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境佔位符（placeholder）的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆寫、Obsidian Vault 路徑、私人研究（private research）目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
 
 ## 文件
 
@@ -312,12 +310,12 @@ Created by Garry Tan, President & CEO of Y Combinator，他將他的 startups �
 | 路徑 | 用途 |
 | --- | --- |
 | [docs/devguide.md](docs/devguide.md) | 開發者手冊 |
-| [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆蓋等個人化指引 |
+| [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆寫等個人化指引 |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |
 | [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | 圖形結構化工具 |
 | [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 工具指引與使用時機 |
 | [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與專家 agents 整合 |
-| [docs/collaborative-tools/remote-worker.md](docs/collaborative-tools/remote-worker.md) | 遠端 worker 拓撲、所有權與 patch-first 收斂 |
+| [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md) | xmachine Execution Lane、所有權模型、smoke test 與 patch-first 收斂 |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# 工作流導引 |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
 

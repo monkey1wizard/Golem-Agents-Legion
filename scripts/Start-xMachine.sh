@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Start-GalWorker.sh — bash GAL worker (Mac Mini / Linux)
-# Mirrors scripts/Start-GalWorker.ps1 output contract exactly:
-#   status.json, summary.md, worker.log, result.patch
+# Start-xMachine.sh — bash GAL runtime entrypoint (macOS/Linux)
+# Mirrors scripts/Start-xMachine.ps1 output contract exactly:
+#   status.json, summary.md, runtime log runtime.log, result.patch
 # Spawned either directly (Linux) or inside a detached Zellij session
-# (Mac Mini always-on lane via Invoke-GalLocalTask.sh).
+# (the local-async lane via Invoke-XmachineLocalTask.sh).
 #
 # Usage:
-#   Start-GalWorker.sh \
+#   Start-xMachine.sh \
 #       --task-id  20260422-abc123 \
 #       --worktree /path/to/disposable/worktree \
 #       --task-spec /path/to/task.md \
-#       --output-dir /tmp/gal-worker/20260422-abc123 \
+#       --output-dir /tmp/gal-xmachine/task-20260422-abc123 \
 #       [--timeout-minutes 30] \
 #       [--engine gemini]
 #
@@ -55,13 +55,13 @@ _require OUTPUT_DIR "$OUTPUT_DIR" --output-dir
 mkdir -p "$OUTPUT_DIR"
 STATUS_PATH="$OUTPUT_DIR/status.json"
 SUMMARY_PATH="$OUTPUT_DIR/summary.md"
-LOG_PATH="$OUTPUT_DIR/worker.log"
+LOG_PATH="$OUTPUT_DIR/runtime.log"
 PATCH_PATH="$OUTPUT_DIR/result.patch"
 
 iso_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 STARTED_AT="$(iso_now)"
 
-# ── status.json writer (jq-based, schema mirrors Start-GalWorker.ps1) ─────────
+# ── status.json writer (jq-based, schema mirrors Start-xMachine.ps1) ─────────
 write_status() {
     local status="$1"
     local exit_code="${2:-0}"
@@ -95,18 +95,18 @@ write_status "running" 0 ""
 # ── Sanity checks ─────────────────────────────────────────────────────────────
 if [[ ! -d "$WORKTREE" ]]; then
     write_status "failed" 1 "Worktree path does not exist: $WORKTREE"
-    echo "Worker $TASK_ID — FAILED: missing worktree" >&2
+    echo "Task run $TASK_ID — FAILED: missing worktree" >&2
     exit 1
 fi
 if [[ ! -f "$TASK_SPEC" ]]; then
     write_status "failed" 1 "Task spec not found: $TASK_SPEC"
-    echo "Worker $TASK_ID — FAILED: missing task spec" >&2
+    echo "Task run $TASK_ID — FAILED: missing task spec" >&2
     exit 1
 fi
 
 if ! command -v "$ENGINE" >/dev/null 2>&1; then
     write_status "failed" 1 "Engine '$ENGINE' not on PATH"
-    echo "Worker $TASK_ID — FAILED: engine '$ENGINE' missing" >&2
+    echo "Task run $TASK_ID — FAILED: engine '$ENGINE' missing" >&2
     exit 1
 fi
 if ! command -v jq >/dev/null 2>&1; then
@@ -176,7 +176,7 @@ fi
 
 # ── Generate result patch ─────────────────────────────────────────────────────
 if ! git -C "$WORKTREE" diff HEAD > "$PATCH_PATH" 2>>"$LOG_PATH"; then
-    echo "Failed to generate patch (see worker.log)" > "$PATCH_PATH"
+    echo "Failed to generate patch (see runtime.log)" > "$PATCH_PATH"
 fi
 
 # ── Extract summary from stream-json log (3-strategy parser) ─────────────────
@@ -205,6 +205,11 @@ extract_summary() {
 
         line_text="${line_text//$'\r'/}"
         if [[ -n "$line_text" ]]; then
+            if [[ -n "$current_block" ]] \
+                && [[ "$current_block" =~ [.!?:]$ ]] \
+                && [[ "$line_text" =~ ^([[:space:]]*[-*#]|[[:space:]]*[0-9]+\.) ]]; then
+                current_block+=$'\n'
+            fi
             current_block+="$line_text"
             continue
         fi
@@ -255,41 +260,41 @@ $SUMMARY_BODY
 EOF
 
 # ── Lock worktree (preserve until retrieval; non-fatal) ──────────────────────
-git -C "$WORKTREE" worktree lock "$WORKTREE" --reason "gal-worker-$TASK_ID" 2>/dev/null || true
+git -C "$WORKTREE" worktree lock "$WORKTREE" --reason "gal-xmachine-task-$TASK_ID" 2>/dev/null || true
 
 # ── Write final status.json with Gemini exit-code mapping ────────────────────
 # (case statement for bash 3 compatibility — no associative arrays on macOS)
 engine_exit_message() {
     case "$1" in
-        41) echo "Gemini CLI auth failed — re-auth required on worker before next task" ;;
+        41) echo "Gemini CLI auth failed — re-auth required on the machine before the next task" ;;
         42) echo "Gemini CLI input error — task spec may be malformed" ;;
-        44) echo "Gemini CLI sandbox error — check worker sandbox configuration" ;;
+        44) echo "Gemini CLI sandbox error — check sandbox configuration on the machine" ;;
         75) echo "Gemini model capacity exhausted — retry later or change the configured model" ;;
-        52) echo "Gemini CLI config error — check GEMINI.md or settings.json on worker" ;;
+        52) echo "Gemini CLI config error — check GEMINI.md or settings.json on the machine" ;;
         53) echo "Gemini CLI turn limit reached — split task into smaller pieces" ;;
-        *)  echo "Gemini CLI exited with code $1 — check worker.log" ;;
+        *)  echo "Gemini CLI exited with code $1 — check runtime.log" ;;
     esac
 }
 
 if [[ "$TIMED_OUT" -eq 1 ]]; then
     write_status "timeout" -1 "Task exceeded ${TIMEOUT_MINUTES}m timeout — split the task or raise --timeout-minutes"
-    echo "Worker finished: $TASK_ID — TIMEOUT" >&2
+    echo "Task run finished: $TASK_ID — TIMEOUT" >&2
     exit 1
 fi
 
 if [[ "$CAPACITY_EXHAUSTED" -eq 1 ]]; then
     write_status "failed" 75 "Gemini model capacity exhausted — retry later or change the configured model"
-    echo "Worker finished: $TASK_ID — FAILED (model capacity exhausted)" >&2
+    echo "Task run finished: $TASK_ID — FAILED (model capacity exhausted)" >&2
     exit 1
 fi
 
 if [[ "$ENGINE_EXIT" -eq 0 ]]; then
     write_status "success" 0 ""
-    echo "Worker finished: $TASK_ID — success"
+    echo "Task run finished: $TASK_ID — success"
     exit 0
 fi
 
 MSG="$(engine_exit_message "$ENGINE_EXIT")"
 write_status "failed" "$ENGINE_EXIT" "$MSG"
-echo "Worker finished: $TASK_ID — FAILED (exit $ENGINE_EXIT): $MSG" >&2
+echo "Task run finished: $TASK_ID — FAILED (exit $ENGINE_EXIT): $MSG" >&2
 exit "$ENGINE_EXIT"

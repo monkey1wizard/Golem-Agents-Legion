@@ -75,13 +75,13 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 | Path | Type | Notes |
 | --- | --- | --- |
 | `README.md` | README | |
+| `docs/collaborative-tools/xmachine.md` | docs | |
 | `docs/research/20260409-infra-lan-worker-topology-mempalace-shared-memory.md` | docs | |
 | `docs/personalization.md` | docs | |
 | `docs/plans/infra-lan-worker-topology.prompt.md` | docs | |
 | `docs/devguide.md` | docs | |
 | `docs/collaborative-tools/graphworkflow.md` | docs | |
 | `docs/collaborative-tools/gstack.md` | docs | |
-| `docs/collaborative-tools/remote-worker.md` | docs | |
 | `docs/collaborative-tools/godot.md` | docs | |
 | `docs/collaborative-tools/graphify.md` | docs | |
 | `docs/collaborative-tools/checking-contract.md` | docs | |

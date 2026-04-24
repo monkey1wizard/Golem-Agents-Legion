@@ -1,7 +1,7 @@
 # Collaborative Tool Checking Contract
 
 This document defines the shared preflight model for GAL collaborative tools.
-Use it when a workflow may optionally collaborate with graphify, OpenCLI, gstack,
+Use it when a workflow may optionally collaborate with graphify, OpenCLI, gstack, xmachine,
 or a future tool that extends GAL without becoming a core runtime dependency.
 
 ## Purpose
@@ -58,3 +58,4 @@ Use these distinctions when documenting or implementing a tool:
 - [graphify.md](graphify.md) for structural planning and review context.
 - [opencli.md](opencli.md) for research-side structured external retrieval.
 - [gstack.md](gstack.md) for planning-stage review lanes and specialist collaboration.
+- [xmachine.md](xmachine.md) for execution-plane offload into SSH-based machine lanes.

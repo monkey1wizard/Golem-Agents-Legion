@@ -3,23 +3,23 @@
     Retrieve results from a completed remote GAL task.
 
 .DESCRIPTION
-    Fetches status.json, summary.md, worker.log, and result.patch from the remote
-    worker's output directory via SCP. Prints the task summary and status.
+    Fetches status.json, summary.md, runtime log runtime.log, and result.patch from the remote
+    machine's output directory via SCP. Prints the task summary and status.
 
     After successful retrieval, the remote worktree and output directory are cleaned
     up (unless -KeepRemote is specified).
 
 .PARAMETER RemoteHost
-    SSH hostname or IP of the worker node.
+    SSH hostname or IP of the remote machine.
 
 .PARAMETER RemoteUser
-    SSH username on the worker node.
+    SSH username on the remote machine.
 
 .PARAMETER TaskId
-    The task ID returned by Invoke-GalRemoteTask.
+    The task ID returned by Invoke-XmachineRemoteTask.
 
 .PARAMETER RemoteOutputDir
-    Path to the task output directory on the worker (printed by Invoke-GalRemoteTask).
+    Path to the task output directory on the remote machine (printed by Invoke-XmachineRemoteTask).
 
 .PARAMETER LocalOutputDir
     Local directory to write retrieved output files. Defaults to .\gal-results\{TaskId}.
@@ -32,11 +32,11 @@
     Default poll interval: 30 seconds.
 
 .EXAMPLE
-    .\Get-GalRemoteResult.ps1 `
+    .\Get-XmachineRemoteResult.ps1 `
         -RemoteHost notebook `
         -RemoteUser alice `
         -TaskId "20260101-abc123" `
-        -RemoteOutputDir "C:\Windows\Temp\gal-worker\20260101-abc123"
+        -RemoteOutputDir "C:\Windows\Temp\gal-xmachine\task-20260101-abc123"
 #>
 
 param(
@@ -107,7 +107,7 @@ Write-Host "Retrieving results for task $TaskId..."
 Write-Host "  From: ${sshTarget}:$RemoteOutputDir"
 Write-Host "  To:   $LocalOutputDir"
 
-$outputFiles = @("status.json", "summary.md", "worker.log", "result.patch")
+$outputFiles = @("status.json", "summary.md", "runtime.log", "result.patch")
 $retrieved = @()
 $missing = @()
 
@@ -174,7 +174,7 @@ if (-not $KeepRemote) {
     Write-Host ""
     Write-Host "Cleaning up remote..."
 
-    # Prefer the worktree path stored in status.json by Start-GalWorker
+    # Prefer the worktree path stored in status.json by Start-xMachine
     $wtPath = $null
     if (Test-Path $localStatusPath) {
         try {

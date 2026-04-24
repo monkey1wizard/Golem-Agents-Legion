@@ -18,12 +18,14 @@ Machine setup and adapter sync scripts.
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
-| `Invoke-GalRemoteTask.ps1` | Windows | Dispatch a task to a remote LAN worker over SSH |
-| `Start-GalWorker.ps1` | Windows | Run a task on the local worker node via Gemini CLI (invoked remotely) |
-| `Get-GalRemoteResult.ps1` | Windows | Retrieve results from a completed remote task and clean up the worktree |
-| `Invoke-GalLocalTask.sh` | macOS | SSH from Mac Mini — dispatch a task to a remote LAN worker |
-| `Start-GalWorker.sh` | macOS | Run a task on the local worker node via Gemini CLI (invoked remotely) |
-| `Get-GalLocalResult.sh` | macOS | Retrieve results from a completed remote task and clean up the worktree |
+| `Invoke-XmachineRemoteTask.ps1` | Windows | Dispatch a task to the remote Windows xmachine lane over SSH |
+| `Start-xMachine.ps1` | Windows | Run a task on the remote Windows machine in the `remote-windows` lane via Gemini CLI |
+| `Get-XmachineRemoteResult.ps1` | Windows | Retrieve results from a completed remote xmachine task and clean up the worktree |
+| `Test-Xmachine.ps1` | Windows | Smoke-test wrapper for the `remote-windows` xmachine lane |
+| `Test-Xmachine.sh` | macOS/Linux | Smoke-test wrapper for the `local-async` xmachine lane |
+| `Invoke-XmachineLocalTask.sh` | macOS/Linux | Dispatch a task into the `local-async` xmachine lane on a controlled machine |
+| `Start-xMachine.sh` | macOS/Linux | Run a task on the local machine in the `local-async` lane via Gemini CLI |
+| `Get-XmachineLocalResult.sh` | macOS/Linux | Retrieve results from a completed `local-async` xmachine task and optionally clean up |
 
 ## Command Surface
 

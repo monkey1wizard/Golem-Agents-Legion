@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Get-GalLocalResult.sh — retrieve results from a Mac Mini local async task
-# dispatched by Invoke-GalLocalTask.sh.
+# Get-XmachineLocalResult.sh — retrieve results from a local async task
+# dispatched by Invoke-XmachineLocalTask.sh.
 #
-# Same role as Get-GalRemoteResult.ps1 but local: no SCP, just reads files
+# Same role as Get-XmachineRemoteResult.ps1 but local: no SCP, just reads files
 # from the task output directory, prints status + summary, optionally cleans
 # up the worktree and Zellij session.
 #
 # Usage:
-#   Get-GalLocalResult.sh --task-id 20260422-abc123 \
-#       --output-dir /tmp/gal-worker/20260422-abc123 \
+#   Get-XmachineLocalResult.sh --task-id 20260422-abc123 \
+#       --output-dir /tmp/gal-xmachine/task-20260422-abc123 \
 #       [--wait] [--poll-seconds 30] [--timeout-minutes 60] \
 #       [--keep] [--repo-path /path/to/repo]
 
@@ -36,14 +36,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$TASK_ID" || -z "$OUTPUT_DIR" ]]; then
-    echo "Usage: Get-GalLocalResult.sh --task-id ID --output-dir DIR [--wait] [--keep]" >&2
+    echo "Usage: Get-XmachineLocalResult.sh --task-id ID --output-dir DIR [--wait] [--keep]" >&2
     exit 2
 fi
 
 STATUS_PATH="$OUTPUT_DIR/status.json"
 SUMMARY_PATH="$OUTPUT_DIR/summary.md"
 PATCH_PATH="$OUTPUT_DIR/result.patch"
-SESSION="gal-task-$TASK_ID"
+SESSION="task-$TASK_ID"
 
 # ── Optional wait loop ────────────────────────────────────────────────────────
 if [[ "$WAIT" -eq 1 ]]; then
@@ -109,7 +109,7 @@ if [[ "$KEEP" -eq 0 ]]; then
     if [[ -n "$WT_PATH" && -d "$WT_PATH" ]]; then
         # Need a real repo path to call `git worktree remove` — derive from worktree
         # parent if --repo-path not given.
-        repo="${REPO_PATH:-${WT_PATH%-worker-*}}"
+        repo="${REPO_PATH:-${WT_PATH%-xmachine-*}}"
         if [[ -d "$repo/.git" ]]; then
             git -C "$repo" worktree unlock "$WT_PATH" 2>/dev/null || true
             if git -C "$repo" worktree remove --force "$WT_PATH" 2>&1; then

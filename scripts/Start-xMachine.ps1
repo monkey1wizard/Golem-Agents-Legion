@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Run a GAL task on this worker node using Gemini CLI in headless mode.
+    Run a GAL task on this machine using Gemini CLI in headless mode.
 
 .DESCRIPTION
-    Intended to run on the remote worker machine (invoked by Invoke-GalRemoteTask.ps1).
+    Intended to run on the remote machine (invoked by Invoke-XmachineRemoteTask.ps1).
     Executes the task spec via Gemini CLI non-interactively, captures output,
     generates a result patch, and writes all output files to the output directory.
 
@@ -12,7 +12,7 @@
     explicit parameters.
 
 .PARAMETER TaskId
-    The task ID assigned by Invoke-GalRemoteTask.
+    The task ID assigned by Invoke-XmachineRemoteTask.
 
 .PARAMETER WorktreePath
     Absolute path to the isolated git worktree for this task.
@@ -24,11 +24,11 @@
     Absolute path to the directory where output files will be written.
 
 .EXAMPLE
-    .\Start-GalWorker.ps1 `
+    .\Start-xMachine.ps1 `
         -TaskId "20260101-abc123" `
-        -WorktreePath "C:\Code\MyRepo-worker-20260101-abc123" `
-        -TaskSpec "C:\Windows\Temp\gal-worker\20260101-abc123\task.md" `
-        -OutputDir "C:\Windows\Temp\gal-worker\20260101-abc123"
+        -WorktreePath "C:\Code\MyRepo-xmachine-20260101-abc123" `
+        -TaskSpec "C:\Windows\Temp\gal-xmachine\task-20260101-abc123\task.md" `
+        -OutputDir "C:\Windows\Temp\gal-xmachine\task-20260101-abc123"
 #>
 
 param(
@@ -51,7 +51,7 @@ $ErrorActionPreference = "Stop"
 
 $statusPath  = Join-Path $OutputDir "status.json"
 $summaryPath = Join-Path $OutputDir "summary.md"
-$logPath     = Join-Path $OutputDir "worker.log"
+$logPath     = Join-Path $OutputDir "runtime.log"
 $patchPath   = Join-Path $OutputDir "result.patch"
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -209,6 +209,17 @@ try {
             return ($parts -join "")
         }
 
+        function Add-SummaryChunk($parts, [string]$lineText) {
+            if ($parts.Count -gt 0) {
+                $previousPart = [string]$parts[$parts.Count - 1]
+                if ($previousPart -match '[.!?:]$' -and $lineText -match '^\s*(?:[-*#]|\d+\.)') {
+                    $parts.Add("`n")
+                }
+            }
+
+            $parts.Add($lineText)
+        }
+
         foreach ($line in $logLines) {
             if ($line -notmatch '^\s*\{') { continue }
             try {
@@ -217,7 +228,7 @@ try {
 
                 $lineText = Get-LineSummaryText $obj
                 if ($lineText) {
-                    $currentParts.Add($lineText)
+                    Add-SummaryChunk $currentParts $lineText
                 }
                 elseif ($currentParts.Count -gt 0) {
                     $lastParts = [System.Collections.Generic.List[string]]::new()
@@ -244,7 +255,7 @@ try {
     }
 }
 catch {
-    $summaryContent = "(Could not extract summary from worker.log — check raw log)"
+    $summaryContent = "(Could not extract summary from runtime.log — check raw log)"
 }
 
 $summaryLines = @(
@@ -260,7 +271,7 @@ $summaryLines | Set-Content -Path $summaryPath -Encoding UTF8
 
 # ── Lock worktree (preserve until retrieval) ──────────────────────────────────
 try {
-    git -C $WorktreePath worktree lock $WorktreePath --reason "gal-worker-$TaskId" 2>&1 | Out-Null
+    git -C $WorktreePath worktree lock $WorktreePath --reason "gal-xmachine-task-$TaskId" 2>&1 | Out-Null
 }
 catch {
     # Non-fatal — lock failure won't block retrieval
@@ -269,25 +280,25 @@ catch {
 # ── Write final status ────────────────────────────────────────────────────────
 # Map known Gemini CLI exit codes
 $exitCodeMessages = @{
-    41 = "Gemini CLI auth failed — re-auth required on worker before next task"
+    41 = "Gemini CLI auth failed — re-auth required on the machine before the next task"
     42 = "Gemini CLI input error — task spec may be malformed"
-    44 = "Gemini CLI sandbox error — check worker sandbox configuration"
-    52 = "Gemini CLI config error — check GEMINI.md or settings.json on worker"
+    44 = "Gemini CLI sandbox error — check sandbox configuration on the machine"
+    52 = "Gemini CLI config error — check GEMINI.md or settings.json on the machine"
     53 = "Gemini CLI turn limit reached — split task into smaller pieces"
     75 = "Gemini model capacity exhausted — retry later or change the configured model"
 }
 
 if ($capacityExhausted) {
     Write-StatusJson "failed" -ExitCode 75 -ErrorMessage $exitCodeMessages[75]
-    Write-Host "Worker finished: $TaskId — FAILED (model capacity exhausted)"
+    Write-Host "Task run finished: $TaskId — FAILED (model capacity exhausted)"
 }
 elseif ($geminiExitCode -eq 0) {
     Write-StatusJson "success"
-    Write-Host "Worker finished: $TaskId — success"
+    Write-Host "Task run finished: $TaskId — success"
 }
 else {
     $msg = $exitCodeMessages[$geminiExitCode]
-    if (-not $msg) { $msg = "Gemini CLI exited with code $geminiExitCode — check worker.log" }
+    if (-not $msg) { $msg = "Gemini CLI exited with code $geminiExitCode — check runtime.log" }
     Write-StatusJson "failed" -ExitCode $geminiExitCode -ErrorMessage $msg
-    Write-Host "Worker finished: $TaskId — FAILED (exit $geminiExitCode): $msg"
+    Write-Host "Task run finished: $TaskId — FAILED (exit $geminiExitCode): $msg"
 }
