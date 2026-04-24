@@ -324,6 +324,7 @@ Everything related to the local machine environment that does not belong on the 
 - [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done)
 - [GitHub Spec Kit](https://github.com/github/spec-kit)
 - [gstack](https://github.com/garrytan/gstack)
+- [rtk](https://github.com/rtk-ai/rtk): rtk filters and compresses command outputs before they reach LLM context. Strongly recommand to install it.
 
 ## License
 

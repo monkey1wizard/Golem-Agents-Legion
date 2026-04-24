@@ -324,6 +324,7 @@ xmachine 是 GAL 的協作式執行工具，透過 SSH 將工作分配到受控 
 - [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done)
 - [GitHub Spec Kit](https://github.com/github/spec-kit)
 - [gstack](https://github.com/garrytan/gstack)
+- [rtk](https://github.com/rtk-ai/rtk)：此工具能過濾及壓縮透過 AI 工具所下的指令，以此減少 token 消耗，強力建議安裝。
 
 ## 授權
 
