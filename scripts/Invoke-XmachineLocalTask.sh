@@ -14,7 +14,7 @@
 # Usage:
 #   Invoke-XmachineLocalTask.sh \
 #       --task-spec /path/to/task.md \
-#       --repo-path /Users/tzylee/Code/Golem-Agents-Legion \
+#       --repo-path /Users/username/Code/Golem-Agents-Legion \
 #       [--timeout-minutes 30] \
 #       [--task-id 20260422-abc123]   # auto-generated if omitted
 #
@@ -51,12 +51,17 @@ if [[ ! -d "$REPO_PATH/.git" ]]; then
     exit 2
 fi
 
-for tool in zellij git jq script; do
+for tool in zellij git jq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "Missing required tool: $tool" >&2
         exit 2
     fi
 done
+
+if ! command -v script >/dev/null 2>&1; then
+    echo "Missing required system PTY utility: script" >&2
+    exit 2
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_SCRIPT="$SCRIPT_DIR/Start-xMachine.sh"
@@ -97,7 +102,8 @@ fi
 # ── Spawn the task runtime inside a detached Zellij session ──────────────────
 # Pattern (verified on macOS 26 / zellij 0.44.1):
 #   script -q /dev/null zellij attach --create-background <name>
-# `script` provides the pty zellij requires; `--create-background` keeps the
+# `script` is a system PTY utility from the base POSIX userland; it provides the
+# pty zellij requires here, while `--create-background` keeps the
 # session detached so this dispatcher returns immediately.
 #
 # Then `zellij --session <name> run -- ...` launches the task runtime as a new pane

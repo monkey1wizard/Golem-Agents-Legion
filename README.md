@@ -2,18 +2,18 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system designed to make development more structured while allowing you to switch between AI tools without losing the Context Window. Its core consists of 12 clearly separated Golem Agents plus a `/gal` control plane, forming a document-driven development model. Durable state is split across two boundaries: Repo-shared state saved as local Markdown files in `.dev/`, `docs/plans/`, and `docs/research/`. User personal notes can optionally be written to a locally configured Obsidian Vault. This allows GitHub Copilot, Gemini CLI, and Codex CLI to share the same workflow while still preserving the user's own non-Repo note space.
+GAL is an AI working system that brings structure to development while letting you switch between AI tools without losing context. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, creating a document-driven development model. Durable state is split across two boundaries: repository-shared state saved as local Markdown files in `.dev/`, `docs/plans/`, and `docs/research/`, plus optional user-personal notes that can be written to a locally configured Obsidian vault. This lets GitHub Copilot, Gemini CLI, and Codex CLI share the same workflow while preserving your personal note space outside the repository.
 
-State management draws from the phase-based discipline in Get Shit Done (GSD): explicit state (`.dev/state.md`), verification gates, and a structured execution lifecycle, allowing `/gal status` and `/gal whats-next` to project the current state of work for the entire Repo.
+State management draws from the phase-based discipline in Get Shit Done (GSD): explicit state (`.dev/state.md`), verification gates, and a structured execution lifecycle, letting `/gal status` and `/gal whats-next` project the current state of work for the entire repository.
 
 ## Quick Start
 
-1. Clone this project.
+1. Clone this repository:
 `git clone https://github.com/monkey1wizard/golem-agents-legion.git`
 
-2. After entering the project directory, run the installation. Use `./scripts/Setup-Machine.ps1` on Windows and `./scripts/setup-machine.sh` on macOS/Linux. Once finished, you can start using it in the Repo.
+2. Navigate to the project directory and run the installation script. Use `./scripts/Setup-Machine.ps1` on Windows or `./scripts/setup-machine.sh` on macOS/Linux. Once complete, you can start using GAL in your repositories.
 
-3. Inside a target Repo, open GitHub Copilot, Gemini CLI, or Codex CLI, then run:
+3. In your target repository, open GitHub Copilot, Gemini CLI, or Codex CLI, then run:
 
 ```text
 # Copilot / Gemini CLI (slash-command surface)
@@ -27,13 +27,13 @@ $gal init
 
 | Command | Purpose |
 | --- | --- |
-| `/gal init` | Initialize Repo: create `.dev/project.md` and `.dev/state.md` |
+| `/gal init` | Initialize repository: create `.dev/project.md` and `.dev/state.md` |
 | `/gal status` | Full state projection: active plans, review/test status, blockers, continuity |
-| `/gal whats-next` | Recommend a single next action |
+| `/gal whats-next` | Recommend the next single action |
 | `/gal wrap-up` | Converge work: write `### Handoff Notes` and `## Session Continuity` |
 | `/gal research` | Enter the research workflow |
-| `/gal deep-research` | Enter the multi-source research workflow, including cross-review |
-| `/gal pipeline` | Automatically chain implementer → tester → reviewer per task. Insert a conditional `golem-security` review if changes involve a security-sensitive surface, and finally wrap up with the verifier |
+| `/gal deep-research` | Enter multi-source research workflow with cross-review |
+| `/gal pipeline` | Automatically chain implementer → tester → reviewer per task. Inserts conditional `golem-security` review if changes touch security-sensitive surfaces, then wraps up with verifier |
 | `/planning` | Create a source plan |
 | `/deep-planning` | Converge the source plan into an implementable state |
 | `/refining-plan` | Write `## Tasks`, `## Test Plan`, and engineering review results into the source plan |
@@ -70,65 +70,65 @@ $gal init
 
 ### planning
 
-`/planning` turns new requirements into a formal source plan, writing it to `docs/plans/<plan-slug>.md`.
+`/planning` converts new requirements into a formal source plan and writes it to `docs/plans/<plan-slug>.md`.
 
-The focus of this stage is to organize your goals and requirements into a stable human-readable document, and record unresolved items in `## Open Questions`. `/planning` does not create the execution work file. It only decides whether the current plan should first go through `/deep-planning` for further convergence and architecture review, or move down to `/refining-plan` to lock the implementation contract.
+The focus of this stage is organizing your goals and requirements into a stable, human-readable document, recording unresolved items in `## Open Questions`. `/planning` doesn't create the execution work file—it only decides whether the current plan should first go through `/deep-planning` for convergence and architecture review, or move directly to `/refining-plan` to lock in the implementation contract.
 
 ### deep-planning
 
-`/deep-planning` performs deep planning on an existing source plan, and the architect will always activate within this command. Planning materials are organized back into the same `docs/plans/<plan-slug>.md`, and the architecture review results are written to `## Review Results > ### Architecture Review` and `## Approval > Architect review` in the plan. If the architecture review still has blocking issues, work remains in deep-planning for further fixes. Only when the plan is sufficiently converged to enter the execution phase does it move down to `/refining-plan`, then `/plan-to-prompt`.
+`/deep-planning` performs deep planning on an existing source plan, always activating the architect. Planning materials are organized back into the same `docs/plans/<plan-slug>.md`, and architecture review results are written to `## Review Results > ### Architecture Review` and `## Approval > Architect review` in the plan. If the architecture review surfaces blocking issues, work remains in deep-planning for further refinement. Only when the plan is sufficiently converged for execution does it move down to `/refining-plan`, then `/plan-to-prompt`.
 
-If the plan involves business logic, pricing, permissions, notifications, onboarding, or identity verification, the analyst activates alongside the architect. If it touches customer-facing flows, layout, states, components, or accessibility, the designer also joins. If you only need a specialist review at the business or design level and do not intend to conduct a full architecture review, you can directly enable the corresponding Domain Lane against the plan document.
+If the plan involves business logic, pricing, permissions, notifications, onboarding, or identity verification, the analyst activates alongside the architect. If it touches customer-facing flows, layout, states, components, or accessibility, the designer also joins. If you only need a specialist review at the business or design level without a full architecture review, you can directly invoke the corresponding domain lane against the plan document.
 
 ### refining-plan
 
-`/refining-plan` completes the three key sections that must be finalized before prompt execution: `## Tasks` (listing `T-NNN` tasks), `## Test Plan` (creating `TP-NNN` test matrices corresponding to the tasks), and `## Review Results > ### Engineering Review` (marked as CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) or BLOCKING with an explanation of blocking issues). This step bridges the gap between planning and `/plan-to-prompt` through detailed design. `/refining-plan` does not involve code implementation, test execution, or `## Status` changes. If gstack is installed, its `plan-eng-review` can be used as an alternative.
+`/refining-plan` completes the three key sections that must be finalized before prompt execution: `## Tasks` (listing `T-NNN` tasks), `## Test Plan` (creating `TP-NNN` test matrices corresponding to tasks), and `## Review Results > ### Engineering Review` (marked as CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) or BLOCKING with an explanation). This step bridges the gap between planning and `/plan-to-prompt` through detailed design. `/refining-plan` doesn't involve code implementation, test execution, or `## Status` changes. If gstack is installed, its `plan-eng-review` can serve as an alternative.
 
 ### plan-to-prompt
 
-`/plan-to-prompt` converts the plan document into `.dev/plans/<plan-slug>.prompt.md` using a template for the execution phase and updates the state. Afterward, you can run `/gal status` or `/gal whats-next`, and the system will scan the execution work file to answer you. Once the execution work file exists, `/gal pipeline` can run normally. If the plan document changes after conversion, `/plan-to-prompt` should be rerun to ensure consistency between the plan document and the execution work file.
+`/plan-to-prompt` converts the plan document into `.dev/plans/<plan-slug>.prompt.md` using a template for the execution phase and updates state. Afterward, you can run `/gal status` or `/gal whats-next`, and the system will scan the execution work file to provide guidance. Once the execution work file exists, `/gal pipeline` can run normally. If the plan document changes after conversion, rerun `/plan-to-prompt` to ensure consistency between the plan document and execution work file.
 
 ## Golem Agents
 
 GAL's core consists of 12 specialized agents, each with an independent `.agent.md` definition. The separation of duties design principles are:
 
-- **Lean prompts**: Each agent only loads its own role definition, avoiding wasting the context window.
-- **Independence**: Independent tester / reviewer / verifier to ensure the credibility of verification results.
-- **Composability**: Enable agents based on the risk level of the task, not all at once.
+- **Lean prompts**: Each agent loads only its own role definition, avoiding context window waste.
+- **Independence**: Independent tester, reviewer, and verifier ensure verification results are credible.
+- **Composability**: Agents activate based on task risk level—not all at once.
 
-In addition to using `/gal` commands, you can also directly call `golem-` to perform specific types of work.
+You can use `/gal` commands or invoke `golem-` agents directly for specific work.
 
 ### Classification
 
 | Category | Activation | Members |
 | --- | --- | --- |
 | **Utility** | Called directly at any time | debugger, notewriter |
-| **Domain** | Consulted via command or directly by the user | architect, analyst, designer, researcher, security, releaser |
+| **Domain** | Consulted via command or by user | architect, analyst, designer, researcher, security, releaser |
 | **Pipeline** | Automatically chained by `/gal pipeline` | implementer, tester, reviewer, verifier |
 
 ### Utility Agents
 
 | Agent | Responsibility |
 | --- | --- |
-| **debugger** | Scientific bug investigation: hypothesis, verification, root-cause confirmation before fixing |
-| **notewriter** | Main entry for Obsidian writes: private research capture, work diary, inbox, knowledge extraction, shutdown ritual |
+| **debugger** | Applies scientific bug investigation: hypothesis, verification, and root-cause confirmation before fixing |
+| **notewriter** | Handles Obsidian writes including private research capture, work diary, inbox, knowledge extraction, and shutdown ritual |
 
 ### Domain Agents
 
-Domain agents provide professional consulting and can be called by the user or command at any stage.
+Domain agents deliver specialized professional consulting services and can be invoked by users or commands at any workflow stage.
 
 | Agent | Responsibility |
 | --- | --- |
-| **architect** | Adversarial plan review: trade-off analysis, over-engineering detection, bug surface area, public API risk |
-| **analyst** | Business logic review: ROI, Domain correctness, user impact |
-| **designer** | Design system creation, visual exploration, design-to-code build, live UI audit |
-| **researcher** | Local-first research and structured synthesis, with source attribution |
-| **security** | OWASP and STRIDE security review in the implementation stage |
-| **releaser** | Release prep, deploy orchestration, document synchronization |
+| **architect** | Conducts adversarial plan reviews: analyzes trade-offs, detects over-engineering, assesses bug surface area, and evaluates public API risk |
+| **analyst** | Reviews business logic: evaluates ROI, validates domain correctness, and assesses user impact |
+| **designer** | Creates design systems, explores visual options, builds design-to-code implementations, and audits live UI |
+| **researcher** | Performs local-first research with structured synthesis and comprehensive source attribution |
+| **security** | Executes OWASP and STRIDE security reviews during the implementation stage |
+| **releaser** | Prepares releases, orchestrates deployments, and synchronizes documentation |
 
 ### Pipeline Agents
 
-Pipeline is the automated execution core of GAL. Its fixed main chain remains four agents, but if the implemented changes touch a security-sensitive surface, `/gal pipeline` inserts a conditional `golem-security` review before task closeout.
+The pipeline represents GAL's automated execution core. It maintains a fixed four-agent main chain, but when implemented changes affect security-sensitive areas, `/gal pipeline` automatically inserts a conditional `golem-security` review before task completion.
 
 ```text
 T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional security] ──> git commit ──> T-NNN+1
@@ -139,34 +139,34 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional s
 After all tasks are completed: ──> verifier ──> Confirm plan goals are met
 ```
 
-`[conditional security]` means `golem-security` is only activated when changes touch authentication, sensitive data handling, input handling, public API interfaces, or deployment/environment trust boundaries.
+`[conditional security]` activates `golem-security` only when changes affect authentication, sensitive data handling, input validation, public API interfaces, or deployment/environment trust boundaries.
 
 | Agent | Responsibility | Key Rule |
 | --- | --- | --- |
-| **implementer** | Complete implementation according to the plan and current `T-NNN` task | Must stop and return to `/deep-planning` if it hits an architectural boundary or finds the plan insufficient |
-| **tester** | Write or supplement tests based on specs and public APIs, running browser QA if necessary | Spec mode does not read the implementation, and must use a different model than the implementer |
-| **reviewer** | Review change diffs, risks, and completeness to the standard of a senior engineer | Must return to the implementer for fixes if blocking issues are found. The AI model used should be different from the implementer and not weaker than the implementer |
-| **verifier** | After all tasks are completed, reverse-verify whether the results were actually achieved from the plan's goals | Responsible for confirming whether the plan can be closed and extracting valuable knowledge back into `docs/` |
+| **implementer** | Completes implementation according to the plan and current `T-NNN` task | Must stop and return to `/deep-planning` if architectural boundaries are reached or the plan proves insufficient |
+| **tester** | Writes or supplements tests based on specifications and public APIs, running browser QA when necessary | Operates in spec mode without reading implementation code, and must use a different model than the implementer |
+| **reviewer** | Reviews change diffs, identifies risks, and verifies completeness to senior engineer standards | Must return code to the implementer for fixes if blocking issues are found. Uses a different AI model—no weaker than the implementer |
+| **verifier** | After all tasks complete, confirms whether the plan's goals were actually achieved through reverse verification | Responsible for determining plan closure eligibility and extracting valuable knowledge back into `docs/` |
 
-`golem-security` belongs to the domain agents and is conditionally activated by `/gal pipeline` during security-sensitive changes, not participating in normal execution. Domain and utility agents can be called directly at any time, and pipeline agents can also be called directly for clearly defined work.
+`golem-security` belongs to domain agents and is conditionally activated by `/gal pipeline` during security-sensitive changes—it does not participate in normal execution. Domain and utility agents can be invoked directly at any time, and pipeline agents can also be called directly for clearly scoped work.
 
 ### AI Model and Agent Rules
 
-In the Pipeline flow, GAL enforces the use of different models for review and testing:
+In the Pipeline workflow, GAL enforces the use of different models for review and testing:
 
-- Tester **must** use a different model from the implementer
-- Reviewer **should** be different from the implementer, and its capabilities should not be weaker than the implementer
-- Planning and architect **should ideally** use different models
+- The tester **must** use a different model from the implementer
+- The reviewer **should** be different from the implementer, and should have capabilities at least as strong as the implementer
+- The planning author and architect **should ideally** use different models
 
-The above rules are configured in `model-roles.local.md`.
+These rules are configured in `model-roles.local.md`.
 
 ### Working Hours
 
-Working Hours is now an **opt-in** local machine setting. Only when the user enables it in `config.local.env` will the agents perform reminders and work stoppage according to the configured work hours, After Hours, Wrap-up Time, and Hard Stop.
+Working Hours is now an **opt-in** local machine setting. Agents only perform reminders and work stoppage according to configured work hours, After Hours, Wrap-up Time, and Hard Stop when the user enables it in `config.local.env`.
 
 - **Working Hours off**: All agents work normally
-- **After Hours**: After the work period, work can still be done before the Wrap-up Time
-- **Wrap-up Time**: If the daily diary is not written, non-`notewriter` agents will block and guide into the shutdown ritual
+- **After Hours**: After the work period ends, work can still continue before Wrap-up Time
+- **Wrap-up Time**: If the daily diary has not been written, non-`notewriter` agents block and guide the user into the shutdown ritual
 - **Hard Stop**: All agents stop working, including `notewriter`
 - **Override**: Users can say `override working hours`, valid for a single time
 
@@ -255,7 +255,7 @@ The DOCUMENT destination can be one of four choices:
 
 ## Collaborative Tools
 
-GAL can also use collaborative tools. These tools strengthen specific query capabilities or agent skills across the GAL workflow, but none of them are required by `/gal`, so GAL still works fully even if none of the tools below are installed. You can install them by running `Setup-Tools`.
+GAL can also leverage collaborative tools. These tools enhance specific query capabilities or agent skills across the GAL workflow, but none of them are required by `/gal`, so GAL still functions fully even if none of the tools below are installed. You can install them by running `Setup-Tools`.
 
 ### Shared Preflight Mechanism
 
@@ -289,7 +289,7 @@ Created by Garry Tan, President & CEO of Y Combinator, transforming his startup 
 
 ### xmachine
 
-xmachine is GAL's collaborative execution tool, distributing work to controlled Machine Lanes via SSH. Both controlling and controlled ends must provide SSH, and the controlled end must install Zellij. See [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md).
+xmachine is GAL's collaborative execution tool for routing bounded work over SSH to readied work nodes. Its documented lanes include Windows work-node dispatch and POSIX-compatible shell work-node detached execution. See [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md).
 
 ### Godot C Sharp
 

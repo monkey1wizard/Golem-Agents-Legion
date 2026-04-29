@@ -2,16 +2,16 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套 AI 工作系統，目標是讓開發工作更有步驟，並能在不同 AI 工具之間切換而不遺失上下文視窗（Context Window）。核心由 12 個分工明確的 Golem 代理程式（Agents）加上 `/gal` 控制平面構成，採文件驅動開發模式。狀態持久化分為兩個範疇：儲存庫 (Repo) 共享狀態以本機 Markdown 檔案保存於 `.dev/`、`docs/plans/`、`docs/research/`。使用者個人筆記則可選擇寫入本機配置的 Obsidian Vault。這讓 GitHub Copilot、Gemini CLI、Codex CLI 能共享同一套工作流程，同時保留使用者自己的非儲存庫筆記空間。
+GAL 是一套為開發工作帶來結構化流程的 AI 工作系統，讓你可以在不同 AI 工具間切換時保留完整的工作脈絡。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放在 `.dev/`、`docs/plans/`、`docs/research/`；使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault。這樣的設計讓 GitHub Copilot、Gemini CLI、Codex CLI、Claude Code 等工具能夠共用同一套工作流程，同時保留儲存庫之外的私人筆記空間。
 
-狀態管理借鏡自 Get Shit Done (GSD) 的階段式規範：明確狀態 (`.dev/state.md`)、驗證關卡與結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 有能力呈現整個儲存庫的工作進度。
+狀態管理機制參考了 Get Shit Done (GSD) 的階段式準則：以明確的狀態檔案 (`.dev/state.md`)、驗證關卡，以及結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 能夠完整呈現儲存庫目前的工作進度。
 
 ## 快速開始
 
 1. 複製（Clone）此專案。
 `git clone https://github.com/monkey1wizard/golem-agents-legion.git`。
 
-2. 進入專案目錄後執行安裝，Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`，完成後即可開始於儲存庫中使用。
+2. 進入專案目錄後執行安裝：Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`。安裝完成後就能在儲存庫中使用 GAL 指令。
 
 3. 進入目標儲存庫後開啟 GitHub Copilot、Gemini CLI 或 Codex CLI，然後執行：
 
@@ -52,10 +52,10 @@ $gal init
           │
      ┌────┴──────────────┐
      │                   │
-     │ 直接使用           │ 若使用 deep-planning
-     │ analyst/designer  │ 則 architect 必定啟動
-     │ 在內容需要時審查    │ analyst/designer 則
-     │                   │ 依內容併行啟動
+     │ 依內容需要時       │ 若使用 deep-planning
+     │ 直接啟用           │ architect 必定啟動
+     │ analyst/designer  │ analyst/designer
+     │ 進行審查           │ 依內容併行啟動
      └────┬──────────────┘
           │ 
           v
@@ -72,21 +72,21 @@ $gal init
 
 `/planning` 會把新的需求整理成正式的規劃文件（source plan），寫入 `docs/plans/<plan-slug>.md`。
 
-這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的規劃文件是否應先進 `/deep-planning` 做進一步收斂與架構審查，或可以往下進 `/refining-plan` 鎖定實作契約（implementation contract）。
+這個階段的重點是把你的目標、需求等內容整理成穩定的人類可讀文件，並在 `## Open Questions` 記錄尚未定案的項目。`/planning` 不會建立執行工作檔，它只決定目前的規劃文件是否應該先進入 `/deep-planning` 做進一步收斂與架構審查，或可以直接進入 `/refining-plan` 鎖定實作契約。
 
 ### deep-planning
 
-`/deep-planning` 會對既有規劃文件進行深度規劃，而且 architect 在這個指令內一定會啟動。規劃材料會整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審查結果寫回規劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審查仍有阻擋問題，工作就留在 deep-planning 繼續修正。只有在規劃文件已經收斂到足以進入執行階段時，才往下進 `/refining-plan`，再進 `/plan-to-prompt`。
+`/deep-planning` 會對既有規劃文件進行深度規劃，且必定會啟動 architect 審查。規劃材料會整理回同一份 `docs/plans/<plan-slug>.md`，並把架構審查結果寫回規劃文件的 `## Review Results > ### Architecture Review` 與 `## Approval > Architect review`。若架構審查仍有阻擋問題，工作就停留在 deep-planning 繼續修正。只有在規劃文件已經收斂到足以進入執行階段時，才往下進入 `/refining-plan`，再進入 `/plan-to-prompt`。
 
 若規劃涉及商業邏輯、定價、權限、通知、新手引導（onboarding）或身分驗證，analyst 會與 architect 同時啟動。若涉及客戶接觸面（customer-facing flows）、版面配置、狀態、元件（components）或無障礙設計，designer 也會一併加入。如果只需要商業或設計層面的專家審查，不打算進行完整架構檢視，也可以直接針對規劃文件啟用對應的 Domain Lane。
 
 ### refining-plan
 
-`/refining-plan` 完成 prompt 執行前必須定案的三個關鍵章節：`## Tasks`（列出 `T-NNN` 任務清單）、`## Test Plan`（建立與任務對應的 `TP-NNN` 測試表單），以及 `## Review Results > ### Engineering Review`（標記為 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並說明阻擋問題）。這個步驟透過執行細部設計來補足 planning 與 `/plan-to-prompt` 間的空隙。`/refining-plan` 不涉及程式碼實作、測試執行或 `## Status` 變更。若已安裝 gstack，也可改用其 `plan-eng-review` 替代。
+`/refining-plan` 完成 prompt 執行前必須定案的三個關鍵章節：`## Tasks`（列出 `T-NNN` 任務清單）、`## Test Plan`（建立與任務對應的 `TP-NNN` 測試矩陣），以及 `## Review Results > ### Engineering Review`（標記為 CLEAR (`<!-- ENG_REVIEW: CLEAR -->`) 或 BLOCKING 並說明阻擋問題）。這個步驟透過執行細部設計來銜接 planning 與 `/plan-to-prompt` 之間的流程。`/refining-plan` 不涉及程式碼實作、測試執行或 `## Status` 變更。若已安裝 gstack，也可改用其 `plan-eng-review` 替代。
 
 ### plan-to-prompt
 
-`/plan-to-prompt` 會把規劃文件依照範本轉換成 `.dev/plans/<plan-slug>.prompt.md` 作為執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next`，系統會掃描執行工作檔並回答你。有了執行工作檔了以後，方可正常執行 `/gal pipeline`。若規劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保規劃文件與執行工作檔內容保持一致。
+`/plan-to-prompt` 會把規劃文件依照範本轉換成 `.dev/plans/<plan-slug>.prompt.md` 供執行階段使用，並更新狀態。完成後可執行 `/gal status` 或 `/gal whats-next`，系統會掃描執行工作檔並回答你。產生執行工作檔後，就能正常執行 `/gal pipeline`。若規劃文件在轉換後又有變更，應重新執行 `/plan-to-prompt`，以確保規劃文件與執行工作檔內容保持一致。
 
 ## Golem Agents
 
@@ -143,7 +143,7 @@ T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional s
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
-| **implementer** | 依照規劃與當前 `T-NNN` 任務完成實作 | 一旦踩到架構邊界或發現規劃不足，必須停止並回 `/deep-planning` |
+| **implementer** | 依照規劃與當前 `T-NNN` 任務完成實作 | 一旦觸及架構邊界或發現規劃不足，必須停止並返回 `/deep-planning` |
 | **tester** | 根據規格與公開 API 撰寫或補齊測試，必要時執行瀏覽器 QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
 | **reviewer** | 以資深工程師的標準審查變更差異、風險與完整性 | 若發現阻擋問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
 | **verifier** | 在所有任務完成後，從規劃目標反向驗證成果是否真的達成 | 負責確認規劃是否可關閉，並把值得保留的知識抽回 `docs/` |
@@ -170,11 +170,11 @@ Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `c
 - **Hard Stop**：所有 agent 停止工作，包括 `notewriter`
 - **Override**：使用者可說 `override working hours`，單次有效
 
-可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設置啟動時間，詳細請看 [docs/personalization.md](docs/personalization.md)。
+可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設定工作時段，詳情請見 [docs/personalization.md](docs/personalization.md)。
 
 ## 儲存邊界
 
-GAL 把持久化資料分成兩個邊界：
+GAL 將持久化資料分為兩個儲存邊界：
 
 - **儲存庫共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和儲存庫一起追蹤、審查與協作的工作成果。
 - **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
@@ -211,7 +211,7 @@ GAL 把持久化資料分成兩個邊界：
 | `IMPLEMENT` | 正在做某個 `T-NNN` 任務的實作 |
 | `TEST` | 實作已完成，正在測試 |
 | `REVIEW` | 測試已通過，正在做程式碼審查（Code Review） |
-| `REVIEW — N阻塞問題s found` | 審查發現阻擋問題，必須修正後再重跑 |
+| `REVIEW — 發現 N 個阻擋問題` | 審查發現阻擋問題，必須修正後再重跑 |
 | `ABSORBED` | 已確認目標達成，準備關閉企劃 |
 
 #### 回寫區段
@@ -285,11 +285,11 @@ applicability → availability → initialization status → readiness → route
 
 ### gstack
 
-Created by Garry Tan, President & CEO of Y Combinator，他將他的新創（startups）經驗轉換成 AI agents，詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
+由 Y Combinator 總裁兼 CEO Garry Tan 創建，將其新創經驗轉換成 AI agents，詳見 [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md)。
 
 ### xmachine
 
-xmachine 是 GAL 的協作式執行工具，透過 SSH 將工作分配到受控 Machine Lane。所有控制端與受控端都必須提供 SSH，且受控端必須安裝 Zellij。詳見 [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md)。
+xmachine 是 GAL 的協作執行工具，能透過 SSH 將工作任務路由到已準備好的工作節點。目前已文件化的執行 lane 包括 Windows 工作節點以及 POSIX 相容的 shell 工作節點之背景執行模式。詳見 [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md)。
 
 ### Godot C Sharp
 
@@ -301,7 +301,7 @@ xmachine 是 GAL 的協作式執行工具，透過 SSH 將工作分配到受控 
 
 ## 個人化設定
 
-凡是和本機環境有關、但不適合放在 README 首頁的設定，都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境佔位符（placeholder）的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆寫、Obsidian Vault 路徑、私人研究（private research）目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
+與本機環境相關但不適合放在 README 首頁的設定都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境佔位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆寫、Obsidian Vault 路徑、私人研究目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
 
 ## 文件
 
@@ -324,7 +324,7 @@ xmachine 是 GAL 的協作式執行工具，透過 SSH 將工作分配到受控 
 - [Get Shit Done (GSD)](https://github.com/gsd-build/get-shit-done)
 - [GitHub Spec Kit](https://github.com/github/spec-kit)
 - [gstack](https://github.com/garrytan/gstack)
-- [rtk](https://github.com/rtk-ai/rtk)：此工具能過濾及壓縮透過 AI 工具所下的指令，以此減少 token 消耗，強力建議安裝。
+- [rtk](https://github.com/rtk-ai/rtk)：可過濾及壓縮傳送給 LLM 的指令輸出，減少 token 消耗，強力建議安裝。
 
 ## 授權
 

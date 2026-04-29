@@ -33,7 +33,7 @@ Key files to read:
 - Do not commit changes — produce a diff (result.patch) only
 - Do not interact with external services beyond what is needed for the task
 - Do not modify primary control-plane or workflow-state files unless this task explicitly allows it
-- Do not manually create `summary.md`, `status.json`, `worker.log`, or `result.patch` — those runtime outputs are owned by the worker wrapper, not by the model
+- Do not manually create `summary.md`, `status.json`, `worker.log`, or `result.patch` — those per-task runtime outputs are owned by the worker wrapper, not by the model. `status.json` is the single-task runtime status file, not repo state.
 
 ## Output Format
 

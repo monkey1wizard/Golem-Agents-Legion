@@ -387,7 +387,37 @@ function Get-XmachineStatus {
         return New-ToolStatus -Name 'xmachine' -Status 'available-but-not-ready' -Reason ("Repo-owned xmachine assets are missing: {0}" -f ($missing -join '; ')) -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Restore the missing xmachine scripts or docs in this repo checkout.' -ManualStep ''
     }
 
-    return New-ToolStatus -Name 'xmachine' -Status 'ready' -Reason 'Repo-owned xmachine scripts and docs are present. Lane-specific transport checks happen when the chosen lane is invoked.' -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'No action required.' -ManualStep ''
+    $cachePath = Join-Path (Join-Path $env:USERPROFILE '.gal') 'xmachine-nodes.json'
+    $toolingReadyNodes = @()
+    $readiedNodes = @()
+
+    if (Test-Path $cachePath) {
+        try {
+            $cache = Get-Content $cachePath -Raw | ConvertFrom-Json -AsHashtable
+            foreach ($node in @($cache.nodes)) {
+                if ($node.status -eq 'tooling-ready') {
+                    $toolingReadyNodes += $node.nodeId
+                }
+
+                if ($node.status -eq 'readied') {
+                    $readiedNodes += $node.nodeId
+                }
+            }
+        }
+        catch {
+            return New-ToolStatus -Name 'xmachine' -Status 'available-but-needs-init' -Reason ("Repo-owned xmachine assets are present, but the machine cache at '{0}' could not be parsed." -f $cachePath) -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Fix or remove the broken ~/.gal/xmachine-nodes.json file, then rerun scripts/Test-Xmachine.ps1 against the target work node.' -ManualStep ''
+        }
+    }
+
+    if ($readiedNodes.Count -gt 0) {
+        return New-ToolStatus -Name 'xmachine' -Status 'ready' -Reason ("Repo-owned xmachine assets are present and readied nodes are cached in ~/.gal/xmachine-nodes.json: {0}" -f ($readiedNodes -join ', ')) -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Use a readied work node id explicitly when you want to offload a bounded task.' -ManualStep ''
+    }
+
+    if ($toolingReadyNodes.Count -gt 0) {
+        return New-ToolStatus -Name 'xmachine' -Status 'available-but-not-ready' -Reason ("Repo-owned xmachine assets are present. Cached work nodes exist, but none are marked readied yet: {0}" -f ($toolingReadyNodes -join ', ')) -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Finish the remaining readiness gates for one work node before relying on xmachine offload.' -ManualStep ''
+    }
+
+    return New-ToolStatus -Name 'xmachine' -Status 'available-but-needs-init' -Reason 'Repo-owned xmachine assets are present, but no work node has been verified yet.' -CanInstall $false -InstallLabel 'Install xmachine' -NextStep 'Run scripts/Test-Xmachine.ps1 -WorkNode <ssh-host-alias> to verify a work node and populate ~/.gal/xmachine-nodes.json.' -ManualStep ''
 }
 
 function Get-ToolStatus([string]$Name) {

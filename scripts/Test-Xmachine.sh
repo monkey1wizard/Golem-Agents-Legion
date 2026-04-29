@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Test-Xmachine.sh — smoke-test wrapper for the xmachine local-async lane.
+# Test-Xmachine.sh — smoke-test wrapper for the xmachine POSIX work-node path.
 #
-# Run this from a macOS/Linux controller after connecting to the controlled
-# machine over SSH, or directly on the controlled machine itself. It stages the
-# committed smoke task, dispatches it through Invoke-XmachineLocalTask.sh, and
-# optionally waits for retrieval through Get-XmachineLocalResult.sh.
+# Run this on a macOS/Linux work node after connecting over SSH, or directly on
+# the work node itself. It stages the committed smoke task, dispatches it
+# through Invoke-XmachineLocalTask.sh, and optionally waits for retrieval
+# through Get-XmachineLocalResult.sh.
 
 set -euo pipefail
 
@@ -41,7 +41,7 @@ fi
 
 INVOKE_SCRIPT="$REPO_PATH/scripts/Invoke-XmachineLocalTask.sh"
 RETRIEVE_SCRIPT="$REPO_PATH/scripts/Get-XmachineLocalResult.sh"
-DEFAULT_TASK_SPEC="$REPO_PATH/docs/xmachine/examples/task-local-async-smoke.example.md"
+DEFAULT_TASK_SPEC="$REPO_PATH/templates/task-xmachine-local-smoke.md"
 
 TASK_SPEC="${TASK_SPEC:-$DEFAULT_TASK_SPEC}"
 
@@ -62,8 +62,16 @@ if [[ -n "$TASK_ID" ]]; then
     dispatch_args+=(--task-id "$TASK_ID")
 fi
 
-dispatch_output="$($INVOKE_SCRIPT "${dispatch_args[@]}" 2>&1)"
+set +e
+dispatch_output="$(bash "$INVOKE_SCRIPT" "${dispatch_args[@]}" 2>&1)"
+dispatch_exit=$?
+set -e
+
 printf '%s\n' "$dispatch_output"
+
+if [[ $dispatch_exit -ne 0 ]]; then
+    exit $dispatch_exit
+fi
 
 TASK_ID="$(printf '%s\n' "$dispatch_output" | sed -n 's/^  TaskId:[[:space:]]*//p' | head -n 1)"
 OUTPUT_DIR="$(printf '%s\n' "$dispatch_output" | sed -n 's/^  Output:[[:space:]]*//p' | head -n 1)"
@@ -95,4 +103,4 @@ fi
 
 echo
 echo "Waiting for smoke task completion..."
-"$RETRIEVE_SCRIPT" "${retrieve_args[@]}"
+bash "$RETRIEVE_SCRIPT" "${retrieve_args[@]}"

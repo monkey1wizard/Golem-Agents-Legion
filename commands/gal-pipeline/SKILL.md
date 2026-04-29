@@ -7,6 +7,8 @@ description: "Task-driven autopilot. Iterates through every T-NNN task in the ac
 
 Run the full implementation pipeline task by task: for each `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Each core phase uses a different AI vendor per `model-roles.local.md`. After all tasks complete, run a final verifier pass.
 
+Pipeline execution stays on the local control node by default. xmachine offload is optional and must never be inferred automatically. Only route a bounded step to xmachine when the user names a specific readied work node id explicitly.
+
 ## Role
 
 Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + test + review gate, plus any required conditional security audit gate, is fully clean, and stopping only when a genuine human-required condition is encountered.
@@ -16,6 +18,7 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 - After the engineering review lane has produced a `## Tasks` section and a `## Test Plan`
 - When you want full task-by-task automation without manual intervention
 - When the user says "start implementation", "run the pipeline", "implement and test", or similar
+- When a user explicitly names a readied xmachine work node for a bounded offload step; otherwise keep execution local
 
 ## Syntax
 

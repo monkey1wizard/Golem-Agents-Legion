@@ -36,7 +36,7 @@ Key files to read:
 - Do not commit changes — produce a diff (`result.patch`) only.
 - Do not interact with external services beyond what is needed to complete this bounded repo scan.
 - Do not write to `.dev/state.md`, `.dev/project.md`, or any `docs/plans/` file.
-- Do not manually create `summary.md`, `status.json`, runtime log `runtime.log`, or `result.patch` — the xmachine wrapper owns those runtime outputs.
+- Do not manually create `summary.md`, `status.json`, runtime log `runtime.log`, or `result.patch` — the xmachine wrapper owns those per-task runtime outputs. `status.json` is the single-task xmachine runtime status file, not repo state.
 
 ## Output Format
 
