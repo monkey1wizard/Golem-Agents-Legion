@@ -15,7 +15,7 @@
 #   Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
 #   Persists machine-local runtime selection in ~/.gal/install-state.json
 #   Merges VS Code user settings so Copilot Chat ignores ~/.agents/skills and does not double-list skills
-#   Merges MCP server config from mcp-servers.example.json + mcp-servers.local.json into VS Code, Gemini, and Codex user config files
+#   Merges MCP server config from repo mcp.json plus optional mcp.local.json overrides into VS Code, Gemini, and Codex user config files
 #
 # Usage:
 #   ./scripts/setup-machine.sh              # Install symlinks
@@ -61,8 +61,8 @@ CLAUDE_ROOT="$HOME/.claude"
 CLAUDE_SKILLS_TARGET="$CLAUDE_ROOT/skills"
 CLAUDE_COMMANDS_TARGET="$CLAUDE_ROOT/commands"
 
-MCP_MANIFEST_EXAMPLE="$REPO_ROOT/mcp-servers.example.json"
-MCP_MANIFEST_LOCAL="$REPO_ROOT/mcp-servers.local.json"
+MCP_SOURCE_FILE="$REPO_ROOT/mcp.json"
+MCP_LOCAL_FILE="$REPO_ROOT/mcp.local.json"
 
 GAL_SOURCE="$REPO_ROOT/commands/gal"
 GAL_ROOT_COPILOT="$COPILOT_ROOT/gal"
@@ -1009,13 +1009,13 @@ elif $DRY_RUN; then
     $INSTALL_CODEX && echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
     $INSTALL_CLAUDE && echo "  [SKIP] Claude Code MCP merge remains deferred in this installer"
 else
-    if [ ! -f "$MCP_MANIFEST_LOCAL" ]; then
-        printf '{\n  "servers": {}\n}\n' > "$MCP_MANIFEST_LOCAL"
-        echo "  [OK] Created local MCP override file: $MCP_MANIFEST_LOCAL"
+    if [ ! -f "$MCP_LOCAL_FILE" ]; then
+        printf '{\n  "servers": {}\n}\n' > "$MCP_LOCAL_FILE"
+        echo "  [OK] Created local MCP override file: $MCP_LOCAL_FILE"
     fi
 
     if command -v python3 &>/dev/null; then
-        if python3 - "$REPO_ROOT" "$MCP_MANIFEST_EXAMPLE" "$MCP_MANIFEST_LOCAL" "$VSCODE_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" <<'PY'
+        if python3 - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" <<'PY'
 import json
 import os
 import re
@@ -1023,14 +1023,40 @@ import sys
 from pathlib import Path
 
 repo_root = Path(sys.argv[1])
-manifest_example = Path(sys.argv[2])
-manifest_local = Path(sys.argv[3])
+mcp_source = Path(sys.argv[2])
+mcp_local = Path(sys.argv[3])
 vscode_mcp = Path(sys.argv[4])
 gemini_settings = Path(sys.argv[5])
 codex_config = Path(sys.argv[6])
 install_vscode = sys.argv[7].lower() == 'true'
 install_gemini = sys.argv[8].lower() == 'true'
 install_codex = sys.argv[9].lower() == 'true'
+
+BRIDGE_PROFILES = {
+    "upstash/context7": {
+        "gemini": {"key": "context7"},
+        "codex": {"key": "context7"},
+    },
+    "microsoftdocs/mcp": {
+        "gemini": {"key": "Microsoft Learn MCP Server"},
+        "codex": {"key": "microsoftdocs"},
+    },
+    "imageFetch": {
+        "codex": {"key": "imagefetch"},
+    },
+    "github/github-mcp-server": {
+        "gemini": {"enabled": False, "key": "github"},
+        "codex": {"enabled": False, "key": "github"},
+    },
+    "chromedevtools/chrome-devtools-mcp": {
+        "gemini": {"enabled": False, "key": "chrome-devtools"},
+        "codex": {"enabled": False, "key": "chrome-devtools"},
+    },
+    "graphify": {
+        "gemini": {"enabled": False},
+        "codex": {"enabled": False},
+    },
+}
 
 
 def read_json(path: Path):
@@ -1109,11 +1135,22 @@ def resolve_node(node, values, expand_args=False):
     return node
 
 
-def provider_ready(provider, values):
-    for key in provider.get("requiredEnv", []):
-        if not get_value(values, key):
-            return False
-    return True
+def get_bridge_profile(server_name, runtime_name):
+    profile = {"enabled": True, "key": server_name}
+    profile.update(BRIDGE_PROFILES.get(server_name, {}).get(runtime_name, {}))
+    return profile
+
+
+def convert_gemini_config(config):
+    if config.get("type") == "http" and "url" in config:
+        return {"httpUrl": config["url"]}
+    return {key: value for key, value in config.items() if key != "type"}
+
+
+def convert_codex_config(config):
+    if "url" in config:
+        return {"url": config["url"]}
+    return {key: value for key, value in config.items() if key != "type"}
 
 
 def toml_string(value):
@@ -1141,8 +1178,10 @@ def codex_section(name, config):
     return "\n".join(lines)
 
 
-manifest = read_json(manifest_example)
-manifest = deep_merge(manifest, read_json(manifest_local))
+manifest = read_json(mcp_source)
+if mcp_local.exists():
+    manifest = deep_merge(manifest, read_json(mcp_local))
+
 servers = manifest.get("servers", {})
 
 local_env = read_env_file(repo_root / "config.local.env")
@@ -1158,17 +1197,14 @@ if install_vscode:
     vscode_data = read_json(vscode_mcp)
     vscode_data.setdefault("servers", {})
     vscode_changed = False
-    for server_name, server in servers.items():
-        provider = server.get("providers", {}).get("vscode")
-        if not provider or not provider.get("enabled"):
+    for server_name, server_config in servers.items():
+        profile = get_bridge_profile(server_name, "vscode")
+        if not profile.get("enabled", True):
             continue
-        if not provider_ready(provider, local_env):
-            print(f"  [WARN] Skipping VS Code MCP server '{server_name}' because required env is missing")
-            continue
-        key = provider.get("key", server_name)
+        key = profile.get("key", server_name)
         if key in vscode_data["servers"]:
             continue
-        vscode_data["servers"][key] = resolve_node(provider["config"], local_env)
+        vscode_data["servers"][key] = resolve_node(server_config, local_env)
         vscode_changed = True
         print(f"  [ADD] VS Code MCP server: {key}")
     if vscode_changed:
@@ -1180,17 +1216,14 @@ if install_gemini:
     gemini_data = read_json(gemini_settings)
     gemini_data.setdefault("mcpServers", {})
     gemini_changed = False
-    for server_name, server in servers.items():
-        provider = server.get("providers", {}).get("gemini")
-        if not provider or not provider.get("enabled"):
+    for server_name, server_config in servers.items():
+        profile = get_bridge_profile(server_name, "gemini")
+        if not profile.get("enabled", True):
             continue
-        if not provider_ready(provider, local_env):
-            print(f"  [WARN] Skipping Gemini MCP server '{server_name}' because required env is missing")
-            continue
-        key = provider.get("key", server_name)
+        key = profile.get("key", server_name)
         if key in gemini_data["mcpServers"]:
             continue
-        gemini_data["mcpServers"][key] = resolve_node(provider["config"], local_env)
+        gemini_data["mcpServers"][key] = convert_gemini_config(resolve_node(server_config, local_env))
         gemini_changed = True
         print(f"  [ADD] Gemini MCP server: {key}")
     if gemini_changed:
@@ -1201,17 +1234,14 @@ if install_gemini:
 if install_codex:
     codex_raw = codex_config.read_text(encoding="utf-8") if codex_config.exists() else ""
     codex_sections = []
-    for server_name, server in servers.items():
-        provider = server.get("providers", {}).get("codex")
-        if not provider or not provider.get("enabled"):
+    for server_name, server_config in servers.items():
+        profile = get_bridge_profile(server_name, "codex")
+        if not profile.get("enabled", True):
             continue
-        if not provider_ready(provider, local_env):
-            print(f"  [WARN] Skipping Codex MCP server '{server_name}' because required env is missing")
-            continue
-        key = provider.get("key", server_name)
+        key = profile.get("key", server_name)
         if re.search(rf"(?m)^\[mcp_servers\.{re.escape(key)}\]\s*$", codex_raw):
             continue
-        codex_sections.append(codex_section(key, resolve_node(provider["config"], local_env)))
+        codex_sections.append(codex_section(key, convert_codex_config(resolve_node(server_config, local_env))))
         print(f"  [ADD] Codex MCP server: {key}")
     if codex_sections:
         codex_config.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,60 @@
+{
+  "servers": {
+    "chromedevtools/chrome-devtools-mcp": {
+        "type": "stdio",
+        "command": "npx",
+        "args": [
+            "--registry",
+            "https://registry.npmjs.org",
+            "chrome-devtools-mcp@0.23.0"
+        ],
+        "gallery": "https://api.mcp.github.com",
+        "version": "0.23.0"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_FILESYSTEM_PATHS[]}"
+      ]
+    },
+    "github-mcp-server": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/",
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "${MCP_MEMORY_FILE_PATH}"
+      }
+    },
+    "microsoftdocs/mcp": {
+        "type": "http",
+        "url": "https://learn.microsoft.com/api/mcp",
+        "gallery": "https://api.mcp.github.com",
+        "version": "1.0.0"
+    },
+    "microsoft/markitdown": {
+        "type": "stdio",
+        "command": "uvx",
+        "args": [
+            "markitdown-mcp@0.0.1a4"
+        ],
+        "gallery": "https://api.mcp.github.com",
+        "version": "1.0.0"
+    },
+    "upstash/context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      },
+      "tools": ["query-docs", "resolve-library-id"]
+    }
+  }
+}

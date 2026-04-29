@@ -16,7 +16,7 @@
     - Generates ~/.claude/commands/*.md so Claude Code can expose GAL commands natively
     - Generates ~/.gemini/gal-context.md (@file skill imports, paths reference .agents/skills)
     - Persists machine-local runtime selection in ~/.gal/install-state.json
-    - Merges MCP server config from mcp-servers.example.json + mcp-servers.local.json into VS Code, Gemini, and Codex user config files
+    - Merges MCP server config from repo mcp.json plus optional mcp.local.json overrides into VS Code, Gemini, and Codex user config files
 
     On Windows, requires Developer Mode enabled or admin privileges for symlinks.
     Falls back to directory junctions for skill folders if symlinks fail.
@@ -81,8 +81,34 @@ $claudeRoot = Join-Path $env:USERPROFILE ".claude"
 $claudeSkillsTarget = Join-Path $claudeRoot "skills"
 $claudeCommandsTarget = Join-Path $claudeRoot "commands"
 
-$mcpManifestExampleFile = Join-Path $repoRoot "mcp-servers.example.json"
-$mcpManifestLocalFile = Join-Path $repoRoot "mcp-servers.local.json"
+$mcpSourceFile = Join-Path $repoRoot "mcp.json"
+$mcpLocalFile = Join-Path $repoRoot "mcp.local.json"
+
+$mcpBridgeProfiles = [ordered]@{
+    'upstash/context7' = [ordered]@{
+        gemini = [ordered]@{ Key = 'context7' }
+        codex  = [ordered]@{ Key = 'context7' }
+    }
+    'microsoftdocs/mcp' = [ordered]@{
+        gemini = [ordered]@{ Key = 'Microsoft Learn MCP Server' }
+        codex  = [ordered]@{ Key = 'microsoftdocs' }
+    }
+    'imageFetch' = [ordered]@{
+        codex = [ordered]@{ Key = 'imagefetch' }
+    }
+    'github/github-mcp-server' = [ordered]@{
+        gemini = [ordered]@{ Enabled = $false; Key = 'github' }
+        codex  = [ordered]@{ Enabled = $false; Key = 'github' }
+    }
+    'chromedevtools/chrome-devtools-mcp' = [ordered]@{
+        gemini = [ordered]@{ Enabled = $false; Key = 'chrome-devtools' }
+        codex  = [ordered]@{ Enabled = $false; Key = 'chrome-devtools' }
+    }
+    'graphify' = [ordered]@{
+        gemini = [ordered]@{ Enabled = $false }
+        codex  = [ordered]@{ Enabled = $false }
+    }
+}
 
 $galSource       = Join-Path $repoRoot "commands\gal"
 $galRootCopilot  = Join-Path $copilotRoot "gal"
@@ -459,7 +485,7 @@ function ConvertTo-OrderedMap([object]$InputObject) {
         foreach ($item in $InputObject) {
             $items.Add((ConvertTo-OrderedMap $item))
         }
-        return @($items)
+        return ,([object[]]$items.ToArray())
     }
 
     if ($InputObject.PSObject -and $InputObject -isnot [string] -and $InputObject -isnot [ValueType]) {
@@ -623,7 +649,7 @@ function Resolve-McpNode([object]$Node, [System.Collections.IDictionary]$Values,
                 $items.Add($resolvedItem)
             }
         }
-        return @($items)
+        return ,([object[]]$items.ToArray())
     }
 
     return $Node
@@ -637,16 +663,50 @@ function Resolve-McpConfig([System.Collections.IDictionary]$Config, [System.Coll
     return $resolved
 }
 
-function Test-McpProviderReady([System.Collections.IDictionary]$ProviderEntry, [System.Collections.IDictionary]$Values) {
-    if (-not $ProviderEntry.Contains('requiredEnv')) { return $true }
+function Get-McpBridgeProfile([string]$ServerName, [string]$RuntimeName) {
+    $profile = [ordered]@{
+        Enabled = $true
+        Key = $ServerName
+    }
 
-    foreach ($name in @($ProviderEntry['requiredEnv'])) {
-        if ([string]::IsNullOrWhiteSpace((Get-ConfiguredValue $Values ([string]$name)))) {
-            return $false
+    if ($mcpBridgeProfiles.Contains($ServerName) -and $mcpBridgeProfiles[$ServerName].Contains($RuntimeName)) {
+        $runtimeProfile = $mcpBridgeProfiles[$ServerName][$RuntimeName]
+        foreach ($key in $runtimeProfile.Keys) {
+            $profile[$key] = $runtimeProfile[$key]
         }
     }
 
-    return $true
+    return $profile
+}
+
+function ConvertTo-GeminiMcpConfig([System.Collections.IDictionary]$Config) {
+    $converted = [ordered]@{}
+
+    if ($Config.Contains('type') -and [string]$Config['type'] -eq 'http' -and $Config.Contains('url')) {
+        $converted['httpUrl'] = [string]$Config['url']
+    }
+    else {
+        foreach ($key in $Config.Keys) {
+            if ($key -eq 'type') { continue }
+            $converted[$key] = $Config[$key]
+        }
+    }
+
+    return $converted
+}
+
+function ConvertTo-CodexMcpConfig([System.Collections.IDictionary]$Config) {
+    if ($Config.Contains('url')) {
+        return [ordered]@{ url = [string]$Config['url'] }
+    }
+
+    $converted = [ordered]@{}
+    foreach ($key in $Config.Keys) {
+        if ($key -eq 'type') { continue }
+        $converted[$key] = $Config[$key]
+    }
+
+    return $converted
 }
 
 function ConvertTo-TomlString([string]$Value) {
@@ -1198,14 +1258,15 @@ elseif ($DryRun) {
     }
 }
 else {
-    if (-not (Test-Path $mcpManifestLocalFile)) {
-        Write-JsonOrderedMap $mcpManifestLocalFile ([ordered]@{ servers = [ordered]@{} })
-        Write-Host "  [OK] Created local MCP override file: $mcpManifestLocalFile"
+    if (-not (Test-Path $mcpLocalFile)) {
+        Write-JsonOrderedMap $mcpLocalFile ([ordered]@{ servers = [ordered]@{} })
+        Write-Host "  [OK] Created local MCP override file: $mcpLocalFile"
     }
 
-    $manifest = Read-JsonOrderedMap $mcpManifestExampleFile
-    if ($null -ne $manifest -and (Test-Path $mcpManifestLocalFile)) {
-        $localManifest = Read-JsonOrderedMap $mcpManifestLocalFile
+    $manifest = Read-JsonOrderedMap $mcpSourceFile
+    $mcpOverridePath = if (Test-Path $mcpLocalFile) { $mcpLocalFile } else { $null }
+    if ($null -ne $manifest -and $null -ne $mcpOverridePath) {
+        $localManifest = Read-JsonOrderedMap $mcpOverridePath
         if ($null -ne $localManifest) {
             $manifest = Merge-OrderedMap $manifest $localManifest
         }
@@ -1225,20 +1286,13 @@ else {
 
             $vscodeChanged = $false
             foreach ($serverName in $manifest['servers'].Keys) {
-                $server = $manifest['servers'][$serverName]
-                if (-not ($server.Contains('providers') -and $server['providers'].Contains('vscode'))) { continue }
+                $profile = Get-McpBridgeProfile -ServerName ([string]$serverName) -RuntimeName 'vscode'
+                if ($profile['Enabled'] -ne $true) { continue }
 
-                $provider = $server['providers']['vscode']
-                if ($provider['enabled'] -ne $true) { continue }
-                if (-not (Test-McpProviderReady $provider $mcpVariables)) {
-                    Write-Host "  [WARN] Skipping VS Code MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
-                    continue
-                }
-
-                $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+                $providerKey = [string]$profile['Key']
                 if ($vscodeMcp['servers'].Contains($providerKey)) { continue }
 
-                $vscodeMcp['servers'][$providerKey] = Resolve-McpConfig $provider['config'] $mcpVariables
+                $vscodeMcp['servers'][$providerKey] = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables
                 $vscodeChanged = $true
                 Write-Host "  [ADD] VS Code MCP server: $providerKey"
             }
@@ -1257,20 +1311,14 @@ else {
 
             $geminiChanged = $false
             foreach ($serverName in $manifest['servers'].Keys) {
-                $server = $manifest['servers'][$serverName]
-                if (-not ($server.Contains('providers') -and $server['providers'].Contains('gemini'))) { continue }
+                $profile = Get-McpBridgeProfile -ServerName ([string]$serverName) -RuntimeName 'gemini'
+                if ($profile['Enabled'] -ne $true) { continue }
 
-                $provider = $server['providers']['gemini']
-                if ($provider['enabled'] -ne $true) { continue }
-                if (-not (Test-McpProviderReady $provider $mcpVariables)) {
-                    Write-Host "  [WARN] Skipping Gemini MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
-                    continue
-                }
-
-                $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+                $providerKey = [string]$profile['Key']
                 if ($geminiSettings['mcpServers'].Contains($providerKey)) { continue }
 
-                $geminiSettings['mcpServers'][$providerKey] = Resolve-McpConfig $provider['config'] $mcpVariables
+                $resolvedConfig = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables
+                $geminiSettings['mcpServers'][$providerKey] = ConvertTo-GeminiMcpConfig $resolvedConfig
                 $geminiChanged = $true
                 Write-Host "  [ADD] Gemini MCP server: $providerKey"
             }
@@ -1291,22 +1339,15 @@ else {
             $codexSections = @()
 
             foreach ($serverName in $manifest['servers'].Keys) {
-                $server = $manifest['servers'][$serverName]
-                if (-not ($server.Contains('providers') -and $server['providers'].Contains('codex'))) { continue }
+                $profile = Get-McpBridgeProfile -ServerName ([string]$serverName) -RuntimeName 'codex'
+                if ($profile['Enabled'] -ne $true) { continue }
 
-                $provider = $server['providers']['codex']
-                if ($provider['enabled'] -ne $true) { continue }
-                if (-not (Test-McpProviderReady $provider $mcpVariables)) {
-                    Write-Host "  [WARN] Skipping Codex MCP server '$serverName' because required env is missing" -ForegroundColor Yellow
-                    continue
-                }
-
-                $providerKey = if ($provider.Contains('key')) { [string]$provider['key'] } else { [string]$serverName }
+                $providerKey = [string]$profile['Key']
                 $pattern = '(?m)^\[mcp_servers\.' + [regex]::Escape($providerKey) + '\]\s*$'
                 if ($codexRaw -match $pattern) { continue }
 
-                $resolvedConfig = Resolve-McpConfig $provider['config'] $mcpVariables
-                $codexSections += ConvertTo-CodexMcpSection $providerKey $resolvedConfig
+                $resolvedConfig = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables
+                $codexSections += ConvertTo-CodexMcpSection $providerKey (ConvertTo-CodexMcpConfig $resolvedConfig)
                 Write-Host "  [ADD] Codex MCP server: $providerKey"
             }
 

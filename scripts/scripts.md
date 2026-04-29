@@ -101,7 +101,7 @@ For Gemini CLI, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` fil
 
 Generates `~/.gemini/gal-context.md` with sorted non-command `@file` skill imports. All import paths reference `~/.agents/skills/`.
 
-Setup-Machine also merges the tracked MCP catalog from `mcp-servers.example.json` plus optional local overrides from `mcp-servers.local.json` into:
+Setup-Machine also merges the tracked GAL MCP source from `mcp.json` plus optional local overrides from `mcp.local.json` into:
 
 - VS Code `mcp.json`
 - Gemini `settings.json` `mcpServers`

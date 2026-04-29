@@ -74,11 +74,11 @@ Recommended defaults:
 
 | Setting | Typical value |
 | --- | --- |
-| `OBSIDIAN_GUIDE_PATH` | `99_System/Guide.md` |
-| `OBSIDIAN_PRIVATE_RESEARCH_DIR` | `10_Projects/Research_Private` |
-| `OBSIDIAN_DIARY_DIR` | `10_Projects/Work_Journal` |
-| `OBSIDIAN_SCRATCH_DIR` | `10_Projects/Work_Journal` |
-| `OBSIDIAN_ARCHIVE_DIR` | `30_Archives/Work_Journal` |
+| `OBSIDIAN_GUIDE_PATH` | `Guide.md` |
+| `OBSIDIAN_PRIVATE_RESEARCH_DIR` | `/Projects/Research_Private` |
+| `OBSIDIAN_DIARY_DIR` | `/Projects/Work_Journal` |
+| `OBSIDIAN_SCRATCH_DIR` | `/Projects/Work_Journal` |
+| `OBSIDIAN_ARCHIVE_DIR` | `/Archives/Work_Journal` |
 | `RESEARCH_DEFAULT_DEST` | `repo` |
 
 ### 2c. Working Hours
@@ -94,8 +94,8 @@ These values are machine-local preferences, not tracked repo policy.
 
 ### 3. MCP overrides
 
-- Put machine-specific MCP differences in `../mcp-servers.local.json`.
-- Keep the tracked baseline in `../mcp-servers.example.json`.
+- Keep the tracked GAL source in `../mcp.json`.
+- Put machine-specific MCP differences in `../mcp.local.json`.
 
 ### 4. Runtime-owned config
 
@@ -114,7 +114,8 @@ Claude Code is now part of the installer runtime surface for skills and commands
 Run setup again when any of these change:
 
 - `config.local.env`
-- `mcp-servers.local.json`
+- `mcp.json`
+- `mcp.local.json`
 - any `commands/*/SKILL.local.md`
 - `~/.gal/install-state.json`
 - Obsidian routing paths or Guide mode

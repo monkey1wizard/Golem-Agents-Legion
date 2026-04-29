@@ -29,16 +29,6 @@ function Read-NormalizedFile([string]$Path) {
     return ($content -replace "`r`n", "`n") -replace "`r", "`n"
 }
 
-function Get-MarkdownSection([string]$Content, [string]$Heading) {
-    $pattern = "(?ms)^##\s+{0}\s*$\n(?<body>.*?)(?=^##\s+|\z)" -f [regex]::Escape($Heading)
-    $match = [regex]::Match($Content, $pattern)
-    if (-not $match.Success) {
-        return $null
-    }
-
-    return $match.Groups['body'].Value.Trim()
-}
-
 function Get-AllSkillSources() {
     if (-not (Test-Path $skillsRoot)) {
         return @()
@@ -48,9 +38,7 @@ function Get-AllSkillSources() {
         $skillFile = Join-Path $skillDir.FullName "SKILL.md"
         if (Test-Path $skillFile) {
             $resolved.Add([pscustomobject]@{
-                Name    = $skillDir.Name
-                Path    = $skillFile
-                Content = Read-NormalizedFile -Path $skillFile
+                Name = $skillDir.Name
             })
         }
     }
@@ -74,6 +62,21 @@ function Add-SourceBlock([System.Collections.Generic.List[string]]$Lines, [strin
     $Lines.Add("")
 }
 
+function Add-SkillIndex([System.Collections.Generic.List[string]]$Lines, [object[]]$SkillSources) {
+    if ($null -eq $SkillSources -or $SkillSources.Count -eq 0) {
+        return
+    }
+
+    $Lines.Add('## Repo Skills')
+    $Lines.Add('')
+    $Lines.Add('The following repo-local skills are available by name. Read the corresponding `skills/<name>/SKILL.md` file when full instructions are needed.')
+    $Lines.Add('')
+    foreach ($skill in $SkillSources) {
+        $Lines.Add(('- `{0}` - `skills/{0}/SKILL.md`' -f $skill.Name))
+    }
+    $Lines.Add('')
+}
+
 function Build-AdapterContent(
     [string]$Title,
     [string[]]$Preamble,
@@ -82,7 +85,7 @@ function Build-AdapterContent(
     [string]$WorkflowContent,
     [string]$ModelRolesContent,
     [object[]]$SkillSources,
-    [switch]$IncludeSkillBodies
+    [switch]$IncludeSkillIndex
 ) {
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add("# $Title")
@@ -104,10 +107,8 @@ function Build-AdapterContent(
     Add-SourceBlock -Lines $lines -Label 'workflows/coding.md' -Content $WorkflowContent
     Add-SourceBlock -Lines $lines -Label 'model-roles.md' -Content $ModelRolesContent
 
-    if ($IncludeSkillBodies) {
-        foreach ($skill in $SkillSources) {
-            Add-SourceBlock -Lines $lines -Label ("skills/{0}/SKILL.md" -f $skill.Name) -Content $skill.Content
-        }
+    if ($IncludeSkillIndex) {
+        Add-SkillIndex -Lines $lines -SkillSources $SkillSources
     }
 
     return (($lines -join "`n").TrimEnd() + "`n")
@@ -138,21 +139,21 @@ $geminiContent = Build-AdapterContent `
     -Title 'GEMINI Context' `
     -Preamble @(
         'This is the repo-local adapter for Gemini CLI.',
-        'All skills in this repo''s `skills/` directory are inlined below so Gemini has full skill context without a machine-level install.',
-        'This generator only inlines repo-local skills and does not mutate `~/.gemini/gal-context.md` or any other machine-level configuration.'
+        'Repo-local skills are indexed below by name so Gemini can discover them without duplicating every skill body in the adapter.',
+        'This generator does not mutate `~/.gemini/gal-context.md` or any other machine-level configuration.'
     ) `
     -ProjectContent $projectContent `
     -ConventionSources $conventionSources `
     -WorkflowContent $workflowContent `
     -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
-    -IncludeSkillBodies
+    -IncludeSkillIndex
 
 $claudeContent = Build-AdapterContent `
     -Title 'CLAUDE Context' `
     -Preamble @(
         'This is the repo-local adapter for Claude Code.',
-        'All skills in this repo''s `skills/` directory are inlined below so Claude Code has full skill context even when machine-level install differs by environment.',
+        'Repo-local skills are indexed below by name so Claude Code can find the right skill file without duplicating every skill body in the adapter.',
         'This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `Setup-Machine`.'
     ) `
     -ProjectContent $projectContent `
@@ -160,13 +161,13 @@ $claudeContent = Build-AdapterContent `
     -WorkflowContent $workflowContent `
     -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
-    -IncludeSkillBodies
+    -IncludeSkillIndex
 
 $agentsContent = Build-AdapterContent `
     -Title 'GAL Agent Instructions' `
     -Preamble @(
         'This is the shared cross-CLI contract generated from repo sources for Copilot CLI, Codex CLI, Gemini CLI (via settings bridge), and Claude Code CLI.',
-        'All skills in this repo''s `skills/` directory are inlined below so Codex and Claude Code always have a repo-local fallback, regardless of machine-level install state.',
+        'Repo-local skills are indexed below by name so runtimes can discover the right skill file without duplicating every skill body in this shared adapter.',
         'This file is generated by `/gal init`. Do not edit manually.'
     ) `
     -ProjectContent $projectContent `
@@ -174,7 +175,7 @@ $agentsContent = Build-AdapterContent `
     -WorkflowContent $workflowContent `
     -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
-    -IncludeSkillBodies
+    -IncludeSkillIndex
 
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($copilotPath, $copilotContent, $utf8NoBom)
@@ -187,4 +188,9 @@ Write-Host "- Generated: .github/copilot-instructions.md"
 Write-Host "- Generated: GEMINI.md"
 Write-Host "- Generated: CLAUDE.md"
 Write-Host "- Generated: AGENTS.md"
-Write-Host "- Inlined skills: $(($skillSources | ForEach-Object { $_.Name }) -join ', ')"
+if ($skillSources.Count -gt 0) {
+    Write-Host "- Indexed skills: $(($skillSources | ForEach-Object { $_.Name }) -join ', ')"
+}
+else {
+    Write-Host "- No skills/ directory found; no skills indexed."
+}

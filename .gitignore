@@ -16,7 +16,7 @@ openclaw.json
 
 # Local overrides (fork and customize)
 config.local.env
-mcp-servers.local.json
+mcp.local.json
 model-roles.local.md
 commands/*/SKILL.local.md
 

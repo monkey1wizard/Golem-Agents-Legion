@@ -109,8 +109,8 @@ The MCP manifest is a separate install concern from skills.
 
 | File | Scope | Role |
 | --- | --- | --- |
-| `mcp-servers.example.json` | tracked | baseline server catalog |
-| `mcp-servers.local.json` | local only | machine-specific overrides and enablement |
+| `mcp.json` | tracked | single GAL MCP source of truth |
+| `mcp.local.json` | local only | machine-specific overrides and enablement |
 | `config.local.env` | local only | secrets and local values referenced by the manifest |
 
 Setup uses merge, not overwrite:

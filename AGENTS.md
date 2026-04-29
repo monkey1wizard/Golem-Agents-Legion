@@ -936,33 +936,33 @@ with your own machines, models, and tools. The local file is git-ignored.
 
 ## Repo Skills
 
-The following repo-local skills are available by name. Read the corresponding skills/<name>/SKILL.md file when full instructions are needed.
+The following repo-local skills are available by name. Read the corresponding `skills/<name>/SKILL.md` file when full instructions are needed.
 
-- defuddle - skills/defuddle/SKILL.md
-- doc-coauthoring - skills/doc-coauthoring/SKILL.md
-- game-2d-assets - skills/game-2d-assets/SKILL.md
-- game-3d-assets - skills/game-3d-assets/SKILL.md
-- game-asset-export - skills/game-asset-export/SKILL.md
-- game-pixel-assets - skills/game-pixel-assets/SKILL.md
-- game-ui-assets - skills/game-ui-assets/SKILL.md
-- git-commits - skills/git-commits/SKILL.md
-- godot-asset-pipeline - skills/godot-asset-pipeline/SKILL.md
-- godot-project-ops - skills/godot-project-ops/SKILL.md
-- godot-runtime-debug - skills/godot-runtime-debug/SKILL.md
-- godot-scene-authoring - skills/godot-scene-authoring/SKILL.md
-- godot-scripting - skills/godot-scripting/SKILL.md
-- graphics-workflow - skills/graphics-workflow/SKILL.md
-- json-canvas - skills/json-canvas/SKILL.md
-- local-first-search - skills/local-first-search/SKILL.md
-- markdown-formatting - skills/markdown-formatting/SKILL.md
-- mcp-builder - skills/mcp-builder/SKILL.md
-- obsidian-bases - skills/obsidian-bases/SKILL.md
-- obsidian-cli - skills/obsidian-cli/SKILL.md
-- obsidian-knowledge-management - skills/obsidian-knowledge-management/SKILL.md
-- obsidian-markdown - skills/obsidian-markdown/SKILL.md
-- opencli-research - skills/opencli-research/SKILL.md
-- pdf - skills/pdf/SKILL.md
-- result-pattern - skills/result-pattern/SKILL.md
-- skill-creator - skills/skill-creator/SKILL.md
-- structured-logging - skills/structured-logging/SKILL.md
-- webapp-testing - skills/webapp-testing/SKILL.md
+- `defuddle` - `skills/defuddle/SKILL.md`
+- `doc-coauthoring` - `skills/doc-coauthoring/SKILL.md`
+- `game-2d-assets` - `skills/game-2d-assets/SKILL.md`
+- `game-3d-assets` - `skills/game-3d-assets/SKILL.md`
+- `game-asset-export` - `skills/game-asset-export/SKILL.md`
+- `game-pixel-assets` - `skills/game-pixel-assets/SKILL.md`
+- `game-ui-assets` - `skills/game-ui-assets/SKILL.md`
+- `git-commits` - `skills/git-commits/SKILL.md`
+- `godot-asset-pipeline` - `skills/godot-asset-pipeline/SKILL.md`
+- `godot-project-ops` - `skills/godot-project-ops/SKILL.md`
+- `godot-runtime-debug` - `skills/godot-runtime-debug/SKILL.md`
+- `godot-scene-authoring` - `skills/godot-scene-authoring/SKILL.md`
+- `godot-scripting` - `skills/godot-scripting/SKILL.md`
+- `graphics-workflow` - `skills/graphics-workflow/SKILL.md`
+- `json-canvas` - `skills/json-canvas/SKILL.md`
+- `local-first-search` - `skills/local-first-search/SKILL.md`
+- `markdown-formatting` - `skills/markdown-formatting/SKILL.md`
+- `mcp-builder` - `skills/mcp-builder/SKILL.md`
+- `obsidian-bases` - `skills/obsidian-bases/SKILL.md`
+- `obsidian-cli` - `skills/obsidian-cli/SKILL.md`
+- `obsidian-knowledge-management` - `skills/obsidian-knowledge-management/SKILL.md`
+- `obsidian-markdown` - `skills/obsidian-markdown/SKILL.md`
+- `opencli-research` - `skills/opencli-research/SKILL.md`
+- `pdf` - `skills/pdf/SKILL.md`
+- `result-pattern` - `skills/result-pattern/SKILL.md`
+- `skill-creator` - `skills/skill-creator/SKILL.md`
+- `structured-logging` - `skills/structured-logging/SKILL.md`
+- `webapp-testing` - `skills/webapp-testing/SKILL.md`
