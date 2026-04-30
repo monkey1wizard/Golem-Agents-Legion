@@ -104,6 +104,8 @@ uvx /c uvx blender-mcp
 
 ## MCP 設定與 Port 避免衝突
 
+If you want the verified English startup and execution checklist for FreeCAD, see [collaborative-tools/freecad.md](collaborative-tools/freecad.md).
+
 當 Blender MCP 與 FreeCAD Robust MCP 同時使用時，最容易踩到的問題是預設 port 撞號。
 
 目前這兩套工具的常見預設值是：

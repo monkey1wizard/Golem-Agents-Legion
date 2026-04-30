@@ -8,7 +8,7 @@ This document is maintainer navigation, not a second specification. Use it to de
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
 | planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../commands/commands.md](../commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
-| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh` |
+| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/Update-*.ps1`, `scripts/setup-machine.sh`, `scripts/update-*.sh` |
 | templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
 | xmachine execution behavior | is this part of the main workflow or an execution-plane extension? | [collaborative-tools/xmachine.md](collaborative-tools/xmachine.md), xmachine scripts under `scripts/` |
 | Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [collaborative-tools/godot.md](collaborative-tools/godot.md), [collaborative-tools/graphworkflow.md](collaborative-tools/graphworkflow.md) |
@@ -57,7 +57,7 @@ The shared preflight model lives in [collaborative-tools/checking-contract.md](c
 
 ## Runtime Topology For Setup Work
 
-This section absorbs the setup topology that maintainers need when changing `Setup-Machine`, command installation, or MCP wiring.
+This section absorbs the setup topology that maintainers need when changing `Setup-Machine`, the `Update-*` scripts, command installation, or MCP wiring.
 
 ### Four Runtime Layers
 
@@ -75,7 +75,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal/`, and shared `~/.agents/skills/` | generated native `.toml` commands | also merges `mcpServers` into `settings.json` |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
-| Claude Code | `~/.claude/skills/` and `~/.claude/commands/` | generated command markdown plus repo-local `CLAUDE.md` | Claude MCP merge remains deferred |
+| Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, and user-scope `claude mcp` config | generated command markdown plus repo-local `CLAUDE.md` | MCP install is managed through the Claude CLI |
 
 ### Layer 1.5 Install Topology
 
@@ -113,14 +113,14 @@ The MCP manifest is a separate install concern from skills.
 | `mcp.local.json` | local only | machine-specific overrides and enablement |
 | `config.local.env` | local only | secrets and local values referenced by the manifest |
 
-Setup uses merge, not overwrite:
+`Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
 
-- VS Code: merge missing servers into user `mcp.json`
-- Gemini CLI: merge missing servers into `settings.json` under `mcpServers`
-- Codex CLI: append missing `[mcp_servers.*]` sections into `config.toml`
-- Claude Code: deferred; no installer-managed MCP merge yet
+- VS Code: overwrite tracked server entries inside user `mcp.json`
+- Gemini CLI: overwrite tracked server entries inside `settings.json` under `mcpServers`
+- Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
+- Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
 
-Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest, it does not take full ownership of those files.
+Provider-owned config still stays user-owned. GAL only takes ownership of the server names declared in the tracked manifest and preserves unrelated user-defined entries.
 
 ### Why `GAL_ROOT` Exists
 
@@ -151,9 +151,10 @@ Provider-owned config stays user-owned. GAL fills gaps from the tracked manifest
 ### Changing setup, installation, or MCP merge
 
 1. Read [../scripts/scripts.md](../scripts/scripts.md).
-2. Update both setup scripts unless the change is intentionally platform-specific.
-3. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
-4. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
+2. Decide which concern owns the change first: `Update-Personalization`, `Update-Skills`, `Update-Commands`, `Update-Mcp`, or the top-level orchestrator.
+3. Windows and macOS/Linux both use the split Setup-Machine plus concern-script stack. Keep the two entrypoint families aligned unless the change is intentionally platform-specific.
+4. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
+5. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
 
 ### Refactoring docs themselves
 
@@ -176,7 +177,7 @@ After changing install or setup logic, verify at least these points:
 - generated `commands/*/SKILL.md` files no longer contain `{{GAL_ROOT}}`
 - Gemini native command files were regenerated from the baked command content
 - shared skill directories contain reusable skills only, not duplicated command aliases
-- MCP merge only added missing servers and did not clobber existing provider-owned config
+- MCP reruns update tracked server entries correctly without clobbering unrelated provider-owned config
 
 ## Where Information Belongs
 

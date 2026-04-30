@@ -12,6 +12,19 @@ The machine installer now persists runtime selection in `~/.gal/install-state.js
 
 Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
+The machine setup surface is now split by concern on both Windows and macOS/Linux:
+
+- `scripts/Setup-Machine.ps1` runs the full sequence
+- `scripts/Update-Personalization.ps1` refreshes install-state, settings bridges, local config seeding, and `gal-context.md`
+- `scripts/Update-Skills.ps1` refreshes agents, skills, and GAL root links
+- `scripts/Update-Commands.ps1` refreshes baked command skills and native Gemini / Claude command files
+- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest
+- `scripts/setup-machine.sh` runs the full sequence
+- `scripts/update-personalization.sh` refreshes install-state, settings bridges, local config seeding, and `gal-context.md`
+- `scripts/update-skills.sh` refreshes agents, skills, and GAL root links
+- `scripts/update-commands.sh` refreshes baked command skills and native Gemini / Claude command files
+- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest
+
 ## Placeholders You May Need To Fill
 
 | Placeholder | Meaning | Common use |
@@ -99,15 +112,16 @@ These values are machine-local preferences, not tracked repo policy.
 
 ### 4. Runtime-owned config
 
-The installed runtime configs remain user-owned even when GAL merges missing entries.
+The installed runtime configs remain user-owned even when GAL refreshes GAL-managed entries.
 
 | Runtime | Typical MCP config location |
 | --- | --- |
 | VS Code | user `mcp.json` |
 | Gemini CLI | `settings.json` under `mcpServers` |
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
+| Claude Code | user-scope MCP entries managed through `claude mcp` |
 
-Claude Code is now part of the installer runtime surface for skills and commands, but its MCP merge remains deferred.
+GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries.
 
 ## When To Rerun Setup
 
@@ -123,11 +137,26 @@ Run setup again when any of these change:
 - model routing or runtime install locations
 - GAL command or skill installation
 
+Use the narrower concern script when only one concern changed:
+
+- `scripts/Update-Personalization.ps1` after editing runtime bridges, `config.local.env`, or model-role local files
+- `scripts/Update-Skills.ps1` after changing `agent/` or `skills/`
+- `scripts/Update-Commands.ps1` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
+- `scripts/Update-Mcp.ps1` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`
+- `scripts/update-personalization.sh` after editing runtime bridges, `config.local.env`, or model-role local files
+- `scripts/update-skills.sh` after changing `agent/` or `skills/`
+- `scripts/update-commands.sh` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
+- `scripts/update-mcp.sh` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`
+
 Windows:
 
 ```powershell
 ./scripts/Setup-Machine.ps1
 ./scripts/Setup-Machine.ps1 -Reconfigure
+./scripts/Update-Personalization.ps1
+./scripts/Update-Skills.ps1
+./scripts/Update-Commands.ps1
+./scripts/Update-Mcp.ps1
 ```
 
 macOS/Linux:
@@ -135,6 +164,10 @@ macOS/Linux:
 ```bash
 ./scripts/setup-machine.sh
 ./scripts/setup-machine.sh --reconfigure
+./scripts/update-personalization.sh
+./scripts/update-skills.sh
+./scripts/update-commands.sh
+./scripts/update-mcp.sh
 ```
 
 ## Responsibility Boundary

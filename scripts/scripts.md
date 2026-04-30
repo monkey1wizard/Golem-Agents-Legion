@@ -12,9 +12,17 @@ Machine setup and adapter sync scripts.
 | `init-repo.sh` | macOS | Same for Mac |
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, symlink runtime targets, bake command skills with optional `SKILL.local.md` overlays, generate Gemini and Claude command files, clean stale runtime installs, generate `gal-context.md`, merge MCP config into VS Code / Gemini / Codex |
+| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `Update-Personalization.ps1`, `Update-Skills.ps1`, `Update-Commands.ps1`, and `Update-Mcp.ps1` |
+| `Update-Personalization.ps1` | Windows | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, local config seeding, and git smudge/clean personalization |
+| `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, shared skill links, Claude skill links, and legacy runtime skill cleanup |
+| `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
+| `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Codex, and Claude MCP runtime config from the tracked manifest |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
-| `setup-machine.sh` | macOS | Same for macOS/Linux |
+| `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `update-personalization.sh`, `update-skills.sh`, `update-commands.sh`, and `update-mcp.sh` |
+| `update-personalization.sh` | macOS | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, local config seeding, and git smudge/clean personalization |
+| `update-skills.sh` | macOS | Manage GAL root links, agent links, shared skill links, Claude skill links, and legacy runtime skill cleanup |
+| `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
+| `update-mcp.sh` | macOS | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Codex, and Claude MCP runtime config from the tracked manifest |
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
@@ -77,6 +85,18 @@ By default, `gal init` scans the target repo for existing documentation:
 
 Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank template.
 
+## Setup-Machine Flow
+
+`Setup-Machine.ps1` and `setup-machine.sh` are now concern orchestrators:
+
+1. resolve or reconfigure runtime selection once
+2. run `Update-Personalization.ps1` or `update-personalization.sh`
+3. run `Update-Skills.ps1` or `update-skills.sh`
+4. run `Update-Commands.ps1` or `update-commands.sh`
+5. run `Update-Mcp.ps1` or `update-mcp.sh`
+
+Each concern script can also run standalone when you only need one concern refreshed.
+
 ## Setup-Machine Symlinks
 
 The setup script creates these symlinks:
@@ -101,12 +121,16 @@ For Gemini CLI, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` fil
 
 Generates `~/.gemini/gal-context.md` with sorted non-command `@file` skill imports. All import paths reference `~/.agents/skills/`.
 
-Setup-Machine also merges the tracked GAL MCP source from `mcp.json` plus optional local overrides from `mcp.local.json` into:
+`Update-Mcp.ps1` and `update-mcp.sh` merge the tracked GAL MCP source from `mcp.json` plus optional local overrides from `mcp.local.json` into:
 
 - VS Code `mcp.json`
+- Copilot CLI `~/.copilot/mcp-config.json`
 - Gemini `settings.json` `mcpServers`
 - Codex `config.toml` `[mcp_servers.*]`
+- Claude Code user-scope MCP config via `claude mcp add/remove`
 
-The merge strategy is additive: existing provider-owned entries are preserved, and only missing servers are added.
+Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Only MCP ownership is split per client.
+
+The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly.
 
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.

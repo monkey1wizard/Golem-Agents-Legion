@@ -6,22 +6,12 @@
         "args": [
             "--registry",
             "https://registry.npmjs.org",
-            "chrome-devtools-mcp@0.23.0"
-        ],
-        "gallery": "https://api.mcp.github.com",
-        "version": "0.23.0"
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "${MCP_FILESYSTEM_PATHS[]}"
-      ]
+            "chrome-devtools-mcp@latest"
+        ]
     },
     "github-mcp-server": {
         "type": "http",
-        "url": "https://api.githubcopilot.com/mcp/",
+        "url": "https://api.githubcopilot.com/mcp/"
     },
     "memory": {
       "command": "npx",
@@ -35,26 +25,21 @@
     },
     "microsoftdocs/mcp": {
         "type": "http",
-        "url": "https://learn.microsoft.com/api/mcp",
-        "gallery": "https://api.mcp.github.com",
-        "version": "1.0.0"
+        "url": "https://learn.microsoft.com/api/mcp"
     },
     "microsoft/markitdown": {
-        "type": "stdio",
-        "command": "uvx",
-        "args": [
-            "markitdown-mcp@0.0.1a4"
-        ],
-        "gallery": "https://api.mcp.github.com",
-        "version": "1.0.0"
+      "type": "stdio",
+      "command": "uvx",
+			"args": [
+				"markitdown-mcp@latest"
+			]
     },
     "upstash/context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
         "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
-      },
-      "tools": ["query-docs", "resolve-library-id"]
+      }
     }
   }
 }

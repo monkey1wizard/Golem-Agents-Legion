@@ -1,0 +1,214 @@
+#Requires -Version 5.1
+param(
+    [switch]$Uninstall,
+    [switch]$Replace,
+    [switch]$DryRun,
+    [switch]$Reconfigure,
+    [string[]]$SelectedRuntimes,
+    [string]$PrimaryRuntime
+)
+
+$ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'common\Common.ps1')
+
+function Invoke-UpdatePersonalization {
+    $context = $script:SetupContext
+    $skillDirs = Get-ChildItem (Join-Path $context.RepoRoot 'skills') -Directory
+
+    Ensure-SetupDirectories @($context.GalStateRoot, $context.GeminiRoot)
+
+    Write-Host ''
+    Write-Host '=== Gemini gal-context.md ==='
+    if ($script:SetupOptions.Uninstall -or -not $context.InstallGemini) {
+        if (Test-Path $context.GeminiContextFile) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove: $($context.GeminiContextFile)"
+            }
+            else {
+                Remove-Item $context.GeminiContextFile -Force
+                Write-Host "  [REMOVED] $($context.GeminiContextFile)"
+            }
+        }
+    }
+    else {
+        $skillImports = $skillDirs | Sort-Object Name | ForEach-Object {
+            '@' + (Join-Path (Join-Path $context.SharedSkillsTarget $_.Name) 'SKILL.md')
+        }
+        $contextContent = ($skillImports -join "`n") + "`n"
+
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would write: $($context.GeminiContextFile) ($($skillDirs.Count) skill imports)"
+        }
+        else {
+            [System.IO.File]::WriteAllText($context.GeminiContextFile, $contextContent, $context.Utf8NoBom)
+            Write-Host "  [OK] $($context.GeminiContextFile) ($($skillDirs.Count) skill imports)"
+        }
+    }
+
+    Write-Host ''
+    Write-Host '=== Gemini settings.json bridge ==='
+    if ($script:SetupOptions.Uninstall) {
+        Write-Host '  [SKIP] settings.json not modified during uninstall (user-owned file)'
+    }
+    elseif (-not $context.InstallGemini) {
+        Write-Host '  [SKIP] Gemini runtime not selected; settings.json bridge not updated'
+    }
+    elseif ($script:SetupOptions.DryRun) {
+        Write-Host "  [DRY RUN] Would merge AGENTS.md into context.fileName in: $($context.GeminiSettingsFile)"
+    }
+    else {
+        if (Test-Path $context.GeminiSettingsFile) {
+            $rawJson = Get-Content $context.GeminiSettingsFile -Raw -Encoding UTF8
+            try { $settings = $rawJson | ConvertFrom-Json }
+            catch { Write-Host "  [WARN] Could not parse $($context.GeminiSettingsFile) as JSON — skipping bridge" -ForegroundColor Yellow; $settings = $null }
+        }
+        else {
+            $settings = [pscustomobject]@{}
+        }
+
+        if ($null -ne $settings) {
+            if (-not (Get-Member -InputObject $settings -Name 'context' -MemberType NoteProperty)) {
+                Add-Member -InputObject $settings -MemberType NoteProperty -Name 'context' -Value ([pscustomobject]@{})
+            }
+            if (-not (Get-Member -InputObject $settings.context -Name 'fileName' -MemberType NoteProperty)) {
+                Add-Member -InputObject $settings.context -MemberType NoteProperty -Name 'fileName' -Value @('AGENTS.md', 'GEMINI.md')
+            }
+            else {
+                $current = @($settings.context.fileName)
+                foreach ($required in @('AGENTS.md', 'GEMINI.md')) {
+                    if ($current -notcontains $required) { $current += $required }
+                }
+                $settings.context.fileName = $current
+            }
+
+            [System.IO.File]::WriteAllText($context.GeminiSettingsFile, ($settings | ConvertTo-Json -Depth 10), $context.Utf8NoBom)
+            Write-Host "  [OK] $($context.GeminiSettingsFile) (context.fileName includes AGENTS.md and GEMINI.md)"
+        }
+    }
+
+    Write-Host ''
+    Write-Host '=== VS Code settings bridge ==='
+    if ($script:SetupOptions.Uninstall) {
+        Write-Host '  [SKIP] VS Code settings.json not modified during uninstall (user-owned file)'
+    }
+    elseif (-not $context.InstallCopilot) {
+        Write-Host '  [SKIP] Copilot runtime not selected; VS Code settings bridge not updated'
+    }
+    elseif ($script:SetupOptions.DryRun) {
+        Write-Host "  [DRY RUN] Would set chat.agentSkillsLocations['~/.agents/skills']=false in: $($context.VscodeSettingsFile)"
+    }
+    else {
+        if (Test-Path $context.VscodeSettingsFile) {
+            $rawJson = Get-Content $context.VscodeSettingsFile -Raw -Encoding UTF8
+            try { $settings = $rawJson | ConvertFrom-Json }
+            catch { Write-Host "  [WARN] Could not parse $($context.VscodeSettingsFile) as JSON — add chat.agentSkillsLocations manually" -ForegroundColor Yellow; $settings = $null }
+        }
+        else {
+            $settingsDir = Split-Path $context.VscodeSettingsFile -Parent
+            if (-not (Test-Path $settingsDir)) {
+                New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
+            }
+            $settings = [pscustomobject]@{}
+        }
+
+        if ($null -ne $settings) {
+            if (-not (Get-Member -InputObject $settings -Name 'chat.agentSkillsLocations' -MemberType NoteProperty)) {
+                Add-Member -InputObject $settings -MemberType NoteProperty -Name 'chat.agentSkillsLocations' -Value ([pscustomobject]@{})
+            }
+
+            $skillLocations = $settings.'chat.agentSkillsLocations'
+            if ($skillLocations -is [System.Collections.IDictionary]) {
+                $skillLocations['~/.agents/skills'] = $false
+            }
+            elseif ($skillLocations -is [pscustomobject]) {
+                if (Get-Member -InputObject $skillLocations -Name '~/.agents/skills' -MemberType NoteProperty) {
+                    $skillLocations.'~/.agents/skills' = $false
+                }
+                else {
+                    Add-Member -InputObject $skillLocations -MemberType NoteProperty -Name '~/.agents/skills' -Value $false
+                }
+            }
+
+            [System.IO.File]::WriteAllText($context.VscodeSettingsFile, ($settings | ConvertTo-Json -Depth 10), $context.Utf8NoBom)
+            Write-Host "  [OK] $($context.VscodeSettingsFile) (chat.agentSkillsLocations disables ~/.agents/skills for VS Code)"
+        }
+    }
+
+    if ($script:SetupOptions.Uninstall -or $script:SetupOptions.DryRun) {
+        return
+    }
+
+    Write-Host ''
+    Write-Host '=== Personalization ==='
+
+    $exampleEnv = Join-Path $context.RepoRoot 'config.example.env'
+    $localEnv = Join-Path $context.RepoRoot 'config.local.env'
+    if (-not (Test-Path $localEnv)) {
+        if (Test-Path $exampleEnv) {
+            Copy-Item $exampleEnv $localEnv
+            Write-Host '  [OK] Created config.local.env from config.example.env'
+            Write-Host '  [ACTION REQUIRED] Edit config.local.env with your paths' -ForegroundColor Yellow
+        }
+        else {
+            Write-Host '  [WARN] config.example.env not found — skipping' -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host '  [SKIP] config.local.env already exists'
+    }
+
+    $exampleRoles = Join-Path $context.RepoRoot 'model-roles.example.md'
+    $localRoles = Join-Path $context.RepoRoot 'model-roles.local.md'
+    if (-not (Test-Path $localRoles)) {
+        if (Test-Path $exampleRoles) {
+            Copy-Item $exampleRoles $localRoles
+            Write-Host '  [OK] Created model-roles.local.md from model-roles.example.md'
+        }
+    }
+    else {
+        Write-Host '  [SKIP] model-roles.local.md already exists'
+    }
+
+    Push-Location $context.RepoRoot
+    try {
+        git config filter.gal-config.smudge 'bash scripts/gal-smudge.sh'
+        git config filter.gal-config.clean 'bash scripts/gal-clean.sh'
+        git config filter.gal-config.required true
+        Write-Host "  [OK] Registered git filter 'gal-config' (smudge/clean)"
+
+        git config core.hooksPath .githooks
+        Write-Host '  [OK] Set core.hooksPath to .githooks'
+
+        if (Test-Path $localEnv) {
+            $hasValues = Get-Content $localEnv | Where-Object {
+                $_ -notmatch '^\s*#' -and $_ -match '=.+ '
+            }
+            if (-not $hasValues) {
+                $hasValues = Get-Content $localEnv | Where-Object {
+                    $_ -notmatch '^\s*#' -and $_ -match '=.+'
+                }
+            }
+
+            if ($hasValues) {
+                $trackedFilterFiles = @('config.local.env', 'model-roles.local.md') | Where-Object {
+                    (git ls-files --error-unmatch $_ 2>$null) -ne $null
+                }
+
+                if ($trackedFilterFiles.Count -gt 0) {
+                    git checkout -- @trackedFilterFiles
+                    Write-Host '  [OK] Re-checked out tracked filtered files (smudge filter applied)'
+                }
+            }
+            else {
+                Write-Host '  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md'
+            }
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime | Out-Null
+Invoke-UpdatePersonalization
