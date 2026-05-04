@@ -30,12 +30,15 @@ invoke_update_mcp() {
         if $INSTALL_CODEX; then
             echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
         fi
+        if $INSTALL_OPENCODE; then
+            echo "  [DRY RUN] Would merge MCP servers into: $OPENCODE_CONFIG_FILE"
+        fi
         if $INSTALL_CLAUDE; then
             echo '  [DRY RUN] Would merge MCP servers through Claude CLI user scope'
         fi
     fi
 
-    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" "$INSTALL_CLAUDE" "$DRY_RUN" <<'PY'
+    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$OPENCODE_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" "$INSTALL_OPENCODE" "$INSTALL_CLAUDE" "$DRY_RUN" <<'PY'
 import json
 import os
 import re
@@ -50,11 +53,13 @@ vscode_mcp = Path(sys.argv[4])
 copilot_cli_mcp = Path(sys.argv[5])
 gemini_settings = Path(sys.argv[6])
 codex_config = Path(sys.argv[7])
-install_copilot = sys.argv[8].lower() == 'true'
-install_gemini = sys.argv[9].lower() == 'true'
-install_codex = sys.argv[10].lower() == 'true'
-install_claude = sys.argv[11].lower() == 'true'
-dry_run = sys.argv[12].lower() == 'true'
+opencode_config = Path(sys.argv[8])
+install_copilot = sys.argv[9].lower() == 'true'
+install_gemini = sys.argv[10].lower() == 'true'
+install_codex = sys.argv[11].lower() == 'true'
+install_opencode = sys.argv[12].lower() == 'true'
+install_claude = sys.argv[13].lower() == 'true'
+dry_run = sys.argv[14].lower() == 'true'
 
 BRIDGE_PROFILES = {
     'upstash/context7': {
@@ -192,6 +197,41 @@ def convert_gemini_config(config):
 
 def convert_codex_config(config):
     return {key: value for key, value in config.items() if key != 'type'}
+
+
+def convert_opencode_config(config):
+    transport = config.get('type') or ('http' if 'url' in config else 'stdio')
+    if transport in {'http', 'sse'}:
+        converted = {
+            'type': 'remote',
+            'url': config['url'],
+            'enabled': True,
+        }
+        if isinstance(config.get('headers'), dict):
+            converted['headers'] = config['headers']
+        if 'timeout' in config:
+            converted['timeout'] = config['timeout']
+        return converted
+
+    command = []
+    if 'command' in config:
+        command.append(str(config['command']))
+    raw_args = config.get('args')
+    if isinstance(raw_args, list):
+        command.extend(str(item) for item in raw_args)
+    elif raw_args is not None:
+        command.append(str(raw_args))
+
+    converted = {
+        'type': 'local',
+        'command': command,
+        'enabled': True,
+    }
+    if isinstance(config.get('env'), dict):
+        converted['environment'] = config['env']
+    if 'timeout' in config:
+        converted['timeout'] = config['timeout']
+    return converted
 
 
 def get_copilot_cli_bridge_profile(server_name):
@@ -489,6 +529,23 @@ def update_codex(manifest):
         print(f'  [OK] {codex_config}')
 
 
+def update_opencode(manifest):
+    data = read_json(opencode_config)
+    servers = data.setdefault('mcp', {})
+    changed = False
+    for server_name, server_config in manifest['servers'].items():
+        converted = convert_opencode_config(server_config)
+        if server_name not in servers or not json_like_equal(servers[server_name], converted):
+            changed = True
+            prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
+            print(f'  {prefix} OpenCode MCP server: {server_name}')
+            if not dry_run:
+                servers[server_name] = converted
+    if changed and not dry_run:
+        write_json(opencode_config, data)
+        print(f'  [OK] {opencode_config}')
+
+
 def update_claude(manifest):
     if shutil.which('claude') is None:
         print('  [WARN] Claude CLI not found; skipping Claude MCP installation.')
@@ -534,6 +591,8 @@ if install_gemini:
     update_gemini(manifest)
 if install_codex:
     update_codex(manifest)
+if install_opencode:
+    update_opencode(manifest)
 if install_claude:
     update_claude(manifest)
 PY

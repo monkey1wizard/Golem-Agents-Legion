@@ -1,6 +1,6 @@
 ---
 name: git-commits
-description: Write commit messages that follow this project's Conventional Commit format. Use whenever the user asks for a commit message, wants to rewrite one, says to commit or summarize staged changes, or needs wording that matches GAL rules. Analyze staged changes or the provided diff, choose the right commit type, detect breaking-change risk, choose the most relevant scope, and return the repo's scoped format.
+description: Write commit messages that follow this project's Conventional Commit format. Use whenever the user asks for a commit message, says git-commit-msg, git-commit, or git commit, says commit msg or commit message, asks to summarize staged changes, says follow or fallow the git-commits, or needs wording that matches GAL rules. Analyze staged changes or the provided diff, choose the right commit type, detect breaking-change risk, choose the most relevant scope, and return the repo's scoped format.
 ---
 
 # Git Commits Skill
@@ -14,6 +14,21 @@ description: Write commit messages that follow this project's Conventional Commi
 Analyze staged git changes and generate commit messages that match this repository's Conventional Commit style. Use staged diffs or a provided patch to determine the correct type, detect breaking-change risk, choose the most relevant scope, and produce either a one-line commit or a short body with up to three high-signal bullets.
 
 This repo's local rules override generic Conventional Commits guidance when they conflict. The final output must use a scoped header and stay in this repo's no-footer format unless the user explicitly asks for generic Conventional Commits instead.
+
+## Activation Rule
+
+Treat all of the following as requests for this skill, even when the wording is casual, ungrammatical, abbreviated, or partially incorrect:
+
+- "fallow the git-commits to give me commit msg"
+- "git-commit"
+- "git-commit-msg"
+- "git commit message"
+- "give me commit msg"
+- "write commit msg"
+- "summarize staged changes into commit message"
+- "help me commit this"
+
+If the user intent is clearly to produce commit-message wording from staged changes or a provided diff, activate this skill instead of asking a broad clarifying question.
 
 ## Prerequisites
 
@@ -40,6 +55,8 @@ This repo's local rules override generic Conventional Commits guidance when they
 7. Construct the commit message: type(scope): imperative description under 72 characters
 8. For non-trivial changes, add up to three short bullets describing the most important changes and their impact.
 9. Do not use footers, if the change is breaking, make that clear in the header or bullets unless the user explicitly asks for generic Conventional Commits.
+10. If staged changes exist, do not ask the user to describe the changes first. Inspect the staged diff directly and produce the message.
+11. If the request names this skill or obviously refers to commit-message generation, default to producing the commit message immediately.
 
 ## Rules
 
@@ -94,6 +111,10 @@ Bullet rules:
 - "Analyze my staged changes and generate a scoped commit message in this repo's format."
 - "Create a commit message for these changes and call out any breaking-change risk without using a footer."
 - "Summarize this broader change as a scoped title plus the three most important changes."
+- "fallow the git-commits to give me commit msg"
+- "git-commit-msg for current staged changes"
+- "git-commit for current staged changes"
+- "give me commit msg from staged diff"
 
 ## Resources
 
@@ -107,3 +128,4 @@ When asked for a commit message:
 1. Pick the correct type.
 2. Choose the most relevant scope and use a scoped header.
 3. Return only the commit message unless the user asks for explanation.
+4. Prefer acting on staged diff context immediately over asking for a manual summary when git data is available.

@@ -126,11 +126,33 @@ new_claude_command_file_content() {
     }
 }
 
+new_opencode_command_file_content() {
+    local skill_path="$1"
+    local description body
+
+    description="$(get_skill_frontmatter_description "$skill_path")"
+    [ -n "$description" ] || description='GAL command'
+    body="$(get_skill_markdown_body "$skill_path")"
+
+    {
+        printf '%s\n' "$GAL_MANAGED_FILE_HEADER"
+        printf '%s\n' '---'
+        printf '%s\n' 'description: |'
+        while IFS= read -r line; do
+            printf '  %s\n' "$line"
+        done <<< "$description"
+        printf '%s\n\n' '---'
+        printf '%s\n\n' 'User command arguments, if any: $ARGUMENTS'
+        printf '%s\n' "$body"
+    }
+}
+
 invoke_update_commands() {
     ensure_setup_directories \
         "$SKILLS_TARGET" \
         "$CODEX_SKILLS_TARGET" \
         "$GEMINI_COMMANDS_TARGET" \
+        "$OPENCODE_COMMANDS_TARGET" \
         "$CLAUDE_COMMANDS_TARGET" \
         "$SHARED_SKILLS_TARGET"
 
@@ -272,6 +294,37 @@ invoke_update_commands() {
     fi
 
     echo ''
+    echo '=== OpenCode custom commands ==='
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        command_file="$OPENCODE_COMMANDS_TARGET/$command_skill_name.md"
+        if $UNINSTALL || ! $INSTALL_OPENCODE; then
+            [ -f "$command_file" ] || continue
+            if ! is_gal_managed_file "$command_file"; then
+                echo "  [SKIP] User-owned OpenCode command preserved: $command_file"
+                continue
+            fi
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove: $command_file"
+            else
+                rm "$command_file"
+                echo "  [REMOVED] $command_file"
+            fi
+        else
+            skill_path="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would write: $command_file"
+            else
+                command_content="$(new_opencode_command_file_content "$skill_path")"
+                printf '%s\n' "$command_content" > "$command_file"
+                echo "  [OK] $command_file"
+            fi
+        fi
+    done
+    if ! $UNINSTALL && $INSTALL_OPENCODE; then
+        echo '  [NOTE] Restart OpenCode or reload its command surface to pick up updated GAL commands.'
+    fi
+
+    echo ''
     echo '=== Migration: obsolete command cleanup ==='
     local skills_dir dir_name keep_dir keep_file existing_dir existing_file
     for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
@@ -326,6 +379,23 @@ invoke_update_commands() {
         else
             rm "$existing_file"
             echo "  [REMOVED] Obsolete Claude command: $existing_file"
+        fi
+    done
+
+    for existing_file in "$OPENCODE_COMMANDS_TARGET"/*.md; do
+        [ -e "$existing_file" ] || continue
+        keep_file=false
+        if contains_value "$(basename "$existing_file" .md)" "${COMMAND_SKILL_NAMES[@]}"; then
+            keep_file=true
+        fi
+        if $keep_file || ! is_gal_managed_file "$existing_file"; then
+            continue
+        fi
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove obsolete OpenCode command: $existing_file"
+        else
+            rm "$existing_file"
+            echo "  [REMOVED] Obsolete OpenCode command: $existing_file"
         fi
     done
 

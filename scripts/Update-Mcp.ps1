@@ -200,6 +200,50 @@ function ConvertTo-CopilotCliMcpConfig([System.Collections.IDictionary]$Config) 
     return $converted
 }
 
+function ConvertTo-OpenCodeMcpConfig([System.Collections.IDictionary]$Config) {
+    $transport = if ($Config.Contains('type')) { [string]$Config['type'] } elseif ($Config.Contains('url')) { 'http' } else { 'stdio' }
+    if ($transport -eq 'http' -or $transport -eq 'sse') {
+        $converted = [ordered]@{
+            type = 'remote'
+            url = [string]$Config['url']
+            enabled = $true
+        }
+        if ($Config.Contains('headers') -and $Config['headers'] -is [System.Collections.IDictionary]) {
+            $converted['headers'] = $Config['headers']
+        }
+        if ($Config.Contains('timeout')) {
+            $converted['timeout'] = $Config['timeout']
+        }
+        return $converted
+    }
+
+    $command = [System.Collections.Generic.List[object]]::new()
+    if ($Config.Contains('command')) {
+        $command.Add([string]$Config['command'])
+    }
+    if ($Config.Contains('args') -and $Config['args'] -is [System.Collections.IEnumerable] -and -not ($Config['args'] -is [string])) {
+        foreach ($arg in $Config['args']) {
+            $command.Add([string]$arg)
+        }
+    }
+    elseif ($Config.Contains('args') -and $null -ne $Config['args']) {
+        $command.Add([string]$Config['args'])
+    }
+
+    $converted = [ordered]@{
+        type = 'local'
+        command = [object[]]$command.ToArray()
+        enabled = $true
+    }
+    if ($Config.Contains('env') -and $Config['env'] -is [System.Collections.IDictionary]) {
+        $converted['environment'] = $Config['env']
+    }
+    if ($Config.Contains('timeout')) {
+        $converted['timeout'] = $Config['timeout']
+    }
+    return $converted
+}
+
 function ConvertTo-TomlString([string]$Value) {
     $escaped = $Value.Replace('\\', '\\\\').Replace('"', '\\"')
     return '"' + $escaped + '"'
@@ -418,14 +462,14 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
         $copilotCliMcp['mcpServers'] = [ordered]@{}
     }
 
-    $managedProfiles = foreach ($serverName in $ManagedManifest['servers'].Keys) {
+    $managedBridgeConfigs = foreach ($serverName in $ManagedManifest['servers'].Keys) {
         Get-CopilotCliBridgeProfile -ServerName $serverName
     }
 
     $managedKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($profile in @($managedProfiles)) {
-        if ($null -ne $profile['Key'] -and -not [string]::IsNullOrWhiteSpace([string]$profile['Key'])) {
-            [void]$managedKeys.Add([string]$profile['Key'])
+    foreach ($bridgeConfig in @($managedBridgeConfigs)) {
+        if ($null -ne $bridgeConfig['Key'] -and -not [string]::IsNullOrWhiteSpace([string]$bridgeConfig['Key'])) {
+            [void]$managedKeys.Add([string]$bridgeConfig['Key'])
         }
     }
     foreach ($legacyName in @('chromedevtools/chrome-devtools-mcp', 'github-mcp-server', 'microsoftdocs/mcp', 'microsoft/markitdown', 'upstash/context7')) {
@@ -447,12 +491,12 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     }
 
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        $profile = Get-CopilotCliBridgeProfile -ServerName $serverName
-        if (-not $profile['Enabled']) {
+        $bridgeConfig = Get-CopilotCliBridgeProfile -ServerName $serverName
+        if (-not $bridgeConfig['Enabled']) {
             continue
         }
 
-        $targetServerName = [string]$profile['Key']
+        $targetServerName = [string]$bridgeConfig['Key']
         $converted = ConvertTo-CopilotCliMcpConfig $ManagedManifest['servers'][$serverName]
         if (-not $copilotCliMcp['mcpServers'].Contains($targetServerName) -or -not (Test-JsonLikeEqual $copilotCliMcp['mcpServers'][$targetServerName] $converted)) {
             $copilotCliMcp['mcpServers'][$targetServerName] = $converted
@@ -556,6 +600,38 @@ function Update-CodexMcpConfig([System.Collections.IDictionary]$ManagedManifest)
     Write-Host "  [OK] $($context.CodexConfigFile)"
 }
 
+function Update-OpenCodeMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+    $context = $script:SetupContext
+    $openCodeConfig = Read-JsonOrderedMap $context.OpenCodeConfigFile
+    if ($null -eq $openCodeConfig) {
+        $openCodeConfig = [ordered]@{}
+    }
+
+    if (-not $openCodeConfig.Contains('mcp') -or $openCodeConfig['mcp'] -isnot [System.Collections.IDictionary]) {
+        $openCodeConfig['mcp'] = [ordered]@{}
+    }
+
+    $changed = $false
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $converted = ConvertTo-OpenCodeMcpConfig $ManagedManifest['servers'][$serverName]
+        if (-not $openCodeConfig['mcp'].Contains($serverName) -or -not (Test-JsonLikeEqual $openCodeConfig['mcp'][$serverName] $converted)) {
+            $openCodeConfig['mcp'][$serverName] = $converted
+            $changed = $true
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would set OpenCode MCP server: $serverName"
+            }
+            else {
+                Write-Host "  [SET] OpenCode MCP server: $serverName"
+            }
+        }
+    }
+
+    if ($changed -and -not $script:SetupOptions.DryRun) {
+        Write-JsonOrderedMap $context.OpenCodeConfigFile $openCodeConfig
+        Write-Host "  [OK] $($context.OpenCodeConfigFile)"
+    }
+}
+
 function Invoke-ClaudeMcpCommand([string[]]$Arguments) {
     & claude @Arguments
     return $LASTEXITCODE
@@ -634,6 +710,7 @@ function Invoke-UpdateMcp {
         }
         if ($context.InstallGemini) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.GeminiSettingsFile)" }
         if ($context.InstallCodex) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CodexConfigFile)" }
+        if ($context.InstallOpenCode) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.OpenCodeConfigFile)" }
         if ($context.InstallClaude) { Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope' }
     }
 
@@ -646,6 +723,7 @@ function Invoke-UpdateMcp {
     }
     if ($context.InstallGemini) { Update-GeminiMcpConfig -ManagedManifest $manifest }
     if ($context.InstallCodex) { Update-CodexMcpConfig -ManagedManifest $manifest }
+    if ($context.InstallOpenCode) { Update-OpenCodeMcpConfig -ManagedManifest $manifest }
     if ($context.InstallClaude) { Update-ClaudeMcpConfig -ManagedManifest $manifest }
 }
 

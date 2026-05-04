@@ -12,6 +12,7 @@ function New-SetupContext {
     $copilotRoot = Join-Path $env:USERPROFILE '.copilot'
     $skillsTarget = Join-Path $copilotRoot 'skills'
     $codexRoot = Join-Path $env:USERPROFILE '.codex'
+    $openCodeRoot = Join-Path $env:USERPROFILE '.config\opencode'
 
     $galSource = Join-Path $repoRoot 'commands\gal'
     $commandsSourceDir = Join-Path $repoRoot 'commands'
@@ -73,6 +74,12 @@ function New-SetupContext {
         CodexSkillsTarget = Join-Path $codexRoot 'skills'
         CodexConfigFile = Join-Path $codexRoot 'config.toml'
 
+        OpenCodeRoot = $openCodeRoot
+        OpenCodeSkillsTarget = Join-Path $openCodeRoot 'skills'
+        OpenCodeAgentsTarget = Join-Path $openCodeRoot 'agents'
+        OpenCodeCommandsTarget = Join-Path $openCodeRoot 'commands'
+        OpenCodeConfigFile = Join-Path $openCodeRoot 'opencode.json'
+
         ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
         ClaudeSkillsTarget = Join-Path $env:USERPROFILE '.claude\skills'
         ClaudeCommandsTarget = Join-Path $env:USERPROFILE '.claude\commands'
@@ -90,6 +97,7 @@ function New-SetupContext {
             [pscustomobject]@{ Key = 'copilot'; Label = 'GitHub Copilot'; Description = 'shared Copilot agents, skills, GAL commands, VS Code settings bridge, VS Code MCP bridge, Copilot CLI MCP bridge' },
             [pscustomobject]@{ Key = 'gemini'; Label = 'Gemini CLI'; Description = 'native command files, GAL context, shared skills, Gemini MCP bridge' },
             [pscustomobject]@{ Key = 'codex'; Label = 'Codex CLI'; Description = 'installed GAL command skills, shared skills, Codex MCP bridge' },
+            [pscustomobject]@{ Key = 'opencode'; Label = 'OpenCode'; Description = 'OpenCode agents, commands, reusable skill discovery, OpenCode MCP bridge' },
             [pscustomobject]@{ Key = 'claude'; Label = 'Claude Code'; Description = 'Claude skills, native command files, repo-local CLAUDE.md adapter' }
         )
     }
@@ -146,12 +154,14 @@ function Initialize-SetupSession {
     $script:SetupContext | Add-Member -NotePropertyName InstallCopilot -NotePropertyValue ($selectedRuntimes -contains 'copilot') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallGemini -NotePropertyValue ($selectedRuntimes -contains 'gemini') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallCodex -NotePropertyValue ($selectedRuntimes -contains 'codex') -Force
+    $script:SetupContext | Add-Member -NotePropertyName InstallOpenCode -NotePropertyValue ($selectedRuntimes -contains 'opencode') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallClaude -NotePropertyValue ($selectedRuntimes -contains 'claude') -Force
-    $script:SetupContext | Add-Member -NotePropertyName InstallSharedSkills -NotePropertyValue (($selectedRuntimes -contains 'gemini') -or ($selectedRuntimes -contains 'codex')) -Force
+    $script:SetupContext | Add-Member -NotePropertyName InstallSharedSkills -NotePropertyValue (($selectedRuntimes -contains 'gemini') -or ($selectedRuntimes -contains 'codex') -or ($selectedRuntimes -contains 'opencode')) -Force
     $script:SetupContext | Add-Member -NotePropertyName NeedsBakedCommandSkills -NotePropertyValue (
         ($selectedRuntimes -contains 'copilot') -or
         ($selectedRuntimes -contains 'gemini') -or
         ($selectedRuntimes -contains 'codex') -or
+        ($selectedRuntimes -contains 'opencode') -or
         ($selectedRuntimes -contains 'claude')
     ) -Force
 
@@ -482,7 +492,7 @@ function Split-ConfigList([string]$Value) {
 }
 
 function Get-DefaultPrimaryRuntime([string[]]$SelectedRuntimes) {
-    foreach ($preferred in @('copilot', 'gemini', 'codex', 'claude')) {
+    foreach ($preferred in @('copilot', 'gemini', 'codex', 'claude', 'opencode')) {
         if ($SelectedRuntimes -contains $preferred) {
             return $preferred
         }
@@ -602,6 +612,12 @@ function Get-DetectedRuntimeSelection {
 
     $codexInstalled = (Get-ChildItem $context.CodexSkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1)
     if ($codexInstalled) { $detected.Add('codex') }
+
+    $openCodeInstalled =
+        (Get-ChildItem $context.OpenCodeSkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1) -or
+        (Get-ChildItem $context.OpenCodeAgentsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalManagedFile $_.FullName } | Select-Object -First 1) -or
+        (Get-ChildItem $context.OpenCodeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalManagedFile $_.FullName } | Select-Object -First 1)
+    if ($openCodeInstalled) { $detected.Add('opencode') }
 
     $claudeInstalled =
         (Get-ChildItem $context.ClaudeSkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1) -or

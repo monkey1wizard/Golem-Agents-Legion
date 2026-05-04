@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    ".github/copilot-instructions.md"
+  ],
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      "graphify-out/**"
+    ]
+  },
+  "command": {
+    "git-commit-msg": {
+      "description": "Generate a commit message from staged changes",
+      "template": "Run the repo helper below and return its output exactly. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS\n\n!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`"
+    }
+  },
+  "permission": {
+    "read": "allow",
+    "edit": "ask",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "question": "allow",
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "git commit *": "ask",
+      "git push *": "deny",
+      "npm *": "allow",
+      "rm *": "deny",
+      "grep *": "allow"
+    },
+    "external_directory": {
+      "~/**": "allow"
+    }
+  },
+  "agent": {
+    "build": {
+      "steps": 12,
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "git *": "allow",
+          "git commit *": "ask",
+          "git push *": "deny",
+          "npm *": "allow",
+          "grep *": "allow"
+        }
+      }
+    },
+    "plan": {
+      "steps": 8
+    },
+    "general": {
+      "steps": 10
+    },
+    "explore": {
+      "steps": 6
+    }
+  }
+}

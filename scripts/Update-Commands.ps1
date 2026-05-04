@@ -112,12 +112,37 @@ function New-ClaudeCommandFileContent([string]$SkillPath, [string]$CommandName) 
     ) -join "`n"
 }
 
+function New-OpenCodeCommandFileContent([string]$SkillPath) {
+    $rawContent = Get-Content $SkillPath -Raw -Encoding UTF8
+    $description = Get-SkillFrontmatterDescription $rawContent
+    if ([string]::IsNullOrWhiteSpace($description)) {
+        $description = 'GAL command'
+    }
+
+    $body = (Get-SkillMarkdownBody $rawContent).Trim()
+    $indentedDescription = ($description -replace "`r`n", "`n" -replace "`r", "`n") -split "`n" | ForEach-Object { '  ' + $_ }
+
+    return @(
+        $script:SetupContext.GalManagedFileHeader
+        '---'
+        'description: |'
+        ($indentedDescription -join "`n")
+        '---'
+        ''
+        'User command arguments, if any: $ARGUMENTS'
+        ''
+        $body
+        ''
+    ) -join "`n"
+}
+
 function Invoke-UpdateCommands {
     $context = $script:SetupContext
     Ensure-SetupDirectories @(
         $context.SkillsTarget,
         $context.CodexSkillsTarget,
         $context.GeminiCommandsTarget,
+        $context.OpenCodeCommandsTarget,
         $context.ClaudeCommandsTarget,
         $context.SharedSkillsTarget
     )
@@ -255,6 +280,36 @@ function Invoke-UpdateCommands {
     }
 
     Write-Host ''
+    Write-Host '=== OpenCode custom commands ==='
+    foreach ($commandSkill in $context.CommandSkillDirs) {
+        $commandFile = Join-Path $context.OpenCodeCommandsTarget ("{0}.md" -f $commandSkill.Name)
+        if ($script:SetupOptions.Uninstall -or -not $context.InstallOpenCode) {
+            if (-not (Test-Path $commandFile)) { continue }
+            if (-not (Test-GalManagedFile $commandFile)) {
+                Write-Host "  [SKIP] User-owned OpenCode command preserved: $commandFile"
+                continue
+            }
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove: $commandFile"
+            }
+            else {
+                Remove-Item $commandFile -Force
+                Write-Host "  [REMOVED] $commandFile"
+            }
+        }
+        else {
+            $commandContent = New-OpenCodeCommandFileContent -SkillPath (Join-Path $commandSkill.Source 'SKILL.md')
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would write: $commandFile"
+            }
+            else {
+                [System.IO.File]::WriteAllText($commandFile, $commandContent, $context.Utf8NoBom)
+                Write-Host "  [OK] $commandFile"
+            }
+        }
+    }
+
+    Write-Host ''
     Write-Host '=== Migration: obsolete command cleanup ==='
     foreach ($skillsDir in @($context.SkillsTarget, $context.GeminiSkillsTarget, $context.SharedSkillsTarget, $context.CodexSkillsTarget)) {
         $obsoleteCommandLinks = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue | Where-Object {
@@ -293,6 +348,18 @@ function Invoke-UpdateCommands {
         else {
             Remove-Item $commandFile.FullName -Force
             Write-Host "  [REMOVED] Obsolete Claude command: $($commandFile.FullName)"
+        }
+    }
+
+    foreach ($commandFile in (Get-ChildItem $context.OpenCodeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object {
+        $_.BaseName -notin $context.ActiveCommandSkillNames -and (Test-GalManagedFile $_.FullName)
+    })) {
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove obsolete OpenCode command: $($commandFile.FullName)"
+        }
+        else {
+            Remove-Item $commandFile.FullName -Force
+            Write-Host "  [REMOVED] Obsolete OpenCode command: $($commandFile.FullName)"
         }
     }
 }

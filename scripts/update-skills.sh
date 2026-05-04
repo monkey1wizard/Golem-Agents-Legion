@@ -5,6 +5,137 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/common/common.sh"
 
+get_agent_frontmatter_value() {
+    local agent_path="$1"
+    local field_name="$2"
+    local value
+
+    value="$(awk -v field="$field_name" '
+        BEGIN { in_frontmatter = 0 }
+        NR == 1 {
+            if ($0 ~ /^---[[:space:]]*$/) {
+                in_frontmatter = 1
+                next
+            }
+        }
+        in_frontmatter {
+            if ($0 ~ /^---[[:space:]]*$/) {
+                exit
+            }
+            if ($0 ~ ("^" field ":[[:space:]]*")) {
+                sub("^" field ":[[:space:]]*", "", $0)
+                print $0
+                exit
+            }
+        }
+    ' "$agent_path")"
+
+    value="${value#\"}"
+    value="${value%\"}"
+    printf '%s' "$value"
+}
+
+get_agent_markdown_body() {
+    local agent_path="$1"
+    awk '
+        BEGIN { in_frontmatter = 0 }
+        NR == 1 {
+            if ($0 ~ /^---[[:space:]]*$/) {
+                in_frontmatter = 1
+                next
+            }
+        }
+        in_frontmatter {
+            if ($0 ~ /^---[[:space:]]*$/) {
+                in_frontmatter = 0
+                next
+            }
+            next
+        }
+        { print }
+    ' "$agent_path"
+}
+
+get_agent_tools() {
+    local agent_path="$1"
+    local raw_tools
+    raw_tools="$(get_agent_frontmatter_value "$agent_path" tools)"
+    raw_tools="${raw_tools#[}"
+    raw_tools="${raw_tools%]}"
+    printf '%s' "$raw_tools" | tr ',' '\n' | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^'//; s/'$//; s/^\"//; s/\"$//" | awk 'NF'
+}
+
+emit_opencode_permission_lines() {
+    local agent_path="$1"
+    local line
+    local allow_read=false
+    local allow_list=false
+    local allow_grep=false
+    local allow_glob=false
+    local allow_edit=false
+    local allow_bash=false
+
+    while IFS= read -r line; do
+        case "$line" in
+            read)
+                allow_read=true
+                allow_list=true
+                ;;
+            search)
+                allow_read=true
+                allow_list=true
+                allow_grep=true
+                allow_glob=true
+                ;;
+            edit)
+                allow_edit=true
+                ;;
+            execute)
+                allow_bash=true
+                ;;
+        esac
+    done < <(get_agent_tools "$agent_path")
+
+    if ! $allow_read && ! $allow_list && ! $allow_grep && ! $allow_glob && ! $allow_edit && ! $allow_bash; then
+        allow_read=true
+        allow_list=true
+    fi
+
+    $allow_read && printf '  read: allow\n'
+    $allow_list && printf '  list: allow\n'
+    $allow_grep && printf '  grep: allow\n'
+    $allow_glob && printf '  glob: allow\n'
+    $allow_edit && printf '  edit: allow\n'
+    $allow_bash && printf '  bash: allow\n'
+}
+
+new_opencode_agent_file_content() {
+    local agent_path="$1"
+    local description color body
+
+    description="$(get_agent_frontmatter_value "$agent_path" description)"
+    [ -n "$description" ] || description='GAL golem agent'
+    color="$(get_agent_frontmatter_value "$agent_path" color)"
+    body="$(get_agent_markdown_body "$agent_path")"
+
+    {
+        printf '%s\n' "$GAL_MANAGED_FILE_HEADER"
+        printf '%s\n' '---'
+        printf '%s\n' 'description: |'
+        while IFS= read -r line; do
+            printf '  %s\n' "$line"
+        done <<< "$description"
+        printf '%s\n' 'mode: subagent'
+        if [ -n "$color" ]; then
+            printf 'color: %s\n' "$color"
+        fi
+        printf '%s\n' 'permission:'
+        emit_opencode_permission_lines "$agent_path"
+        printf '%s\n\n' '---'
+        printf '%s\n' "$body"
+    }
+}
+
 invoke_update_skills() {
     ensure_setup_directories \
         "$COPILOT_ROOT" \
@@ -16,6 +147,8 @@ invoke_update_skills() {
         "$GEMINI_SKILLS_TARGET" \
         "$CODEX_ROOT" \
         "$CODEX_SKILLS_TARGET" \
+        "$OPENCODE_ROOT" \
+        "$OPENCODE_AGENTS_TARGET" \
         "$CLAUDE_ROOT" \
         "$CLAUDE_SKILLS_TARGET"
 
@@ -34,6 +167,37 @@ invoke_update_skills() {
             safe_unlink "$link_path"
         else
             safe_link "$link_path" "$agent_file"
+        fi
+    done
+
+    echo ''
+    echo "=== OpenCode Agents (${#agent_files[@]} generated subagents) ==="
+    local agent_name target_path agent_content
+    for agent_file in "${agent_files[@]}"; do
+        agent_name="$(basename "$agent_file" .agent.md)"
+        target_path="$OPENCODE_AGENTS_TARGET/$agent_name.md"
+        if $UNINSTALL || ! $INSTALL_OPENCODE; then
+            if [ ! -f "$target_path" ]; then
+                continue
+            fi
+            if ! is_gal_managed_file "$target_path"; then
+                echo "  [SKIP] User-owned OpenCode agent preserved: $target_path"
+                continue
+            fi
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove: $target_path"
+            else
+                rm -f "$target_path"
+                echo "  [REMOVED] $target_path"
+            fi
+        else
+            agent_content="$(new_opencode_agent_file_content "$agent_file")"
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would write: $target_path"
+            else
+                printf '%s\n' "$agent_content" > "$target_path"
+                echo "  [OK] $target_path"
+            fi
         fi
     done
 
