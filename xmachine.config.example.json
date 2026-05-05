@@ -1,0 +1,12 @@
+{
+  "nodes": {
+    "mac-mini": {
+      "target": "username@username-mac-mini.local",
+      "repoPath": "/Users/username/Golem-Agents-Legion"
+    },
+    "win11-pc": {
+      "target": "alice@win11-pc",
+      "repoPath": "%USERPROFILE%\\Golem-Agents-Legion"
+    }
+  }
+}

@@ -105,6 +105,30 @@ Working-hours enforcement is disabled by default. If you want GAL to respect you
 
 These values are machine-local preferences, not tracked repo policy.
 
+### 2d. xmachine node config
+
+xmachine node definitions are machine-local and live in `../xmachine.config.json`.
+
+- Copy `../xmachine.config.example.json` to `../xmachine.config.json`.
+- Define each work node under the top-level `nodes` object.
+- Use the node alias as the key and set at least `target` and `repoPath`.
+- Keep SSH targets and repo paths in `xmachine.config.json`, not in `config.local.env`.
+
+Example:
+
+```json
+{
+  "nodes": {
+    "mac-mini": {
+      "target": "username@username-mac-mini.local",
+      "repoPath": "/Users/username/Golem-Agents-Legion"
+    }
+  }
+}
+```
+
+`scripts/Test-Xmachine.ps1` reads `xmachine.config.json` directly, so editing this file does not require rerunning setup.
+
 ### 3. MCP overrides
 
 - Keep the tracked GAL source in `../mcp.json`.
@@ -136,6 +160,8 @@ Run setup again when any of these change:
 - working-hours settings
 - model routing or runtime install locations
 - GAL command or skill installation
+
+`xmachine.config.json` is read directly by the xmachine scripts and does not require a setup rerun.
 
 Use the narrower concern script when only one concern changed:
 

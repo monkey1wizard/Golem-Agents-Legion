@@ -18,6 +18,7 @@ openclaw.json
 config.local.env
 mcp.local.json
 model-roles.local.md
+xmachine.config.json
 commands/*/SKILL.local.md
 
 # Local graphify outputs and virtual environment

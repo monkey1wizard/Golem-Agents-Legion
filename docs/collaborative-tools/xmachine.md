@@ -2,7 +2,7 @@
 
 xmachine is an optional execution tool for GAL that offloads scoped tasks from a primary control node to an SSH-accessible work node. It operates without modifying GAL's control plane, repo-owned state model, or patch-first convergence rules.
 
-The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be an alias defined in `XMACHINE_WORK_NODE_ALIASES` within `config.local.env`. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
+The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a node alias defined under the top-level `nodes` object in `xmachine.config.json` at the repo root. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
 
 ## Capabilities
 
@@ -89,21 +89,42 @@ If task dispatch fails with "Permission denied" or continues to prompt for a pas
 | **Tooling-Ready Node** | A node that has passed basic connectivity and tool checks but has not yet cleared the final pipeline smoke gate. |
 | **Readied Node** | A node that has cleared all readiness gates, including `pipeline-smoke`, and is available for offloading tasks. |
 
-## Alias Resolution
+## Node Configuration
 
-Define aliases in `config.local.env` to provide stable, memorable IDs for your work nodes.
+Define work nodes in `xmachine.config.json` to provide stable, memorable IDs for your work nodes.
 
-- `XMACHINE_WORK_NODE_ALIASES` maps these IDs to SSH targets.
-- Mapped targets can be `Host` entries from `.ssh/config` or direct `user@host` strings.
+- The top-level `nodes` object is keyed by work-node alias.
+- Each node must define a `target` value.
+- Each node should usually define a `repoPath` value so `-WorkRepoPath` can stay optional.
+- `target` can be either a `Host` entry from `.ssh/config` or a direct `user@host` string.
 - The `-WorkNode` parameter must match a defined alias.
 
 **Example:**
 
-```text
-XMACHINE_WORK_NODE_ALIASES=mac-mini=username@username-mac-mini;office-win=alice@win-box
+```json
+{
+  "nodes": {
+    "mac-mini": {
+      "target": "username@username-mac-mini.local",
+      "repoPath": "/Users/username/Golem-Agents-Legion"
+    },
+    "win11-pc": {
+      "target": "alice@win11-pc",
+      "repoPath": "%USERPROFILE%\\Golem-Agents-Legion"
+    }
+  }
+}
 ```
 
-In this setup, `-WorkNode mac-mini` resolves to `username@username-mac-mini` before the SSH check begins.
+In this setup, `-WorkNode mac-mini` resolves to `username@username-mac-mini.local` before the SSH check begins.
+
+### Repo Path Precedence
+
+`Test-Xmachine.ps1` resolves the work-node repo path in this order:
+
+1. Explicit `-WorkRepoPath`
+2. `repoPath` on the selected node in `xmachine.config.json`
+3. The existing machine-local cache in `~/.gal/xmachine-nodes.json`
 
 ## Supported Execution Paths
 
@@ -169,7 +190,7 @@ Verify and cache a work node from a Windows control node:
     -Wait
 ```
 
-If `XMACHINE_DEFAULT_WORK_REPO_PATH` is set, `-WorkRepoPath` can be omitted for nodes using that path.
+If the selected node defines `repoPath` in `xmachine.config.json`, `-WorkRepoPath` can be omitted.
 
 ### Windows Work Node
 

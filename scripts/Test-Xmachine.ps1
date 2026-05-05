@@ -11,7 +11,7 @@
 
 .PARAMETER WorkNode
     User-facing xmachine work-node alias. The alias must exist in
-    `XMACHINE_WORK_NODE_ALIASES` inside `config.local.env`.
+    `xmachine.config.json` at the repository root.
 
 .PARAMETER WorkRepoPath
     Repo checkout path on the work node. If omitted, the script tries to reuse
@@ -54,102 +54,103 @@ function Get-RepoName {
     return Split-Path $RepoRoot -Leaf
 }
 
-function Read-KeyValueEnvFile {
-    param([Parameter(Mandatory)][string]$Path)
+function Get-XmachineConfigPath {
+    param([Parameter(Mandatory)][string]$RepoRoot)
 
-    $values = [ordered]@{}
-    if (-not (Test-Path $Path)) {
-        return $values
-    }
-
-    foreach ($line in Get-Content $Path -Encoding UTF8) {
-        if ($line -match '^\s*#' -or $line -notmatch '=') {
-            continue
-        }
-
-        $parts = $line.Split('=', 2)
-        $key = $parts[0].Trim()
-        $value = $parts[1].Trim()
-        if ([string]::IsNullOrWhiteSpace($key) -or [string]::IsNullOrWhiteSpace($value)) {
-            continue
-        }
-
-        $values[$key] = $value
-    }
-
-    return $values
+    return Join-Path $RepoRoot "xmachine.config.json"
 }
 
-function Get-ConfiguredValue {
+function Read-XmachineConfig {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    $configPath = Get-XmachineConfigPath -RepoRoot $RepoRoot
+    if (-not (Test-Path $configPath)) {
+        throw "Missing xmachine config '$configPath'. Copy xmachine.config.example.json to xmachine.config.json before running xmachine smoke tests."
+    }
+
+    $raw = Get-Content $configPath -Raw
+    if ([string]::IsNullOrWhiteSpace($raw)) {
+        throw "Xmachine config '$configPath' is empty. Copy xmachine.config.example.json to xmachine.config.json and define at least one node."
+    }
+
+    try {
+        $config = $raw | ConvertFrom-Json -AsHashtable
+    }
+    catch {
+        throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
+    }
+
+    if ($null -eq $config -or -not $config.ContainsKey("nodes")) {
+        throw "Xmachine config '$configPath' must define a top-level 'nodes' object."
+    }
+
+    $nodes = $config["nodes"]
+    if ($nodes -isnot [System.Collections.IDictionary]) {
+        throw "Xmachine config '$configPath' must define 'nodes' as an object keyed by work-node alias."
+    }
+
+    return @{
+        path = $configPath
+        nodes = $nodes
+    }
+}
+
+function Get-XmachineNodeRecord {
     param(
-        [Parameter(Mandatory)][System.Collections.IDictionary]$Values,
-        [Parameter(Mandatory)][string]$Name
+        [Parameter(Mandatory)][string]$RequestedNode,
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Nodes,
+        [Parameter(Mandatory)][string]$ConfigPath
     )
 
-    if ($Values.Contains($Name) -and -not [string]::IsNullOrWhiteSpace([string]$Values[$Name])) {
-        return [string]$Values[$Name]
+    if ($Nodes.Count -eq 0) {
+        throw "Xmachine config '$ConfigPath' does not define any work nodes. Add entries under the top-level 'nodes' object before running xmachine smoke tests."
     }
 
-    $userValue = [Environment]::GetEnvironmentVariable($Name, 'User')
-    if (-not [string]::IsNullOrWhiteSpace($userValue)) {
-        return $userValue
+    if (-not $Nodes.Contains($RequestedNode)) {
+        $availableAliases = ($Nodes.Keys | Sort-Object) -join ", "
+        throw "Unknown work node alias '$RequestedNode' in '$ConfigPath'. Available aliases: $availableAliases"
     }
 
-    $processValue = [Environment]::GetEnvironmentVariable($Name, 'Process')
-    if (-not [string]::IsNullOrWhiteSpace($processValue)) {
-        return $processValue
+    $nodeRecord = $Nodes[$RequestedNode]
+    if ($nodeRecord -isnot [System.Collections.IDictionary]) {
+        throw "Work node '$RequestedNode' in '$ConfigPath' must be an object with at least a 'target' property."
     }
 
-    return $null
-}
-
-function Read-WorkNodeAliasMap {
-    param([Parameter(Mandatory)][System.Collections.IDictionary]$Values)
-
-    $rawValue = Get-ConfiguredValue -Values $Values -Name "XMACHINE_WORK_NODE_ALIASES"
-    $map = @{}
-    if ([string]::IsNullOrWhiteSpace($rawValue)) {
-        return $map
-    }
-
-    foreach ($entry in ($rawValue -split '\s*[;,]\s*')) {
-        if ([string]::IsNullOrWhiteSpace($entry)) {
-            continue
-        }
-
-        $parts = $entry.Split('=', 2)
-        if ($parts.Count -ne 2) {
-            throw "Invalid XMACHINE_WORK_NODE_ALIASES entry '$entry'. Use alias=ssh-target pairs separated by ';' or ','."
-        }
-
-        $alias = $parts[0].Trim()
-        $target = $parts[1].Trim()
-        if ([string]::IsNullOrWhiteSpace($alias) -or [string]::IsNullOrWhiteSpace($target)) {
-            throw "Invalid XMACHINE_WORK_NODE_ALIASES entry '$entry'. Alias and ssh target must both be non-empty."
-        }
-
-        $map[$alias] = $target
-    }
-
-    return $map
+    return $nodeRecord
 }
 
 function Resolve-WorkNodeTarget {
     param(
         [Parameter(Mandatory)][string]$RequestedNode,
-        [Parameter(Mandatory)][hashtable]$AliasMap
+        [Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord,
+        [Parameter(Mandatory)][string]$ConfigPath
     )
 
-    if ($AliasMap.Count -eq 0) {
-        throw "XMACHINE_WORK_NODE_ALIASES is required. Define strict alias=ssh-target pairs in config.local.env before running xmachine smoke tests."
+    $target = $null
+    if ($NodeRecord.Contains("target")) {
+        $target = [string]$NodeRecord["target"]
     }
 
-    if (-not $AliasMap.ContainsKey($RequestedNode)) {
-        $availableAliases = ($AliasMap.Keys | Sort-Object) -join ", "
-        throw "Unknown work node alias '$RequestedNode'. Define it in XMACHINE_WORK_NODE_ALIASES. Available aliases: $availableAliases"
+    if ([string]::IsNullOrWhiteSpace($target)) {
+        throw "Work node '$RequestedNode' in '$ConfigPath' must define a non-empty 'target' value."
     }
 
-    return $AliasMap[$RequestedNode]
+    return $target.Trim()
+}
+
+function Get-ConfiguredWorkRepoPath {
+    param([Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord)
+
+    if (-not $NodeRecord.Contains("repoPath")) {
+        return $null
+    }
+
+    $repoPath = [string]$NodeRecord["repoPath"]
+    if ([string]::IsNullOrWhiteSpace($repoPath)) {
+        return $null
+    }
+
+    return $repoPath.Trim()
 }
 
 function Get-GalStateRoot {
@@ -321,7 +322,8 @@ function Resolve-WorkRepoPath {
         [Parameter(Mandatory)][hashtable]$Cache,
         [Parameter(Mandatory)][string]$NodeId,
         [Parameter(Mandatory)][string]$RepoName,
-        [string]$ConfiguredPath
+        [string]$ConfiguredPath,
+        [Parameter(Mandatory)][string]$ConfigPath
     )
 
     if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
@@ -337,7 +339,7 @@ function Resolve-WorkRepoPath {
         return $cached.repoPaths[$RepoName]
     }
 
-    throw "No repo path is configured for work node '$NodeId' and repo '$RepoName'. Pass -WorkRepoPath once, set XMACHINE_DEFAULT_WORK_REPO_PATH in config.local.env, or populate the cache under ~/.gal/xmachine-nodes.json."
+    throw "No repo path is configured for work node '$NodeId' and repo '$RepoName'. Pass -WorkRepoPath once, define 'repoPath' for '$NodeId' in '$ConfigPath', or populate the cache under ~/.gal/xmachine-nodes.json."
 }
 
 function Resolve-WorkPlatform {
@@ -525,23 +527,22 @@ function New-StagedTaskSpec {
 try {
     $repoRoot = Get-RepoRoot
     $repoName = Get-RepoName -RepoRoot $repoRoot
-    $localEnvPath = Join-Path $repoRoot "config.local.env"
-    $localEnvValues = Read-KeyValueEnvFile -Path $localEnvPath
-    $workNodeAliasMap = Read-WorkNodeAliasMap -Values $localEnvValues
+    $xmachineConfig = Read-XmachineConfig -RepoRoot $repoRoot
 
     if ([string]::IsNullOrWhiteSpace($WorkNode)) {
-        throw "WorkNode is required. Pass -WorkNode <configured-work-node-alias> and define that alias in XMACHINE_WORK_NODE_ALIASES inside config.local.env."
+        throw "WorkNode is required. Pass -WorkNode <configured-work-node-alias> and define that alias under 'nodes' in '$($xmachineConfig.path)'."
     }
 
-    $resolvedWorkNodeTarget = Resolve-WorkNodeTarget -RequestedNode $WorkNode -AliasMap $workNodeAliasMap
-    $configuredWorkRepoPath = Get-ConfiguredValue -Values $localEnvValues -Name "XMACHINE_DEFAULT_WORK_REPO_PATH"
+    $workNodeRecord = Get-XmachineNodeRecord -RequestedNode $WorkNode -Nodes $xmachineConfig.nodes -ConfigPath $xmachineConfig.path
+    $resolvedWorkNodeTarget = Resolve-WorkNodeTarget -RequestedNode $WorkNode -NodeRecord $workNodeRecord -ConfigPath $xmachineConfig.path
+    $configuredWorkRepoPath = Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord
 
     $remoteTemplate = Join-Path $repoRoot "templates\task-xmachine-remote-smoke.md"
     $remoteDispatch = Join-Path $repoRoot "scripts\Invoke-XmachineRemoteTask.ps1"
     $remoteRetrieve = Join-Path $repoRoot "scripts\Get-XmachineRemoteResult.ps1"
 
     $cache = Read-XmachineNodeCache
-    $resolvedRepoPath = Resolve-WorkRepoPath -RequestedPath $WorkRepoPath -Cache $cache -NodeId $WorkNode -RepoName $repoName -ConfiguredPath $configuredWorkRepoPath
+    $resolvedRepoPath = Resolve-WorkRepoPath -RequestedPath $WorkRepoPath -Cache $cache -NodeId $WorkNode -RepoName $repoName -ConfiguredPath $configuredWorkRepoPath -ConfigPath $xmachineConfig.path
     $verifiedStages = @()
     $toolRecord = @{}
 
@@ -549,11 +550,11 @@ try {
     $sshConfigOutput = & ssh -G $resolvedWorkNodeTarget 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Stage -Stage "ssh-config" -Detail ((@($sshConfigOutput) -join [Environment]::NewLine).Trim()) -Status FAIL
-        throw "Could not resolve SSH target '$resolvedWorkNodeTarget' for work node '$WorkNode'. Ensure the alias map or SSH config entry is correct."
+        throw "Could not resolve SSH target '$resolvedWorkNodeTarget' for work node '$WorkNode'. Ensure the target in '$($xmachineConfig.path)' or the SSH config entry is correct."
     }
 
     $sshConfig = ConvertFrom-SshConfigOutput -Lines @($sshConfigOutput | ForEach-Object { $_.ToString() })
-    Write-Stage -Stage "ssh-config" -Detail ("resolved work node '{0}' to SSH target '{1}' via config.local.env/.ssh config" -f $WorkNode, $resolvedWorkNodeTarget) -Status OK
+    Write-Stage -Stage "ssh-config" -Detail ("resolved work node '{0}' to SSH target '{1}' via xmachine.config.json/.ssh config" -f $WorkNode, $resolvedWorkNodeTarget) -Status OK
 
     Write-Stage -Stage "ssh-batch" -Detail "checking passwordless BatchMode SSH"
     $sshBatch = Invoke-SshCommand -NodeId $resolvedWorkNodeTarget -RemoteCommand "echo XMACHINE_SSH_OK"
@@ -683,7 +684,7 @@ exit 1
     Write-Stage -Stage "cache" -Detail ("updated {0}" -f (Get-XmachineNodeCachePath)) -Status OK
     Write-Stage -Stage "summary" -Detail "work node passed SSH, repo, tool-batch, and work-node smoke stages; cache marked it tooling-ready while GAL pipeline smoke is validated." -Status INFO
 
-    $pipelineSmokeOutput = Test-PipelineSmoke -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -RepoPath $resolvedRepoPath
+    [void](Test-PipelineSmoke -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -RepoPath $resolvedRepoPath)
     $verifiedStages = @($verifiedStages + @("pipeline-smoke"))
     $null = Write-NodeReadinessRecord -Cache $cache -NodeId $WorkNode -SshTarget $resolvedWorkNodeTarget -Platform $resolvedPlatform -Status "readied" -VerifiedStages $verifiedStages -RepoName $repoName -RepoPath $resolvedRepoPath -ToolRecord $toolRecord
     Write-Stage -Stage "cache" -Detail ("updated {0} with readied status" -f (Get-XmachineNodeCachePath)) -Status OK

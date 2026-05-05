@@ -112,6 +112,7 @@ The MCP manifest is a separate install concern from skills.
 | `mcp.json` | tracked | single GAL MCP source of truth |
 | `mcp.local.json` | local only | machine-specific overrides and enablement |
 | `config.local.env` | local only | secrets and local values referenced by the manifest |
+| `xmachine.config.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
 
 `Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
 
@@ -188,6 +189,7 @@ After changing install or setup logic, verify at least these points:
 | human-readable feature plan | `docs/plans/<plan-slug>.md` |
 | machine-readable execution work file | `.dev/plans/<plan-slug>.prompt.md` |
 | temporary session continuity | `### Handoff Notes` plus `.dev/state.md` |
+| machine-local xmachine node config | `xmachine.config.json` |
 
 If a completed plan contains knowledge that should survive, extract it back into a durable source file instead of leaving the plan as hidden long-term documentation.
 
