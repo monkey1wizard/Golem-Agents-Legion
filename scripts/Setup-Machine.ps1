@@ -39,14 +39,16 @@ param(
     [switch]$Uninstall,
     [switch]$Replace,
     [switch]$DryRun,
-    [switch]$Reconfigure
+    [switch]$Reconfigure,
+    [string[]]$SelectedRuntimes,
+    [string]$PrimaryRuntime
 )
 
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'common\Common.ps1')
 
-$context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -EnsureRipgrep
+$context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep
 
 $sharedArguments = @{
     Uninstall = $Uninstall

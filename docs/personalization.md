@@ -10,20 +10,22 @@ The machine installer now persists runtime selection in `~/.gal/install-state.js
 - `primaryRuntime` records which runtime should be treated as your default entry point.
 - The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
 
+Antigravity uses a split surface: machine-layer skills and MCP config live under `~/.gemini/antigravity/`, while repo-local context comes from generated `.agents/rules/gal.md` that references `AGENTS.md` through Antigravity's documented `@filename` rule syntax. `Update-Personalization` keeps that integration conservative and does not mutate user-owned global Antigravity rule files.
+
 Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
 The machine setup surface is now split by concern on both Windows and macOS/Linux:
 
 - `scripts/Setup-Machine.ps1` runs the full sequence
-- `scripts/Update-Personalization.ps1` refreshes install-state, settings bridges, local config seeding, and `gal-context.md`
-- `scripts/Update-Skills.ps1` refreshes agents, skills, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills and native Gemini / Claude command files
-- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest
+- `scripts/Update-Personalization.ps1` refreshes install-state, settings bridges, Antigravity workspace-rule strategy, local config seeding, and `gal-context.md`
+- `scripts/Update-Skills.ps1` refreshes agents, skills, Antigravity skill links, and GAL root links
+- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity command skill links, and native Gemini / Claude command files
+- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
 - `scripts/setup-machine.sh` runs the full sequence
-- `scripts/update-personalization.sh` refreshes install-state, settings bridges, local config seeding, and `gal-context.md`
-- `scripts/update-skills.sh` refreshes agents, skills, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills and native Gemini / Claude command files
-- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest
+- `scripts/update-personalization.sh` refreshes install-state, settings bridges, Antigravity workspace-rule strategy, local config seeding, and `gal-context.md`
+- `scripts/update-skills.sh` refreshes agents, skills, Antigravity skill links, and GAL root links
+- `scripts/update-commands.sh` refreshes baked command skills, Antigravity command skill links, and native Gemini / Claude command files
+- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
 
 ## Placeholders You May Need To Fill
 
@@ -142,6 +144,7 @@ The installed runtime configs remain user-owned even when GAL refreshes GAL-mana
 | --- | --- |
 | VS Code | user `mcp.json` |
 | Gemini CLI | `settings.json` under `mcpServers` |
+| Antigravity | `~/.gemini/antigravity/mcp_config.json` under `mcpServers` |
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
 | Claude Code | user-scope MCP entries managed through `claude mcp` |
 

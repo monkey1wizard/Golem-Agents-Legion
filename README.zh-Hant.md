@@ -2,7 +2,7 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套為開發工作帶來結構化流程的 AI 工作系統，讓你可以在不同 AI 工具間切換時保留完整的工作脈絡。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放在 `.dev/`、`docs/plans/`、`docs/research/`；使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault。這樣的設計讓 GitHub Copilot、Gemini CLI、Codex CLI、Claude Code 等工具能夠共用同一套工作流程，同時保留儲存庫之外的私人筆記空間。
+GAL 是一套為開發工作帶來結構化流程的 AI 工作系統，讓你可以在不同 AI 工具間切換時保留完整的工作脈絡。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放在 `.dev/`、`docs/plans/`、`docs/research/`；使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault。這樣的設計讓支援的 runtime 能夠共用同一套工作流程，同時保留儲存庫之外的私人筆記空間。
 
 狀態管理機制參考了 Get Shit Done (GSD) 的階段式準則：以明確的狀態檔案 (`.dev/state.md`)、驗證關卡，以及結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 能夠完整呈現儲存庫目前的工作進度。
 
@@ -13,15 +13,17 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統，讓你可
 
 2. 進入專案目錄後執行安裝：Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`。安裝完成後就能在儲存庫中使用 GAL 指令。
 
-3. 進入目標儲存庫後開啟 GitHub Copilot、Gemini CLI 或 Codex CLI，然後執行：
+3. 進入目標儲存庫後開啟你偏好的支援 runtime，然後用該 runtime 慣用的 command 或 skill 入口呼叫 GAL。常見例子如下：
 
 ```text
-# Copilot / Gemini CLI（斜線指令介面）
+# 常見斜線指令介面
 /gal init
 
 # Codex CLI（技能提及介面，使用 $ 前綴，不是 /）
 $gal init
 ```
+
+各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
 
 ## 公開指令
 
@@ -277,7 +279,7 @@ applicability → availability → initialization status → readiness → route
 
 ### graphify
 
-圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。若已安裝了 graphify CLI，`gal init` 現在會在儲存庫 bootstrap 階段自動產生 `graphify-out/`，並替產生出的 report 寫入當前 graphify 版本標記（stamp）。GAL 不會自動偵測儲存庫的變更，但 `setup-tools`、`/gal status`、`/gal whats-next` 現在可以在 stamped report 與已安裝 graphify 版本不一致時提出警示，而 `/gal pipeline` 與 `/gal wrap-up` 也會在實作工作後提醒你重新執行 `/graphify .`。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。GAL 只會在儲存庫已經存在 `graphify-out/GRAPH_REPORT.md` 等 graphify 產物時使用它。`gal init` 不會自動產生這些檔案。`setup-tools`、`/gal status`、`/gal whats-next` 可以檢查既有 stamped report 是否仍與目前安裝的 graphify 版本一致，但若 repo 沒有 graphify 產物，GAL 仍會照常走非 graphify 流程。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
 ### OpenCLI
 

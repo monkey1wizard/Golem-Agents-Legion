@@ -81,7 +81,7 @@ From `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VER
 - **State**: `NOT-PRESENT` / `FRESH` / `STALE-BY-TOOL-VERSION` / `UNSTAMPED`
 - **Report stamp**: stamped graphify version if the version file exists; otherwise *Not stamped*
 - **Installed version**: current graphify version if available; otherwise *Unavailable*
-- **Action**: if stale, tell the user to rerun `/graphify .` before the next graph-aware planning or review pass; otherwise say whether no action is required or freshness cannot be verified automatically
+- **Action**: if stale, note that GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context; if the report is missing, say that no action is required for normal GAL flow; otherwise say whether no action is required or freshness cannot be verified automatically
 
 ### Specialist Readiness
 

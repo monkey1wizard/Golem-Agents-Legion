@@ -55,37 +55,31 @@ run_graphify_auto_init() {
   local current_version=""
   local stamped_version=""
 
-  if ! command_exists graphify; then
+  if [[ ! -f "$graph_report_path" ]]; then
+    echo "- Skipped: graphify artifact inspection (no graphify-out/GRAPH_REPORT.md)"
     return
   fi
 
-  current_version="$(get_graphify_version || true)"
+  echo "- Detected: existing graphify-out/GRAPH_REPORT.md"
 
-  if [[ -f "$graph_report_path" ]]; then
-    echo "- Detected: existing graphify-out/GRAPH_REPORT.md"
-    if [[ -f "$graph_version_path" ]]; then
-      stamped_version="$(tr -d '\r' < "$graph_version_path")"
-      if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$graph_report_path" -nt "$graph_version_path" ]]; then
-        echo "- Warning: graphify version changed (report: $stamped_version, installed: $current_version)"
-        echo "- Next: rerun /graphify . before the next graph-aware planning or review pass"
-      fi
+  if [[ -f "$graph_version_path" ]] && command_exists graphify; then
+    current_version="$(get_graphify_version || true)"
+    stamped_version="$(tr -d '\r' < "$graph_version_path")"
+    if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$graph_report_path" -nt "$graph_version_path" ]]; then
+      echo "- Warning: graphify version changed (report: $stamped_version, installed: $current_version)"
+      echo "- Next: refresh graphify artifacts manually if you want updated graph context"
     fi
-    echo "- Skipped: graphify auto-run"
-    return
   fi
 
-  echo "- Detected: graphify CLI on PATH"
-  echo "- Running: graphify ."
-  if (cd "$repo_path" && graphify .); then
+  if [[ ! -f "$graph_version_path" ]] && command_exists graphify; then
+    current_version="$(get_graphify_version || true)"
     if [[ -n "$current_version" ]]; then
       write_graphify_version_stamp "$repo_path" "$current_version"
       echo "- Stamped: graphify-out/$graphify_version_file_name ($current_version)"
     fi
-    echo "- Generated: graphify-out/"
-  else
-    echo "- Warning: graphify auto-run failed; init completed without graphify artifacts"
-    echo "- Next: rerun /graphify . from the repo root after fixing graphify"
   fi
+
+  echo "- Skipped: graphify auto-run"
 }
 
 if [[ ! -d "$target_path" ]]; then
@@ -192,6 +186,7 @@ echo "- Generated: .github/copilot-instructions.md"
 echo "- Generated: GEMINI.md"
 echo "- Generated: CLAUDE.md"
 echo "- Generated: AGENTS.md"
+echo "- Generated: .agents/rules/gal.md"
 echo "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if [[ ${#source_docs[@]} -gt 0 ]]; then

@@ -9,18 +9,11 @@ Everything else that used to live behind execution-stage slash commands is now o
 
 ## Architecture
 
-Command skills are installed into Copilot and Codex skill directories, while Gemini and Claude native command files are generated into `~/.gemini/commands/` and `~/.claude/commands/` via `Setup-Machine`. Shared reusable non-command skills remain in `~/.agents/skills`, and Claude also receives direct skill links in `~/.claude/skills/`.
+GAL keeps one shared public command contract and packages it into each supported runtime's native command or skill surface via `Setup-Machine`.
+
+Runtime-specific install paths, generated files, rule shims, and MCP details are documented in `scripts/scripts.md` and `docs/devguide.md`, not in this file.
 
 Codex note: installed GAL skills are available as Codex skills, but explicit invocation uses `$skill-name`, not custom slash-command syntax. Example: use `$gal status`, not `/gal status`.
-
-**Four runtime layers:**
-
-| Layer | Path | Content |
-| --- | --- | --- |
-| Installed dispatcher entry | `~/.copilot/skills/gal/SKILL.md`, `~/.gemini/commands/gal.toml`, `~/.codex/skills/gal/SKILL.md` | Main entry point — generated from `commands/gal/SKILL.template.md` |
-| Discoverability aliases | `~/.copilot/skills/gal-*/SKILL.md`, `~/.gemini/commands/gal-*.toml`, `~/.codex/skills/gal-*/SKILL.md` | Alias entries — generated from `commands/gal-*/SKILL.template.md` |
-| GAL references | `~/.copilot/gal/`, `~/.gemini/gal/` -> repo symlink | templates/, workflows/, conventions/, agent/ |
-| Workspace context | `.dev/project.md`, `.dev/state.md` | Per-repo state |
 
 **Key principles:**
 
@@ -28,7 +21,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 - planning remains a native command family
 - execution-stage specialist work is agent-owned, not command-owned
 - `Setup-Machine` still discovers installed commands from `commands/*/SKILL.template.md`
-- cross-runtime behavior must stay consistent across Copilot, Gemini, and Codex
+- cross-runtime behavior must stay consistent across supported runtimes
 
 ## Public Command Surface
 
@@ -149,12 +142,13 @@ ON_COMPLETE: <next-step hint>
 
 Managed by `Setup-Machine.ps1` and `setup-machine.sh`. The scripts:
 
-1. Create `~/.copilot/gal/` and `~/.gemini/gal/` -> GAL repo root symlinks.
+1. Create the runtime-facing GAL root links or references each supported runtime needs.
 2. Scan all remaining `commands/*/SKILL.template.md` files, replacing `{{GAL_ROOT}}` with the absolute path.
 3. Append any gitignored `commands/*/SKILL.local.md` overlay to the baked content.
 4. Write baked `SKILL.md` files into each remaining `commands/*/` directory.
-5. Symlink command directories into `~/.copilot/skills/` and `~/.codex/skills/`.
-6. Generate Gemini and Claude native command files in `~/.gemini/commands/` and `~/.claude/commands/` from the baked `SKILL.md` content.
-7. Symlink reusable skills into the runtime skill directories, including `~/.claude/skills/`.
+5. Install or generate runtime-specific command entries from the baked command content.
+6. Install shared reusable skills into the runtime skill surfaces that support them.
+
+For the current runtime topology, see `scripts/scripts.md` and `docs/devguide.md`.
 
 If you need a machine-local customization that should survive setup reruns, put it in `commands/<command>/SKILL.local.md`. Do not edit `commands/<command>/SKILL.md` directly.

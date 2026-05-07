@@ -49,7 +49,7 @@ When you switch to a new tool, update the mapping table:
 | --- | --- |
 | Adopt Claude Code | CODER → Claude Code; run `Setup-Machine` to install Claude runtime targets, then run `Sync-DevContext` to generate `CLAUDE.md` |
 | Adopt OmO/OpenCode | All roles → OmO discipline agents; AGENTS.md already generated |
-| Adopt Antigravity | Update table; add adapter in sync script |
+| Adopt another supported runtime | Update the table; run `Setup-Machine` to install that runtime's targets and regenerate any repo-local adapters or rule shims it needs |
 | Better local model | LOCAL → Ollama (new model); no other changes |
 | Drop Copilot entirely | Remove copilot-skills/ symlinks; conventions/ still works everywhere |
 | New machine | Clone repo; run setup script; update Machines table |

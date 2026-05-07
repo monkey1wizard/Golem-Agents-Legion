@@ -64,7 +64,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Layer | Location | Purpose |
 | --- | --- | --- |
 | Layer 1 | the GAL repo | main methodology source |
-| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
+| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.gemini/antigravity/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
 | Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
 | Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
 
@@ -74,17 +74,18 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | --- | --- | --- | --- |
 | Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal/`, and shared `~/.agents/skills/` | generated native `.toml` commands | also merges `mcpServers` into `settings.json` |
+| Antigravity | `~/.gemini/antigravity/skills/`, `~/.gemini/antigravity/gal/`, and `~/.gemini/antigravity/mcp_config.json` | installed named skills plus repo-local workspace rule | uses generated `.agents/rules/gal.md` to reference `AGENTS.md` via Antigravity's documented `@filename` rule syntax; phase 1 does not generate native slash workflows |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
 | Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, and user-scope `claude mcp` config | generated command markdown plus repo-local `CLAUDE.md` | MCP install is managed through the Claude CLI |
 
 ### Layer 1.5 Install Topology
 
-| Source in repo | Copilot target | Gemini target | Codex target | Claude target |
-| --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed | not installed |
-| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | not required | not required |
+| Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
+| --- | --- | --- | --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed | not installed | not installed |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.gemini/antigravity/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
+| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity/gal/` | not required | not required |
 
 ### Generated Runtime Files
 
@@ -92,6 +93,7 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | --- | --- |
 | `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
+| `.agents/rules/gal.md` | thin Antigravity workspace rule shim that references `AGENTS.md` |
 | `~/.claude/commands/*.md` | Claude-native command surface generated from the baked command skill |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
 
@@ -118,6 +120,7 @@ The MCP manifest is a separate install concern from skills.
 
 - VS Code: overwrite tracked server entries inside user `mcp.json`
 - Gemini CLI: overwrite tracked server entries inside `settings.json` under `mcpServers`
+- Antigravity: overwrite tracked server entries inside `~/.gemini/antigravity/mcp_config.json` under `mcpServers`
 - Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
 - Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
 
@@ -125,7 +128,7 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/` and `~/.gemini/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
+`~/.copilot/gal/`, `~/.gemini/gal/`, and `~/.gemini/antigravity/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
 
 ## Common Change Entry Points
 
@@ -167,7 +170,7 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 
 1. Decide whether the CLI has a machine-layer config directory that GAL can target.
 2. Decide whether its repo-facing instruction file can reuse `AGENTS.md` or needs another generated adapter.
-3. If the runtime supports native commands, generate them from the same shared command templates instead of building a second workflow source.
+3. If the runtime supports native commands, generate them from the same shared command templates instead of building a second workflow source. If it does not, install the same baked command skills into the runtime's supported skill surface.
 4. Add any config-merge bridge only if the runtime has a stable, user-owned config file that can safely accept additive changes.
 
 ## Verify Setup Changes
@@ -177,6 +180,7 @@ After changing install or setup logic, verify at least these points:
 - the stable repo symlink exists for each supported runtime that needs one
 - generated `commands/*/SKILL.md` files no longer contain `{{GAL_ROOT}}`
 - Gemini native command files were regenerated from the baked command content
+- Antigravity generated `.agents/rules/gal.md`, its `@` reference resolves to `AGENTS.md`, and installed command skills resolve through `~/.gemini/antigravity/gal/`
 - shared skill directories contain reusable skills only, not duplicated command aliases
 - MCP reruns update tracked server entries correctly without clobbering unrelated provider-owned config
 

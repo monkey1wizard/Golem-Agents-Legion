@@ -12,7 +12,7 @@ invoke_update_personalization() {
         skill_dirs+=("$skill_dir")
     done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
 
-    ensure_setup_directories "$GAL_STATE_ROOT" "$GEMINI_ROOT"
+    ensure_setup_directories "$GAL_STATE_ROOT" "$GEMINI_ROOT" "$ANTIGRAVITY_ROOT"
 
     echo ''
     echo '=== Gemini gal-context.md ==='
@@ -65,6 +65,16 @@ invoke_update_personalization() {
         else
             echo "  [WARN] jq not found and $GEMINI_SETTINGS_FILE already exists — skipping bridge (install jq and rerun)"
         fi
+    fi
+
+    echo ''
+    echo '=== Antigravity workspace rule strategy ==='
+    if $UNINSTALL; then
+        echo '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
+    elif ! $INSTALL_ANTIGRAVITY; then
+        echo '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
+    else
+        echo '  [OK] Antigravity global rules preserved; rely on generated .agents/rules/gal.md plus ANTIGRAVITY.md inside each initialized repo.'
     fi
 
     echo ''

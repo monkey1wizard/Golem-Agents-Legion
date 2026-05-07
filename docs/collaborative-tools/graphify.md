@@ -1,6 +1,6 @@
 # graphify Collaborative Tool Contract
 
-graphify is an optional CLI-driven structural-context collaborative tool for GAL, not a core runtime dependency. If a target repo already contains graphify outputs, or if `gal init` generates them during explicit repo bootstrap because the graphify CLI is already installed, GAL may consume them to improve planning and review quality. If not, GAL behaves exactly as before.
+graphify is an optional CLI-driven structural-context collaborative tool for GAL, not a core runtime dependency. If a target repo already contains graphify outputs, GAL may consume them to improve planning and review quality. If not, GAL behaves exactly as before.
 
 ## What This Module Covers
 
@@ -33,8 +33,8 @@ This tool follows the shared preflight model in [checking-contract.md](checking-
 | --- | --- | --- |
 | `not-applicable` | The current lane does not use structural graph context. | Continue without graphify. |
 | `unavailable` | The current machine or runtime cannot run the graphify CLI. | Continue with native codebase reading. |
-| `available-but-needs-init` | graphify is installed, but the repo has not been generated into `graphify-out/` for the expected collaboration mode. | Do not auto-generate graph outputs during planning or review. `gal init` may generate them during explicit repo bootstrap when the graphify CLI is already available. |
-| `available-but-not-ready` | graphify is installed, but the current lane is missing the required report artifact such as `graphify-out/GRAPH_REPORT.md`, or GAL can prove the installed graphify version no longer matches the stamped report. | Degrade to the normal non-graph workflow path and prompt for `/graphify .` only when the user already relies on graphify context. |
+| `available-but-needs-init` | graphify is installed, but the repo has not been generated into `graphify-out/` for the expected collaboration mode. | Do not auto-generate graph outputs during planning, review, or init. Continue through the normal non-graph workflow path. |
+| `available-but-not-ready` | graphify is installed, but the current lane is missing the required report artifact such as `graphify-out/GRAPH_REPORT.md`, or GAL can prove the installed graphify version no longer matches the stamped report. | Degrade to the normal non-graph workflow path. Mention manual regeneration only as an optional user action when updated graph context is desired. |
 | `ready` | The applicable graphify artifact exists for the current integration level. | Use graphify as advisory structural context. |
 
 Report-based integration uses repo readiness, not machine availability alone. A machine with graphify installed but no repo outputs is not graph-ready for GAL.
@@ -44,7 +44,7 @@ Report-based integration uses repo readiness, not machine availability alone. A 
 | Input | Required | GAL use |
 | --- | --- | --- |
 | `graphify-out/GRAPH_REPORT.md` | yes for report-based integration | Read god nodes, communities, and surprising connections as advisory structural context |
-| `graphify-out/GAL_GRAPHIFY_VERSION.txt` | no | Optional version stamp written by `gal init` when it auto-generates the report; used only for tool-version freshness checks |
+| `graphify-out/GAL_GRAPHIFY_VERSION.txt` | no | Optional version stamp used only for tool-version freshness checks |
 | `graphify-out/graph.json` | no | Upstream CLI artifact only; GAL does not query it live or wire it through MCP |
 
 For report-based integration, GAL reads the report and keeps its normal write-back targets:
@@ -59,7 +59,7 @@ graphify does not become a new state owner. It only provides extra structure evi
 When `GAL_GRAPHIFY_VERSION.txt` exists, GAL may compare its stamped graphify version to the current `graphify --version` output:
 
 - If the versions match, the report stays usable as normal advisory context.
-- If the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, GAL treats the report as stale-by-tool-version and prompts for `/graphify .` before the next graph-aware planning or review pass.
+- If the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, GAL treats the report as stale-by-tool-version and continues without graphify context unless the user explicitly wants refreshed graph artifacts.
 - If `GRAPH_REPORT.md` is newer than the stamp file, GAL assumes the graph may have been manually refreshed after the last GAL stamp and keeps the report advisory instead of blocking on the mismatch.
 - If no version stamp exists, GAL does not try to infer freshness from codebase drift; it simply treats the report as unstamped advisory context.
 
@@ -84,4 +84,4 @@ If graphify is unavailable or not ready, degrade to native codebase reading and 
 
 ## Upstream Handoff
 
-For installation, graph generation, freshness management, and query semantics, use the upstream graphify project: [safishamsi/graphify](https://github.com/safishamsi/graphify). In GAL, prefer the `graphify` command and generated artifacts over MCP wiring.
+For installation, graph generation, freshness management, and query semantics, use the upstream graphify project: [safishamsi/graphify](https://github.com/safishamsi/graphify). In GAL, prefer the `graphify` command and existing generated artifacts over MCP wiring.

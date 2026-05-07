@@ -123,6 +123,8 @@ function Invoke-UpdateSkills {
         $context.SharedSkillsTarget,
         $context.GeminiRoot,
         $context.GeminiSkillsTarget,
+        $context.AntigravityRoot,
+        $context.AntigravitySkillsTarget,
         $context.CodexRoot,
         $context.CodexSkillsTarget,
         $context.OpenCodeRoot,
@@ -191,6 +193,18 @@ function Invoke-UpdateSkills {
     }
 
     Write-Host ''
+    Write-Host ("=== Antigravity Skills ({0} reusable directories) ===" -f $skillDirs.Count)
+    foreach ($skillDir in $skillDirs) {
+        $linkPath = Join-Path $context.AntigravitySkillsTarget $skillDir.Name
+        if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+            Remove-SafeLink $linkPath
+        }
+        else {
+            New-SafeSymlink $linkPath $skillDir.FullName 'Directory' | Out-Null
+        }
+    }
+
+    Write-Host ''
     Write-Host '=== Migration: .gemini/skills cleanup ==='
     $allGalSkillNames = @($skillDirs | ForEach-Object { $_.Name }) + $context.ActiveCommandSkillNames + @('gal.bak')
     foreach ($name in $allGalSkillNames) {
@@ -249,6 +263,13 @@ function Invoke-UpdateSkills {
     }
     else {
         New-SafeSymlink $context.GalRootGemini $context.RepoRoot 'Directory' | Out-Null
+    }
+
+    if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+        Remove-SafeLink $context.GalRootAntigravity
+    }
+    else {
+        New-SafeSymlink $context.GalRootAntigravity $context.RepoRoot 'Directory' | Out-Null
     }
 }
 

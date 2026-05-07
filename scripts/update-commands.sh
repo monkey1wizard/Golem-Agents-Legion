@@ -152,6 +152,7 @@ invoke_update_commands() {
         "$SKILLS_TARGET" \
         "$CODEX_SKILLS_TARGET" \
         "$GEMINI_COMMANDS_TARGET" \
+        "$ANTIGRAVITY_SKILLS_TARGET" \
         "$OPENCODE_COMMANDS_TARGET" \
         "$CLAUDE_COMMANDS_TARGET" \
         "$SHARED_SKILLS_TARGET"
@@ -193,16 +194,23 @@ invoke_update_commands() {
 
     echo ''
     echo '=== GAL command skill symlinks ==='
-    local copilot_target codex_target
+    local copilot_target antigravity_target codex_target
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
         copilot_target="$SKILLS_TARGET/$command_skill_name"
+        antigravity_target="$ANTIGRAVITY_SKILLS_TARGET/$command_skill_name"
         codex_target="$CODEX_SKILLS_TARGET/$command_skill_name"
 
         if $UNINSTALL || ! $INSTALL_COPILOT; then
             safe_unlink "$copilot_target"
         else
             safe_link "$copilot_target" "$command_skill_source"
+        fi
+
+        if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+            safe_unlink "$antigravity_target"
+        else
+            safe_link "$antigravity_target" "$command_skill_source"
         fi
 
         if $UNINSTALL || ! $INSTALL_CODEX; then
@@ -327,7 +335,7 @@ invoke_update_commands() {
     echo ''
     echo '=== Migration: obsolete command cleanup ==='
     local skills_dir dir_name keep_dir keep_file existing_dir existing_file
-    for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
+    for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$ANTIGRAVITY_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
         for existing_dir in "$skills_dir"/*; do
             [ -e "$existing_dir" ] || continue
             [ -d "$existing_dir" ] || continue
@@ -401,7 +409,7 @@ invoke_update_commands() {
 
     echo ''
     echo '=== Migration: gal-* cleanup ==='
-    for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
+    for skills_dir in "$SKILLS_TARGET" "$GEMINI_SKILLS_TARGET" "$ANTIGRAVITY_SKILLS_TARGET" "$SHARED_SKILLS_TARGET" "$CODEX_SKILLS_TARGET"; do
         for existing_dir in "$skills_dir"/gal-*/; do
             [ -e "$existing_dir" ] || continue
             dir_name="$(basename "$existing_dir")"

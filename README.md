@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system that brings structure to development while letting you switch between AI tools without losing context. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, creating a document-driven development model. Durable state is split across two boundaries: repository-shared state saved as local Markdown files in `.dev/`, `docs/plans/`, and `docs/research/`, plus optional user-personal notes that can be written to a locally configured Obsidian vault. This lets GitHub Copilot, Gemini CLI, and Codex CLI share the same workflow while preserving your personal note space outside the repository.
+GAL is an AI working system that brings structure to development while letting you switch between AI tools without losing context. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, creating a document-driven development model. Durable state is split across two boundaries: repository-shared state saved as local Markdown files in `.dev/`, `docs/plans/`, and `docs/research/`, plus optional user-personal notes that can be written to a locally configured Obsidian vault. This lets supported runtimes share the same workflow while preserving your personal note space outside the repository.
 
 State management draws from the phase-based discipline in Get Shit Done (GSD): explicit state (`.dev/state.md`), verification gates, and a structured execution lifecycle, letting `/gal status` and `/gal whats-next` project the current state of work for the entire repository.
 
@@ -13,15 +13,17 @@ State management draws from the phase-based discipline in Get Shit Done (GSD): e
 
 2. Navigate to the project directory and run the installation script. Use `./scripts/Setup-Machine.ps1` on Windows or `./scripts/setup-machine.sh` on macOS/Linux. Once complete, you can start using GAL in your repositories.
 
-3. In your target repository, open GitHub Copilot, Gemini CLI, or Codex CLI, then run:
+3. In your target repository, open your preferred supported runtime, then invoke GAL using that runtime's normal command or skill surface. Common examples:
 
 ```text
-# Copilot / Gemini CLI (slash-command surface)
+# Common slash-command surface
 /gal init
 
 # Codex CLI (skill mention surface, uses $ instead of /)
 $gal init
 ```
+
+Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
 
 ## Public Commands
 
@@ -277,7 +279,7 @@ Core rules: never auto-install, never auto-initialize, never hide missing capabi
 
 ### graphify
 
-A graph data structure tool. It analyzes all files in a folder into a graph format, writing the output to `graphify-out/`, enhancing subsequent AI query capabilities. If the graphify CLI is installed, `gal init` now generates `graphify-out/` automatically during Repo bootstrap and stamps the generated report with the current graphify version. GAL does not auto-detect Repo changes, but `setup-tools`, `/gal status`, and `/gal whats-next` can now warn when a stamped report no longer matches the installed graphify version, and `/gal pipeline` plus `/gal wrap-up` will remind you to rerun `/graphify .` after implementation work. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
+A graph data structure tool. It analyzes all files in a folder into a graph format, writing the output to `graphify-out/`, enhancing subsequent AI query capabilities. GAL only consumes graphify when the repo already contains artifacts such as `graphify-out/GRAPH_REPORT.md`. `gal init` does not generate them automatically. `setup-tools`, `/gal status`, and `/gal whats-next` can report whether an existing stamped report still matches the installed graphify version, but GAL continues through the normal non-graph workflow when no graphify artifacts exist. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
 
 ### OpenCLI
 

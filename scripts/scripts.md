@@ -8,21 +8,21 @@ Machine setup and adapter sync scripts.
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
-| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then auto-run graphify when the CLI is already available and stamp the generated report with the graphify version |
+| `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, `AGENTS.md`, and `.agents/rules/gal.md`, then inspect any existing graphify artifacts without generating new ones |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
+| `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, `AGENTS.md`, and `.agents/rules/gal.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
 | `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `Update-Personalization.ps1`, `Update-Skills.ps1`, `Update-Commands.ps1`, and `Update-Mcp.ps1` |
-| `Update-Personalization.ps1` | Windows | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, local config seeding, and git smudge/clean personalization |
-| `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, shared skill links, Claude skill links, and legacy runtime skill cleanup |
-| `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
-| `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Codex, and Claude MCP runtime config from the tracked manifest |
+| `Update-Personalization.ps1` | Windows | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, Antigravity workspace-rule strategy, local config seeding, and git smudge/clean personalization |
+| `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, shared skill links, Antigravity skill links, Claude skill links, and legacy runtime skill cleanup |
+| `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
+| `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `update-personalization.sh`, `update-skills.sh`, `update-commands.sh`, and `update-mcp.sh` |
-| `update-personalization.sh` | macOS | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, local config seeding, and git smudge/clean personalization |
-| `update-skills.sh` | macOS | Manage GAL root links, agent links, shared skill links, Claude skill links, and legacy runtime skill cleanup |
-| `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
-| `update-mcp.sh` | macOS | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Codex, and Claude MCP runtime config from the tracked manifest |
+| `update-personalization.sh` | macOS | Manage install-state, Gemini `gal-context.md`, Gemini and VS Code settings bridges, Antigravity workspace-rule strategy, local config seeding, and git smudge/clean personalization |
+| `update-skills.sh` | macOS | Manage GAL root links, agent links, shared skill links, Antigravity skill links, Claude skill links, and legacy runtime skill cleanup |
+| `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate Gemini `.toml` commands, generate Claude `.md` commands, and remove stale command artifacts |
+| `update-mcp.sh` | macOS | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Gemini, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest |
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove all GAL symlinks + baked command skills + `gal-context.md` |
 | `uninstall-machine.sh` | macOS | Same for Mac |
@@ -42,7 +42,7 @@ AI slash commands map onto the same subcommands, with `/gal` as the primary entr
 
 | Command | Purpose |
 | --- | --- |
-| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/`; if graphify is already installed, also generate `graphify-out/` and stamp the generated report with the current graphify version |
+| `/gal init` | Initialize `.dev/project.md`, `.dev/state.md`, and `docs/plans/`; if graphify artifacts already exist, inspect them and report freshness without generating new graphify output |
 | `/gal status` | Show current plan progress, active plan, review and test status, blockers, and specialist readiness |
 | `/gal whats-next` | Determine the next step from current plan status, review results, and QA readiness |
 | `/gal wrap-up` | Close the session cleanly — converge handoff updates, update `.dev/state.md`, prompt for commit |
@@ -101,21 +101,25 @@ Each concern script can also run standalone when you only need one concern refre
 
 The setup script creates these symlinks:
 
-| Source (repo) | Copilot Target | Gemini / Shared Target | Codex Target |
-| --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | — | — |
-| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.agents/skills/` |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.codex/skills/gal/` |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.codex/skills/gal-init/` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.codex/skills/gal-status/` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.codex/skills/gal-whats-next/` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.codex/skills/gal-wrap-up/` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.codex/skills/<specialist>/` |
-| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | — |
+| Source (repo) | Copilot Target | Gemini / Shared Target | Antigravity Target | Codex Target |
+| --- | --- | --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/agents/` | — | — | — |
+| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.gemini/antigravity/skills/` | `~/.agents/skills/` |
+| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.gemini/antigravity/skills/gal/` | `~/.codex/skills/gal/` |
+| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.gemini/antigravity/skills/gal-init/` | `~/.codex/skills/gal-init/` |
+| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.gemini/antigravity/skills/gal-status/` | `~/.codex/skills/gal-status/` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity/skills/<specialist>/` | `~/.codex/skills/<specialist>/` |
+| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity/gal/` | — |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
 Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. Setup-Machine then symlinks those command directories into Copilot and Codex skill targets while generating Gemini native command files from the same baked content.
+
+Antigravity installs reusable skills and baked command skill directories under `~/.gemini/antigravity/skills/` and creates `~/.gemini/antigravity/gal/` -> repo-root symlinks for stable `GAL_ROOT` resolution.
+
+`Sync-DevContext` generates `.agents/rules/gal.md`, which references the repo-local `AGENTS.md` through Antigravity's documented `@filename` rule syntax instead of introducing a custom Antigravity-only adapter file.
 
 For Gemini CLI, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` files so Gemini exposes native slash commands without colliding with Agent Skills.
 
@@ -126,10 +130,11 @@ Generates `~/.gemini/gal-context.md` with sorted non-command `@file` skill impor
 - VS Code `mcp.json`
 - Copilot CLI `~/.copilot/mcp-config.json`
 - Gemini `settings.json` `mcpServers`
+- Antigravity `~/.gemini/antigravity/mcp_config.json` `mcpServers`
 - Codex `config.toml` `[mcp_servers.*]`
 - Claude Code user-scope MCP config via `claude mcp add/remove`
 
-Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Only MCP ownership is split per client.
+Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Gemini CLI and Antigravity share the `.gemini` root but use separate GAL-managed subtrees. Only MCP ownership is split per client.
 
 The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly.
 

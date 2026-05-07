@@ -26,7 +26,7 @@ Read the current request and any directly referenced files. Prefer a low-interru
 
 Read `graphify-out/GRAPH_REPORT.md` if it exists. Use communities and surprising connections to judge whether the request crosses module boundaries or hides coupling that should be called out in scope.
 
-If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the `graphify` CLI is available, compare the stamped version to the current `graphify --version` output. When the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, treat the graphify report as stale-by-tool-version: do not rely on it for scope judgment, and note that `/graphify .` should be rerun before the next graph-aware planning or review pass. If the report is newer than the stamp file, keep treating it as advisory context.
+If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the `graphify` CLI is available, compare the stamped version to the current `graphify --version` output. When the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, treat the graphify report as stale-by-tool-version: do not rely on it for scope judgment, and continue with native codebase reading. If the report is newer than the stamp file, keep treating it as advisory context.
 
 Escalate to a direct user question only when one of these is true:
 

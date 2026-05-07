@@ -290,6 +290,21 @@ function Get-GstackStatus {
 }
 
 function Get-GraphifyStatus {
+    if (Test-Path $graphifyReportFile) {
+        if (Test-Path $graphifyVersionFile) {
+            $currentVersion = Get-GraphifyVersion
+            $stampedVersion = (Get-Content -Path $graphifyVersionFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+            $reportInfo = Get-Item $graphifyReportFile
+            $stampInfo = Get-Item $graphifyVersionFile
+
+            if ($currentVersion -and $stampedVersion -and $stampedVersion.Trim() -ne $currentVersion -and $reportInfo.LastWriteTimeUtc -le $stampInfo.LastWriteTimeUtc) {
+                return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason ("graphify report exists, but GAL last stamped it with a different graphify version (report: {0}, installed: {1})." -f $stampedVersion.Trim(), $currentVersion) -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'GAL can continue without graphify. Refresh graphify artifacts manually if you want updated graph context.' -ManualStep ''
+            }
+        }
+
+        return New-ToolStatus -Name 'graphify' -Status 'ready' -Reason 'graphify-out/GRAPH_REPORT.md is present for this repo.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'No action required. If the graphify CLI is unavailable, GAL can still use the existing report but cannot verify freshness automatically.' -ManualStep ''
+    }
+
     $launcher = Get-PythonLauncher
     if ($null -eq $launcher) {
         return New-ToolStatus -Name 'graphify' -Status 'unavailable' -Reason 'Python 3.10+ is required but no supported Python launcher was found.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Install Python 3.10+ and rerun this installer.' -ManualStep ''
@@ -310,25 +325,14 @@ function Get-GraphifyStatus {
     }
 
     if (-not (Test-Path $graphifyOutDir)) {
-        return New-ToolStatus -Name 'graphify' -Status 'available-but-needs-init' -Reason 'graphify is installed, but graphify-out/ has not been generated for this repo yet.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Run /graphify . to generate graphify-out/ now. New repos initialized with /gal init will auto-run graphify when the CLI is already on PATH.' -ManualStep ''
+        return New-ToolStatus -Name 'graphify' -Status 'available-but-needs-init' -Reason 'graphify is installed, but this repo does not have graphify artifacts yet.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'No action is required for normal GAL flow. Run /graphify . manually only if you want graph context for this repo.' -ManualStep ''
     }
 
     if (-not (Test-Path $graphifyReportFile)) {
-        return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason 'graphify-out/ exists, but GRAPH_REPORT.md is missing.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Regenerate graphify outputs so graphify-out/GRAPH_REPORT.md exists.' -ManualStep ''
+        return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason 'graphify-out/ exists, but GRAPH_REPORT.md is missing.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'GAL will continue without graphify. Rebuild graphify artifacts manually only if you want graph context.' -ManualStep ''
     }
 
-    if (Test-Path $graphifyVersionFile) {
-        $currentVersion = Get-GraphifyVersion
-        $stampedVersion = (Get-Content -Path $graphifyVersionFile -ErrorAction SilentlyContinue | Select-Object -First 1)
-        $reportInfo = Get-Item $graphifyReportFile
-        $stampInfo = Get-Item $graphifyVersionFile
-
-        if ($currentVersion -and $stampedVersion -and $stampedVersion.Trim() -ne $currentVersion -and $reportInfo.LastWriteTimeUtc -le $stampInfo.LastWriteTimeUtc) {
-            return New-ToolStatus -Name 'graphify' -Status 'available-but-not-ready' -Reason ("graphify version changed since GAL last stamped this report (report: {0}, installed: {1})." -f $stampedVersion.Trim(), $currentVersion) -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'Rerun /graphify . so graphify-out/ matches the installed graphify version.' -ManualStep ''
-        }
-    }
-
-    return New-ToolStatus -Name 'graphify' -Status 'ready' -Reason 'graphify CLI and graphify-out/GRAPH_REPORT.md are both present.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'No action required.' -ManualStep ''
+    return New-ToolStatus -Name 'graphify' -Status 'ready' -Reason 'graphify-out/GRAPH_REPORT.md is present for this repo.' -CanInstall $false -InstallLabel 'Install graphify' -NextStep 'No action required. If the graphify CLI is unavailable, GAL can still use the existing report but cannot verify freshness automatically.' -ManualStep ''
 }
 
 function Get-OpenCliStatus {

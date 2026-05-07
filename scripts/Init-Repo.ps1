@@ -34,49 +34,36 @@ function Write-GraphifyVersionStamp([string]$RepoPath, [string]$Version) {
 }
 
 function Invoke-GraphifyAutoInit([string]$RepoPath) {
-    if (-not (Test-CommandAvailable 'graphify')) {
+    $graphReportPath = Join-Path $RepoPath "graphify-out\GRAPH_REPORT.md"
+    $graphVersionPath = Join-Path $RepoPath (Join-Path 'graphify-out' $graphifyVersionFileName)
+    if (-not (Test-Path $graphReportPath)) {
+        Write-Host "- Skipped: graphify artifact inspection (no graphify-out/GRAPH_REPORT.md)"
         return
     }
 
-    $graphReportPath = Join-Path $RepoPath "graphify-out\GRAPH_REPORT.md"
-    $graphVersionPath = Join-Path $RepoPath (Join-Path 'graphify-out' $graphifyVersionFileName)
-    $currentVersion = Get-GraphifyVersion
-    if (Test-Path $graphReportPath) {
-        Write-Host "- Detected: existing graphify-out/GRAPH_REPORT.md"
-        if ((Test-Path $graphVersionPath) -and $currentVersion) {
+    Write-Host "- Detected: existing graphify-out/GRAPH_REPORT.md"
+
+    if ((Test-Path $graphVersionPath) -and (Test-CommandAvailable 'graphify')) {
+        $currentVersion = Get-GraphifyVersion
+        if ($currentVersion) {
             $stampedVersion = (Get-Content -Path $graphVersionPath -ErrorAction SilentlyContinue | Select-Object -First 1)
             $reportInfo = Get-Item $graphReportPath
             $stampInfo = Get-Item $graphVersionPath
             if ($stampedVersion -and $stampedVersion.Trim() -ne $currentVersion -and $reportInfo.LastWriteTimeUtc -le $stampInfo.LastWriteTimeUtc) {
-                Write-Warning "graphify version changed (report: $($stampedVersion.Trim()), installed: $currentVersion). Rerun /graphify . before the next graph-aware planning or review pass."
+                Write-Warning "graphify version changed (report: $($stampedVersion.Trim()), installed: $currentVersion). Refresh graphify artifacts manually if you want updated graph context."
             }
         }
-        Write-Host "- Skipped: graphify auto-run"
-        return
     }
 
-    Write-Host "- Detected: graphify CLI on PATH"
-    Write-Host "- Running: graphify ."
-
-    Push-Location $RepoPath
-    try {
-        & graphify .
-        if ($LASTEXITCODE -ne 0) {
-            throw "graphify exited with code $LASTEXITCODE"
-        }
-
+    if (-not (Test-Path $graphVersionPath) -and (Test-CommandAvailable 'graphify')) {
+        $currentVersion = Get-GraphifyVersion
         if ($currentVersion) {
             Write-GraphifyVersionStamp -RepoPath $RepoPath -Version $currentVersion
             Write-Host "- Stamped: graphify-out/$graphifyVersionFileName ($currentVersion)"
         }
-        Write-Host "- Generated: graphify-out/"
     }
-    catch {
-        Write-Warning "graphify auto-run failed; init completed without graphify artifacts. Rerun /graphify . from the repo root after fixing graphify."
-    }
-    finally {
-        Pop-Location
-    }
+
+    Write-Host "- Skipped: graphify auto-run"
 }
 
 if (-not (Test-Path $TargetPath)) {
@@ -204,6 +191,7 @@ Write-Host "- Generated: .github/copilot-instructions.md"
 Write-Host "- Generated: GEMINI.md"
 Write-Host "- Generated: CLAUDE.md"
 Write-Host "- Generated: AGENTS.md"
+Write-Host "- Generated: .agents/rules/gal.md"
 Write-Host "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if ($sourceDocs.Count -gt 0) {

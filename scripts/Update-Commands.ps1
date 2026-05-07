@@ -142,6 +142,7 @@ function Invoke-UpdateCommands {
         $context.SkillsTarget,
         $context.CodexSkillsTarget,
         $context.GeminiCommandsTarget,
+        $context.AntigravitySkillsTarget,
         $context.OpenCodeCommandsTarget,
         $context.ClaudeCommandsTarget,
         $context.SharedSkillsTarget
@@ -191,6 +192,14 @@ function Invoke-UpdateCommands {
         }
         else {
             New-SafeSymlink $commandSkill.CopilotTarget $commandSkill.Source 'Directory' | Out-Null
+        }
+
+        $antigravityTarget = Join-Path $context.AntigravitySkillsTarget $commandSkill.Name
+        if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+            Remove-SafeLink $antigravityTarget
+        }
+        else {
+            New-SafeSymlink $antigravityTarget $commandSkill.Source 'Directory' | Out-Null
         }
 
         if ($script:SetupOptions.Uninstall -or -not $context.InstallCodex) {
@@ -311,7 +320,7 @@ function Invoke-UpdateCommands {
 
     Write-Host ''
     Write-Host '=== Migration: obsolete command cleanup ==='
-    foreach ($skillsDir in @($context.SkillsTarget, $context.GeminiSkillsTarget, $context.SharedSkillsTarget, $context.CodexSkillsTarget)) {
+    foreach ($skillsDir in @($context.SkillsTarget, $context.GeminiSkillsTarget, $context.AntigravitySkillsTarget, $context.SharedSkillsTarget, $context.CodexSkillsTarget)) {
         $obsoleteCommandLinks = Get-ChildItem $skillsDir -Directory -ErrorAction SilentlyContinue | Where-Object {
             $_.Name -notin $context.ActiveCommandSkillNames -and (Test-GalCommandLink $_.FullName)
         }

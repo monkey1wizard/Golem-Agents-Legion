@@ -145,6 +145,8 @@ invoke_update_skills() {
         "$SHARED_SKILLS_TARGET" \
         "$GEMINI_ROOT" \
         "$GEMINI_SKILLS_TARGET" \
+        "$ANTIGRAVITY_ROOT" \
+        "$ANTIGRAVITY_SKILLS_TARGET" \
         "$CODEX_ROOT" \
         "$CODEX_SKILLS_TARGET" \
         "$OPENCODE_ROOT" \
@@ -221,6 +223,18 @@ invoke_update_skills() {
     done
 
     echo ''
+    echo "=== Antigravity Skills (${#skill_dirs[@]} reusable directories) ==="
+    for skill_dir in "${skill_dirs[@]}"; do
+        skill_name="$(basename "$skill_dir")"
+        link_path="$ANTIGRAVITY_SKILLS_TARGET/$skill_name"
+        if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+            safe_unlink "$link_path"
+        else
+            safe_link "$link_path" "$skill_dir"
+        fi
+    done
+
+    echo ''
     echo '=== Migration: .gemini/skills cleanup ==='
     local all_gal_skill_names=("${COMMAND_SKILL_NAMES[@]}" 'gal.bak')
     for skill_dir in "${skill_dirs[@]}"; do
@@ -287,6 +301,12 @@ invoke_update_skills() {
         safe_unlink "$GAL_ROOT_GEMINI"
     else
         safe_link "$GAL_ROOT_GEMINI" "$REPO_ROOT"
+    fi
+
+    if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+        safe_unlink "$GAL_ROOT_ANTIGRAVITY"
+    else
+        safe_link "$GAL_ROOT_ANTIGRAVITY" "$REPO_ROOT"
     fi
 }
 

@@ -13,6 +13,7 @@ function New-SetupContext {
     $skillsTarget = Join-Path $copilotRoot 'skills'
     $codexRoot = Join-Path $env:USERPROFILE '.codex'
     $openCodeRoot = Join-Path $env:USERPROFILE '.config\opencode'
+    $antigravityRoot = Join-Path $env:USERPROFILE '.gemini\antigravity'
 
     $galSource = Join-Path $repoRoot 'commands\gal'
     $commandsSourceDir = Join-Path $repoRoot 'commands'
@@ -80,6 +81,10 @@ function New-SetupContext {
         OpenCodeCommandsTarget = Join-Path $openCodeRoot 'commands'
         OpenCodeConfigFile = Join-Path $openCodeRoot 'opencode.json'
 
+        AntigravityRoot = $antigravityRoot
+        AntigravitySkillsTarget = Join-Path $antigravityRoot 'skills'
+        AntigravityMcpFile = Join-Path $antigravityRoot 'mcp_config.json'
+
         ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
         ClaudeSkillsTarget = Join-Path $env:USERPROFILE '.claude\skills'
         ClaudeCommandsTarget = Join-Path $env:USERPROFILE '.claude\commands'
@@ -90,12 +95,14 @@ function New-SetupContext {
         GalSource = $galSource
         GalRootCopilot = Join-Path $copilotRoot 'gal'
         GalRootGemini = Join-Path $env:USERPROFILE '.gemini\gal'
+        GalRootAntigravity = Join-Path $antigravityRoot 'gal'
         CommandsSourceDir = $commandsSourceDir
         CommandSkillDirs = $commandSkillDirs
         ActiveCommandSkillNames = @($commandSkillDirs | ForEach-Object { $_.Name })
         RuntimeCatalog = @(
             [pscustomobject]@{ Key = 'copilot'; Label = 'GitHub Copilot'; Description = 'shared Copilot agents, skills, GAL commands, VS Code settings bridge, VS Code MCP bridge, Copilot CLI MCP bridge' },
             [pscustomobject]@{ Key = 'gemini'; Label = 'Gemini CLI'; Description = 'native command files, GAL context, shared skills, Gemini MCP bridge' },
+            [pscustomobject]@{ Key = 'antigravity'; Label = 'Antigravity'; Description = 'global Antigravity skills, workspace rules adapter, Antigravity MCP bridge' },
             [pscustomobject]@{ Key = 'codex'; Label = 'Codex CLI'; Description = 'installed GAL command skills, shared skills, Codex MCP bridge' },
             [pscustomobject]@{ Key = 'opencode'; Label = 'OpenCode'; Description = 'OpenCode agents, commands, reusable skill discovery, OpenCode MCP bridge' },
             [pscustomobject]@{ Key = 'claude'; Label = 'Claude Code'; Description = 'Claude skills, native command files, repo-local CLAUDE.md adapter' }
@@ -153,6 +160,7 @@ function Initialize-SetupSession {
     $selectedRuntimes = @($script:SetupContext.SelectedRuntimes)
     $script:SetupContext | Add-Member -NotePropertyName InstallCopilot -NotePropertyValue ($selectedRuntimes -contains 'copilot') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallGemini -NotePropertyValue ($selectedRuntimes -contains 'gemini') -Force
+    $script:SetupContext | Add-Member -NotePropertyName InstallAntigravity -NotePropertyValue ($selectedRuntimes -contains 'antigravity') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallCodex -NotePropertyValue ($selectedRuntimes -contains 'codex') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallOpenCode -NotePropertyValue ($selectedRuntimes -contains 'opencode') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallClaude -NotePropertyValue ($selectedRuntimes -contains 'claude') -Force
@@ -160,6 +168,7 @@ function Initialize-SetupSession {
     $script:SetupContext | Add-Member -NotePropertyName NeedsBakedCommandSkills -NotePropertyValue (
         ($selectedRuntimes -contains 'copilot') -or
         ($selectedRuntimes -contains 'gemini') -or
+        ($selectedRuntimes -contains 'antigravity') -or
         ($selectedRuntimes -contains 'codex') -or
         ($selectedRuntimes -contains 'opencode') -or
         ($selectedRuntimes -contains 'claude')

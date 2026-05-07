@@ -244,6 +244,21 @@ check_gstack() {
 }
 
 check_graphify() {
+  if [ -f "$GRAPHIFY_REPORT_FILE" ]; then
+    if [ -f "$GRAPHIFY_VERSION_FILE" ]; then
+      local current_version stamped_version
+      current_version="$(get_graphify_version || true)"
+      stamped_version="$(tr -d '\r' < "$GRAPHIFY_VERSION_FILE")"
+      if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$GRAPHIFY_REPORT_FILE" -nt "$GRAPHIFY_VERSION_FILE" ]]; then
+        set_status graphify available-but-not-ready "graphify report exists, but GAL last stamped it with a different graphify version (report: $stamped_version, installed: $current_version)." false "GAL can continue without graphify. Refresh graphify artifacts manually if you want updated graph context."
+        return
+      fi
+    fi
+
+    set_status graphify ready "graphify-out/GRAPH_REPORT.md is present for this repo." false "No action required. If the graphify CLI is unavailable, GAL can still use the existing report but cannot verify freshness automatically."
+    return
+  fi
+
   local python_cmd
   if ! python_cmd="$(get_python_cmd)"; then
     set_status graphify unavailable "Python 3.10+ is required but no supported Python launcher was found." false "Install Python 3.10+ and rerun this installer."
@@ -273,27 +288,16 @@ check_graphify() {
   fi
 
   if [ ! -d "$GRAPHIFY_OUT_DIR" ]; then
-    set_status graphify available-but-needs-init "graphify is installed, but graphify-out/ has not been generated for this repo yet." false "Run /graphify . to generate graphify-out/ now. New repos initialized with /gal init will auto-run graphify when the CLI is already on PATH."
+    set_status graphify available-but-needs-init "graphify is installed, but this repo does not have graphify artifacts yet." false "No action is required for normal GAL flow. Run /graphify . manually only if you want graph context for this repo."
     return
   fi
 
   if [ ! -f "$GRAPHIFY_REPORT_FILE" ]; then
-    set_status graphify available-but-not-ready "graphify-out/ exists, but GRAPH_REPORT.md is missing." false "Regenerate graphify outputs so graphify-out/GRAPH_REPORT.md exists."
+    set_status graphify available-but-not-ready "graphify-out/ exists, but GRAPH_REPORT.md is missing." false "GAL will continue without graphify. Rebuild graphify artifacts manually only if you want graph context."
     return
   fi
 
-  if [ -f "$GRAPHIFY_VERSION_FILE" ]; then
-    local current_version stamped_version
-    current_version="$(get_graphify_version || true)"
-    stamped_version="$(tr -d '\r' < "$GRAPHIFY_VERSION_FILE")"
-
-    if [[ -n "$current_version" && -n "$stamped_version" && "$current_version" != "$stamped_version" && ! "$GRAPHIFY_REPORT_FILE" -nt "$GRAPHIFY_VERSION_FILE" ]]; then
-      set_status graphify available-but-not-ready "graphify version changed since GAL last stamped this report (report: $stamped_version, installed: $current_version)." false "Rerun /graphify . so graphify-out/ matches the installed graphify version."
-      return
-    fi
-  fi
-
-  set_status graphify ready "graphify CLI and graphify-out/GRAPH_REPORT.md are both present." false "No action required."
+  set_status graphify ready "graphify-out/GRAPH_REPORT.md is present for this repo." false "No action required. If the graphify CLI is unavailable, GAL can still use the existing report but cannot verify freshness automatically."
 }
 
 check_opencli() {

@@ -16,7 +16,7 @@ function Invoke-UpdatePersonalization {
     $context = $script:SetupContext
     $skillDirs = Get-ChildItem (Join-Path $context.RepoRoot 'skills') -Directory
 
-    Ensure-SetupDirectories @($context.GalStateRoot, $context.GeminiRoot)
+    Ensure-SetupDirectories @($context.GalStateRoot, $context.GeminiRoot, $context.AntigravityRoot)
 
     Write-Host ''
     Write-Host '=== Gemini gal-context.md ==='
@@ -85,6 +85,18 @@ function Invoke-UpdatePersonalization {
             [System.IO.File]::WriteAllText($context.GeminiSettingsFile, ($settings | ConvertTo-Json -Depth 10), $context.Utf8NoBom)
             Write-Host "  [OK] $($context.GeminiSettingsFile) (context.fileName includes AGENTS.md and GEMINI.md)"
         }
+    }
+
+    Write-Host ''
+    Write-Host '=== Antigravity workspace rule strategy ==='
+    if ($script:SetupOptions.Uninstall) {
+        Write-Host '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
+    }
+    elseif (-not $context.InstallAntigravity) {
+        Write-Host '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
+    }
+    else {
+        Write-Host '  [OK] Antigravity global rules preserved; rely on generated .agents/rules/gal.md plus AGENTS.md inside each initialized repo.'
     }
 
     Write-Host ''
@@ -192,7 +204,8 @@ function Invoke-UpdatePersonalization {
 
             if ($hasValues) {
                 $trackedFilterFiles = @('config.local.env', 'model-roles.local.md') | Where-Object {
-                    (git ls-files --error-unmatch $_ 2>$null) -ne $null
+                    git ls-files --error-unmatch $_ *> $null
+                    $LASTEXITCODE -eq 0
                 }
 
                 if ($trackedFilterFiles.Count -gt 0) {

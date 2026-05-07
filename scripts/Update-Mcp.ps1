@@ -113,6 +113,22 @@ function ConvertTo-GeminiMcpConfig([System.Collections.IDictionary]$Config) {
     return $converted
 }
 
+function ConvertTo-AntigravityMcpConfig([System.Collections.IDictionary]$Config) {
+    $converted = [ordered]@{}
+
+    foreach ($key in $Config.Keys) {
+        if ($key -eq 'type') { continue }
+        if ($key -eq 'url') {
+            $converted['serverUrl'] = [string]$Config['url']
+            continue
+        }
+
+        $converted[$key] = $Config[$key]
+    }
+
+    return $converted
+}
+
 function ConvertTo-CodexMcpConfig([System.Collections.IDictionary]$Config) {
     $converted = [ordered]@{}
     foreach ($key in $Config.Keys) {
@@ -559,6 +575,38 @@ function Update-GeminiMcpConfig([System.Collections.IDictionary]$ManagedManifest
     }
 }
 
+function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+    $context = $script:SetupContext
+    $antigravityConfig = Read-JsonOrderedMap $context.AntigravityMcpFile
+    if ($null -eq $antigravityConfig) {
+        $antigravityConfig = [ordered]@{}
+    }
+
+    if (-not $antigravityConfig.Contains('mcpServers') -or $antigravityConfig['mcpServers'] -isnot [System.Collections.IDictionary]) {
+        $antigravityConfig['mcpServers'] = [ordered]@{}
+    }
+
+    $changed = $false
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $converted = ConvertTo-AntigravityMcpConfig $ManagedManifest['servers'][$serverName]
+        if (-not $antigravityConfig['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $antigravityConfig['mcpServers'][$serverName] $converted)) {
+            $antigravityConfig['mcpServers'][$serverName] = $converted
+            $changed = $true
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would set Antigravity MCP server: $serverName"
+            }
+            else {
+                Write-Host "  [SET] Antigravity MCP server: $serverName"
+            }
+        }
+    }
+
+    if ($changed -and -not $script:SetupOptions.DryRun) {
+        Write-JsonOrderedMap $context.AntigravityMcpFile $antigravityConfig
+        Write-Host "  [OK] $($context.AntigravityMcpFile)"
+    }
+}
+
 function Update-CodexMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
     $context = $script:SetupContext
     $codexConfigDir = Split-Path $context.CodexConfigFile -Parent
@@ -709,6 +757,7 @@ function Invoke-UpdateMcp {
             Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CopilotCliMcpFile)"
         }
         if ($context.InstallGemini) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.GeminiSettingsFile)" }
+        if ($context.InstallAntigravity) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.AntigravityMcpFile)" }
         if ($context.InstallCodex) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CodexConfigFile)" }
         if ($context.InstallOpenCode) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.OpenCodeConfigFile)" }
         if ($context.InstallClaude) { Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope' }
@@ -722,6 +771,7 @@ function Invoke-UpdateMcp {
         Update-CopilotCliMcpConfig -ManagedManifest $manifest
     }
     if ($context.InstallGemini) { Update-GeminiMcpConfig -ManagedManifest $manifest }
+    if ($context.InstallAntigravity) { Update-AntigravityMcpConfig -ManagedManifest $manifest }
     if ($context.InstallCodex) { Update-CodexMcpConfig -ManagedManifest $manifest }
     if ($context.InstallOpenCode) { Update-OpenCodeMcpConfig -ManagedManifest $manifest }
     if ($context.InstallClaude) { Update-ClaudeMcpConfig -ManagedManifest $manifest }

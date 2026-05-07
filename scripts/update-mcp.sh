@@ -27,6 +27,9 @@ invoke_update_mcp() {
         if $INSTALL_GEMINI; then
             echo "  [DRY RUN] Would merge MCP servers into: $GEMINI_SETTINGS_FILE"
         fi
+        if $INSTALL_ANTIGRAVITY; then
+            echo "  [DRY RUN] Would merge MCP servers into: $ANTIGRAVITY_MCP_FILE"
+        fi
         if $INSTALL_CODEX; then
             echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
         fi
@@ -38,7 +41,7 @@ invoke_update_mcp() {
         fi
     fi
 
-    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$CODEX_CONFIG_FILE" "$OPENCODE_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_CODEX" "$INSTALL_OPENCODE" "$INSTALL_CLAUDE" "$DRY_RUN" <<'PY'
+    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$ANTIGRAVITY_MCP_FILE" "$CODEX_CONFIG_FILE" "$OPENCODE_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_ANTIGRAVITY" "$INSTALL_CODEX" "$INSTALL_OPENCODE" "$INSTALL_CLAUDE" "$DRY_RUN" <<'PY'
 import json
 import os
 import re
@@ -52,14 +55,16 @@ mcp_local = Path(sys.argv[3])
 vscode_mcp = Path(sys.argv[4])
 copilot_cli_mcp = Path(sys.argv[5])
 gemini_settings = Path(sys.argv[6])
-codex_config = Path(sys.argv[7])
-opencode_config = Path(sys.argv[8])
-install_copilot = sys.argv[9].lower() == 'true'
-install_gemini = sys.argv[10].lower() == 'true'
-install_codex = sys.argv[11].lower() == 'true'
-install_opencode = sys.argv[12].lower() == 'true'
-install_claude = sys.argv[13].lower() == 'true'
-dry_run = sys.argv[14].lower() == 'true'
+antigravity_mcp = Path(sys.argv[7])
+codex_config = Path(sys.argv[8])
+opencode_config = Path(sys.argv[9])
+install_copilot = sys.argv[10].lower() == 'true'
+install_gemini = sys.argv[11].lower() == 'true'
+install_antigravity = sys.argv[12].lower() == 'true'
+install_codex = sys.argv[13].lower() == 'true'
+install_opencode = sys.argv[14].lower() == 'true'
+install_claude = sys.argv[15].lower() == 'true'
+dry_run = sys.argv[16].lower() == 'true'
 
 BRIDGE_PROFILES = {
     'upstash/context7': {
@@ -190,6 +195,18 @@ def convert_gemini_config(config):
             continue
         if key == 'url' and config.get('type') == 'http':
             converted['httpUrl'] = value
+            continue
+        converted[key] = value
+    return converted
+
+
+def convert_antigravity_config(config):
+    converted = {}
+    for key, value in config.items():
+        if key == 'type':
+            continue
+        if key == 'url':
+            converted['serverUrl'] = value
             continue
         converted[key] = value
     return converted
@@ -504,6 +521,23 @@ def update_gemini(manifest):
         print(f'  [OK] {gemini_settings}')
 
 
+def update_antigravity(manifest):
+    data = read_json(antigravity_mcp)
+    servers = data.setdefault('mcpServers', {})
+    changed = False
+    for server_name, server_config in manifest['servers'].items():
+        converted = convert_antigravity_config(server_config)
+        if server_name not in servers or not json_like_equal(servers[server_name], converted):
+            changed = True
+            prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
+            print(f'  {prefix} Antigravity MCP server: {server_name}')
+            if not dry_run:
+                servers[server_name] = converted
+    if changed and not dry_run:
+        write_json(antigravity_mcp, data)
+        print(f'  [OK] {antigravity_mcp}')
+
+
 def update_codex(manifest):
     current_raw = codex_config.read_text(encoding='utf-8') if codex_config.exists() else ''
     managed_names = []
@@ -589,6 +623,8 @@ if install_copilot:
     update_copilot_cli(manifest)
 if install_gemini:
     update_gemini(manifest)
+if install_antigravity:
+    update_antigravity(manifest)
 if install_codex:
     update_codex(manifest)
 if install_opencode:
