@@ -23,3 +23,6 @@ commands/*/SKILL.local.md
 
 # Local graphify outputs and virtual environment
 graphify-out/
+
+# xmachine generated local logs and results
+gal-results/

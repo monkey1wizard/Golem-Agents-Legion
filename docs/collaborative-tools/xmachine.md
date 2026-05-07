@@ -2,7 +2,7 @@
 
 xmachine is an optional execution tool for GAL that offloads scoped tasks from a primary control node to an SSH-accessible work node. It operates without modifying GAL's control plane, repo-owned state model, or patch-first convergence rules.
 
-The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a node alias defined under the top-level `nodes` object in `xmachine.config.json` at the repo root. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
+The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a node alias defined under the top-level `nodes` object in `xmachine.config.json` in the GAL runtime checkout, not necessarily in the target project being worked on. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
 
 ## Capabilities
 
@@ -91,7 +91,7 @@ If task dispatch fails with "Permission denied" or continues to prompt for a pas
 
 ## Node Configuration
 
-Define work nodes in `xmachine.config.json` to provide stable, memorable IDs for your work nodes.
+Define work nodes in the GAL runtime checkout's `xmachine.config.json` to provide stable, memorable IDs for your work nodes.
 
 - The top-level `nodes` object is keyed by work-node alias.
 - Each node must define a `target` value.
@@ -104,6 +104,10 @@ Define work nodes in `xmachine.config.json` to provide stable, memorable IDs for
 ```json
 {
   "nodes": {
+    "node-name": {
+      "target": "username@mechine-name",
+      "repoPath": "/path/to/Golem-Agents-Legion"
+    },
     "mac-mini": {
       "target": "username@username-mac-mini.local",
       "repoPath": "/Users/username/Golem-Agents-Legion"
@@ -116,7 +120,7 @@ Define work nodes in `xmachine.config.json` to provide stable, memorable IDs for
 }
 ```
 
-In this setup, `-WorkNode mac-mini` resolves to `username@username-mac-mini.local` before the SSH check begins.
+In this setup, `-WorkNode node-name` resolves to `username@mechine-name` before the SSH check begins.
 
 ### Repo Path Precedence
 
@@ -140,6 +144,18 @@ xmachine paths are treated as disposable execution environments:
 - The work node owns only temporary runtime outputs and the optional `result.patch`.
 - The control node manages review, patch application, and durable state updates.
 - Execution processes never directly commit to the repository or modify shared plan state.
+
+### Task Spec Ownership
+
+xmachine does not invent bounded task specs on its own. It only executes a task spec that the control node already prepared and passed through `-TaskSpec`.
+
+- `Invoke-XmachineTask.ps1` requires the provided `-TaskSpec` path to exist before dispatch starts.
+- In `/gal pipeline` xmachine mode, the pipeline orchestrator stays on the control node and may generate per-phase bounded task-spec markdown files so it can offload only the current implement, test, review, security, or verifier slice.
+- Those pipeline-generated task specs may be staged under the target project's `.dev/` directory with names such as `.dev/xmachine-t001-feature1.md`.
+- These files are transient control-plane artifacts for xmachine dispatch, not durable workflow state like `.dev/state.md` or `.dev/plans/<plan-slug>.prompt.md`.
+- Seeing a repo-local `.dev/xmachine-*.md` file therefore usually means `pipeline + xmachine mode` prepared a bounded offload task; it does not mean the work node independently created new repo state.
+
+Direct xmachine usage without `/gal pipeline` is also possible, but in that case the caller must still provide the task spec explicitly. xmachine consumes that file; it does not author it.
 
 ## Runtime Output Contract
 
@@ -191,6 +207,19 @@ Verify and cache a work node from a Windows control node:
 ```
 
 If the selected node defines `repoPath` in `xmachine.config.json`, `-WorkRepoPath` can be omitted.
+
+### Control Node Generic Dispatch
+
+Dispatch a task spec to a configured work node alias from a Windows control node:
+
+```powershell
+.\scripts\Invoke-XmachineTask.ps1 `
+  -WorkNode node-name `
+  -TaskSpec ".\templates\task-xmachine-local-smoke.md" `
+  -Wait
+```
+
+This wrapper resolves the node alias through the GAL runtime checkout's `xmachine.config.json`, detects the remote platform, dispatches through the appropriate xmachine lane, and retrieves `status.json`, `summary.md`, `runtime.log`, and `result.patch` into a local `gal-results\<TaskId>` directory when `-Wait` is specified.
 
 ### Windows Work Node
 

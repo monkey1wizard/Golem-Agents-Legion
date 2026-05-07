@@ -1,0 +1,10 @@
+{
+  "taskId": "20260507-MNFtiI",
+  "status": "success",
+  "exitCode": 0,
+  "startedAt": "2026-05-07T12:54:40Z",
+  "finishedAt": "2026-05-07T12:55:01Z",
+  "engine": "gemini-cli",
+  "worktreePath": "/Users/tzylee/Code/Golem-Agents-Legion-xmachine-20260507-MNFtiI",
+  "errorMessage": null
+}

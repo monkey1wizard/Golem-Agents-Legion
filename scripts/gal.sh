@@ -62,6 +62,7 @@ require_state() {
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
+xmachine_doc_path="$repo_root/docs/collaborative-tools/xmachine.md"
 command="${1:-}"
 if [[ $# -gt 0 ]]; then
   shift
@@ -77,6 +78,60 @@ write_dispatch() {
     [[ -n "$val" ]] && echo "${key}: ${val}"
   done
   echo "--- END DISPATCH ---"
+}
+
+read_xmachine_node_aliases() {
+  local config_path="$repo_root/xmachine.config.json"
+  [[ -f "$config_path" ]] || return 0
+
+  jq -r '.nodes | keys[]?' "$config_path"
+}
+
+get_xmachine_dispatch_context() {
+  XMACHINE_REQUESTED=0
+  XMACHINE_WORK_NODE=""
+  mapfile -t XMACHINE_AVAILABLE_NODES < <(read_xmachine_node_aliases)
+
+  local token
+  for token in "$@"; do
+    [[ -n "$token" ]] || continue
+
+    case "$token" in
+      xmachine|--xmachine)
+        XMACHINE_REQUESTED=1
+        ;;
+      *)
+        if [[ -z "$XMACHINE_WORK_NODE" ]]; then
+          local alias
+          for alias in "${XMACHINE_AVAILABLE_NODES[@]}"; do
+            if [[ "$token" == "$alias" ]]; then
+              XMACHINE_WORK_NODE="$token"
+              break
+            fi
+          done
+        fi
+        ;;
+    esac
+  done
+}
+
+get_explicit_plan_argument() {
+  local token candidate
+  for token in "$@"; do
+    [[ -n "$token" ]] || continue
+
+    candidate="$token"
+    if [[ "$candidate" == \#file:* || "$candidate" == \#FILE:* ]]; then
+      candidate="${candidate:6}"
+    fi
+
+    if [[ "$candidate" == *.prompt.md || "$candidate" == *.md ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 0
 }
 
 get_wf_state() {
@@ -249,6 +304,23 @@ case "$command" in
   dispatch)
     intent="${1:-}"
     sub_text="${*:2}"
+    dispatch_tokens=("${@:2}")
+    get_xmachine_dispatch_context "${dispatch_tokens[@]}"
+    explicit_plan=""
+    if [[ "$intent" == "pipeline" ]]; then
+      explicit_plan="$(get_explicit_plan_argument "${dispatch_tokens[@]}")"
+    fi
+
+    if [[ "$XMACHINE_REQUESTED" -eq 1 && -z "$XMACHINE_WORK_NODE" ]]; then
+      available_nodes="<none configured>"
+      if (( ${#XMACHINE_AVAILABLE_NODES[@]} > 0 )); then
+        available_nodes="$(printf '%s, ' "${XMACHINE_AVAILABLE_NODES[@]}")"
+        available_nodes="${available_nodes%, }"
+      fi
+      write_dispatch COMMAND error ACTION "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $available_nodes"
+      exit 0
+    fi
+
     case "$intent" in
       init|research|deep-research|pipeline)
         action="Execute the $intent workflow step."
@@ -271,7 +343,21 @@ case "$command" in
             on_complete="Report combined verdict: implement/test/review status and whether the branch is ready for /ship."
             ;;
         esac
-        write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
+
+        if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
+          action="$action Use xmachine work node '$XMACHINE_WORK_NODE' for bounded execution where supported, and keep control-plane state convergence local."
+          if [[ -n "$explicit_plan" ]]; then
+            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" PLAN "$explicit_plan" READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
+          else
+            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
+          fi
+        else
+          if [[ -n "$explicit_plan" ]]; then
+            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" PLAN "$explicit_plan"
+          else
+            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
+          fi
+        fi
         ;;
       "")
         get_state_context
@@ -296,7 +382,11 @@ case "$command" in
             mode=consult
           fi
           action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
-          write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
+          if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
+            write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user." READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
+          else
+            write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
+          fi
         else
           write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research/deep-research/pipeline) or a golem name."
         fi

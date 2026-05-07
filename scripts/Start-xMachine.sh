@@ -175,7 +175,10 @@ if grep -q "^CAPACITY_EXHAUSTED: Gemini model capacity unavailable" "$LOG_PATH" 
 fi
 
 # ── Generate result patch ─────────────────────────────────────────────────────
-if ! git -C "$WORKTREE" diff HEAD > "$PATCH_PATH" 2>>"$LOG_PATH"; then
+if ! git -C "$WORKTREE" \
+    -c filter.gal-config.smudge=cat \
+    -c filter.gal-config.clean=cat \
+    diff HEAD > "$PATCH_PATH" 2>>"$LOG_PATH"; then
     echo "Failed to generate patch (see runtime.log)" > "$PATCH_PATH"
 fi
 

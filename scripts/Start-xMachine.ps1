@@ -157,7 +157,7 @@ finally {
 
 # ── Generate result patch ─────────────────────────────────────────────────────
 try {
-    $patchContent = git -C $WorktreePath diff HEAD 2>&1
+    $patchContent = git -C $WorktreePath -c filter.gal-config.smudge=cat -c filter.gal-config.clean=cat diff HEAD 2>&1
     if ($patchContent) {
         $patchContent | Set-Content -Path $patchPath -Encoding UTF8
     }

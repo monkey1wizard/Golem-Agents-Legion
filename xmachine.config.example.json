@@ -1,5 +1,9 @@
 {
   "nodes": {
+    "node-name": {
+      "target": "username@mechine-name",
+      "repoPath": "/path/to/Golem-Agents-Legion"
+    },
     "mac-mini": {
       "target": "username@username-mac-mini.local",
       "repoPath": "/Users/username/Golem-Agents-Legion"

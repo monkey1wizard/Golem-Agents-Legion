@@ -202,6 +202,7 @@ function Get-StateContext {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
+$xmachineDocPath = Join-Path $repoRoot "docs\collaborative-tools\xmachine.md"
 
 # --- Dispatch helpers ---
 
@@ -213,6 +214,81 @@ function Write-Dispatch([hashtable]$Fields) {
         }
     }
     Write-Host "--- END DISPATCH ---"
+}
+
+function Read-XmachineNodeAliases {
+    $configPath = Join-Path $repoRoot "xmachine.config.json"
+    if (-not (Test-Path $configPath)) {
+        return @()
+    }
+
+    try {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json -AsHashtable
+    }
+    catch {
+        throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
+    }
+
+    if ($null -eq $config -or -not $config.ContainsKey('nodes')) {
+        return @()
+    }
+
+    $nodes = $config['nodes']
+    if ($nodes -isnot [System.Collections.IDictionary]) {
+        return @()
+    }
+
+    return @($nodes.Keys | ForEach-Object { [string]$_ })
+}
+
+function Get-XmachineDispatchContext {
+    param([string[]]$Tokens)
+
+    $aliases = Read-XmachineNodeAliases
+    $requested = $false
+    $workNode = $null
+
+    foreach ($token in $Tokens) {
+        if ([string]::IsNullOrWhiteSpace($token)) {
+            continue
+        }
+
+        if ($token -in @('xmachine', '--xmachine')) {
+            $requested = $true
+            continue
+        }
+
+        if ($aliases -contains $token -and -not $workNode) {
+            $workNode = $token
+        }
+    }
+
+    return [pscustomobject]@{
+        Requested      = $requested
+        WorkNode       = $workNode
+        AvailableNodes = $aliases
+    }
+}
+
+function Get-ExplicitPlanArgument {
+    param([string[]]$Tokens)
+
+    foreach ($token in $Tokens) {
+        if ([string]::IsNullOrWhiteSpace($token)) {
+            continue
+        }
+
+        $candidate = $token.Trim()
+        if ($candidate.StartsWith('#file:', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $candidate = $candidate.Substring(6)
+        }
+
+        if ($candidate -match '\.(prompt\.md|md)$') {
+            return $candidate
+        }
+    }
+
+    return $null
 }
 
 function Resolve-Golem([string]$Name) {
@@ -236,6 +312,18 @@ switch ($Command) {
     "dispatch" {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
+        $dispatchTokens = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] } else { @() }
+        $xmachineContext = Get-XmachineDispatchContext -Tokens $dispatchTokens
+        $explicitPlan = if ($intent -eq 'pipeline') { Get-ExplicitPlanArgument -Tokens $dispatchTokens } else { $null }
+
+        if ($xmachineContext.Requested -and -not $xmachineContext.WorkNode) {
+            $availableNodes = if ($xmachineContext.AvailableNodes.Count -gt 0) { $xmachineContext.AvailableNodes -join ', ' } else { '<none configured>' }
+            Write-Dispatch @{
+                COMMAND = 'error'
+                ACTION = "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $availableNodes"
+            }
+            break
+        }
 
         $subcommands = @('init','research','deep-research','pipeline')
         if ($subcommands -contains $intent) {
@@ -261,12 +349,27 @@ switch ($Command) {
                 }
             }
 
-            # Delegate to subcommand handler and wrap output
-            Write-Host "--- GAL DISPATCH ---"
-            Write-Host "COMMAND: $intent"
-            Write-Host "ACTION: $action"
-            Write-Host "ON_COMPLETE: $onComplete"
-            Write-Host "--- END DISPATCH ---"
+            if ($xmachineContext.Requested) {
+                $action = "$action Use xmachine work node '$($xmachineContext.WorkNode)' for bounded execution where supported, and keep control-plane state convergence local."
+            }
+
+            $dispatchFields = [ordered]@{
+                COMMAND = $intent
+                ACTION = $action
+                ON_COMPLETE = $onComplete
+            }
+
+            if ($explicitPlan) {
+                $dispatchFields['PLAN'] = $explicitPlan
+            }
+
+            if ($xmachineContext.Requested) {
+                $dispatchFields['READ'] = $xmachineDocPath
+                $dispatchFields['EXECUTION'] = 'xmachine'
+                $dispatchFields['WORK_NODE'] = $xmachineContext.WorkNode
+            }
+
+            Write-Dispatch $dispatchFields
             break
         }
 
@@ -278,12 +381,20 @@ switch ($Command) {
                 $mode = 'consult'
             }
             $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
-            Write-Dispatch @{
+            $dispatchFields = [ordered]@{
                 ROLE         = $resolved
                 MODE         = $mode
                 ACTION       = $action
                 ON_COMPLETE  = 'Report result to user.'
             }
+
+            if ($xmachineContext.Requested) {
+                $dispatchFields['READ'] = $xmachineDocPath
+                $dispatchFields['EXECUTION'] = 'xmachine'
+                $dispatchFields['WORK_NODE'] = $xmachineContext.WorkNode
+            }
+
+            Write-Dispatch $dispatchFields
             break
         }
 

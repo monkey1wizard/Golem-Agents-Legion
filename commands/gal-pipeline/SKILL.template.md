@@ -20,13 +20,31 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 ## Syntax
 
 ```text
-/gal pipeline [from T-NNN] [stop-at T-NNN]
+/gal pipeline [#file:<plan.md>] [from T-NNN] [stop-at T-NNN]
 ```
 
+- **`#file:<plan.md>`**: use the referenced plan file as the pipeline input for this invocation. When present, it overrides `.dev/state.md` active-plan lookup for Step 1 only.
 - **No arguments**: start from the first unchecked task, run until all tasks complete
 - **`from T-NNN`**: start from the specified task (skip earlier unchecked tasks)
 - **`stop-at T-NNN`**: after completing `T-NNN`, stop before starting the next task and prompt the user
 - **Resume**: if `Current Task` is set in `## Status`, resume from that task (overridden by explicit `from`)
+
+### xmachine Syntax
+
+Remote pipeline execution is active only when the activation phrase contains both:
+
+- the literal keyword `xmachine`
+- a valid node alias from `xmachine.config.json`
+
+Accepted examples:
+
+- `/gal pipeline --xmachine node-name`
+- `run the pipeline on xmachine node-name`
+
+Rejected examples:
+
+- `/gal pipeline on node-name`
+- `/gal pipeline --xmachine`
 
 ## Model Assignment
 
@@ -41,11 +59,30 @@ Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
 
 `golem-security` is not an always-on fifth pipeline phase. It remains a domain specialist that `/gal pipeline` dispatches only when the implemented change touches auth, data storage or sensitive data handling, user input processing, public API surface, or deployment and environment trust boundaries.
 
+## xmachine Mode
+
+If the dispatcher emits both `EXECUTION: xmachine` and `WORK_NODE: node-name`, keep the pipeline orchestrator on the control node and offload only bounded phase work to the specified node.
+
+Use the dispatcher path resolved by `/gal`'s invoke rules for every script-dispatched golem call in this procedure. If the target project has no repo-local `scripts/` directory, keep the terminal in the target project root and run scripts from the GAL runtime checkout.
+
+Rules:
+
+- Do not send the entire pipeline to the work node.
+- Use the GAL runtime checkout's `scripts/Invoke-XmachineTask.ps1 -WorkNode node-name -TaskSpec <phase-task-spec> -Wait` for supported bounded phases when no repo-local wrapper exists.
+- Retrieve and inspect `status.json`, `summary.md`, `runtime.log`, and `result.patch` on the control node.
+- Apply any returned patch only on the control-node checkout.
+- Keep commit gates, plan-state convergence, and protected-path escalation local.
+
 ---
 
 ## Step 1 — Read Plan and Verify Prerequisites
 
-Read the active plan file from `.dev/state.md`.
+Select the plan file using this precedence order:
+
+1. If the dispatcher emitted `PLAN: <path>`, use that explicit plan file for this invocation.
+2. Otherwise read the active plan file from `.dev/state.md`.
+
+If an explicit `PLAN` path was provided but the file does not exist or is not a markdown plan/prompt file, stop and surface the exact path error.
 
 Verify:
 
@@ -57,6 +94,8 @@ Verify:
 If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task.
 
 If prerequisites are not met: tell the user what is missing and stop. If the execution prompt is still stubbed, run `/refining-plan` on the source plan and then rerun `/plan-to-prompt` before attempting the pipeline again.
+
+If xmachine mode is requested, also verify that the selected node is already `readied`. If not, stop and instruct the user to run the GAL runtime checkout's `scripts/Test-Xmachine.ps1 -WorkNode node-name -Wait` first.
 
 ---
 
@@ -101,6 +140,8 @@ Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
 
 **Hard Commit Gate:** If `git status` is not clean or `Task Final Commit` is not recorded, do not proceed. Stop and surface the issue.
 
+**xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate.
+
 ### 2d — Test (TESTER model — different vendor from CODER)
 
 Update plan `## Status`: set `Workflow: TEST`
@@ -121,6 +162,8 @@ Check result:
   - If `Test Retry Count` < 3: dispatch implementer to fix failing tests (TASK_SCOPE: T-NNN, fix mode), then re-run tester
   - If `Test Retry Count` = 3: **STOP**. Surface failures. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
 
+**xmachine mode:** if active, offload only the bounded test task and converge any plan-section or artifact changes on the control node before deciding PASS/FAIL.
+
 ### 2e — Review (REVIEWER model — different vendor from CODER and TESTER)
 
 Run:
@@ -140,6 +183,8 @@ Check result:
   - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
 
 **Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
+
+**xmachine mode:** if active, offload only the bounded review task, then apply any review-result plan updates on the control node before evaluating APPROVE/BLOCKING.
 
 ### 2f — Conditional Security Audit
 
@@ -167,6 +212,8 @@ Check result:
 
 - **Security review clear**: proceed to 2g
 - **High or critical findings remain open**: **STOP immediately**. Do not auto-fix inside the pipeline. Surface the findings and request human intervention before task closeout
+
+**xmachine mode:** if active, security audit remains a bounded offload and its returned results must be converged locally before continuing.
 
 ### 2g — Mark Task Complete
 
@@ -203,6 +250,8 @@ Check result:
 - **VERIFIED**: proceed to Step 4 (final gate)
 - **GAPS_FOUND**: **STOP**. Surface each gap with its description. Tell user to resolve the gaps before handing off to `golem-releaser`.
 - **BLOCKED**: **STOP**. Surface the blocking condition. Tell user to resolve before release work starts.
+
+**xmachine mode:** if active, verifier may run as a bounded offload, but its verdict must still be read and enforced on the control node.
 
 ---
 
