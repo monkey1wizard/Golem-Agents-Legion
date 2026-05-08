@@ -138,6 +138,27 @@ function ConvertTo-CodexMcpConfig([System.Collections.IDictionary]$Config) {
     return $converted
 }
 
+function Get-CodexBridgeProfile([string]$ServerName) {
+    switch ($ServerName) {
+        'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
+        'github-mcp-server' { return [ordered]@{ Enabled = $false; Key = $null } }
+        'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
+        'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
+        'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
+        'upstash/context7' { return [ordered]@{ Enabled = $true; Key = 'context7' } }
+        'imageFetch' { return [ordered]@{ Enabled = $true; Key = 'imageFetch' } }
+        'blender' { return [ordered]@{ Enabled = $true; Key = 'blender' } }
+        'freecad' { return [ordered]@{ Enabled = $true; Key = 'freecad' } }
+        default {
+            $normalized = $ServerName -replace '^[^A-Za-z0-9]+', '' -replace '[^A-Za-z0-9_-]+', '-'
+            if ([string]::IsNullOrWhiteSpace($normalized)) {
+                $normalized = 'server'
+            }
+            return [ordered]@{ Enabled = $true; Key = $normalized }
+        }
+    }
+}
+
 function Get-CopilotCliBridgeProfile([string]$ServerName) {
     switch ($ServerName) {
         'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
@@ -261,7 +282,7 @@ function ConvertTo-OpenCodeMcpConfig([System.Collections.IDictionary]$Config) {
 }
 
 function ConvertTo-TomlString([string]$Value) {
-    $escaped = $Value.Replace('\\', '\\\\').Replace('"', '\\"')
+    $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
     return '"' + $escaped + '"'
 }
 
@@ -618,6 +639,10 @@ function Update-CodexMcpConfig([System.Collections.IDictionary]$ManagedManifest)
     $managedNames = New-Object System.Collections.Generic.List[string]
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
         [void]$managedNames.Add($serverName)
+        $bridgeConfig = Get-CodexBridgeProfile -ServerName $serverName
+        if (-not [string]::IsNullOrWhiteSpace($bridgeConfig['Key'])) {
+            [void]$managedNames.Add([string]$bridgeConfig['Key'])
+        }
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'codex' -ServerName $serverName)) {
             [void]$managedNames.Add($legacyAlias)
         }
@@ -625,7 +650,9 @@ function Update-CodexMcpConfig([System.Collections.IDictionary]$ManagedManifest)
 
     $remainingRaw = Remove-CodexManagedServersFromToml -RawContent $codexRaw -ServerNames @($managedNames)
     $sections = foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        ConvertTo-CodexMcpSection -ServerName $serverName -Config (ConvertTo-CodexMcpConfig $ManagedManifest['servers'][$serverName])
+        $bridgeConfig = Get-CodexBridgeProfile -ServerName $serverName
+        if (-not $bridgeConfig['Enabled']) { continue }
+        ConvertTo-CodexMcpSection -ServerName ([string]$bridgeConfig['Key']) -Config (ConvertTo-CodexMcpConfig $ManagedManifest['servers'][$serverName])
     }
 
     $newCodexRaw = $remainingRaw
@@ -636,14 +663,18 @@ function Update-CodexMcpConfig([System.Collections.IDictionary]$ManagedManifest)
 
     if ($script:SetupOptions.DryRun) {
         foreach ($serverName in $ManagedManifest['servers'].Keys) {
-            Write-Host "  [DRY RUN] Would set Codex MCP server: $serverName"
+            $bridgeConfig = Get-CodexBridgeProfile -ServerName $serverName
+            if (-not $bridgeConfig['Enabled']) { continue }
+            Write-Host "  [DRY RUN] Would set Codex MCP server: $($bridgeConfig['Key'])"
         }
         return
     }
 
     [System.IO.File]::WriteAllText($context.CodexConfigFile, $newCodexRaw, $context.Utf8NoBom)
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        Write-Host "  [SET] Codex MCP server: $serverName"
+        $bridgeConfig = Get-CodexBridgeProfile -ServerName $serverName
+        if (-not $bridgeConfig['Enabled']) { continue }
+        Write-Host "  [SET] Codex MCP server: $($bridgeConfig['Key'])"
     }
     Write-Host "  [OK] $($context.CodexConfigFile)"
 }

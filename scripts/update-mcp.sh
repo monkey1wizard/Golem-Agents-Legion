@@ -69,14 +69,23 @@ dry_run = sys.argv[16].lower() == 'true'
 BRIDGE_PROFILES = {
     'upstash/context7': {
         'gemini': {'key': 'upstash/context7'},
-        'codex': {'key': 'upstash/context7'},
+        'codex': {'key': 'context7'},
     },
     'microsoftdocs/mcp': {
         'gemini': {'key': 'microsoftdocs/mcp'},
-        'codex': {'key': 'microsoftdocs/mcp'},
+        'codex': {'key': 'microsoftdocs'},
     },
     'imageFetch': {
         'codex': {'key': 'imageFetch'},
+    },
+    'chromedevtools/chrome-devtools-mcp': {
+        'codex': {'key': 'chrome-devtools'},
+    },
+    'microsoft/markitdown': {
+        'codex': {'key': 'markitdown'},
+    },
+    'github-mcp-server': {
+        'codex': {'enabled': False, 'key': None},
     },
 }
 
@@ -543,10 +552,20 @@ def update_codex(manifest):
     managed_names = []
     for server_name in manifest['servers']:
         managed_names.append(server_name)
+        profile = get_bridge_profile(server_name, 'codex')
+        if profile.get('key'):
+            managed_names.append(profile['key'])
         managed_names.extend(legacy_aliases('codex', server_name))
 
     remaining = remove_codex_managed_servers(current_raw, managed_names)
-    sections = [codex_section(server_name, convert_codex_config(server_config)) for server_name, server_config in manifest['servers'].items()]
+    sections = []
+    written_names = []
+    for server_name, server_config in manifest['servers'].items():
+        profile = get_bridge_profile(server_name, 'codex')
+        if not profile.get('enabled', True):
+            continue
+        written_names.append(profile['key'])
+        sections.append(codex_section(profile['key'], convert_codex_config(server_config)))
     new_raw = remaining
     if new_raw:
         new_raw = new_raw.rstrip('\r\n') + '\r\n\r\n'
@@ -554,7 +573,7 @@ def update_codex(manifest):
 
     if current_raw == new_raw:
         return
-    for server_name in manifest['servers']:
+    for server_name in written_names:
         prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
         print(f'  {prefix} Codex MCP server: {server_name}')
     if not dry_run:
