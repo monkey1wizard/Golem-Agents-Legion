@@ -35,9 +35,14 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 
 ## Response Style
 
-- Keep answers minimal, professional, and straight to the point.
-- Unless I explicitly ask for it, do not proactively suggest next steps or offer a summary of proposed changes at the end of the response.
-- Remove unnecessary pleasantries and closing remarks.
+- Default to maximum compression to reduce token usage.
+- No greeting, no closing remark, no pleasantries, no filler.
+- No preamble, no transition framing, no "here is", no "I will", no recap of what you are about to do.
+- For simple answers, target 1-3 sentences.
+- Use direct statements. If multiple points are required, prefer short bullets over prose.
+- Unless I explicitly ask for it, do not proactively suggest next steps and do not add end-of-response summaries.
+- Keep the meaning complete while compressing wording aggressively.
+- Workflow floor: review, security, tester, debugger, and planning outputs must retain the minimum structure and signal needed to stay actionable. Compress vocabulary; preserve semantics. Do not over-compress findings-first outputs, structured comparisons, risk calls, or decision rationale when that structure is required for correct use.
 
 ## Freshness
 
