@@ -2,30 +2,54 @@
 
 [English](README.md) | 繁體中文
 
-GAL 是一套為開發工作帶來結構化流程的 AI 工作系統，讓你可以在不同 AI 工具間切換時保留完整的工作脈絡。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放在 `.dev/`、`docs/plans/`、`docs/research/`；使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault。這樣的設計讓支援的 runtime 能夠共用同一套工作流程，同時保留儲存庫之外的私人筆記空間。
+現在的 AI 工具（如 GitHub Copilot, Gemini CLI, Claude Code）更替速度很快，很多設定像是 skills/agents 等僅可於特定工具內使用，工作進度也難銜接，容易遺失先前的對話脈絡與規劃。此外，複雜的專案也常因為缺乏明確的狀態管理，導致開發進度難以追蹤。因此設計了此系統以同步各個工具間的設定及工作狀態，並加速整個開發流程。
 
-狀態管理機制參考了 Get Shit Done (GSD) 的階段式準則：以明確的狀態檔案 (`.dev/state.md`)、驗證關卡，以及結構化的執行生命週期，讓 `/gal status` 和 `/gal whats-next` 能夠完整呈現儲存庫目前的工作進度。
+GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你的「開發計畫」、「目前狀態」與「審查紀錄」全部儲存在專案本地的 Markdown 檔案中（`.dev/` 與 `docs/`）。無論你今天用哪一個 AI CLI 工具開啟專案，都能無縫接續昨天的工作。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。
+
+持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放。使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault，保留儲存庫之外的私人筆記空間。狀態管理機制參考了 Get Shit Done (GSD) 的階段式準則，讓 `/gal status` 和 `/gal whats-next` 能夠完整呈現專案目前的工作進度。
+
+若有多個電腦設備，你也可使用 xmachine 能幫你把 AI 任務透過 SSH 路由到遠端工作節點執行，以最大化資源利用率。（需自行先設定完 SSH 連線、Zellji、ai cli 工具）
+
+## 前置需求 (Prerequisites)
+
+在開始使用 GAL 之前，請確保你的環境具備以下條件：
+
+1. **終端機環境**：必須具備 Bash (macOS/Linux/Git Bash) 或 PowerShell (Windows)。
+2. **AI CLI 工具**：必須安裝至少一款支援的 AI 指令列工具（如 GitHub Copilot CLI, Gemini CLI, Codex CLI, 或 Claude Code）。
+3. **基礎工具**：確保已安裝 Git，以便進行版本控制與狀態追蹤。
 
 ## 快速開始
 
-1. 複製（Clone）此專案。
-`git clone https://github.com/monkey1wizard/golem-agents-legion.git`。
+1. **複製（Clone）此專案**：
+   `git clone https://github.com/monkey1wizard/golem-agents-legion.git`
 
-2. 進入專案目錄後執行安裝：Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`。安裝完成後就能在儲存庫中使用 GAL 指令。
+2. **安裝與設定**：
+   進入專案目錄後執行安裝腳本。Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`。安裝完成後就能在你的儲存庫中使用 GAL 指令。
 
-3. 進入目標儲存庫後開啟你偏好的支援 runtime，然後用該 runtime 慣用的 command 或 skill 入口呼叫 GAL。常見例子如下：
+3. **啟動 GAL**：
+   進入你的目標儲存庫（Target Repository）後開啟你偏好的支援 runtime，然後用該 runtime 慣用的 command 或 skill 入口呼叫 GAL。
 
-```text
-# 常見斜線指令介面
-/gal init
+   ```text
+   # 常見斜線指令介面
+   /gal init
 
-# Codex CLI（技能提及介面，使用 $ 前綴，不是 /）
-$gal init
-```
+   # Codex CLI（技能提及介面，使用 $ 前綴，不是 /）
+   $gal init
+   ```
 
-各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
+   各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
 
-## 公開指令
+## 範例：用 GAL 跑完一個功能的生命週期
+
+**情境：如何在專案中新增一個 JWT 登入功能？**
+
+1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。
+2. **發想與規劃**：輸入 `/planning` 並告訴 AI「我要做一個 JWT 登入功能」。AI 會與你討論並將規格寫入 `docs/plans/`，再使用 `/deep-planning` 仔細審核規劃書。
+3. **鎖定規格**：輸入 `/refining-plan` 與 `/plan-to-prompt`，讓 AI 將人類可讀的規格轉化為 AI 可執行的「任務清單」與「測試計畫」。
+4. **自動實作與驗證**：輸入 `/gal pipeline`，GAL 會自動指派 Implementer（寫程式） -> Tester（寫測試） -> Reviewer（審查程式碼）。
+5. **收工**：輸入 `/gal wrap-up` 紀錄今天進度。明天換別的 AI 工具開啟專案，依然能無縫接續！
+
+## 指令
 
 | 指令 | 用途 |
 | --- | --- |
@@ -53,7 +77,6 @@ $gal init
      source plan (docs/plans/*)
           │
      ┌────┴──────────────┐
-     │                   │
      │ 依內容需要時       │ 若使用 deep-planning
      │ 直接啟用           │ architect 必定啟動
      │ analyst/designer  │ analyst/designer
@@ -172,7 +195,7 @@ Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `c
 - **Hard Stop**：所有 agent 停止工作，包括 `notewriter`
 - **Override**：使用者可說 `override working hours`，單次有效
 
-可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設定工作時段，詳情請見 [docs/personalization.md](docs/personalization.md)。
+可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設定工作時段，詳情請見 [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md)。
 
 ## 儲存邊界
 
@@ -257,7 +280,12 @@ DOCUMENT 階段的目標地有四種：
 
 ## 協作工具
 
-GAL 可再使用協作工具（collaborative tools），這些工具各自能強化整個 GAL 流程中的特定查詢能力或 agent skills，但是這些都不是 `/gal` 的必要工具，因此即使沒有安裝任何一個下述工具，GAL 仍能完整運作。不過你可以透過執行 `Setup-Tools` 安裝這些工具。
+GAL 支援多種協作工具（collaborative tools），主要分為兩大類：
+
+- **工作流強化**：如 `graphify`、`gstack`、`OpenCLI` 等，用於強化特定查詢能力或 agent skills。
+- **Pipeline 與執行環境**：如 `xMachine`、`Blender pipeline` 等，用於跨平台任務執行或專業資產管線。
+
+**重要聲明**：所有的協作工具都**需要使用者自行安裝**相應的特定工具後才能正常運作。**GAL 不會幫忙安裝這些工具**。即使未安裝任何協作工具，GAL 的核心流程仍能完整運作。
 
 ### 啟動前檢查機制
 
@@ -291,19 +319,19 @@ applicability → availability → initialization status → readiness → route
 
 ### xmachine
 
-xmachine 是 GAL 的協作執行工具，能透過 SSH 將工作任務路由到已準備好的工作節點。目前已文件化的執行 lane 包括 Windows 工作節點以及 POSIX 相容的 shell 工作節點之背景執行模式。詳見 [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md)。
+xmachine 是 GAL 的協作執行工具，能透過 SSH 將工作任務路由到已準備好的工作節點。目前已文件化的執行 lane 包括 Windows 工作節點以及 POSIX 相容的 shell 工作節點之背景執行模式。詳見 [docs/collaborative-tools/xmachine.zh-Hant.md](docs/collaborative-tools/xmachine.zh-Hant.md)。
 
 ### Godot C Sharp
 
-現有指令透過慣例（convention）、技能（skill）與 MCP 工具直接操作 Godot 4 C# 儲存庫。詳見 [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md)。
+製作中。現有指令透過慣例（convention）、技能（skill）與 MCP 工具直接操作 Godot 4 C# 儲存庫。詳見 [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md)。
 
 ### AI-First 遊戲素材
 
-以 ComfyUI 為生成入口，搭配後段工具做整理與匯出。詳見 [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md)。
+製作中。以 ComfyUI 為生成入口，搭配後段工具做整理與匯出。詳見 [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md)。
 
 ## 個人化設定
 
-與本機環境相關但不適合放在 README 首頁的設定都集中在 [docs/personalization.md](docs/personalization.md)。內容包含環境佔位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆寫、Obsidian Vault 路徑、私人研究目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
+與本機環境相關但不適合放在 README 首頁的設定都集中在 [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md)。內容包含環境佔位符的填寫方式、執行環境的選擇與重新設定、模型路由、MCP 覆寫、Obsidian Vault 路徑、私人研究目錄、可選 Guide 路徑、Working Hours 設定，以及什麼情況下需要重新執行 setup。若你要調整本機使用的 AI 工具、模型角色對應或 MCP 設定，請看此份文件。
 
 ## 文件
 
@@ -312,12 +340,12 @@ xmachine 是 GAL 的協作執行工具，能透過 SSH 將工作任務路由到�
 | 路徑 | 用途 |
 | --- | --- |
 | [docs/devguide.md](docs/devguide.md) | 開發者手冊 |
-| [docs/personalization.md](docs/personalization.md) | 本機模型路由、MCP 覆寫等個人化指引 |
+| [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md) | 本機模型路由、MCP 覆寫等個人化指引 |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |
 | [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | 圖形結構化工具 |
 | [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 工具指引與使用時機 |
 | [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與專家 agents 整合 |
-| [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md) | xmachine Execution Lane、所有權模型、smoke test 與 patch-first 收斂 |
+| [docs/collaborative-tools/xmachine.zh-Hant.md](docs/collaborative-tools/xmachine.zh-Hant.md) | xmachine Execution Lane、所有權模型、smoke test 與 patch-first 收斂 |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# 工作流導引 |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
 

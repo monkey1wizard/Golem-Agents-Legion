@@ -2,30 +2,54 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-GAL is an AI working system that brings structure to development while letting you switch between AI tools without losing context. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, creating a document-driven development model. Durable state is split across two boundaries: repository-shared state saved as local Markdown files in `.dev/`, `docs/plans/`, and `docs/research/`, plus optional user-personal notes that can be written to a locally configured Obsidian vault. This lets supported runtimes share the same workflow while preserving your personal note space outside the repository.
+AI tools (like GitHub Copilot, Gemini CLI, Claude Code) are changing rapidly. Many configurations, such as skills/agents, can only be used within specific tools, making it difficult to seamlessly transfer work progress and often resulting in lost conversational context and planning. Furthermore, complex projects often lack clear state management, making it hard to track development progress. Therefore, this system was designed to synchronize settings and work states across different tools, accelerating the overall development process.
 
-State management draws from the phase-based discipline in Get Shit Done (GSD): explicit state (`.dev/state.md`), verification gates, and a structured execution lifecycle, letting `/gal status` and `/gal whats-next` project the current state of work for the entire repository.
+GAL is an AI working system that brings structure to development. It stores your "development plans," "current state," and "review records" entirely in local Markdown files (`.dev/` and `docs/`). No matter which AI CLI tool you use today, you can seamlessly pick up where you left off yesterday. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, operating in a document-driven model.
+
+Durable state is split across two boundaries: repository-shared state is saved as local Markdown files. Optional user-personal notes can be written to a locally configured Obsidian vault, preserving your personal note space outside the repository. State management draws from the phase-based discipline in Get Shit Done (GSD), letting `/gal status` and `/gal whats-next` reliably project the current state of work for the entire project.
+
+If you have multiple devices, you can also use xmachine to route AI tasks via SSH to remote work nodes for execution, maximizing resource utilization. (Requires manual setup of SSH connections, Zellij, AI CLI tools, etc.)
+
+## Prerequisites
+
+Before using GAL, ensure your environment meets the following requirements:
+
+1. **Terminal**: Must have Bash (macOS/Linux/Git Bash) or PowerShell (Windows).
+2. **AI CLI Tool**: Must have at least one supported AI command-line tool installed (e.g., GitHub Copilot CLI, Gemini CLI, Codex CLI, or Claude Code).
+3. **Basic Tools**: Ensure Git is installed for version control and state tracking.
 
 ## Quick Start
 
-1. Clone this repository:
-`git clone https://github.com/monkey1wizard/golem-agents-legion.git`
+1. **Clone this repository**:
+   `git clone https://github.com/monkey1wizard/golem-agents-legion.git`
 
-2. Navigate to the project directory and run the installation script. Use `./scripts/Setup-Machine.ps1` on Windows or `./scripts/setup-machine.sh` on macOS/Linux. Once complete, you can start using GAL in your repositories.
+2. **Install and Setup**:
+   Navigate to the project directory and run the installation script. Use `./scripts/Setup-Machine.ps1` on Windows or `./scripts/setup-machine.sh` on macOS/Linux. Once complete, you can start using GAL in your repositories.
 
-3. In your target repository, open your preferred supported runtime, then invoke GAL using that runtime's normal command or skill surface. Common examples:
+3. **Start GAL**:
+   In your target repository, open your preferred supported runtime, then invoke GAL using that runtime's normal command or skill surface.
 
-```text
-# Common slash-command surface
-/gal init
+   ```text
+   # Common slash-command surface
+   /gal init
 
-# Codex CLI (skill mention surface, uses $ instead of /)
-$gal init
-```
+   # Codex CLI (skill mention surface, uses $ instead of /)
+   $gal init
+   ```
 
-Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
+   Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
 
-## Public Commands
+## Walkthrough: A Feature's Lifecycle with GAL
+
+**Scenario: Adding a JWT Login Feature to Your Project**
+
+1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files.
+2. **Brainstorm & Plan**: Run `/planning` and tell the AI, "I want to build a JWT login feature." The AI will discuss and write the spec into `docs/plans/`, then use `/deep-planning` to carefully review the plan document.
+3. **Lock the Spec**: Run `/refining-plan` and `/plan-to-prompt`. The AI converts the human-readable spec into an executable "task list" and "test plan."
+4. **Auto-Implement & Verify**: Run `/gal pipeline`. GAL automatically assigns the Implementer (writes code) -> Tester (writes tests) -> Reviewer (code review).
+5. **Wrap Up**: Run `/gal wrap-up` to record your progress for the day. Switch to a different AI tool tomorrow, and you'll pick up exactly where you left off!
+
+## Commands
 
 | Command | Purpose |
 | --- | --- |
@@ -257,7 +281,12 @@ The DOCUMENT destination can be one of four choices:
 
 ## Collaborative Tools
 
-GAL can also leverage collaborative tools. These tools enhance specific query capabilities or agent skills across the GAL workflow, but none of them are required by `/gal`, so GAL still functions fully even if none of the tools below are installed. You can install them by running `Setup-Tools`.
+GAL supports multiple collaborative tools, which primarily fall into two categories:
+
+- **Workflow Enhancement**: Such as `graphify`, `gstack`, and `OpenCLI`, used to strengthen specific query capabilities or agent skills.
+- **Pipeline and Execution Environments**: Such as `xMachine` and `Blender pipeline`, used for cross-platform task execution, distributed computing, or professional asset pipelines.
+
+**Important**: All collaborative tools **require manual installation** of their specific external dependencies by the user. **GAL does not automatically install these tools**. GAL's core workflows remain fully functional even without any collaborative tools installed.
 
 ### Shared Preflight Mechanism
 
@@ -295,11 +324,11 @@ xmachine is GAL's collaborative execution tool for routing bounded work over SSH
 
 ### Godot C Sharp
 
-Existing commands operate on Godot 4 C# Repos through conventions, skills, and MCP tools. See [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md).
+Work in progress. Existing commands operate on Godot 4 C# Repos through conventions, skills, and MCP tools. See [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md).
 
 ### AI-First Game Assets
 
-Uses ComfyUI as the generation entry point, paired with downstream tools for organization and export. See [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md).
+Work in progress. Uses ComfyUI as the generation entry point, paired with downstream tools for organization and export. See [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md).
 
 ## Personalization
 
