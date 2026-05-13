@@ -204,6 +204,8 @@ GAL 將持久化資料分為兩個儲存邊界：
 - **儲存庫共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和儲存庫一起追蹤、審查與協作的工作成果。
 - **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
 
+若是 GAL 這個 source repo 本身，`.dev/` 內部要再細分：只有 `.dev/project.md` 應進 Git。`.dev/state.md`、`.dev/plans/` 與其他 `.dev/*` 工作流暫存檔都應視為 contributor 本機狀態。
+
 若使用者設定了 `OBSIDIAN_GUIDE_PATH` 且 Guide 存在，`notewriter` 會依該 Guide 工作。若未設定或找不到，則改走 generic mode，而不會因缺少 Guide 而中止。
 
 ## 專案檔案 (Project files)

@@ -79,6 +79,25 @@ while IFS= read -r -d '' f; do
     staged_files+=("$f")
 done < <(git diff --cached --diff-filter=ACMR --name-only -z)
 
+# Block local .dev workflow state from being committed.
+for f in "${staged_files[@]}"; do
+    case "$f" in
+        .dev/project.md)
+            ;;
+        .dev/*)
+            echo "BLOCKED: Local .dev workflow state is staged!" >&2
+            echo "  File:  $f" >&2
+            echo "" >&2
+            echo "Only .dev/project.md is allowed in commits for this repo." >&2
+            echo "Keep .dev/state.md, .dev/plans/**, and .dev/xmachine-* local-only." >&2
+            echo "" >&2
+            echo "Fix: git reset HEAD -- '$f'" >&2
+            echo "Override: git commit --no-verify (use with caution)" >&2
+            exit 1
+            ;;
+    esac
+done
+
 for ((i = 0; i < ${#VALS[@]}; i++)); do
     val="${VALS[$i]}"
     key="${KEYS[$i]}"

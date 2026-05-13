@@ -8,6 +8,12 @@ Desktop.ini
 .idea/
 *.swp
 *~
+.venv/
+.sandbox/
+
+# Local GAL workflow state (keep .dev/project.md tracked)
+.dev/*
+!.dev/project.md
 
 # Secrets (never commit these)
 *.key

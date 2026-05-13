@@ -205,12 +205,12 @@ GAL divides persistent data into two boundaries:
 - **Repo shared state**: `.dev/`, `docs/plans/`, `docs/research/`. These files are managed by Git and are suitable for work results that need to be tracked, reviewed, and collaborated on together with the Repo.
 - **User private note repository**: Obsidian Vault. Its location is configured by `OBSIDIAN_VAULT` and `OBSIDIAN_VAULT_NAME` in `config.local.env`, and detailed paths can be specified via `OBSIDIAN_PRIVATE_RESEARCH_DIR`, `OBSIDIAN_DIARY_DIR`, and `OBSIDIAN_ARCHIVE_DIR`.
 
+For the GAL source repo itself, keep a narrower boundary inside `.dev/`: only `.dev/project.md` should be committed. Treat `.dev/state.md`, `.dev/plans/`, and other `.dev/*` workflow scratch files as local-only contributor state.
+
 If the user has set `OBSIDIAN_GUIDE_PATH` and the Guide exists, `notewriter` will work according to that Guide. If it is not set or cannot be found, it defaults to generic mode instead of aborting due to a missing Guide.
 
 ## Project Files
 
-| Path | Purpose |
-| --- | --- |
 | `.dev/project.md` | Repo summary, Tech Stack, goals, constraints |
 | `.dev/state.md` | Active plan index, blockers, session continuity |
 | `.dev/plans/<plan-slug>.prompt.md` | AI execution work file |
