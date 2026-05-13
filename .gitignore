@@ -15,6 +15,8 @@ Desktop.ini
 openclaw.json
 
 # Local overrides (fork and customize)
+# Keep machine-specific files out of source control.
+# Example: commit config.example.env, ignore config.local.env.
 config.local.env
 mcp.local.json
 model-roles.local.md
