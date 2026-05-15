@@ -943,8 +943,27 @@ with your own machines, models, and tools. The local file is git-ignored.
 
 The following repo-local skills are available by name. Read the corresponding `skills/<name>/SKILL.md` file when full instructions are needed.
 
+- `dart-add-unit-test` - `skills/dart-add-unit-test/SKILL.md`
+- `dart-build-cli-app` - `skills/dart-build-cli-app/SKILL.md`
+- `dart-collect-coverage` - `skills/dart-collect-coverage/SKILL.md`
+- `dart-fix-runtime-errors` - `skills/dart-fix-runtime-errors/SKILL.md`
+- `dart-generate-test-mocks` - `skills/dart-generate-test-mocks/SKILL.md`
+- `dart-migrate-to-checks-package` - `skills/dart-migrate-to-checks-package/SKILL.md`
+- `dart-resolve-package-conflicts` - `skills/dart-resolve-package-conflicts/SKILL.md`
+- `dart-run-static-analysis` - `skills/dart-run-static-analysis/SKILL.md`
+- `dart-use-pattern-matching` - `skills/dart-use-pattern-matching/SKILL.md`
 - `defuddle` - `skills/defuddle/SKILL.md`
 - `doc-coauthoring` - `skills/doc-coauthoring/SKILL.md`
+- `flutter-add-integration-test` - `skills/flutter-add-integration-test/SKILL.md`
+- `flutter-add-widget-preview` - `skills/flutter-add-widget-preview/SKILL.md`
+- `flutter-add-widget-test` - `skills/flutter-add-widget-test/SKILL.md`
+- `flutter-apply-architecture-best-practices` - `skills/flutter-apply-architecture-best-practices/SKILL.md`
+- `flutter-build-responsive-layout` - `skills/flutter-build-responsive-layout/SKILL.md`
+- `flutter-fix-layout-issues` - `skills/flutter-fix-layout-issues/SKILL.md`
+- `flutter-implement-json-serialization` - `skills/flutter-implement-json-serialization/SKILL.md`
+- `flutter-setup-declarative-routing` - `skills/flutter-setup-declarative-routing/SKILL.md`
+- `flutter-setup-localization` - `skills/flutter-setup-localization/SKILL.md`
+- `flutter-use-http-package` - `skills/flutter-use-http-package/SKILL.md`
 - `game-2d-assets` - `skills/game-2d-assets/SKILL.md`
 - `game-3d-assets` - `skills/game-3d-assets/SKILL.md`
 - `game-asset-export` - `skills/game-asset-export/SKILL.md`
