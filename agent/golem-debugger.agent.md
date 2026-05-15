@@ -194,6 +194,21 @@ Debug state location depends on context:
 
 </investigation_rules>
 
+<evidence_discipline>
+
+## Evidence Discipline
+
+**Scoped collection**: Gather evidence from the failing component and its direct dependencies only. Do not read or log from the full codebase. Widen scope only when a hypothesis is eliminated and the bug must cross a boundary.
+
+**Compact failure context**: When capturing failure evidence, limit each evidence item to a maximum of 10 lines:
+- Stack trace: the exception message + directly relevant frames only (skip framework internals)
+- Failing test: name + assertion failure message
+- Log excerpt: the failing log line plus 2-3 lines of surrounding context
+
+Do not pipe entire log files or full stack traces into the conversation. Summarize what is not directly relevant to the active hypothesis.
+
+</evidence_discipline>
+
 <when_to_restart>
 
 Consider starting over when:
