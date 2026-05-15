@@ -79,6 +79,16 @@ function Resolve-PlanPath([string]$Value) {
     }
 
     if ($absolutePath -match '\.md$') {
+        $sourcePlanRoot = Join-Path $repoContextRoot 'docs\plans'
+        if ($absolutePath.StartsWith($sourcePlanRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $relativeSourcePlanPath = $absolutePath.Substring($sourcePlanRoot.Length).TrimStart('\\')
+            $relativePromptPath = $relativeSourcePlanPath -replace '\.md$', '.prompt.md'
+            $devPromptPath = Join-Path (Join-Path $repoContextRoot '.dev\plans') $relativePromptPath
+            if (Test-Path $devPromptPath) {
+                return $devPromptPath
+            }
+        }
+
         $promptPath = $absolutePath -replace '\.md$', '.prompt.md'
         if (Test-Path $promptPath) {
             return $promptPath

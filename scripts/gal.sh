@@ -172,6 +172,18 @@ resolve_plan_path() {
   fi
 
   if [[ "$absolute" == *.md ]]; then
+    local source_plan_root relative_source_plan_path relative_prompt_path dev_prompt
+    source_plan_root="$repo_root/docs/plans"
+    if [[ "$absolute" == "$source_plan_root"/* ]]; then
+      relative_source_plan_path="${absolute#"$source_plan_root"/}"
+      relative_prompt_path="${relative_source_plan_path%.md}.prompt.md"
+      dev_prompt="$repo_root/.dev/plans/$relative_prompt_path"
+      if [[ -f "$dev_prompt" ]]; then
+        printf '%s\n' "$dev_prompt"
+        return 0
+      fi
+    fi
+
     prompt="${absolute%.md}.prompt.md"
     if [[ -f "$prompt" ]]; then
       printf '%s\n' "$prompt"
