@@ -9,6 +9,15 @@
             "chrome-devtools-mcp@latest"
         ]
     },
+    "firebase-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "mcp"
+      ]
+    },
     "github-mcp-server": {
         "type": "http",
         "url": "https://api.githubcopilot.com/mcp/"

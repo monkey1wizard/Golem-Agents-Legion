@@ -136,6 +136,35 @@ Example:
 - Keep the tracked GAL source in `../mcp.json`.
 - Put machine-specific MCP differences in `../mcp.local.json`.
 
+Project-specific or database-specific MCP servers should usually live in `../mcp.local.json`, not the tracked `mcp.json`. This matters for Postgres because one machine may work across many repos, and one repo may talk to multiple databases.
+
+Example for two Postgres databases on one machine:
+
+```json
+{
+  "servers": {
+    "postgres-app": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "${POSTGRES_MCP_APP_URI}"
+      }
+    },
+    "postgres-analytics": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "${POSTGRES_MCP_ANALYTICS_URI}"
+      }
+    }
+  }
+}
+```
+
+Then add matching variables to `config.local.env` with any names you want. `Update-Mcp.ps1` and `update-mcp.sh` already merge all local server names and resolve arbitrary `${ENV_VAR}` placeholders from `config.local.env`.
+
 ### 4. Runtime-owned config
 
 The installed runtime configs remain user-owned even when GAL refreshes GAL-managed entries.

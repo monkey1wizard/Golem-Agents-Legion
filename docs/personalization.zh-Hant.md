@@ -136,6 +136,35 @@ xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
 - 將追蹤的 GAL 原始設定保存在 `../mcp.json` 中。
 - 將機器特有的 MCP 差異放入 `../mcp.local.json`。
 
+專案特有或資料庫特有的 MCP server，通常應該放在 `../mcp.local.json`，而不是放進被追蹤的 `mcp.json`。對 Postgres 尤其如此，因為一台機器常常會同時處理多個 repo，而同一個 repo 也可能連到多個資料庫。
+
+同一台機器上有兩個 Postgres 資料庫時，可參考：
+
+```json
+{
+  "servers": {
+    "postgres-app": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "${POSTGRES_MCP_APP_URI}"
+      }
+    },
+    "postgres-analytics": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": {
+        "DATABASE_URI": "${POSTGRES_MCP_ANALYTICS_URI}"
+      }
+    }
+  }
+}
+```
+
+接著在 `config.local.env` 中加入對應變數，名稱可自行決定。`Update-Mcp.ps1` 與 `update-mcp.sh` 本來就會合併所有 local server 名稱，並從 `config.local.env` 解析任意 `${ENV_VAR}` placeholder。
+
 ### 4. 執行環境擁有的設定 (Runtime-owned config)
 
 已安裝的執行環境設定（runtime configs）即使在 GAL 更新其管理的條目後，仍屬於使用者擁有。
