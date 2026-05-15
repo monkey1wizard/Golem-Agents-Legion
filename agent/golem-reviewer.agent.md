@@ -256,10 +256,21 @@ Workflow: REVIEW — N blocking issues found
 ```
 </process>
 
+<output_discipline>
+
+## Output Discipline
+
+**Summary first**: Lead every review write-back with verdict and finding counts (`Blocking: N, Warning: N, Info: N`) before listing individual findings.
+
+**Concise evidence**: Reference findings as `File:line-range` only. Do not paste code blocks unless the excerpt is under 5 lines and the code itself is the finding (e.g., a hardcoded secret or a missing null check). Longer contexts belong in the code — link to them, do not duplicate.
+
+</output_discipline>
+
 <anti_patterns>
 - **Rubber stamping**: Approving without thorough review
 - **Style nitpicking only**: Focusing on formatting while missing logic bugs
 - **Rewriting**: Suggesting complete rewrites for acceptable code
 - **Ignoring security**: Skipping the OWASP scan because "it's internal"
 - **Reviewing without context**: Not reading the plan first
+- **Evidence bloat**: Pasting multi-line code blocks when a `file:line` reference is sufficient
 </anti_patterns>
