@@ -159,6 +159,7 @@ When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This i
 ### On Entry
 
 1. Read the task description for `T-NNN` from `## Tasks` in the plan file
+   **Narrowest-scope read**: read only the files named in the task step plus their direct import or call dependencies. Do not scan the full codebase.
 2. Run `git rev-parse HEAD` to capture the current commit hash
 3. Write it to the plan's `## Status` as `Task Base Commit: <hash>`
 4. Set `Current Task: T-NNN` in `## Status`
@@ -169,6 +170,7 @@ When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This i
 - Make atomic commits with message format: `feat(T-NNN): <description>` (or `fix`, `refactor`, etc. as appropriate)
 - Never modify files outside the scope of `T-NNN` unless strictly required by a dependency
 - Architectural escalation rules still apply — stop if `/deep-planning` is required
+- **Failure-focused output**: when running build or verification commands, emit only failures, errors, and directly relevant context. Do not echo full pass output into the conversation.
 
 ### On Completion
 
@@ -177,7 +179,8 @@ When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This i
 3. Write it to the plan's `## Status` as `Task Final Commit: <hash>`
 4. Update `## Status`: set `Last activity: YYYY-MM-DD — T-NNN implementation complete`
 5. **Do NOT** mark `T-NNN` as complete in `## Tasks` — the pipeline marks completion only after test + review pass
-6. Report ready for test phase — pipeline will advance
+6. Write a one-line checkpoint to `## Status`: `Checkpoint: T-NNN implemented — <one-line description of what changed>`
+7. Report ready for test phase — pipeline will advance
 
 ### Hard Commit Gate
 
