@@ -72,3 +72,27 @@ Overwrite the source plan `## Review Results > ### Engineering Review`:
 ## Scope Guard
 
 This command only populates the source plan `## Tasks`, `## Test Plan`, and `## Review Results > ### Engineering Review`. It must not implement any code, run tests, modify `.dev/plans/`, or change `## Status`.
+
+## Task-Slicing Guidance
+
+When writing `## Tasks`, apply these constraints:
+
+- **One file or one policy boundary per task.** If a natural change spans multiple files, split into separate T-NNN entries rather than bundling them. Atomic tasks produce atomic commits and make review easier.
+- **No deferred-integration bundles.** If a task step requires an optional tool (CLI, MCP, xmachine node) that may not be available, isolate the optional work in its own task so the non-optional work can proceed independently.
+- **Sequential dependency only when required.** Prefer tasks that can be reviewed and verified in isolation; only enforce ordering when a later task genuinely depends on an earlier one's output.
+
+## Optional Capability Lane Notation
+
+When a task step may use an optional tool or runtime capability, annotate it using this notation block inside the task description or as a sub-bullet:
+
+```text
+Type: [cli | mcp | xmachine | api]
+Preflight: check docs/collaborative-tools/checking-contract.md — lane must be "ready" before use
+Fallback: <what to do when the lane is unavailable>
+```
+
+Rules:
+
+- Do **not** record machine-local availability state (for example, do not write "xmachine: available on mac-mini"). That turns transient environment state into repo-owned truth.
+- The `Fallback` entry must be a concrete alternative action, not "skip this task". The plan must remain executable without the optional lane.
+- Tasks that are entirely optional and have no meaningful fallback should be flagged as `(optional, deferred)` and placed at the end of the task list.
