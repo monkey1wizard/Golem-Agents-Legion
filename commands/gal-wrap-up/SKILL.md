@@ -68,3 +68,21 @@ git commit -m "chore: session wrap-up — <one-line summary of stopped-at>"
 ```
 
 Do not commit on the user's behalf. Suggest only.
+
+## Context-Pressure Recovery
+
+When the active session is approaching a context-window limit before wrap-up can be completed normally, apply this abbreviated path:
+
+1. **Write to `### Handoff Notes`** in the active plan's `## Status` section:
+   - The task or step currently in progress
+   - The last completed action
+   - Any pending decisions or open blockers
+
+2. **Write to `.dev/state.md`** Session Continuity:
+   - `Stopped at:` — exact last completed action
+   - `Next step:` — exact action needed to resume
+
+3. **Do not create any `CONTEXT.md` file or other out-of-band scratch file.** The plan's `### Handoff Notes` and `.dev/state.md` are the only permitted recovery targets. Writing to any other location breaks cross-session and cross-tool resumption.
+
+After writing both targets, suggest the same commit as Step 4. Context-pressure recovery is not a different protocol — it is an early trigger of the same write-back.
+
