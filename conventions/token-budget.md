@@ -52,3 +52,50 @@ docs/ (permanent, low token cost to reference)
 ```
 
 **Principle**: The more stable the knowledge, the closer it lives to `project.md`. The more transient, the closer it lives to the plan or scratch file.
+
+---
+
+## Token Discipline
+
+These rules apply to all agents and runtimes. Follow them during exploration, implementation, testing, review, and debugging.
+
+### Generated-Artifact Exclusion
+
+Do not load generated adapters or build outputs into context by default:
+
+- Exclude `bin/`, `obj/`, and other build output directories.
+- Exclude generated runtime adapters: `.github/copilot-instructions.md`, `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `ANTIGRAVITY.md`, and equivalent generated files.
+- Read generated files only when the task is explicitly about auditing or fixing their content.
+
+### Directed Exploration
+
+Read only files required by the current task step:
+
+- Start from the plan's `## Tasks` entry and its named files; do not scan the full codebase first.
+- If a file is not mentioned in the current task or a directly required dependency, do not load it.
+- When a prior read already returned the information needed, stop. Do not repeat the same search with different terms.
+
+### Capability-First Plumbing
+
+Before using any optional capability lane (CLI tool, MCP server, xmachine work node, or external API), resolve its status through the shared preflight model in `docs/collaborative-tools/checking-contract.md`:
+
+- If the lane is `not-applicable` or `unavailable`, use the documented fallback without surfacing a tool-install request.
+- If the lane is `available-but-needs-init` or `available-but-not-ready`, degrade silently to the documented non-tool path.
+- Only route into the capability when status is `ready`.
+
+### Bounded Command Output
+
+Cap command output before it enters the context window:
+
+- Prefer piped filters, `--first N`, `Select-Object -First N`, or `head`/`tail` over raw full dumps.
+- When running tests or builds, capture only the summary line and any failing output—not the full pass log.
+- When querying file listings or search results, limit to the most relevant matches.
+
+### Failure-Only Evidence
+
+Emit the smallest evidence set that explains the failure:
+
+- For tests: report failing test names and their error messages only. Do not echo passing tests.
+- For builds: report the first error and the enclosing file/line range. Do not echo the full build transcript.
+- For logs: report the relevant exception, stack trace, and the two lines immediately above it. Do not paste the full log file.
+- Preserve raw logs and artifacts as on-disk evidence stores. Retrieve them selectively only when the summary is insufficient to diagnose the problem.
