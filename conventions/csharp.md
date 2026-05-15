@@ -239,3 +239,28 @@ public partial class PlayerController : CharacterBody2D
     }
 }
 ```
+
+---
+
+## .NET CLI Tooling
+
+These are optional lanes. Verify the `dotnet` CLI is available before using them. When unavailable, fall back to IDE-based output or direct file inspection.
+
+### Filtered Output Modes
+
+Prefer filtered output over raw verbosity to reduce noise.
+
+| Task | Preferred command | Notes |
+| --- | --- | --- |
+| Build (failure summary) | `dotnet build --verbosity minimal` | Emits errors and warnings only |
+| Test (failures only) | `dotnet test --logger "console;verbosity=minimal"` | Emits failing test names + messages; suppresses passing output |
+| Test (specific filter) | `dotnet test --filter "FullyQualifiedName~MyTest"` | Narrow to the relevant test class before running |
+| Lint / format check | `dotnet format --verify-no-changes` | Exit code 1 if changes needed; no diff noise on pass |
+
+### Evidence Collection Rules
+
+- Capture only: first build error + file:line reference, or failing test names + assertion messages.
+- Do not pipe full build logs into context. Store them on disk; retrieve specific lines when diagnosis requires them.
+- On a clean pass, emit one confirmation line only (`Build succeeded` / `X tests passed`).
+
+**Preflight**: confirm `dotnet --version` succeeds before dispatching any of the above. If the CLI is absent, note this in the task log and proceed with fallback inspection.
