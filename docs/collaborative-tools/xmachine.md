@@ -288,6 +288,19 @@ git apply path/to/result.patch
 - `Get-XmachineLocalResult.sh` removes the disposable worktree, Zellij session, and output directory unless `--keep` is specified.
 - `Get-XmachineRemoteResult.ps1` removes remote temporary assets unless `-KeepRemote` is specified.
 
+## Control-Node Consumption
+
+When the control node retrieves xmachine artifacts, read the minimum needed to answer the current question.
+
+**Default consumption order** (stop as soon as the question is answered):
+
+1. **`status.json`** — machine-readable exit code and timing; sufficient to confirm success or failure.
+2. **`summary.md`** — human-readable outcome; read this before opening any raw log.
+3. **`runtime.log`** — escalate only when `summary.md` does not explain the failure. Read the tail (errors, tracebacks) first; pull earlier context only if the failure cause is still unclear.
+4. **`result.patch`** — retrieve for diff review; do not pipe the raw diff into the conversation unless a specific line is in dispute.
+
+**Do not** load the full `runtime.log` into context as a default step. It exists for targeted error diagnosis, not as a progress trace.
+
 ## Reference
 
 - [checking-contract.md](checking-contract.md): Shared preflight model.

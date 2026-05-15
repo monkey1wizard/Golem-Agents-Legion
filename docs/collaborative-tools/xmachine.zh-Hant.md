@@ -288,6 +288,19 @@ git apply path/to/result.patch
 - `Get-XmachineLocalResult.sh` 會移除拋棄式 worktree、Zellij session 和輸出目錄，除非指定了 `--keep` 參數。
 - `Get-XmachineRemoteResult.ps1` 會移除遠端的暫存資產，除非指定了 `-KeepRemote` 參數。
 
+## 控制節點取用 (Control-Node Consumption)
+
+當控制節點取回 xmachine 產出物時，只讀取回答當前問題所需的最少內容。
+
+**預設取用順序**（回答完問題後即可停止）：
+
+1. **`status.json`** — 機器可讀的結束碼與執行時間；足以確認成功或失敗。
+2. **`summary.md`** — 人類可讀的執行結果摘要；在開啟任何原始日誌之前先閱讀此檔。
+3. **`runtime.log`** — 僅在 `summary.md` 無法解釋失敗原因時才往上升級。先閱讀檔案尾端（錯誤、traceback）；只有在仍無法確定失敗原因時，才往前取更早的上下文。
+4. **`result.patch`** — 供 diff 審查時取回；除非有特定行有爭議，否則不要將原始 diff 完整貼入對話。
+
+**請勿**將完整的 `runtime.log` 載入為預設步驟。此檔案的用途是針對性的錯誤診斷，而非進度追蹤記錄。
+
 ## 參考資料 (Reference)
 
 - [checking-contract.md](checking-contract.md)：共用的 preflight 模型。
