@@ -226,3 +226,35 @@ Before you finish a maintainer change, ask:
 - [../commands/commands.md](../commands/commands.md) for the control-plane contract and runtime surface.
 - [../scripts/scripts.md](../scripts/scripts.md) for the script inventory and setup behavior.
 - [../templates/templates.md](../templates/templates.md) for template ownership.
+
+## Token Discipline
+
+These rules apply to all maintainer and agent work in this repo. The full policy lives in [../conventions/token-budget.md](../conventions/token-budget.md). The developer-facing summary is here.
+
+### Generated-Artifact Exclusion
+
+Do not read generated adapters (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `ANTIGRAVITY.md`) or build outputs (`bin/`, `obj/`) unless the current task is explicitly about auditing those generated files. They are large, frequently regenerated, and contain no information not already in their source templates.
+
+### Directed Exploration
+
+Before reading any file, confirm it is named in the current task or is a direct dependency of a task-named file. Stop reading when you have the information needed. Do not load the full codebase as a cold-start step.
+
+### Failure-Focused Output
+
+When running builds or tests, emit:
+
+- Build: first error with file and line reference. On success, one summary line only.
+- Tests: failing test names and assertion messages only. Do not echo passing test names.
+- Lint: files and rule violations only. On a clean pass, one summary line only.
+
+Store full logs on disk when needed; retrieve specific lines selectively rather than piping entire logs into context.
+
+### Context-Pressure Recovery
+
+When context is near the limit during an active task:
+
+1. Write the current task name, last completed step, and any key decisions to `### Handoff Notes` in the active plan's `## Status` section.
+2. Write `Stopped at:` and `Next step:` to `.dev/state.md` Session Continuity.
+3. Do **not** create a separate `CONTEXT.md` file — the plan and state files are the only durable session state stores.
+
+This ensures the next session can resume without re-deriving context.
