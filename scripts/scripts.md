@@ -67,12 +67,16 @@ Shell usage examples:
 .\scripts\gal.ps1 dispatch golem-architect
 ```
 
+If the target repo does not contain local `scripts\gal.ps1` yet, stay in the target repo root and run the GAL runtime checkout entrypoint instead, for example `C:\path\to\gal\scripts\gal.ps1 init` or `C:\path\to\gal\scripts\gal.ps1 dispatch init`.
+
 ```bash
 ./scripts/gal.sh init
 ./scripts/gal.sh dispatch
 ./scripts/gal.sh dispatch init
 ./scripts/gal.sh dispatch golem-architect
 ```
+
+If the target repo does not contain local `scripts/gal.sh` yet, stay in the target repo root and run the GAL runtime checkout entrypoint instead, for example `/path/to/gal/scripts/gal.sh init` or `/path/to/gal/scripts/gal.sh dispatch init`.
 
 ### Init-Repo: Adopt-Existing Mode
 

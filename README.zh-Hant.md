@@ -37,13 +37,15 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你
    $gal init
    ```
 
+     如果人在第一次 bootstrap 時，或工具必須直接呼叫 shell entrypoint，請把終端機停留在目標儲存庫根目錄。若 repo 內已有 local `scripts/gal.*` 就用它；若還沒有，則在同一個 target-repo cwd 呼叫 GAL runtime checkout 的 `scripts/gal.*`。
+
    各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
 
 ## 範例：用 GAL 跑完一個功能的生命週期
 
 **情境：如何在專案中新增一個 JWT 登入功能？**
 
-1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。
+1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。fresh repo 一開始可能還沒有 local `scripts/`；這時仍可由 GAL runtime checkout entrypoint 對目前專案完成初始化。
 2. **發想與規劃**：輸入 `/planning` 並告訴 AI「我要做一個 JWT 登入功能」。AI 會與你討論並將規格寫入 `docs/plans/`，再使用 `/deep-planning` 仔細審核規劃書。
 3. **鎖定規格**：輸入 `/refining-plan` 與 `/plan-to-prompt`，讓 AI 將人類可讀的規格轉化為 AI 可執行的「任務清單」與「測試計畫」。
 4. **自動實作與驗證**：輸入 `/gal pipeline`，GAL 會自動指派 Implementer（寫程式） -> Tester（寫測試） -> Reviewer（審查程式碼）。
@@ -53,7 +55,7 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你
 
 | 指令 | 用途 |
 | --- | --- |
-| `/gal init` | 初始化儲存庫：建立 `.dev/project.md` 與 `.dev/state.md` |
+| `/gal init` | 初始化儲存庫：建立 `.dev/project.md` 與 `.dev/state.md`；若 fresh repo 尚無 local `scripts/`，可透過 GAL runtime checkout 完成 bootstrap |
 | `/gal status` | 完整狀態呈現：活動企劃、審查/測試狀態、阻擋點、連續性 |
 | `/gal whats-next` | 推薦單一下一步動作 |
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |

@@ -63,7 +63,12 @@ If the user's message contains any of the following intents, treat it as `/gal p
 
 ## Invoke (for script-dispatched subcommands)
 
-Before invoking a dispatcher, locate the target project root by walking upward from the current working directory or provided `#file:` path until `.dev/state.md` is found. Keep the terminal current directory at that target project root so dispatcher state reads and plan paths resolve against the project being worked on.
+Before invoking a dispatcher, choose the target project root as follows:
+
+- For `init`, treat the current working directory as the target project root unless the user explicitly provided another target path. Fresh repos often do not have `.dev/state.md` yet.
+- For other script-dispatched subcommands, walk upward from the current working directory or provided `#file:` path until `.dev/state.md` is found.
+
+Keep the terminal current directory at that target project root so dispatcher state reads and plan paths resolve against the project being worked on.
 
 **Windows:**
 
@@ -75,7 +80,12 @@ Before invoking a dispatcher, locate the target project root by walking upward f
 1. If `./scripts/gal.sh` exists in the target project, run `./scripts/gal.sh dispatch [args]`.
 2. Otherwise run the GAL runtime checkout's `scripts/gal.sh dispatch [args]` while staying in the target project root.
 
-The fallback runtime path is expected for initialized plan-only projects that have `.dev/state.md` but do not contain GAL's `scripts/` directory. In that mode, xmachine node aliases are validated from the GAL runtime checkout's `xmachine.config.json`, while `.dev/state.md` and plan files are still read from the target project root.
+The fallback runtime path is expected for two cases:
+
+- fresh repos being bootstrapped with `init`, before local `scripts/` or `.dev/state.md` exist
+- initialized plan-only projects that have `.dev/state.md` but do not contain GAL's `scripts/` directory
+
+In that mode, xmachine node aliases are validated from the GAL runtime checkout's `xmachine.config.json`, while `.dev/state.md` and plan files are still read from the target project root.
 
 ## Follow the Output
 

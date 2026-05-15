@@ -37,13 +37,15 @@ Before using GAL, ensure your environment meets the following requirements:
    $gal init
    ```
 
+     If a human or tool must invoke the shell entrypoint manually during first-time bootstrap, keep the terminal in the target repository. Use local `scripts/gal.*` when present; otherwise call the GAL runtime checkout `scripts/gal.*` entrypoint from that same target-repo cwd.
+
    Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
 
 ## Walkthrough: A Feature's Lifecycle with GAL
 
 **Scenario: Adding a JWT Login Feature to Your Project**
 
-1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files.
+1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files. Fresh repos may not have local `scripts/` yet; in that case the runtime checkout entrypoint still targets the current repository.
 2. **Brainstorm & Plan**: Run `/planning` and tell the AI, "I want to build a JWT login feature." The AI will discuss and write the spec into `docs/plans/`, then use `/deep-planning` to carefully review the plan document.
 3. **Lock the Spec**: Run `/refining-plan` and `/plan-to-prompt`. The AI converts the human-readable spec into an executable "task list" and "test plan."
 4. **Auto-Implement & Verify**: Run `/gal pipeline`. GAL automatically assigns the Implementer (writes code) -> Tester (writes tests) -> Reviewer (code review).
@@ -53,7 +55,7 @@ Before using GAL, ensure your environment meets the following requirements:
 
 | Command | Purpose |
 | --- | --- |
-| `/gal init` | Initialize repository: create `.dev/project.md` and `.dev/state.md` |
+| `/gal init` | Initialize repository: create `.dev/project.md` and `.dev/state.md`; fresh repos can bootstrap through the GAL runtime checkout when local `scripts/` is absent |
 | `/gal status` | Full state projection: active plans, review/test status, blockers, continuity |
 | `/gal whats-next` | Recommend the next single action |
 | `/gal wrap-up` | Converge work: write `### Handoff Notes` and `## Session Continuity` |
