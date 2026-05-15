@@ -323,3 +323,36 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Working-hours boundary active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
 | All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |
+
+---
+
+## Pipeline Discipline
+
+These rules apply to every phase of the pipeline loop.
+
+### Bounded Output
+
+When a golem phase (implement, test, review, security) returns output, the pipeline must not pipe raw transcripts or full build logs into the orchestration context window. Accept and propagate only:
+
+- A structured phase verdict (PASS / FAIL / APPROVE / BLOCKING / CLEAR)
+- Failing items: test names + assertion messages, review BLOCKING findings with file:line references, or build errors with file:line references
+- A one-line summary on clean pass
+
+Store raw output as artifacts on disk when needed. Retrieve specific lines or excerpts on demand rather than forwarding entire logs.
+
+### Failure-Focused Evidence
+
+When surfacing a STOP to the user, include only:
+
+- The task ID and phase that failed
+- Failing test names and error messages (not passing names)
+- First build error with file and line reference (not the full build transcript)
+- BLOCKING review findings with file:line citation and severity (not passing dimensions)
+
+### Capability Preflight
+
+Before dispatching any optional lane (xmachine offload, MCP tool, external CLI), resolve readiness via `docs/collaborative-tools/checking-contract.md`.
+
+- If the lane is **`ready`**: proceed.
+- If the lane is **`not-ready`** or **`unavailable`**: degrade to the documented fallback (script fallback → non-script fallback → manual instruction) without blocking the pipeline on the missing capability.
+- Do not record machine-local lane state in the plan file. Availability is resolved at dispatch time, not at plan-writing time.
