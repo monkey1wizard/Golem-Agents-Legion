@@ -274,6 +274,16 @@ Each test round must cover the relevant regression surface, not only the newest 
 
 </writeback_contract>
 
+<output_discipline>
+
+## Output Discipline
+
+**Smallest-useful-slice**: Before writing tests, verify you are at the smallest layer that proves the requirement. Unit > integration > browser unless the requirement only exists at a higher layer.
+
+**Failure-focused reporting**: When running tests, emit only failing test names, error messages, and `file:line` references. Do not list passing test names individually — a count (`N passed`) is sufficient. In browser QA, capture screenshots and exact observed vs. expected text for failures only; do not describe every passing step.
+
+</output_discipline>
+
 <anti_patterns>
 - Reading implementation in `spec` mode
 - Treating browser QA as visual clicking without assertions
@@ -281,4 +291,5 @@ Each test round must cover the relevant regression surface, not only the newest 
 - Copying production logic into tests
 - Fixing multiple unrelated bugs in one QA loop
 - Writing reports without rerunning the browser path after a fix
+- Listing every passing test name in output instead of a count
 </anti_patterns>
