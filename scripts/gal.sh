@@ -9,6 +9,7 @@ Usage: gal <command> [args]
 Commands:
   init [targetPath] [projectName]    Initialize .dev/ and docs/plans/
   dispatch [subcommand|golem] [text] Route to subcommand or golem via /gal skill
+  xmachine <node> to do <task-ref>   Run one active-plan task on a readied work node
 
 Script-dispatched subcommands: init, research, deep-research
 Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up
@@ -132,6 +133,54 @@ get_explicit_plan_argument() {
   done
 
   return 0
+}
+
+parse_xmachine_task_shorthand() {
+  XMACHINE_SHORTHAND_ERROR=""
+  XMACHINE_SHORTHAND_NODE=""
+  XMACHINE_SHORTHAND_TASK_REF=""
+  XMACHINE_SHORTHAND_PLAN=""
+
+  mapfile -t XMACHINE_AVAILABLE_NODES < <(read_xmachine_node_aliases)
+
+  if (( $# < 4 )); then
+    XMACHINE_SHORTHAND_ERROR="Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+    return 0
+  fi
+
+  XMACHINE_SHORTHAND_NODE="$1"
+  shift
+
+  local alias found=0
+  for alias in "${XMACHINE_AVAILABLE_NODES[@]}"; do
+    if [[ "$XMACHINE_SHORTHAND_NODE" == "$alias" ]]; then
+      found=1
+      break
+    fi
+  done
+
+  if [[ $found -eq 0 ]]; then
+    local available_nodes="<none configured>"
+    if (( ${#XMACHINE_AVAILABLE_NODES[@]} > 0 )); then
+      available_nodes="$(printf '%s, ' "${XMACHINE_AVAILABLE_NODES[@]}")"
+      available_nodes="${available_nodes%, }"
+    fi
+    XMACHINE_SHORTHAND_ERROR="Unknown xmachine work node '$XMACHINE_SHORTHAND_NODE'. Available aliases: $available_nodes"
+    return 0
+  fi
+
+  if [[ "${1:-}" != "to" || "${2:-}" != "do" ]]; then
+    XMACHINE_SHORTHAND_ERROR="Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+    return 0
+  fi
+
+  XMACHINE_SHORTHAND_TASK_REF="${3:-}"
+  if [[ -z "$XMACHINE_SHORTHAND_TASK_REF" ]]; then
+    XMACHINE_SHORTHAND_ERROR="Missing task reference. Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+    return 0
+  fi
+
+  XMACHINE_SHORTHAND_PLAN="$(get_explicit_plan_argument "$XMACHINE_SHORTHAND_NODE" "$@")"
 }
 
 get_wf_state() {
@@ -312,6 +361,19 @@ golem_class() {
 case "$command" in
   init)
     "$script_dir/init-repo.sh" "$@"
+    ;;
+  xmachine)
+    parse_xmachine_task_shorthand "$@"
+    if [[ -n "$XMACHINE_SHORTHAND_ERROR" ]]; then
+      write_dispatch COMMAND error ACTION "$XMACHINE_SHORTHAND_ERROR"
+      exit 0
+    fi
+
+    if [[ -n "$XMACHINE_SHORTHAND_PLAN" ]]; then
+      write_dispatch COMMAND pipeline ACTION "Follow the /gal-pipeline procedure to execute only task '$XMACHINE_SHORTHAND_TASK_REF' on xmachine work node '$XMACHINE_SHORTHAND_NODE'. Resolve the active plan, scope execution to this single task, and keep control-plane convergence local." ON_COMPLETE "Report the single-task verdict and whether local convergence is complete." READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_SHORTHAND_NODE" TASK_REF "$XMACHINE_SHORTHAND_TASK_REF" FROM "$XMACHINE_SHORTHAND_TASK_REF" STOP_AT "$XMACHINE_SHORTHAND_TASK_REF" PLAN "$XMACHINE_SHORTHAND_PLAN"
+    else
+      write_dispatch COMMAND pipeline ACTION "Follow the /gal-pipeline procedure to execute only task '$XMACHINE_SHORTHAND_TASK_REF' on xmachine work node '$XMACHINE_SHORTHAND_NODE'. Resolve the active plan, scope execution to this single task, and keep control-plane convergence local." ON_COMPLETE "Report the single-task verdict and whether local convergence is complete." READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_SHORTHAND_NODE" TASK_REF "$XMACHINE_SHORTHAND_TASK_REF" FROM "$XMACHINE_SHORTHAND_TASK_REF" STOP_AT "$XMACHINE_SHORTHAND_TASK_REF"
+    fi
     ;;
   dispatch)
     intent="${1:-}"

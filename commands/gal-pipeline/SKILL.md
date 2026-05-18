@@ -46,6 +46,8 @@ Rejected examples:
 - `/gal pipeline on node-name`
 - `/gal pipeline --xmachine`
 
+If the dispatcher emits `TASK_REF`, `FROM`, and `STOP_AT`, treat them as authoritative for this invocation. A shorthand such as `/gal xmachine node-name to do TP-007` is expected to arrive here as a bounded single-task pipeline run with `FROM=TP-007` and `STOP_AT=TP-007`.
+
 ## Model Assignment
 
 Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
@@ -81,6 +83,8 @@ Select the plan file using this precedence order:
 
 1. If the dispatcher emitted `PLAN: <path>`, resolve that explicit path first. If it points to a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, use the execution prompt for this invocation.
 2. Otherwise read the active plan file from `.dev/state.md`.
+
+If the dispatcher emitted `TASK_REF`, validate that the referenced task exists in the selected plan before entering the task loop. If `FROM` and `STOP_AT` are both present, use them as the explicit execution bounds even when the user did not type `from` / `stop-at` directly in chat.
 
 If an explicit `PLAN` path was provided but the file does not exist or is not a markdown plan/prompt file, stop and surface the exact path error.
 
@@ -331,4 +335,3 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Working-hours boundary active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
 | All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |
-

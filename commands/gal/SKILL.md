@@ -24,6 +24,7 @@ GAL control-plane entry point. Route based on the subcommand provided.
 | `research` | I need structured investigation | Run `gal.ps1 dispatch research [args]` — follow output block |
 | `deep-research` | I need multi-source investigation with cross-review | Run `gal.ps1 dispatch deep-research [args]` — follow output block |
 | `pipeline` | Task-driven autopilot: iterate T-NNN tasks with implement → commit → test → review per task, final verifier pass; stop only on human-required blockers, retry ceiling, working-hours boundary, or `stop-at` | Run `gal.ps1 dispatch pipeline` — follow output block |
+| `xmachine <node> to do <task-ref>` | Run one active-plan task on a readied work node | Run `gal.ps1 xmachine <node> to do <task-ref> [#file:plan]` — follow output block |
 | `<golem-name>` | I want to consult a specific golem | Run `gal.ps1 dispatch <golem-name> [args]` — follow output block |
 | *(no args)* | Auto-detect and recommend | Locate the nearest ancestor repo root containing `.dev/state.md`, then follow the `/gal-whats-next` procedure |
 
@@ -41,6 +42,7 @@ Accepted examples:
 - `/gal pipeline --xmachine node-name`
 - `/gal research use xmachine node-name`
 - `/gal golem-researcher use xmachine node-name for bounded execution`
+- `/gal xmachine node-name to do TP-007`
 
 Rejected examples:
 
@@ -87,6 +89,15 @@ The fallback runtime path is expected for two cases:
 
 In that mode, xmachine node aliases are validated from the GAL runtime checkout's `xmachine.config.json`, while `.dev/state.md` and plan files are still read from the target project root.
 
+## xmachine Task Shorthand
+
+`/gal xmachine <node> to do <task-ref>` is a narrow shorthand for bounded execution of a single task from the active plan.
+
+- It is not a generic freeform remote prompt.
+- It normalizes to a pipeline-style single-task execution with `FROM` and `STOP_AT` both set to the same task reference.
+- It requires the selected node to be `readied` and the task reference to exist in the chosen active plan.
+- Use `#file:<plan>` only when the active-plan lookup should be overridden explicitly.
+
 ## Follow the Output
 
 The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no inference, no reinterpretation.
@@ -100,6 +111,9 @@ The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no infe
 | `PLAN` | Optional explicit plan file path for workflows that support file override. When present, prefer this plan over `.dev/state.md` active-plan lookup. |
 | `EXECUTION` | Optional execution hint. `xmachine` means the dispatcher has validated the activation phrase for remote execution. |
 | `WORK_NODE` | Optional xmachine node alias from `xmachine.config.json`. Present only when `EXECUTION: xmachine` is emitted. |
+| `TASK_REF` | Optional bounded task reference for single-task execution, such as `TP-007` or `T-003`. |
+| `FROM` | Optional lower execution bound for pipeline-style task iteration. |
+| `STOP_AT` | Optional upper execution bound for pipeline-style task iteration. |
 | `ACTION` | The specific instruction to execute |
 | `ON_COMPLETE` | What to do after finishing |
 

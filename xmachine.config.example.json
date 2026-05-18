@@ -2,11 +2,25 @@
   "nodes": {
     "node-name": {
       "target": "username@mechine-name",
-      "repoPath": "/path/to/Golem-Agents-Legion"
+      "repoPath": "/path/to/Golem-Agents-Legion",
+      "runtimeRepoPath": "/path/to/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/path/to/local-ai-tools",
+          "runtimeRepoPath": "/path/to/Golem-Agents-Legion"
+        }
+      }
     },
     "mac-mini": {
       "target": "username@username-mac-mini.local",
-      "repoPath": "/Users/username/Golem-Agents-Legion"
+      "repoPath": "/Users/username/Golem-Agents-Legion",
+      "runtimeRepoPath": "/Users/username/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/Users/username/Code/zawip/local-ai-tools",
+          "runtimeRepoPath": "/Users/username/Golem-Agents-Legion"
+        }
+      }
     },
     "win11-pc": {
       "target": "alice@win11-pc",

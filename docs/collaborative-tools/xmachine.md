@@ -96,6 +96,8 @@ Define work nodes in the GAL runtime checkout's `xmachine.config.json` to provid
 - The top-level `nodes` object is keyed by work-node alias.
 - Each node must define a `target` value.
 - Each node should usually define a `repoPath` value so `-WorkRepoPath` can stay optional.
+- `runtimeRepoPath` is optional and points at the GAL runtime checkout when it differs from the target project checkout.
+- `repoMappings` is optional and lets one work node map multiple target repositories by current repo name.
 - `target` can be either a `Host` entry from `.ssh/config` or a direct `user@host` string.
 - The `-WorkNode` parameter must match a defined alias.
 
@@ -106,11 +108,25 @@ Define work nodes in the GAL runtime checkout's `xmachine.config.json` to provid
   "nodes": {
     "node-name": {
       "target": "username@mechine-name",
-      "repoPath": "/path/to/Golem-Agents-Legion"
+      "repoPath": "/path/to/Golem-Agents-Legion",
+      "runtimeRepoPath": "/path/to/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/path/to/local-ai-tools",
+          "runtimeRepoPath": "/path/to/Golem-Agents-Legion"
+        }
+      }
     },
     "mac-mini": {
       "target": "username@username-mac-mini.local",
-      "repoPath": "/Users/username/Golem-Agents-Legion"
+      "repoPath": "/Users/username/Golem-Agents-Legion",
+      "runtimeRepoPath": "/Users/username/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/Users/username/Code/zawip/local-ai-tools",
+          "runtimeRepoPath": "/Users/username/Golem-Agents-Legion"
+        }
+      }
     },
     "win11-pc": {
       "target": "alice@win11-pc",
@@ -129,6 +145,29 @@ In this setup, `-WorkNode node-name` resolves to `username@mechine-name` before 
 1. Explicit `-WorkRepoPath`
 2. `repoPath` on the selected node in `xmachine.config.json`
 3. The existing machine-local cache in `~/.gal/xmachine-nodes.json`
+
+`Invoke-XmachinePipeline.ps1` resolves the remote project/runtime paths in this order:
+
+1. Explicit `-WorkRepoPath` for the target project checkout
+2. `repoMappings.<current-repo>.repoPath` on the selected node
+3. `repoPath` on the selected node
+
+Remote GAL runtime path resolves in this order:
+
+1. Explicit `-RemoteRuntimeRepoPath`
+2. `repoMappings.<current-repo>.runtimeRepoPath` on the selected node
+3. `runtimeRepoPath` on the selected node
+4. The resolved remote project repo path
+
+This allows a node to host both a GAL runtime checkout and separate target repo checkouts without forcing every repo to share the same remote path.
+
+## `/gal xmachine ...` Shorthand
+
+`/gal xmachine <node> to do <task-ref>` is a bounded shorthand for a single active-plan task.
+
+- The dispatcher normalizes it to pipeline-style execution with `FROM` and `STOP_AT` set to the same task reference.
+- It is intended for active-plan task references such as `TP-007` or `T-003`, not as a generic freeform remote prompt.
+- The selected node still needs to be `readied`, and the task must exist in the resolved plan.
 
 ## Supported Execution Paths
 

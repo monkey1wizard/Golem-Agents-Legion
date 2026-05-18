@@ -156,6 +156,20 @@ get_active_plan_path() {
     done < "$state_path"
 }
 
+get_repo_mapping_key() {
+    basename "$(get_repo_context_root)"
+}
+
+get_mapped_project_repo_path() {
+    local config_path="$1" work_node="$2" repo_key="$3"
+    jq -r --arg node "$work_node" --arg repo "$repo_key" '.nodes[$node].repoMappings[$repo].repoPath // .nodes[$node].repoMappings[$repo] // empty' "$config_path"
+}
+
+get_mapped_runtime_repo_path() {
+    local config_path="$1" work_node="$2" repo_key="$3"
+    jq -r --arg node "$work_node" --arg repo "$repo_key" '.nodes[$node].repoMappings[$repo].runtimeRepoPath // empty' "$config_path"
+}
+
 new_run_id() {
     local rand
     rand="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6 || true)"
@@ -223,14 +237,21 @@ if [[ -z "$resolved_work_node_target" ]]; then
     exit 1
 fi
 
+repo_mapping_key="$(basename "$repo_context_root")"
+mapped_project_repo_path="$(get_mapped_project_repo_path "$config_path" "$WORK_NODE" "$repo_mapping_key")"
+mapped_runtime_repo_path="$(get_mapped_runtime_repo_path "$config_path" "$WORK_NODE" "$repo_mapping_key")"
 configured_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].repoPath // empty' "$config_path")"
-resolved_project_repo_path="${WORK_REPO_PATH:-$configured_repo_path}"
+resolved_project_repo_path="${WORK_REPO_PATH:-${mapped_project_repo_path:-$configured_repo_path}}"
 if [[ -z "$resolved_project_repo_path" ]]; then
-    echo "No repo path is configured for work node '$WORK_NODE'. Pass --work-repo-path or define repoPath in '$config_path'." >&2
+    echo "No repo path is configured for work node '$WORK_NODE'. Pass --work-repo-path or define repoMappings.$repo_mapping_key.repoPath or repoPath in '$config_path'." >&2
     exit 1
 fi
 
-resolved_remote_runtime_repo_path="${REMOTE_RUNTIME_REPO_PATH:-$resolved_project_repo_path}"
+configured_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].runtimeRepoPath // empty' "$config_path")"
+resolved_remote_runtime_repo_path="${REMOTE_RUNTIME_REPO_PATH:-${mapped_runtime_repo_path:-$configured_runtime_repo_path}}"
+if [[ -z "$resolved_remote_runtime_repo_path" ]]; then
+    resolved_remote_runtime_repo_path="$resolved_project_repo_path"
+fi
 resolved_platform="$(detect_work_platform "$resolved_work_node_target")"
 run_id="$(new_run_id)"
 branch_name="$(git -C "$repo_context_root" rev-parse --abbrev-ref HEAD)"

@@ -228,6 +228,57 @@ function Get-ConfiguredWorkRepoPath {
     return $repoPath.Trim()
 }
 
+function Get-RepoMappingKey {
+    param([Parameter(Mandatory)][string]$RepoContextRoot)
+
+    return Split-Path $RepoContextRoot -Leaf
+}
+
+function Get-ConfiguredRepoMapping {
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord,
+        [Parameter(Mandatory)][string]$RepoKey
+    )
+
+    if (-not $NodeRecord.Contains('repoMappings')) {
+        return $null
+    }
+
+    $repoMappings = $NodeRecord['repoMappings']
+    if ($repoMappings -isnot [System.Collections.IDictionary] -or -not $repoMappings.Contains($RepoKey)) {
+        return $null
+    }
+
+    $mapping = $repoMappings[$RepoKey]
+    if ($mapping -is [string]) {
+        return @{
+            repoPath = $mapping
+            runtimeRepoPath = $null
+        }
+    }
+
+    if ($mapping -isnot [System.Collections.IDictionary]) {
+        return $null
+    }
+
+    return $mapping
+}
+
+function Get-ConfiguredRuntimeRepoPath {
+    param([Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord)
+
+    if (-not $NodeRecord.Contains('runtimeRepoPath')) {
+        return $null
+    }
+
+    $runtimeRepoPath = [string]$NodeRecord['runtimeRepoPath']
+    if ([string]::IsNullOrWhiteSpace($runtimeRepoPath)) {
+        return $null
+    }
+
+    return $runtimeRepoPath.Trim()
+}
+
 function Resolve-WorkPlatform {
     param([Parameter(Mandatory)][string]$NodeId)
 
@@ -460,13 +511,20 @@ if ([string]::IsNullOrWhiteSpace($resolvedPlanPath) -or -not (Test-Path $resolve
 $xmachineConfig = Read-XmachineConfig -RepoRoot $runtimeRepoRoot
 $workNodeRecord = Get-XmachineNodeRecord -RequestedNode $WorkNode -Nodes $xmachineConfig.Nodes -ConfigPath $xmachineConfig.Path
 $resolvedWorkNodeTarget = Resolve-WorkNodeTarget -RequestedNode $WorkNode -NodeRecord $workNodeRecord -ConfigPath $xmachineConfig.Path
-$resolvedProjectRepoPath = if ($WorkRepoPath) { $WorkRepoPath } else { Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord }
+$repoMappingKey = Get-RepoMappingKey -RepoContextRoot $repoContextRoot
+$repoMapping = Get-ConfiguredRepoMapping -NodeRecord $workNodeRecord -RepoKey $repoMappingKey
+$mappedProjectRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains('repoPath')) { [string]$repoMapping['repoPath'] } else { $null }
+$mappedRuntimeRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains('runtimeRepoPath')) { [string]$repoMapping['runtimeRepoPath'] } else { $null }
+$resolvedProjectRepoPath = if ($WorkRepoPath) { $WorkRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($mappedProjectRepoPath)) { $mappedProjectRepoPath.Trim() } else { Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord }
 
 if ([string]::IsNullOrWhiteSpace($resolvedProjectRepoPath)) {
-    throw "No repo path is configured for work node '$WorkNode'. Pass -WorkRepoPath or define 'repoPath' in '$($xmachineConfig.Path)'."
+    throw "No repo path is configured for work node '$WorkNode'. Pass -WorkRepoPath or define 'repoMappings.$repoMappingKey.repoPath' or 'repoPath' in '$($xmachineConfig.Path)'."
 }
 
-$resolvedRemoteRuntimeRepoPath = if ($RemoteRuntimeRepoPath) { $RemoteRuntimeRepoPath } else { $resolvedProjectRepoPath }
+$resolvedRemoteRuntimeRepoPath = if ($RemoteRuntimeRepoPath) { $RemoteRuntimeRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($mappedRuntimeRepoPath)) { $mappedRuntimeRepoPath.Trim() } else { Get-ConfiguredRuntimeRepoPath -NodeRecord $workNodeRecord }
+if ([string]::IsNullOrWhiteSpace($resolvedRemoteRuntimeRepoPath)) {
+    $resolvedRemoteRuntimeRepoPath = $resolvedProjectRepoPath
+}
 $resolvedPlatform = Resolve-WorkPlatform -NodeId $resolvedWorkNodeTarget
 $runId = New-RunId
 

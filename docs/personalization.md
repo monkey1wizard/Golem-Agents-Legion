@@ -114,6 +114,8 @@ xmachine node definitions are machine-local and live in `../xmachine.config.json
 - Copy `../xmachine.config.example.json` to `../xmachine.config.json`.
 - Define each work node under the top-level `nodes` object.
 - Use the node alias as the key and set at least `target` and `repoPath`.
+- Add `runtimeRepoPath` when the remote GAL runtime checkout lives in a different path from the target repo checkout.
+- Add `repoMappings` when one work node hosts multiple target repositories and you want GAL to resolve the remote repo automatically from the current local repo name.
 - Keep SSH targets and repo paths in `xmachine.config.json`, not in `config.local.env`.
 
 Example:
@@ -123,11 +125,20 @@ Example:
   "nodes": {
     "mac-mini": {
       "target": "username@username-mac-mini.local",
-      "repoPath": "/Users/username/Golem-Agents-Legion"
+      "repoPath": "/Users/username/Golem-Agents-Legion",
+      "runtimeRepoPath": "/Users/username/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/Users/username/Code/zawip/local-ai-tools",
+          "runtimeRepoPath": "/Users/username/Golem-Agents-Legion"
+        }
+      }
     }
   }
 }
 ```
+
+In this example, GAL can keep using the same `mac-mini` node alias while routing `Golem-Agents-Legion` and `local-ai-tools` to different remote checkouts.
 
 `scripts/Test-Xmachine.ps1` reads `xmachine.config.json` directly, so editing this file does not require rerunning setup.
 

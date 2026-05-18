@@ -96,6 +96,8 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 - 頂層的 `nodes` 物件以工作節點別名作為鍵值（key）。
 - 每個節點都必須定義 `target` 值。
 - 每個節點通常應定義 `repoPath` 值，這樣 `-WorkRepoPath` 就能作為非必填選項。
+- `runtimeRepoPath` 為選填，用來指向當 GAL runtime checkout 與目標專案 checkout 不同時的遠端 GAL 路徑。
+- `repoMappings` 為選填，讓同一個工作節點可以依目前 repo 名稱對應多個目標儲存庫。
 - `target` 可以是來自 `.ssh/config` 的 `Host` 條目，或是直接的 `user@host` 字串。
 - `-WorkNode` 參數必須與定義的別名相符。
 
@@ -106,11 +108,25 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
   "nodes": {
     "node-name": {
       "target": "username@mechine-name",
-      "repoPath": "/path/to/Golem-Agents-Legion"
+      "repoPath": "/path/to/Golem-Agents-Legion",
+      "runtimeRepoPath": "/path/to/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/path/to/local-ai-tools",
+          "runtimeRepoPath": "/path/to/Golem-Agents-Legion"
+        }
+      }
     },
     "mac-mini": {
       "target": "username@username-mac-mini.local",
-      "repoPath": "/Users/username/Golem-Agents-Legion"
+      "repoPath": "/Users/username/Golem-Agents-Legion",
+      "runtimeRepoPath": "/Users/username/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/Users/username/Code/zawip/local-ai-tools",
+          "runtimeRepoPath": "/Users/username/Golem-Agents-Legion"
+        }
+      }
     },
     "win11-pc": {
       "target": "alice@win11-pc",
@@ -129,6 +145,29 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 1. 明確指定的 `-WorkRepoPath`
 2. `xmachine.config.json` 中所選節點的 `repoPath`
 3. 現有本機快取 `~/.gal/xmachine-nodes.json` 中的路徑
+
+`Invoke-XmachinePipeline.ps1` 會依下列順序解析遠端目標專案與 GAL runtime 路徑：
+
+1. 目標專案 checkout 的明確 `-WorkRepoPath`
+2. 所選節點上的 `repoMappings.<current-repo>.repoPath`
+3. 所選節點上的 `repoPath`
+
+遠端 GAL runtime 路徑則依下列順序解析：
+
+1. 明確指定的 `-RemoteRuntimeRepoPath`
+2. 所選節點上的 `repoMappings.<current-repo>.runtimeRepoPath`
+3. 所選節點上的 `runtimeRepoPath`
+4. 已解析出的遠端目標專案路徑
+
+這讓同一個節點可以同時承載 GAL runtime checkout 與不同的目標 repo checkout，而不必強迫所有 repo 共用同一路徑。
+
+## `/gal xmachine ...` 簡寫
+
+`/gal xmachine <node> to do <task-ref>` 是用來執行單一 active-plan task 的有邊界簡寫。
+
+- dispatcher 會把它正規化成 pipeline 風格的單任務執行，並把 `FROM` 與 `STOP_AT` 設成同一個 task ref。
+- 它是給 `TP-007`、`T-003` 這類 active-plan task ref 用的，不是通用的自由文字遠端提示。
+- 所選節點仍然必須是 `readied`，而且該 task 必須存在於解析出的 plan 中。
 
 ## 支援的執行路徑
 

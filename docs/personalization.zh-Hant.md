@@ -114,6 +114,8 @@ xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
 - 複製 `../xmachine.config.example.json` 為 `../xmachine.config.json`。
 - 在頂層的 `nodes` 物件下定義每個工作節點。
 - 將節點別名作為鍵值（key），並設定至少 `target` 和 `repoPath`。
+- 當遠端 GAL runtime checkout 與目標 repo checkout 路徑不同時，加入 `runtimeRepoPath`。
+- 當同一個工作節點承載多個目標 repo，且你希望 GAL 依目前本地 repo 名稱自動解析遠端路徑時，加入 `repoMappings`。
 - 將 SSH 目標與儲存庫路徑保存在 `xmachine.config.json` 之中，而不是 `config.local.env`。
 
 範例：
@@ -123,11 +125,20 @@ xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
   "nodes": {
     "mac-mini": {
       "target": "username@username-mac-mini.local",
-      "repoPath": "/Users/username/Golem-Agents-Legion"
+      "repoPath": "/Users/username/Golem-Agents-Legion",
+      "runtimeRepoPath": "/Users/username/Golem-Agents-Legion",
+      "repoMappings": {
+        "local-ai-tools": {
+          "repoPath": "/Users/username/Code/zawip/local-ai-tools",
+          "runtimeRepoPath": "/Users/username/Golem-Agents-Legion"
+        }
+      }
     }
   }
 }
 ```
+
+在這個範例裡，GAL 可以持續使用同一個 `mac-mini` 節點別名，同時把 `Golem-Agents-Legion` 與 `local-ai-tools` 路由到不同的遠端 checkout。
 
 `scripts/Test-Xmachine.ps1` 會直接讀取 `xmachine.config.json`，所以編輯這個檔案不需重新執行 setup。
 

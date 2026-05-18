@@ -14,6 +14,7 @@ function Show-Usage {
     Write-Host "Commands:"
     Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
     Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
+    Write-Host "  xmachine <node> to do <task-ref>    Run one active-plan task on a readied work node"
     Write-Host ""
     Write-Host "Script-dispatched subcommands: init, research, deep-research"
     Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
@@ -233,22 +234,22 @@ function Read-XmachineNodeAliases {
     }
 
     try {
-        $config = Get-Content $configPath -Raw | ConvertFrom-Json -AsHashtable
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
     }
     catch {
         throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
     }
 
-    if ($null -eq $config -or -not $config.ContainsKey('nodes')) {
+    if ($null -eq $config -or -not $config.PSObject.Properties.Name.Contains('nodes')) {
         return @()
     }
 
-    $nodes = $config['nodes']
-    if ($nodes -isnot [System.Collections.IDictionary]) {
+    $nodes = $config.nodes
+    if ($null -eq $nodes) {
         return @()
     }
 
-    return @($nodes.Keys | ForEach-Object { [string]$_ })
+    return @($nodes.PSObject.Properties.Name | ForEach-Object { [string]$_ })
 }
 
 function Get-XmachineDispatchContext {
@@ -301,6 +302,57 @@ function Get-ExplicitPlanArgument {
     return $null
 }
 
+function Get-XmachineTaskShorthandContext {
+    param([string[]]$Tokens)
+
+    $availableNodes = Read-XmachineNodeAliases
+    if (-not $Tokens -or $Tokens.Count -lt 4) {
+        return [pscustomobject]@{
+            Error = "Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+            WorkNode = $null
+            TaskRef = $null
+            ExplicitPlan = $null
+        }
+    }
+
+    $workNode = $Tokens[0]
+    if ($availableNodes -notcontains $workNode) {
+        $availableNodesText = if ($availableNodes.Count -gt 0) { $availableNodes -join ', ' } else { '<none configured>' }
+        return [pscustomobject]@{
+            Error = "Unknown xmachine work node '$workNode'. Available aliases: $availableNodesText"
+            WorkNode = $workNode
+            TaskRef = $null
+            ExplicitPlan = $null
+        }
+    }
+
+    if ($Tokens[1] -ne 'to' -or $Tokens[2] -ne 'do') {
+        return [pscustomobject]@{
+            Error = "Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+            WorkNode = $workNode
+            TaskRef = $null
+            ExplicitPlan = $null
+        }
+    }
+
+    $taskRef = $Tokens[3]
+    if ([string]::IsNullOrWhiteSpace($taskRef)) {
+        return [pscustomobject]@{
+            Error = "Missing task reference. Usage: gal xmachine <node> to do <task-ref> [#file:plan]"
+            WorkNode = $workNode
+            TaskRef = $null
+            ExplicitPlan = $null
+        }
+    }
+
+    return [pscustomobject]@{
+        Error = $null
+        WorkNode = $workNode
+        TaskRef = $taskRef.Trim()
+        ExplicitPlan = Get-ExplicitPlanArgument -Tokens $Tokens
+    }
+}
+
 function Resolve-Golem([string]$Name) {
     $known = @('golem-architect','golem-analyst','golem-implementer',
                'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
@@ -317,6 +369,35 @@ $utilityGolems = @('golem-debugger','golem-notewriter')
 switch ($Command) {
     "init" {
         & (Join-Path $scriptRoot "Init-Repo.ps1") @Arguments
+        break
+    }
+    "xmachine" {
+        $shorthand = Get-XmachineTaskShorthandContext -Tokens $Arguments
+        if ($shorthand.Error) {
+            Write-Dispatch @{
+                COMMAND = 'error'
+                ACTION = $shorthand.Error
+            }
+            break
+        }
+
+        $dispatchFields = [ordered]@{
+            COMMAND = 'pipeline'
+            ACTION = "Follow the /gal-pipeline procedure to execute only task '$($shorthand.TaskRef)' on xmachine work node '$($shorthand.WorkNode)'. Resolve the active plan, scope execution to this single task, and keep control-plane convergence local."
+            ON_COMPLETE = 'Report the single-task verdict and whether local convergence is complete.'
+            READ = $xmachineDocPath
+            EXECUTION = 'xmachine'
+            WORK_NODE = $shorthand.WorkNode
+            TASK_REF = $shorthand.TaskRef
+            FROM = $shorthand.TaskRef
+            STOP_AT = $shorthand.TaskRef
+        }
+
+        if ($shorthand.ExplicitPlan) {
+            $dispatchFields['PLAN'] = $shorthand.ExplicitPlan
+        }
+
+        Write-Dispatch $dispatchFields
         break
     }
     "dispatch" {

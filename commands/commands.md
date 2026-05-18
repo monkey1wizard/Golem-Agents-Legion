@@ -40,6 +40,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal wrap-up` | How do I close this session? | Converge handoff updates and update session continuity |
 | `/gal research` | I need structured investigation | Invoke research golem via script |
 | `/gal deep-research` | I need multi-source investigation with cross-review | Invoke deep-research workflow via script |
+| `/gal xmachine <node> to do <task-ref>` | Run one active-plan task on a readied work node | Normalize to a bounded single-task xmachine pipeline dispatch |
 | `/gal <golem-name>` | Route to a supported specialist agent | Invoke a dispatcher-supported golem such as `architect`, `analyst`, `designer`, `researcher`, `debugger`, `notewriter`, `implementer`, `tester`, `reviewer`, or `verifier` |
 
 ### `gal-*` — Discoverability Aliases
