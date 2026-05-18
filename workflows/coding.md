@@ -2,6 +2,7 @@
 
 The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
 Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, and execution-stage specialists write back to the `.dev/plans/<slug>.prompt.md` execution file.
+Control-plane chat, `/gal status`, `/gal whats-next`, `/gal pipeline`, and execution-stage specialists all resume from the same repo-owned execution-memory substrate: `.dev/state.md` plus the active `.dev/plans/<slug>.prompt.md`.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
 
@@ -25,11 +26,11 @@ GAL's coding flow is expressed as write-back command phases.
 | --- | --- | --- | --- |
 | **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/refining-plan`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
 | **Planning reviews** | Source plan exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
-| **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, code changes |
+| **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, `.dev/state.md` for repo continuity, `.dev/plans/<slug>.prompt.md` for mutable execution state, code changes |
 | **Review-stage audits** | Implementation reached a meaningful checkpoint | `golem-reviewer`, conditional `golem-designer`, conditional `golem-security`, `golem-tester` | `## Analyze`, `## Review Results`, `## Test Results` |
-| **Wrap-up or release** | Work is paused or ready to land | `/gal wrap-up`, `golem-releaser` | `### Handoff Notes`, `.dev/state.md`, `## Release` |
+| **Wrap-up or release** | Work is paused or ready to land | `/gal wrap-up`, `golem-releaser` | `### Handoff Notes`, `.dev/state.md`, active `.dev/plans/<slug>.prompt.md`, `## Release` |
 
-The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`.
+The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`. When an execution prompt exists, chat-oriented control-plane actions and specialist agents must both treat that prompt as the mutable task-memory file rather than resuming from provider-local chat memory.
 
 `golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
@@ -134,6 +135,8 @@ Before switching worktrees or ending a session:
 1. Compress key context into the plan's `## Status > ### Handoff Notes`
 2. Update `.dev/state.md` Session Continuity section
 3. Commit changes to the current branch
+
+Before pausing work, switching providers, or switching machines, run `/gal wrap-up` so the active `.dev/plans/<slug>.prompt.md` and `.dev/state.md` become the authoritative handoff package. Resumption must come from those repo files, not from provider-local transcript memory.
 
 This is manually triggered — the AI does not know when you're switching context unless you record it.
 
