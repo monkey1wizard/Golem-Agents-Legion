@@ -3,7 +3,7 @@
 <!--
 Generated from docs/plans/<plan-slug>.md.
 Output path: <repo>/.dev/plans/<plan-slug>.prompt.md
-This is the mutable execution work file consumed by /gal status, /gal whats-next, /gal pipeline, and specialist write-back flows.
+This is the shared mutable execution work file consumed by control-plane chat, /gal status, /gal whats-next, /gal pipeline, and specialist write-back flows.
 -->
 
 ## Goal
@@ -47,7 +47,11 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
 - Architect review: [pending]
 - Additional domain review: [not requested]
 
+[Stable planning content above this divider is seeded from the source plan and may be refreshed from planning-stage changes.]
+
 ---
+
+[Mutable execution-owned state below this divider is shared by control-plane chat and specialist workflows. Preserve it on refresh unless the user explicitly requests a reset.]
 
 ## Status
 
