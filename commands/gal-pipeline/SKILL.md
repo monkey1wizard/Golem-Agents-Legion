@@ -23,7 +23,7 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 /gal pipeline [#file:<plan.md>] [from T-NNN] [stop-at T-NNN]
 ```
 
-- **`#file:<plan.md>`**: use the referenced plan file as the pipeline input for this invocation. When present, it overrides `.dev/state.md` active-plan lookup for Step 1 only.
+- **`#file:<plan.md>`**: use the referenced plan file as the pipeline input for this invocation. When present, it overrides `.dev/state.md` active-plan lookup for Step 1 only. If the referenced file is a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, resolve to the execution prompt before continuing.
 - **No arguments**: start from the first unchecked task, run until all tasks complete
 - **`from T-NNN`**: start from the specified task (skip earlier unchecked tasks)
 - **`stop-at T-NNN`**: after completing `T-NNN`, stop before starting the next task and prompt the user
@@ -79,10 +79,16 @@ Rules:
 
 Select the plan file using this precedence order:
 
-1. If the dispatcher emitted `PLAN: <path>`, use that explicit plan file for this invocation.
+1. If the dispatcher emitted `PLAN: <path>`, resolve that explicit path first. If it points to a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, use the execution prompt for this invocation.
 2. Otherwise read the active plan file from `.dev/state.md`.
 
 If an explicit `PLAN` path was provided but the file does not exist or is not a markdown plan/prompt file, stop and surface the exact path error.
+
+The filesystem is authoritative for explicit plan resolution:
+
+- If the explicit path already points to `.dev/plans/<slug>.prompt.md`, use it directly.
+- If the explicit path points to `docs/plans/<slug>.md` and `.dev/plans/<slug>.prompt.md` exists, switch to the prompt and use that as the pipeline file.
+- If the explicit path points to a source plan and no prompt exists yet, use the source plan only to detect missing prerequisites, then stop with the required `/refining-plan` and `/plan-to-prompt` guidance instead of trying to execute against the source plan.
 
 Verify:
 
@@ -92,6 +98,8 @@ Verify:
 - Workflow state is not already `DONE`
 
 If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task.
+
+Never run Step 2 task execution directly against a source plan when the matching execution prompt exists. `## Status`, retry counters, commit checkpoints, handoff notes, and task completion write-back belong in `.dev/plans/<slug>.prompt.md`.
 
 If prerequisites are not met: tell the user what is missing and stop. If the execution prompt is still stubbed, run `/refining-plan` on the source plan and then rerun `/plan-to-prompt` before attempting the pipeline again.
 
@@ -324,35 +332,3 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
 | All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |
 
----
-
-## Pipeline Discipline
-
-These rules apply to every phase of the pipeline loop.
-
-### Bounded Output
-
-When a golem phase (implement, test, review, security) returns output, the pipeline must not pipe raw transcripts or full build logs into the orchestration context window. Accept and propagate only:
-
-- A structured phase verdict (PASS / FAIL / APPROVE / BLOCKING / CLEAR)
-- Failing items: test names + assertion messages, review BLOCKING findings with file:line references, or build errors with file:line references
-- A one-line summary on clean pass
-
-Store raw output as artifacts on disk when needed. Retrieve specific lines or excerpts on demand rather than forwarding entire logs.
-
-### Failure-Focused Evidence
-
-When surfacing a STOP to the user, include only:
-
-- The task ID and phase that failed
-- Failing test names and error messages (not passing names)
-- First build error with file and line reference (not the full build transcript)
-- BLOCKING review findings with file:line citation and severity (not passing dimensions)
-
-### Capability Preflight
-
-Before dispatching any optional lane (xmachine offload, MCP tool, external CLI), resolve readiness via `docs/collaborative-tools/checking-contract.md`.
-
-- If the lane is **`ready`**: proceed.
-- If the lane is **`not-ready`** or **`unavailable`**: degrade to the documented fallback (script fallback → non-script fallback → manual instruction) without blocking the pipeline on the missing capability.
-- Do not record machine-local lane state in the plan file. Availability is resolved at dispatch time, not at plan-writing time.
