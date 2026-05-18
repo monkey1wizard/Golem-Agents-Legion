@@ -9,7 +9,7 @@ Create or refresh the execution prompt for a source plan.
 
 ## Role
 
-Execution-prompt generator. Your job is to transform a stable source plan into the mutable execution work file that GAL and specialist commands use for stateful workflow operations, while preserving execution-owned state during refresh.
+Execution-prompt generator. Your job is to transform a stable source plan into the shared mutable execution work file that control-plane chat, GAL commands, and specialist write-back flows use for stateful workflow operations, while preserving execution-owned state during refresh.
 
 ## When to Use
 
@@ -47,6 +47,8 @@ If `.dev/plans/<slug>.prompt.md` already exists (refresh case), read it too befo
 
 Create or update `.dev/plans/<slug>.prompt.md`.
 
+This file is the single shared mutable execution-memory surface for the active task. Do not invent a separate chat-memory lane or any second execution-state file.
+
 **Use the execution-prompt template below as the output schema.** The template controls section names, order, and scaffold shape. Do NOT look for an external `templates/plan-prompt.md` file — the template is embedded here.
 
 ### Execution-Prompt Template
@@ -59,7 +61,7 @@ The execution prompt must contain exactly these sections in this order:
 <!--
 Generated from <source-plan-path>.
 Output path: <repo>/.dev/plans/<slug>.prompt.md
-This is the mutable execution work file consumed by /gal status, /gal whats-next, /gal pipeline, and specialist write-back flows.
+This is the shared mutable execution work file consumed by control-plane chat, /gal status, /gal whats-next, /gal pipeline, and specialist write-back flows.
 -->
 
 ## Goal
@@ -90,11 +92,11 @@ This is the mutable execution work file consumed by /gal status, /gal whats-next
   - `## Scope — Out-of-Scope` → `## Approach` (out-of-scope paragraph)
   - `## Steps (Roadmap)` → note in `## Status` Step count; do not create a non-standard section
 - If the source plan already contains execution-style sections (drift), salvage their content into the matching standard mutable sections instead of copying the non-standard structure.
-- `## Status`, `## Analyze`, `## Test Results`, `### Deviations`, `### Handoff Notes` are mutable execution-state sections. Initialize them from the template scaffold unless refreshing an existing prompt whose progress should be preserved.
+- `## Status`, `## Tasks`, `## Analyze`, `## Test Plan`, `## Test Results`, `## Review Results`, `## Debug Log`, `### Deviations`, and `### Handoff Notes` are execution-owned sections of the shared mutable work file. Initialize them from the template scaffold only when creating a new prompt; in refresh mode, preserve existing execution-state content unless the user explicitly asked for a reset.
 - `## Open Questions` — carry forward existing `OQ-NNN` items. Format: `- [ ] OQ-NNN — description *(raised by: source)*`
 - Carry forward planning-stage review content from the source plan into the matching prompt sections, including `## Review Results > ### Architecture Review`, `## Review Results > ### Engineering Review`, and `## Approval > Architect review`.
-- The source plan is expected to already contain the implementation contract from `/refining-plan`; seed the execution prompt from that `## Tasks`, `## Test Plan`, and engineering review content.
-- In refresh mode, preserve `## Tasks`, `## Test Plan`, and `## Review Results > ### Engineering Review` from the existing execution prompt only when those sections have execution-state changes that would be lost by replacement; otherwise refresh them from the source plan.
+- The source plan is expected to already contain the implementation contract from `/refining-plan`; seed the first execution prompt from that `## Tasks`, `## Test Plan`, and engineering review content.
+- In refresh mode, preserve execution-owned sections from the existing prompt as the authoritative mutable state. Refresh the stable planning sections from the source plan, and only backfill missing execution placeholders from the source plan's implementation contract when that does not overwrite existing execution history.
 
 ### Status Section Scaffold
 
