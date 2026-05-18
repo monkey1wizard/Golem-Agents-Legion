@@ -6,7 +6,11 @@
 
 GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你的「開發計畫」、「目前狀態」與「審查紀錄」全部儲存在專案本地的 Markdown 檔案中（`.dev/` 與 `docs/`）。無論你今天用哪一個 AI CLI 工具開啟專案，都能無縫接續昨天的工作。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。
 
-持久化的狀態資料分為兩個儲存邊界：儲存庫共享的狀態以本機 Markdown 檔案形式存放。使用者的個人筆記則可選擇寫入自行設定的 Obsidian Vault，保留儲存庫之外的私人筆記空間。狀態管理機制參考了 Get Shit Done (GSD) 的階段式準則，讓 `/gal status` 和 `/gal whats-next` 能夠完整呈現專案目前的工作進度。
+GAL 採用基於檔案的記憶模型（file-owned memory model）。儲存庫的共用記憶保存在本機的 Markdown 檔案中。而可選的個人筆記則可寫入至自行設定的 Obsidian Vault，讓私人記憶獨立於儲存庫之外。
+
+系統在冷啟動（cold-start）時，做為唯一基準的核心檔案包含 `.dev/project.md`、`.dev/state.md` 以及目前啟用的 `.dev/plans/<slug>.prompt.md`。位於 `docs/plans/<slug>.md` 的規劃文件作為規劃階段的記憶（planning memory），而 `.prompt.md` 則是控制平面對話（control-plane chat）、`/gal status`、`/gal whats-next`、`/gal pipeline` 與專家回寫流程（specialist write-back flows）所共用的可變執行記憶（shared mutable execution memory）。
+
+跨工作階段（cross-session）與跨 AI 工具（cross-provider）的交接（handoff）是透過 `/gal wrap-up` 進行，它會將交接筆記（`### Handoff Notes`）與工作階段的連續性狀態（session continuity）回寫至儲存庫檔案中。AI 工具本身的對話紀錄（provider-local chat history）僅供參考（advisory only）。核心的記憶操作包含讀取（retrieve）、編碼（encode）、摘要（summarize）、晉升（promote）與修剪（prune），而產生的轉接器（generated adapters）僅負責將這份契約帶入各個執行環境中，其本身不會成為唯一的事實來源（source of truth）。
 
 若有多個電腦設備，你也可使用 xmachine 能幫你把 AI 任務透過 SSH 路由到遠端工作節點執行，以最大化資源利用率。（需自行先設定完 SSH 連線、Zellji、ai cli 工具）
 
@@ -37,7 +41,7 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你
    $gal init
    ```
 
-     如果人在第一次 bootstrap 時，或工具必須直接呼叫 shell entrypoint，請把終端機停留在目標儲存庫根目錄。若 repo 內已有 local `scripts/gal.*` 就用它；若還沒有，則在同一個 target-repo cwd 呼叫 GAL runtime checkout 的 `scripts/gal.*`。
+     如果人在第一次 bootstrap 時，或工具必須直接呼叫 shell entrypoint，請把終端機停留在目標儲存庫根目錄。若 repo 內已有 local `scripts/gal.*` 請直接使用；若還沒有，則在同一個 target-repo cwd 呼叫 GAL runtime checkout 的 `scripts/gal.*`。
 
    各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
 
@@ -45,7 +49,7 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你
 
 **情境：如何在專案中新增一個 JWT 登入功能？**
 
-1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。fresh repo 一開始可能還沒有 local `scripts/`；這時仍可由 GAL runtime checkout entrypoint 對目前專案完成初始化。
+1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。fresh repo 一開始可能還沒有 local `scripts/`，這時仍可由 GAL runtime checkout entrypoint 對目前專案完成初始化。
 2. **發想與規劃**：輸入 `/planning` 並告訴 AI「我要做一個 JWT 登入功能」。AI 會與你討論並將規格寫入 `docs/plans/`，再使用 `/deep-planning` 仔細審核規劃書。
 3. **鎖定規格**：輸入 `/refining-plan` 與 `/plan-to-prompt`，讓 AI 將人類可讀的規格轉化為 AI 可執行的「任務清單」與「測試計畫」。
 4. **自動實作與驗證**：輸入 `/gal pipeline`，GAL 會自動指派 Implementer（寫程式） -> Tester（寫測試） -> Reviewer（審查程式碼）。
@@ -55,7 +59,7 @@ GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你
 
 | 指令 | 用途 |
 | --- | --- |
-| `/gal init` | 初始化儲存庫：建立 `.dev/project.md` 與 `.dev/state.md`；若 fresh repo 尚無 local `scripts/`，可透過 GAL runtime checkout 完成 bootstrap |
+| `/gal init` | 初始化儲存庫：建立 `.dev/project.md` 與 `.dev/state.md`，若 fresh repo 尚無 local `scripts/`，可透過 GAL runtime checkout 完成 bootstrap |
 | `/gal status` | 完整狀態呈現：活動企劃、審查/測試狀態、阻擋點、連續性 |
 | `/gal whats-next` | 推薦單一下一步動作 |
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |

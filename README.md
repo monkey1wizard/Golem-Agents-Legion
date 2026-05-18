@@ -6,7 +6,11 @@ AI tools (like GitHub Copilot, Gemini CLI, Claude Code) are changing rapidly. Ma
 
 GAL is an AI working system that brings structure to development. It stores your "development plans," "current state," and "review records" entirely in local Markdown files (`.dev/` and `docs/`). No matter which AI CLI tool you use today, you can seamlessly pick up where you left off yesterday. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, operating in a document-driven model.
 
-Durable state is split across two boundaries: repository-shared state is saved as local Markdown files. Optional user-personal notes can be written to a locally configured Obsidian vault, preserving your personal note space outside the repository. State management draws from the phase-based discipline in Get Shit Done (GSD), letting `/gal status` and `/gal whats-next` reliably project the current state of work for the entire project.
+GAL uses a file-owned memory model. Repository-shared memory lives in local Markdown files, while optional personal notes can be written to a locally configured Obsidian vault so that private memory stays outside the repository.
+
+The authoritative cold-start stack consists of `.dev/project.md`, `.dev/state.md`, and the active `.dev/plans/<slug>.prompt.md`. Source plans in `docs/plans/<slug>.md` serve as planning memory, while the `.prompt.md` file acts as the shared mutable execution memory used by control-plane chat, `/gal status`, `/gal whats-next`, `/gal pipeline`, and specialist write-back flows.
+
+Cross-session and cross-provider handoffs are managed via `/gal wrap-up`, which writes `### Handoff Notes` and session continuity states back into the repo files. Provider-local chat history is advisory only. The core memory operations include retrieve, encode, summarize, promote, and prune. Generated adapters carry this contract to each runtime without becoming the source of truth.
 
 If you have multiple devices, you can also use xmachine to route AI tasks via SSH to remote work nodes for execution, maximizing resource utilization. (Requires manual setup of SSH connections, Zellij, AI CLI tools, etc.)
 
@@ -37,7 +41,7 @@ Before using GAL, ensure your environment meets the following requirements:
    $gal init
    ```
 
-     If a human or tool must invoke the shell entrypoint manually during first-time bootstrap, keep the terminal in the target repository. Use local `scripts/gal.*` when present; otherwise call the GAL runtime checkout `scripts/gal.*` entrypoint from that same target-repo cwd.
+     If a human or tool must invoke the shell entrypoint manually during first-time bootstrap, keep the terminal in the target repository. Use local `scripts/gal.*` when present. Otherwise, call the GAL runtime checkout `scripts/gal.*` entrypoint from that same target-repo cwd.
 
    Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
 
@@ -45,7 +49,7 @@ Before using GAL, ensure your environment meets the following requirements:
 
 **Scenario: Adding a JWT Login Feature to Your Project**
 
-1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files. Fresh repos may not have local `scripts/` yet; in that case the runtime checkout entrypoint still targets the current repository.
+1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files. Fresh repos may not have local `scripts/` yet, in that case the runtime checkout entrypoint still targets the current repository.
 2. **Brainstorm & Plan**: Run `/planning` and tell the AI, "I want to build a JWT login feature." The AI will discuss and write the spec into `docs/plans/`, then use `/deep-planning` to carefully review the plan document.
 3. **Lock the Spec**: Run `/refining-plan` and `/plan-to-prompt`. The AI converts the human-readable spec into an executable "task list" and "test plan."
 4. **Auto-Implement & Verify**: Run `/gal pipeline`. GAL automatically assigns the Implementer (writes code) -> Tester (writes tests) -> Reviewer (code review).
@@ -55,7 +59,7 @@ Before using GAL, ensure your environment meets the following requirements:
 
 | Command | Purpose |
 | --- | --- |
-| `/gal init` | Initialize repository: create `.dev/project.md` and `.dev/state.md`; fresh repos can bootstrap through the GAL runtime checkout when local `scripts/` is absent |
+| `/gal init` | Initialize repository: create `.dev/project.md` and `.dev/state.md`. Fresh repos can bootstrap through the GAL runtime checkout when local `scripts/` is absent |
 | `/gal status` | Full state projection: active plans, review/test status, blockers, continuity |
 | `/gal whats-next` | Recommend the next single action |
 | `/gal wrap-up` | Converge work: write `### Handoff Notes` and `## Session Continuity` |
