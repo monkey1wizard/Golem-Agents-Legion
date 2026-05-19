@@ -149,6 +149,31 @@ In this example, GAL can keep using the same `mac-mini` node alias while routing
 
 Project-specific or database-specific MCP servers should usually live in `../mcp.local.json`, not the tracked `mcp.json`. This matters for Postgres because one machine may work across many repos, and one repo may talk to multiple databases.
 
+For Playwright MCP, keep the tracked `../mcp.json` entry conservative and machine-agnostic. Put local-only browser behavior in `../mcp.local.json`: headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP connections, and other stateful browser settings.
+
+Example local-only Playwright override:
+
+```json
+{
+  "servers": {
+    "playwright": {
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--headless",
+        "--storage-state",
+        "${PLAYWRIGHT_MCP_STORAGE_STATE}",
+        "--output-dir",
+        "${PLAYWRIGHT_MCP_OUTPUT_DIR}"
+      ]
+    }
+  }
+}
+```
+
+Keep those env vars in `config.local.env`, and keep the referenced files/directories outside tracked repo paths. Do not commit storage-state files, persistent browser profiles, browser output artifacts, or any secret-like local files.
+
 Example for two Postgres databases on one machine:
 
 ```json
@@ -216,6 +241,8 @@ Use the narrower concern script when only one concern changed:
 - `scripts/update-skills.sh` after changing `agent/` or `skills/`
 - `scripts/update-commands.sh` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
 - `scripts/update-mcp.sh` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`
+
+If you changed source-of-truth content that feeds repo-local generated adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`, rerun `scripts/Sync-DevContext.ps1` or `scripts/sync-dev-context.sh`. `Update-Mcp` does not regenerate those adapter files.
 
 Windows:
 

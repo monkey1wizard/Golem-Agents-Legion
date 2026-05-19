@@ -116,6 +116,13 @@ The MCP manifest is a separate install concern from skills.
 | `config.local.env` | local only | secrets and local values referenced by the manifest |
 | `xmachine.config.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
 
+For Playwright MCP specifically:
+
+- Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
+- Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `mcp.local.json`.
+- Put secret-like paths or environment-backed local values referenced by those overrides in `config.local.env`.
+- Do not track browser artifacts, storage-state files, persistent profile directories, or secret files in the repo.
+
 `Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
 
 - VS Code: overwrite tracked server entries inside user `mcp.json`
@@ -159,6 +166,12 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 3. Windows and macOS/Linux both use the split Setup-Machine plus concern-script stack. Keep the two entrypoint families aligned unless the change is intentionally platform-specific.
 4. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
 5. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
+
+### Refreshing MCP vs. Regenerating Adapters
+
+- Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`. This refreshes runtime MCP config only.
+- Run `Sync-DevContext.ps1` or `sync-dev-context.sh` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
+- Run `Setup-Machine.ps1` or `setup-machine.sh` when you need the full concern stack refreshed in one pass.
 
 ### Refactoring docs themselves
 

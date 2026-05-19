@@ -149,6 +149,31 @@ xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
 
 專案特有或資料庫特有的 MCP server，通常應該放在 `../mcp.local.json`，而不是放進被追蹤的 `mcp.json`。對 Postgres 尤其如此，因為一台機器常常會同時處理多個 repo，而同一個 repo 也可能連到多個資料庫。
 
+對 Playwright MCP 也是同樣原則：被追蹤的 `../mcp.json` 應只保留保守、與機器無關的預設；有頭模式、viewport 或 device 模擬、storage-state 路徑、輸出目錄、選用 capability flags、persistent profile 路徑、extension 或 CDP 連線等 local-only 瀏覽器行為，都應放在 `../mcp.local.json`。
+
+Playwright 的 local-only override 範例：
+
+```json
+{
+  "servers": {
+    "playwright": {
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--headless",
+        "--storage-state",
+        "${PLAYWRIGHT_MCP_STORAGE_STATE}",
+        "--output-dir",
+        "${PLAYWRIGHT_MCP_OUTPUT_DIR}"
+      ]
+    }
+  }
+}
+```
+
+這些 env var 應放在 `config.local.env`，而被引用的檔案或目錄應放在 repo 追蹤範圍之外。不要把 storage-state、persistent browser profile、browser output artifacts 或任何類似秘密的本地檔案提交進 repo。
+
 同一台機器上有兩個 Postgres 資料庫時，可參考：
 
 ```json
@@ -216,6 +241,8 @@ GAL 現在將 `mcp.json` 加上 `mcp.local.json` 視為 MCP 的真相來源。�
 - 更改 `agent/` 或 `skills/` 後，執行 `scripts/update-skills.sh`
 - 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
 - 更改 `mcp.json`、`mcp.local.json` 或 `config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
+
+如果你變更了會餵給 repo-local 產生 adapter 的 source-of-truth 內容，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料，請另外重新執行 `scripts/Sync-DevContext.ps1` 或 `scripts/sync-dev-context.sh`。`Update-Mcp` 不會重新產生這些 adapter 檔案。
 
 Windows：
 

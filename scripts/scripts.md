@@ -142,4 +142,12 @@ Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and ag
 
 The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly.
 
+For Playwright MCP, keep the tracked `mcp.json` entry limited to safe core startup and place headed mode, storage-state paths, output directories, optional capability flags, persistent profile paths, extension/CDP wiring, and similar machine-local behavior in `mcp.local.json` plus `config.local.env`.
+
+Rerun guidance:
+
+- `Update-Mcp.ps1` / `update-mcp.sh`: refresh runtime MCP config after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`.
+- `Sync-DevContext.ps1` / `sync-dev-context.sh`: regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` after changing their source-of-truth inputs.
+- `Setup-Machine.ps1` / `setup-machine.sh`: rerun the full concern stack when you want one top-level refresh.
+
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.
