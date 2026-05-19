@@ -43,6 +43,16 @@
 				"markitdown-mcp@latest"
 			]
     },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--headless"
+      ]
+    },
     "upstash/context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp",
