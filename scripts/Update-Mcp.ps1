@@ -414,7 +414,7 @@ function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) 
                 'microsoftdocs/mcp' { return @('Microsoft Learn MCP Server') }
                 'github/github-mcp-server' { return @('github') }
                 'chromedevtools/chrome-devtools-mcp' { return @('chrome-devtools') }
-                'playwright' { return @('microsoft/playwright-mcp', 'playwright-mcp') }
+                'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
             }
         }
         'codex' {
