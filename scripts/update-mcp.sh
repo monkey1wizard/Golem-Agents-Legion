@@ -87,18 +87,24 @@ BRIDGE_PROFILES = {
     'github-mcp-server': {
         'codex': {'enabled': False, 'key': None},
     },
+    'playwright': {
+        'codex': {'key': 'playwright'},
+    },
 }
 
 LEGACY_ALIASES = {
+    ('copilot-cli', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
     ('gemini', 'upstash/context7'): ['context7'],
     ('gemini', 'microsoftdocs/mcp'): ['Microsoft Learn MCP Server'],
     ('gemini', 'github/github-mcp-server'): ['github'],
     ('gemini', 'chromedevtools/chrome-devtools-mcp'): ['chrome-devtools'],
+    ('gemini', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
     ('codex', 'upstash/context7'): ['context7'],
     ('codex', 'microsoftdocs/mcp'): ['microsoftdocs'],
     ('codex', 'imageFetch'): ['imagefetch'],
     ('codex', 'github/github-mcp-server'): ['github'],
     ('codex', 'chromedevtools/chrome-devtools-mcp'): ['chrome-devtools'],
+    ('codex', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
 }
 
 
@@ -267,6 +273,7 @@ def get_copilot_cli_bridge_profile(server_name):
         'memory': {'enabled': True, 'key': 'memory'},
         'microsoftdocs/mcp': {'enabled': True, 'key': 'microsoftdocs'},
         'microsoft/markitdown': {'enabled': True, 'key': 'markitdown'},
+        'playwright': {'enabled': True, 'key': 'playwright'},
         'upstash/context7': {'enabled': True, 'key': 'context7'},
         'blender': {'enabled': True, 'key': 'blender'},
         'freecad': {'enabled': True, 'key': 'freecad'},
@@ -479,6 +486,8 @@ def update_copilot_cli(manifest):
         'microsoft/markitdown',
         'upstash/context7',
     })
+    for server_name in manifest['servers']:
+        managed_keys.update(legacy_aliases('copilot-cli', server_name))
 
     for existing_server_name in list(servers.keys()):
         if existing_server_name in managed_keys:
