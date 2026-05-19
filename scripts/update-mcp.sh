@@ -93,18 +93,24 @@ BRIDGE_PROFILES = {
 }
 
 LEGACY_ALIASES = {
+    ('vscode', 'github'): ['github-mcp-server'],
+    ('copilot-cli', 'github'): ['github-mcp-server'],
     ('copilot-cli', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
+    ('gemini', 'github'): ['github-mcp-server', 'github/github-mcp-server'],
     ('gemini', 'upstash/context7'): ['context7'],
     ('gemini', 'microsoftdocs/mcp'): ['Microsoft Learn MCP Server'],
     ('gemini', 'github/github-mcp-server'): ['github'],
     ('gemini', 'chromedevtools/chrome-devtools-mcp'): ['chrome-devtools'],
     ('gemini', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
+    ('antigravity', 'github'): ['github-mcp-server'],
+    ('codex', 'github'): ['github-mcp-server', 'github/github-mcp-server'],
     ('codex', 'upstash/context7'): ['context7'],
     ('codex', 'microsoftdocs/mcp'): ['microsoftdocs'],
     ('codex', 'imageFetch'): ['imagefetch'],
     ('codex', 'github/github-mcp-server'): ['github'],
     ('codex', 'chromedevtools/chrome-devtools-mcp'): ['chrome-devtools'],
     ('codex', 'playwright'): ['microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp'],
+    ('claude', 'github'): ['github-mcp-server'],
 }
 
 
@@ -187,6 +193,47 @@ def resolve_node(node, values, expand_args=False):
     if isinstance(node, dict):
         return {key: resolve_node(value, values, expand_args=(key == 'args')) for key, value in node.items()}
     return node
+
+
+def resolve_inputs(inputs, values):
+    if not isinstance(inputs, list):
+        return []
+    return [resolve_node(item, values) for item in inputs]
+
+
+def normalize_servers(servers):
+    normalized = dict(servers)
+    if 'github' in normalized:
+        normalized.pop('github-mcp-server', None)
+    return normalized
+
+
+def sync_managed_inputs(data, manifest):
+    managed_inputs = manifest.get('inputs')
+    if not isinstance(managed_inputs, list):
+        return False
+
+    managed_ids = {
+        str(item.get('id'))
+        for item in managed_inputs
+        if isinstance(item, dict) and item.get('id')
+    }
+    current_inputs = data.get('inputs')
+    if not isinstance(current_inputs, list):
+        current_inputs = []
+
+    preserved = []
+    for existing in current_inputs:
+        if isinstance(existing, dict) and str(existing.get('id')) in managed_ids:
+            continue
+        preserved.append(existing)
+
+    merged_inputs = preserved + managed_inputs
+    if json_like_equal(current_inputs, merged_inputs):
+        return False
+
+    data['inputs'] = merged_inputs
+    return True
 
 
 def get_bridge_profile(server_name, runtime_name):
@@ -446,15 +493,26 @@ def resolved_manifest():
             defaults.append(obsidian_vault)
         values['MCP_FILESYSTEM_PATHS'] = ','.join(dict.fromkeys(defaults))
 
-    return {
-        'servers': {server_name: resolve_node(server_config, values) for server_name, server_config in servers.items()}
+    resolved = {
+        'servers': normalize_servers({server_name: resolve_node(server_config, values) for server_name, server_config in servers.items()})
     }
+    if 'inputs' in manifest:
+        resolved['inputs'] = resolve_inputs(manifest.get('inputs'), values)
+    return resolved
 
 
 def update_vscode(manifest):
     data = read_json(vscode_mcp)
     servers = data.setdefault('servers', {})
     changed = False
+    for server_name in manifest['servers']:
+        for alias in legacy_aliases('vscode', server_name):
+            if alias in servers:
+                changed = True
+                prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+                print(f'  {prefix} VS Code MCP alias: {alias}')
+                if not dry_run:
+                    del servers[alias]
     for server_name, server_config in manifest['servers'].items():
         profile = get_bridge_profile(server_name, 'vscode')
         if not profile.get('enabled', True):
@@ -465,6 +523,10 @@ def update_vscode(manifest):
             changed = True
             prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
             print(f'  {prefix} VS Code MCP server: {key}')
+    if sync_managed_inputs(data, manifest):
+        changed = True
+        prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
+        print(f'  {prefix} VS Code MCP inputs')
     if changed and not dry_run:
         write_json(vscode_mcp, data)
         print(f'  [OK] {vscode_mcp}')
@@ -534,6 +596,10 @@ def update_gemini(manifest):
             print(f'  {prefix} Gemini MCP server: {server_name}')
             if not dry_run:
                 servers[server_name] = converted
+    if sync_managed_inputs(data, manifest):
+        changed = True
+        prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
+        print(f'  {prefix} Gemini MCP inputs')
     if changed and not dry_run:
         write_json(gemini_settings, data)
         print(f'  [OK] {gemini_settings}')
@@ -544,6 +610,13 @@ def update_antigravity(manifest):
     servers = data.setdefault('mcpServers', {})
     changed = False
     for server_name, server_config in manifest['servers'].items():
+        for alias in legacy_aliases('antigravity', server_name):
+            if alias in servers:
+                changed = True
+                prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+                print(f'  {prefix} Antigravity MCP alias: {alias}')
+                if not dry_run:
+                    del servers[alias]
         converted = convert_antigravity_config(server_config)
         if server_name not in servers or not json_like_equal(servers[server_name], converted):
             changed = True
@@ -551,6 +624,10 @@ def update_antigravity(manifest):
             print(f'  {prefix} Antigravity MCP server: {server_name}')
             if not dry_run:
                 servers[server_name] = converted
+    if sync_managed_inputs(data, manifest):
+        changed = True
+        prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
+        print(f'  {prefix} Antigravity MCP inputs')
     if changed and not dry_run:
         write_json(antigravity_mcp, data)
         print(f'  [OK] {antigravity_mcp}')
@@ -617,6 +694,8 @@ def update_claude(manifest):
             print(f'  [DRY RUN] Would upsert Claude MCP server: {server_name}')
             continue
 
+        for legacy_alias in legacy_aliases('claude', server_name):
+            invoke_claude(['mcp', 'remove', legacy_alias], quiet=True)
         invoke_claude(['mcp', 'remove', server_name], quiet=True)
         if server_config.get('type') == 'http':
             arguments = ['mcp', 'add', '--scope', 'user', '--transport', 'http']

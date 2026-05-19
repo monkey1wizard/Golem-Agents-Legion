@@ -116,6 +116,8 @@ The MCP manifest is a separate install concern from skills.
 | `config.local.env` | local only | secrets and local values referenced by the manifest |
 | `xmachine.config.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
 
+The merged MCP manifest is centered on `servers` and may also include optional top-level `inputs` when a runtime supports prompt-backed values such as a PAT entry.
+
 For Playwright MCP specifically:
 
 - Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
@@ -128,6 +130,7 @@ For Playwright MCP specifically:
 - VS Code: overwrite tracked server entries inside user `mcp.json`
 - Gemini CLI: overwrite tracked server entries inside `settings.json` under `mcpServers`
 - Antigravity: overwrite tracked server entries inside `~/.gemini/antigravity/mcp_config.json` under `mcpServers`
+- JSON-based runtime bridges also preserve managed top-level `inputs` entries by input `id` when the merged manifest includes them.
 - Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
 - Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
 

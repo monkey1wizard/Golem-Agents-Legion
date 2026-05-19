@@ -140,7 +140,9 @@ Generates `~/.gemini/gal-context.md` with sorted non-command `@file` skill impor
 
 Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Gemini CLI and Antigravity share the `.gemini` root but use separate GAL-managed subtrees. Only MCP ownership is split per client.
 
-The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly.
+The merged manifest owns `servers` and can also carry optional top-level `inputs` for runtimes that accept prompt-backed MCP values.
+
+The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly. When a local override declares `servers.github`, GAL treats that local key as the active GitHub MCP entry and cleans up the older `github-mcp-server` name during bridge sync so the PAT-backed remote server replaces the tracked OAuth entry instead of duplicating it.
 
 For Playwright MCP, keep the tracked `mcp.json` entry limited to safe core startup and place headed mode, storage-state paths, output directories, optional capability flags, persistent profile paths, extension/CDP wiring, and similar machine-local behavior in `mcp.local.json` plus `config.local.env`.
 

@@ -203,6 +203,8 @@ Playwright 的 local-only override 範例：
 
 接著在 `config.local.env` 中加入對應變數，名稱可自行決定。`Update-Mcp.ps1` 與 `update-mcp.sh` 本來就會合併所有 local server 名稱，並從 `config.local.env` 解析任意 `${ENV_VAR}` placeholder。
 
+如果你的 MCP host 支援 prompt-backed `inputs`，`mcp.local.json` 也可以放 top-level `inputs`。這適合像 GitHub remote MCP 這種要用 PAT、但不想把 token 寫回被追蹤檔的情境。例如你可以在 local override 中宣告 `servers.github` 與 `inputs.github_mcp_pat`；GAL 在同步時會保留這個 `inputs` 區塊，並把舊的 `github-mcp-server` 受管名稱清掉，避免同時出現 OAuth 與 PAT 兩個 GitHub 入口。
+
 ### 4. 執行環境擁有的設定 (Runtime-owned config)
 
 已安裝的執行環境設定（runtime configs）即使在 GAL 更新其管理的條目後，仍屬於使用者擁有。

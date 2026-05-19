@@ -93,8 +93,77 @@ function Resolve-McpConfig([System.Collections.IDictionary]$Config, [System.Coll
     return $resolved
 }
 
+function Resolve-McpInputs([object]$Inputs, [System.Collections.IDictionary]$Values) {
+    if ($null -eq $Inputs -or $Inputs -is [string] -or $Inputs -isnot [System.Collections.IEnumerable]) {
+        return @()
+    }
+
+    $resolved = [System.Collections.Generic.List[object]]::new()
+    foreach ($input in @($Inputs)) {
+        $resolved.Add((Resolve-McpNode $input $Values))
+    }
+
+    return @($resolved.ToArray())
+}
+
+function Normalize-McpServers([System.Collections.IDictionary]$Servers) {
+    $normalized = [ordered]@{}
+    $preferGithubAlias = $Servers.Contains('github')
+    foreach ($serverName in $Servers.Keys) {
+        if ($preferGithubAlias -and $serverName -eq 'github-mcp-server') {
+            continue
+        }
+
+        $normalized[$serverName] = $Servers[$serverName]
+    }
+
+    return $normalized
+}
+
 function Test-JsonLikeEqual([object]$Left, [object]$Right) {
     return ((ConvertTo-OrderedMap $Left | ConvertTo-Json -Depth 20) -eq (ConvertTo-OrderedMap $Right | ConvertTo-Json -Depth 20))
+}
+
+function Sync-ManagedMcpInputs([System.Collections.IDictionary]$Data, [System.Collections.IDictionary]$ManagedManifest) {
+    if (-not $ManagedManifest.Contains('inputs')) {
+        return $false
+    }
+
+    $managedInputs = @($ManagedManifest['inputs'])
+    $managedIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($input in $managedInputs) {
+        if ($input -is [System.Collections.IDictionary] -and $input.Contains('id') -and -not [string]::IsNullOrWhiteSpace([string]$input['id'])) {
+            [void]$managedIds.Add([string]$input['id'])
+        }
+    }
+
+    $preservedInputs = [System.Collections.Generic.List[object]]::new()
+    if ($Data.Contains('inputs') -and $Data['inputs'] -is [System.Collections.IEnumerable] -and -not ($Data['inputs'] -is [string])) {
+        foreach ($existing in @($Data['inputs'])) {
+            if ($existing -is [System.Collections.IDictionary] -and $existing.Contains('id') -and $managedIds.Contains([string]$existing['id'])) {
+                continue
+            }
+
+            $preservedInputs.Add($existing)
+        }
+    }
+
+    $newInputs = [System.Collections.Generic.List[object]]::new()
+    foreach ($preserved in $preservedInputs) {
+        $newInputs.Add($preserved)
+    }
+    foreach ($managed in $managedInputs) {
+        $newInputs.Add($managed)
+    }
+
+    $newValue = @($newInputs.ToArray())
+    $currentValue = if ($Data.Contains('inputs')) { $Data['inputs'] } else { @() }
+    if (-not (Test-JsonLikeEqual $currentValue $newValue)) {
+        $Data['inputs'] = $newValue
+        return $true
+    }
+
+    return $false
 }
 
 function ConvertTo-GeminiMcpConfig([System.Collections.IDictionary]$Config) {
@@ -403,13 +472,20 @@ function Remove-CodexManagedServersFromToml([string]$RawContent, [string[]]$Serv
 
 function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) {
     switch ($RuntimeName) {
+        'vscode' {
+            switch ($ServerName) {
+                'github' { return @('github-mcp-server') }
+            }
+        }
         'copilot-cli' {
             switch ($ServerName) {
+                'github' { return @('github-mcp-server') }
                 'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
             }
         }
         'gemini' {
             switch ($ServerName) {
+                'github' { return @('github-mcp-server', 'github/github-mcp-server') }
                 'upstash/context7' { return @('context7') }
                 'microsoftdocs/mcp' { return @('Microsoft Learn MCP Server') }
                 'github/github-mcp-server' { return @('github') }
@@ -417,14 +493,25 @@ function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) 
                 'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
             }
         }
+        'antigravity' {
+            switch ($ServerName) {
+                'github' { return @('github-mcp-server') }
+            }
+        }
         'codex' {
             switch ($ServerName) {
+                'github' { return @('github-mcp-server', 'github/github-mcp-server') }
                 'upstash/context7' { return @('context7') }
                 'microsoftdocs/mcp' { return @('microsoftdocs') }
                 'imageFetch' { return @('imagefetch') }
                 'github/github-mcp-server' { return @('github') }
                 'chromedevtools/chrome-devtools-mcp' { return @('chrome-devtools') }
                 'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
+            }
+        }
+        'claude' {
+            switch ($ServerName) {
+                'github' { return @('github-mcp-server') }
             }
         }
     }
@@ -464,9 +551,15 @@ function Get-ResolvedManagedMcpManifest {
         $resolvedServers[$serverName] = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables
     }
 
-    return [ordered]@{
-        servers = $resolvedServers
+    $resolvedManifest = [ordered]@{
+        servers = (Normalize-McpServers $resolvedServers)
     }
+
+    if ($manifest.Contains('inputs')) {
+        $resolvedManifest['inputs'] = Resolve-McpInputs $manifest['inputs'] $mcpVariables
+    }
+
+    return $resolvedManifest
 }
 
 function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
@@ -480,6 +573,20 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
 
     $changed = $false
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'vscode' -ServerName $serverName)) {
+            if ($vscodeMcp['servers'].Contains($legacyAlias)) {
+                $vscodeMcp['servers'].Remove($legacyAlias)
+                $changed = $true
+                if ($script:SetupOptions.DryRun) {
+                    Write-Host "  [DRY RUN] Would remove VS Code MCP alias: $legacyAlias"
+                }
+                else {
+                    Write-Host "  [CLEANUP] VS Code MCP alias removed: $legacyAlias"
+                }
+            }
+        }
+    }
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
         $resolvedConfig = $ManagedManifest['servers'][$serverName]
         if (-not $vscodeMcp['servers'].Contains($serverName) -or -not (Test-JsonLikeEqual $vscodeMcp['servers'][$serverName] $resolvedConfig)) {
             $vscodeMcp['servers'][$serverName] = $resolvedConfig
@@ -490,6 +597,16 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
             else {
                 Write-Host "  [SET] VS Code MCP server: $serverName"
             }
+        }
+    }
+
+    if (Sync-ManagedMcpInputs -Data $vscodeMcp -ManagedManifest $ManagedManifest) {
+        $changed = $true
+        if ($script:SetupOptions.DryRun) {
+            Write-Host '  [DRY RUN] Would sync VS Code MCP inputs'
+        }
+        else {
+            Write-Host '  [SET] VS Code MCP inputs'
         }
     }
 
@@ -604,6 +721,16 @@ function Update-GeminiMcpConfig([System.Collections.IDictionary]$ManagedManifest
         }
     }
 
+    if (Sync-ManagedMcpInputs -Data $geminiSettings -ManagedManifest $ManagedManifest) {
+        $changed = $true
+        if ($script:SetupOptions.DryRun) {
+            Write-Host '  [DRY RUN] Would sync Gemini MCP inputs'
+        }
+        else {
+            Write-Host '  [SET] Gemini MCP inputs'
+        }
+    }
+
     if ($changed -and -not $script:SetupOptions.DryRun) {
         Write-JsonOrderedMap $context.GeminiSettingsFile $geminiSettings
         Write-Host "  [OK] $($context.GeminiSettingsFile)"
@@ -623,6 +750,20 @@ function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedMan
 
     $changed = $false
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'antigravity' -ServerName $serverName)) {
+            if ($antigravityConfig['mcpServers'].Contains($legacyAlias)) {
+                $antigravityConfig['mcpServers'].Remove($legacyAlias)
+                $changed = $true
+                if ($script:SetupOptions.DryRun) {
+                    Write-Host "  [DRY RUN] Would remove Antigravity MCP alias: $legacyAlias"
+                }
+                else {
+                    Write-Host "  [CLEANUP] Antigravity MCP alias removed: $legacyAlias"
+                }
+            }
+        }
+    }
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
         $converted = ConvertTo-AntigravityMcpConfig $ManagedManifest['servers'][$serverName]
         if (-not $antigravityConfig['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $antigravityConfig['mcpServers'][$serverName] $converted)) {
             $antigravityConfig['mcpServers'][$serverName] = $converted
@@ -633,6 +774,16 @@ function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedMan
             else {
                 Write-Host "  [SET] Antigravity MCP server: $serverName"
             }
+        }
+    }
+
+    if (Sync-ManagedMcpInputs -Data $antigravityConfig -ManagedManifest $ManagedManifest) {
+        $changed = $true
+        if ($script:SetupOptions.DryRun) {
+            Write-Host '  [DRY RUN] Would sync Antigravity MCP inputs'
+        }
+        else {
+            Write-Host '  [SET] Antigravity MCP inputs'
         }
     }
 
@@ -743,6 +894,9 @@ function Update-ClaudeMcpConfig([System.Collections.IDictionary]$ManagedManifest
             continue
         }
 
+        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'claude' -ServerName $serverName)) {
+            Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $legacyAlias) | Out-Null
+        }
         Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $serverName) | Out-Null
 
         $exitCode = 0
