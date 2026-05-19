@@ -57,6 +57,7 @@ STATUS_PATH="$OUTPUT_DIR/status.json"
 SUMMARY_PATH="$OUTPUT_DIR/summary.md"
 LOG_PATH="$OUTPUT_DIR/runtime.log"
 PATCH_PATH="$OUTPUT_DIR/result.patch"
+EXECUTION_MODE="execute"
 
 iso_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 STARTED_AT="$(iso_now)"
@@ -77,6 +78,7 @@ write_status() {
         --arg finishedAt    "$finished_at" \
         --arg engine        "$ENGINE-cli" \
         --arg worktreePath  "$WORKTREE" \
+        --arg executionMode "$EXECUTION_MODE" \
         --arg errorMessage  "$error_msg" \
         '{
             taskId:        $taskId,
@@ -86,11 +88,10 @@ write_status() {
             finishedAt:    (if $status == "running" then null else $finishedAt end),
             engine:        $engine,
             worktreePath:  $worktreePath,
+            executionMode: $executionMode,
             errorMessage:  (if $errorMessage == "" then null else $errorMessage end)
         }' > "$STATUS_PATH"
 }
-
-write_status "running" 0 ""
 
 # ── Sanity checks ─────────────────────────────────────────────────────────────
 if [[ ! -d "$WORKTREE" ]]; then
@@ -114,15 +115,41 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
-# ── Build prompt (read task spec verbatim) ────────────────────────────────────
+if git -C "$WORKTREE" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    EXECUTION_MODE="repo"
+else
+    EXECUTION_MODE="execute"
+fi
+
+write_status "running" 0 ""
+
+# ── Build prompt (runner boundary + task spec) ────────────────────────────────
 TASK_PROMPT="$(cat "$TASK_SPEC")"
+RUNNER_PROMPT="$(cat <<EOF
+You are executing a GAL xmachine task inside a disposable workspace.
+
+Runner contract:
+- Treat the task spec below as the complete scope of work.
+- If the task spec names an absolute target repository, inspect that target and do not infer the disposable worktree is the target.
+- Inspect only paths and run only commands that the task spec explicitly allows.
+- Do not search the whole filesystem, home directory, parent directories, or unrelated repositories.
+- Do not modify files, create commits, or write GAL runtime artifacts unless the task spec explicitly asks for edits.
+- The xmachine wrapper owns status.json, summary.md, runtime.log, and result.patch.
+- End your final response in the exact output format requested by the task spec.
+- If the requested evidence cannot be gathered, report BLOCKED or INCONCLUSIVE with the missing evidence instead of broadening scope.
+
+--- TASK SPEC START ---
+$TASK_PROMPT
+--- TASK SPEC END ---
+EOF
+)"
 
 # ── Spawn engine inside worktree, with a portable watchdog timeout ────────────
 TIMEOUT_SECONDS=$(( TIMEOUT_MINUTES * 60 ))
 
 (
     cd "$WORKTREE" || exit 1
-    "$ENGINE" --yolo -p "$TASK_PROMPT" --output-format stream-json
+    "$ENGINE" --yolo -p "$RUNNER_PROMPT" --output-format stream-json
 ) </dev/null >"$LOG_PATH" 2>&1 &
 ENGINE_PID=$!
 
@@ -174,12 +201,21 @@ if grep -q "^CAPACITY_EXHAUSTED: Gemini model capacity unavailable" "$LOG_PATH" 
     CAPACITY_EXHAUSTED=1
 fi
 
+RATE_LIMITED=0
+if grep -qE "status:[[:space:]]*429|Too Many Requests" "$LOG_PATH" 2>/dev/null; then
+    RATE_LIMITED=1
+fi
+
 # ── Generate result patch ─────────────────────────────────────────────────────
-if ! git -C "$WORKTREE" \
-    -c filter.gal-config.smudge=cat \
-    -c filter.gal-config.clean=cat \
-    diff HEAD > "$PATCH_PATH" 2>>"$LOG_PATH"; then
-    echo "Failed to generate patch (see runtime.log)" > "$PATCH_PATH"
+if [[ "$EXECUTION_MODE" == "repo" ]]; then
+    if ! git -C "$WORKTREE" \
+        -c filter.gal-config.smudge=cat \
+        -c filter.gal-config.clean=cat \
+        diff HEAD > "$PATCH_PATH" 2>>"$LOG_PATH"; then
+        echo "Failed to generate patch (see runtime.log)" > "$PATCH_PATH"
+    fi
+else
+    : > "$PATCH_PATH"
 fi
 
 # ── Extract summary from stream-json log (3-strategy parser) ─────────────────
@@ -246,6 +282,8 @@ if [[ "$TIMED_OUT" -eq 1 ]]; then
     SUMMARY_STATUS="timeout"
 elif [[ "$CAPACITY_EXHAUSTED" -eq 1 ]]; then
     SUMMARY_STATUS="failed (model capacity exhausted)"
+elif [[ "$RATE_LIMITED" -eq 1 ]]; then
+    SUMMARY_STATUS="failed (rate limited)"
 elif [[ "$ENGINE_EXIT" -eq 0 ]]; then
     SUMMARY_STATUS="success"
 else
@@ -288,6 +326,12 @@ fi
 if [[ "$CAPACITY_EXHAUSTED" -eq 1 ]]; then
     write_status "failed" 75 "Gemini model capacity exhausted — retry later or change the configured model"
     echo "Task run finished: $TASK_ID — FAILED (model capacity exhausted)" >&2
+    exit 1
+fi
+
+if [[ "$RATE_LIMITED" -eq 1 ]]; then
+    write_status "failed" 75 "Gemini API rate limited (429 Too Many Requests) — retry later or change the configured model/quota"
+    echo "Task run finished: $TASK_ID — FAILED (rate limited)" >&2
     exit 1
 fi
 

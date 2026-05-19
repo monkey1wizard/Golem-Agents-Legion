@@ -176,14 +176,16 @@ if (-not $KeepRemote) {
 
     # Prefer the worktree path stored in status.json by Start-xMachine
     $wtPath = $null
+    $executionMode = $null
     if (Test-Path $localStatusPath) {
         try {
             $s = Get-Content $localStatusPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
             $wtPath = $s.worktreePath
+            $executionMode = $s.executionMode
         } catch {}
     }
 
-    if ($wtPath) {
+    if ($executionMode -eq 'repo' -and $wtPath) {
         # Direct path from status.json — most reliable
         $cleanupCmd = @"
 `$wt = '$wtPath'
@@ -198,7 +200,7 @@ Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue
 Write-Host '  Output dir removed.'
 "@
     }
-    elseif ($RemoteRepoPath) {
+    elseif ($executionMode -eq 'repo' -and $RemoteRepoPath) {
         # Fallback: search git worktree list from the known repo path
         $cleanupCmd = @"
 Set-Location '$RemoteRepoPath'
@@ -215,7 +217,6 @@ Write-Host '  Output dir removed.'
 "@
     }
     else {
-        Write-Warning "Cannot determine remote worktree path. Pass -RemoteRepoPath for full cleanup."
         $cleanupCmd = "Remove-Item -Recurse -Force '$RemoteOutputDir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
     }
 

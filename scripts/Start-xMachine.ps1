@@ -65,6 +65,7 @@ function Write-StatusJson([string]$Status, [int]$ExitCode = 0, [string]$ErrorMes
         finishedAt   = (Get-Date -Format "o")
         engine       = "gemini-cli"
         worktreePath = $WorktreePath
+        executionMode = $script:executionMode
         errorMessage = $ErrorMessage
     }
     $payload | ConvertTo-Json | Set-Content -Path $statusPath -Encoding UTF8
@@ -84,12 +85,35 @@ if (-not (Get-Command gemini -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
+$script:executionMode = 'execute'
+& git -C $WorktreePath rev-parse --is-inside-work-tree 2>$null | Out-Null
+if ($LASTEXITCODE -eq 0) {
+    $script:executionMode = 'repo'
+}
+
 # ── Write initial running status ──────────────────────────────────────────────
 $script:startedAt = (Get-Date -Format "o")
 Write-StatusJson "running"
 
-# ── Read task spec as prompt ──────────────────────────────────────────────────
+# ── Read task spec and wrap it in the runner boundary ─────────────────────────
 $taskPrompt = Get-Content -Path $TaskSpec -Raw
+$runnerPrompt = @"
+You are executing a GAL xmachine task inside a disposable workspace.
+
+Runner contract:
+- Treat the task spec below as the complete scope of work.
+- If the task spec names an absolute target repository, inspect that target and do not infer the disposable worktree is the target.
+- Inspect only paths and run only commands that the task spec explicitly allows.
+- Do not search the whole filesystem, home directory, parent directories, or unrelated repositories.
+- Do not modify files, create commits, or write GAL runtime artifacts unless the task spec explicitly asks for edits.
+- The xmachine wrapper owns status.json, summary.md, runtime.log, and result.patch.
+- End your final response in the exact output format requested by the task spec.
+- If the requested evidence cannot be gathered, report BLOCKED or INCONCLUSIVE with the missing evidence instead of broadening scope.
+
+--- TASK SPEC START ---
+$taskPrompt
+--- TASK SPEC END ---
+"@
 
 # ── Run Gemini CLI non-interactively with timeout ─────────────────────────────
 # Runs inside a Start-Job so the process can be killed if it exceeds TimeoutMinutes.
@@ -98,13 +122,14 @@ $taskPrompt = Get-Content -Path $TaskSpec -Raw
 # Environment variables (e.g. GOOGLE_GEMINI_API_KEY) are inherited by child processes.
 $geminiExitCode = 0
 $capacityExhausted = $false
+$rateLimited = $false
 
 $geminiJob = Start-Job -ScriptBlock {
     param($wt, $prompt, $log)
     Set-Location $wt
     $null | gemini --yolo -p $prompt --output-format stream-json *> $log
     $LASTEXITCODE
-} -ArgumentList $WorktreePath, $taskPrompt, $logPath
+} -ArgumentList $WorktreePath, $runnerPrompt, $logPath
 
 $timeoutSeconds = $TimeoutMinutes * 60
 $deadline = (Get-Date).AddSeconds($timeoutSeconds)
@@ -155,11 +180,20 @@ finally {
     Remove-Job $geminiJob -Force -ErrorAction SilentlyContinue
 }
 
+if (Test-Path $logPath) {
+    $rateLimited = Select-String -Path $logPath -Pattern 'status:\s*429|Too Many Requests' -Quiet -ErrorAction SilentlyContinue
+}
+
 # ── Generate result patch ─────────────────────────────────────────────────────
 try {
-    $patchContent = git -C $WorktreePath -c filter.gal-config.smudge=cat -c filter.gal-config.clean=cat diff HEAD 2>&1
-    if ($patchContent) {
-        $patchContent | Set-Content -Path $patchPath -Encoding UTF8
+    if ($script:executionMode -eq 'repo') {
+        $patchContent = git -C $WorktreePath -c filter.gal-config.smudge=cat -c filter.gal-config.clean=cat diff HEAD 2>&1
+        if ($patchContent) {
+            $patchContent | Set-Content -Path $patchPath -Encoding UTF8
+        }
+        else {
+            "" | Set-Content -Path $patchPath -Encoding UTF8
+        }
     }
     else {
         "" | Set-Content -Path $patchPath -Encoding UTF8
@@ -261,7 +295,7 @@ catch {
 $summaryLines = @(
     "# Task Summary: $TaskId",
     "",
-    "**Status**: $(if ($capacityExhausted) { 'failed (model capacity exhausted)' } elseif ($geminiExitCode -eq 0) { 'success' } else { "failed (exit $geminiExitCode)" })",
+    "**Status**: $(if ($capacityExhausted) { 'failed (model capacity exhausted)' } elseif ($rateLimited) { 'failed (rate limited)' } elseif ($geminiExitCode -eq 0) { 'success' } else { "failed (exit $geminiExitCode)" })",
     "",
     "## Output",
     "",
@@ -291,14 +325,22 @@ $exitCodeMessages = @{
 if ($capacityExhausted) {
     Write-StatusJson "failed" -ExitCode 75 -ErrorMessage $exitCodeMessages[75]
     Write-Host "Task run finished: $TaskId — FAILED (model capacity exhausted)"
+    exit 1
+}
+elseif ($rateLimited) {
+    Write-StatusJson "failed" -ExitCode 75 -ErrorMessage "Gemini API rate limited (429 Too Many Requests) — retry later or change the configured model/quota"
+    Write-Host "Task run finished: $TaskId — FAILED (rate limited)"
+    exit 1
 }
 elseif ($geminiExitCode -eq 0) {
     Write-StatusJson "success"
     Write-Host "Task run finished: $TaskId — success"
+    exit 0
 }
 else {
     $msg = $exitCodeMessages[$geminiExitCode]
     if (-not $msg) { $msg = "Gemini CLI exited with code $geminiExitCode — check runtime.log" }
     Write-StatusJson "failed" -ExitCode $geminiExitCode -ErrorMessage $msg
     Write-Host "Task run finished: $TaskId — FAILED (exit $geminiExitCode): $msg"
+    exit $geminiExitCode
 }

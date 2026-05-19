@@ -40,7 +40,6 @@ param(
     [Parameter(Mandatory)]
     [string]$RemoteUser,
 
-    [Parameter(Mandatory)]
     [string]$RemoteRepoPath,
 
     [Parameter(Mandatory)]
@@ -68,7 +67,12 @@ $taskId = "$datePart-$randPart"
 
 Write-Host "GAL Remote Task: $taskId"
 Write-Host "  Machine:  $RemoteUser@$RemoteHost"
-Write-Host "  Repo:     $RemoteRepoPath"
+if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) {
+    Write-Host "  Mode:     execute"
+}
+else {
+    Write-Host "  Repo:     $RemoteRepoPath"
+}
 Write-Host "  TaskSpec: $taskSpecName"
 Write-Host "  Timeout:  ${TimeoutMinutes}m"
 Write-Host ""
@@ -76,11 +80,13 @@ Write-Host ""
 # ── Derive remote paths ───────────────────────────────────────────────────────
 $remoteTemp   = "C:\Windows\Temp\gal-xmachine\task-$taskId"
 $remoteSpec   = "$remoteTemp\$taskSpecName"
-$remoteWorktree = "$RemoteRepoPath-xmachine-$taskId"
+$remoteWorktree = if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) { "$remoteTemp\workspace" } else { "$RemoteRepoPath-xmachine-$taskId" }
 
 if ($RemoteScriptsPath -eq "") {
+    if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) {
+        throw "RemoteScriptsPath is required when RemoteRepoPath is omitted."
+    }
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $repoRoot  = Split-Path -Parent $scriptDir
     # Assume same relative layout on remote
     $RemoteScriptsPath = "$RemoteRepoPath\scripts"
 }
@@ -108,13 +114,23 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ── Create isolated git worktree on remote ────────────────────────────────────
-Write-Host "[3/4] Creating git worktree on remote..."
-$worktreeCmd = "Set-Location '$RemoteRepoPath'; git worktree add --detach '$remoteWorktree' HEAD"
-ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$worktreeCmd`""
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to create git worktree on remote."
-    exit 1
+# ── Create isolated remote workspace ─────────────────────────────────────────
+Write-Host "[3/4] Preparing remote workspace..."
+if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) {
+    $workspaceCmd = "New-Item -ItemType Directory -Force -Path '$remoteWorktree' | Out-Null"
+    ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$workspaceCmd`""
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to create remote execute workspace."
+        exit 1
+    }
+}
+else {
+    $worktreeCmd = "Set-Location '$RemoteRepoPath'; git worktree add --detach '$remoteWorktree' HEAD"
+    ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$worktreeCmd`""
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to create git worktree on remote."
+        exit 1
+    }
 }
 
 # ── Invoke runtime script on remote (background, detached) ───────────────────
@@ -122,8 +138,13 @@ Write-Host "[4/4] Starting remote task run..."
 $runtimeCmd = "Start-Process pwsh -ArgumentList '-NoProfile','-File','$remoteStartScript','-TaskId','$taskId','-WorktreePath','$remoteWorktree','-TaskSpec','$remoteSpec','-OutputDir','$remoteTemp','-TimeoutMinutes','$TimeoutMinutes' -WindowStyle Hidden"
 ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$runtimeCmd`""
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning "Failed to start the remote task run. Cleaning up orphaned worktree..."
-    $cleanupCmd = "git -C '$RemoteRepoPath' worktree remove --force '$remoteWorktree' 2>&1"
+    Write-Warning "Failed to start the remote task run. Cleaning up staged remote workspace..."
+    $cleanupCmd = if ([string]::IsNullOrWhiteSpace($RemoteRepoPath)) {
+        "Remove-Item -Recurse -Force '$remoteTemp' -ErrorAction SilentlyContinue"
+    }
+    else {
+        "git -C '$RemoteRepoPath' worktree remove --force '$remoteWorktree' 2>&1"
+    }
     ssh -o BatchMode=yes "${RemoteUser}@${RemoteHost}" "pwsh -NoProfile -Command `"$cleanupCmd`"" 2>&1 | Out-Null
     Write-Error "Failed to start the remote task process."
     exit 1
@@ -135,7 +156,7 @@ Write-Host "Task dispatched successfully."
 Write-Host ""
 Write-Host "  Task ID:        $taskId"
 Write-Host "  Remote output:  $remoteTemp"
-Write-Host "  Worktree:       $remoteWorktree"
+Write-Host "  Workspace:      $remoteWorktree"
 Write-Host ""
 Write-Host "Retrieve results when done:"
 Write-Host "  .\Get-XmachineRemoteResult.ps1 -RemoteHost $RemoteHost -RemoteUser $RemoteUser -TaskId $taskId -RemoteOutputDir '$remoteTemp' -RemoteRepoPath '$RemoteRepoPath' -Wait"

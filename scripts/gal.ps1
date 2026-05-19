@@ -383,10 +383,12 @@ switch ($Command) {
 
         $dispatchFields = [ordered]@{
             COMMAND = 'pipeline'
-            ACTION = "Follow the /gal-pipeline procedure to execute only task '$($shorthand.TaskRef)' on xmachine work node '$($shorthand.WorkNode)'. Resolve the active plan, scope execution to this single task, and keep control-plane convergence local."
+            ACTION = "Follow the /gal-pipeline procedure only to resolve task '$($shorthand.TaskRef)' and prepare the bounded task spec, then offload with scripts/Invoke-XmachineTask.ps1 -WorkNode '$($shorthand.WorkNode)' -TaskSpec <phase-task-spec> -Wait. Do not use Invoke-XmachinePipeline.* for this shorthand. Do not pass -WorkRepoPath unless this target repo has an intentional persistent checkout on the work node."
             ON_COMPLETE = 'Report the single-task verdict and whether local convergence is complete.'
             READ = $xmachineDocPath
             EXECUTION = 'xmachine'
+            OFFLOAD = 'direct-task'
+            XMACHINE_MODE = 'execute'
             WORK_NODE = $shorthand.WorkNode
             TASK_REF = $shorthand.TaskRef
             FROM = $shorthand.TaskRef

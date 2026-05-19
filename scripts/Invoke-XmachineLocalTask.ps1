@@ -2,7 +2,6 @@ param(
     [Parameter(Mandatory)]
     [string]$TaskSpec,
 
-    [Parameter(Mandatory)]
     [string]$RepoPath,
 
     [int]$TimeoutMinutes = 30,
@@ -16,7 +15,7 @@ if (-not (Test-Path $TaskSpec)) {
     throw "Task spec not found: $TaskSpec"
 }
 
-if (-not (Test-Path (Join-Path $RepoPath ".git"))) {
+if (-not [string]::IsNullOrWhiteSpace($RepoPath) -and -not (Test-Path (Join-Path $RepoPath ".git"))) {
     throw "Not a git repo: $RepoPath"
 }
 
@@ -32,30 +31,43 @@ if ([string]::IsNullOrWhiteSpace($TaskId)) {
 }
 
 $outputDir = Join-Path $env:TEMP "gal-xmachine\task-$TaskId"
-$worktree = "$($RepoPath.TrimEnd('\'))-xmachine-$TaskId"
+$worktree = Join-Path $outputDir "workspace"
 $taskSpecLocal = Join-Path $outputDir "task.md"
 
 New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 Copy-Item -Path $TaskSpec -Destination $taskSpecLocal -Force
 
-Write-Host "Creating disposable worktree: $worktree"
-& git -C $RepoPath -c filter.gal-config.smudge=cat -c filter.gal-config.clean=cat worktree add --detach $worktree HEAD 2>&1 | Write-Host
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to create worktree at $worktree"
+if (-not [string]::IsNullOrWhiteSpace($RepoPath)) {
+    $worktree = "$($RepoPath.TrimEnd('\\'))-xmachine-$TaskId"
+    Write-Host "Creating disposable worktree: $worktree"
+    & git -C $RepoPath -c filter.gal-config.smudge=cat -c filter.gal-config.clean=cat worktree add --detach $worktree HEAD 2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to create worktree at $worktree"
+    }
+}
+else {
+    Write-Host "Creating disposable execute workspace: $worktree"
+    New-Item -ItemType Directory -Force -Path $worktree | Out-Null
 }
 
 try {
     Start-Process pwsh -ArgumentList '-NoProfile','-File',$runtimeScript,'-TaskId',$TaskId,'-WorktreePath',$worktree,'-TaskSpec',$taskSpecLocal,'-OutputDir',$outputDir,'-TimeoutMinutes',$TimeoutMinutes -WindowStyle Hidden | Out-Null
 }
 catch {
-    & git -C $RepoPath worktree remove --force $worktree 2>$null | Out-Null
+    if (-not [string]::IsNullOrWhiteSpace($RepoPath)) {
+        & git -C $RepoPath worktree remove --force $worktree 2>$null | Out-Null
+    }
+    else {
+        Remove-Item -Recurse -Force $worktree -ErrorAction SilentlyContinue
+    }
     throw "Failed to start the local async task process. $($_.Exception.Message)"
 }
 
 Write-Host ""
 Write-Host "Dispatched local async task."
 Write-Host "  TaskId:    $TaskId"
-Write-Host "  Worktree:  $worktree"
+Write-Host "  Mode:      $(if ([string]::IsNullOrWhiteSpace($RepoPath)) { 'execute' } else { 'repo' })"
+Write-Host "  Workspace: $worktree"
 Write-Host "  Output:    $outputDir"
 Write-Host ""
 Write-Host "Inspect output files when done:"

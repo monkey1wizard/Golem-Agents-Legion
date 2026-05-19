@@ -153,6 +153,75 @@ function Get-ConfiguredWorkRepoPath {
     return $repoPath.Trim()
 }
 
+function Get-RepoContextRoot {
+    $current = (Get-Location).Path
+
+    while ($true) {
+        $statePath = Join-Path $current ".dev\state.md"
+        if (Test-Path $statePath) {
+            return $current
+        }
+
+        $parent = Split-Path $current -Parent
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $current) {
+            return (Get-Location).Path
+        }
+
+        $current = $parent
+    }
+}
+
+function Get-RepoMappingKey {
+    param([Parameter(Mandatory)][string]$RepoContextRoot)
+
+    return Split-Path $RepoContextRoot -Leaf
+}
+
+function Get-ConfiguredRepoMapping {
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord,
+        [Parameter(Mandatory)][string]$RepoKey
+    )
+
+    if (-not $NodeRecord.Contains("repoMappings")) {
+        return $null
+    }
+
+    $repoMappings = $NodeRecord["repoMappings"]
+    if ($repoMappings -isnot [System.Collections.IDictionary] -or -not $repoMappings.Contains($RepoKey)) {
+        return $null
+    }
+
+    $mapping = $repoMappings[$RepoKey]
+    if ($mapping -is [string]) {
+        return @{
+            repoPath = $mapping
+            runtimeRepoPath = $null
+        }
+    }
+
+    if ($mapping -isnot [System.Collections.IDictionary]) {
+        return $null
+    }
+
+    return $mapping
+}
+
+function Get-ConfiguredRuntimeRepoPath {
+    param([Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord)
+
+    if (-not $NodeRecord.Contains("runtimeRepoPath")) {
+        return $null
+    }
+
+    $runtimeRepoPath = [string]$NodeRecord["runtimeRepoPath"]
+    if ([string]::IsNullOrWhiteSpace($runtimeRepoPath)) {
+        return $null
+    }
+
+    return $runtimeRepoPath.Trim()
+}
+
 function Get-GalStateRoot {
     $galRoot = Join-Path $env:USERPROFILE ".gal"
     New-Item -ItemType Directory -Force -Path $galRoot | Out-Null
@@ -438,6 +507,40 @@ function Test-ToolBatch {
     return @($details)
 }
 
+function Test-PosixDetachedLauncher {
+    param(
+        [Parameter(Mandatory)][string]$NodeId,
+        [string]$Stage = "tool-launcher"
+    )
+
+    Write-Stage -Stage $Stage -Detail "checking detached launcher (zellij+script or nohup)"
+    $result = Invoke-PosixCommand -NodeId $NodeId -Script @"
+if command -v zellij >/dev/null 2>&1 && command -v script >/dev/null 2>&1; then
+  printf 'zellij\t%s\n' "$(zellij --version 2>/dev/null | head -n 1)"
+  exit 0
+fi
+
+if command -v nohup >/dev/null 2>&1; then
+  printf 'nohup\t%s\n' "$(command -v nohup)"
+  exit 0
+fi
+
+exit 1
+"@
+    Assert-StageSuccess -Stage $Stage -Result $result -FailureMessage ("No supported detached launcher is available on work node '{0}'. Install zellij plus script, or ensure nohup is available." -f $NodeId)
+
+    $detail = ($result.Output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1).Trim()
+    $parts = $detail -split "`t", 2
+    $launcherName = if ($parts.Count -gt 0) { $parts[0] } else { $detail }
+    $launcherDetail = if ($parts.Count -gt 1) { $parts[1] } else { $detail }
+    Write-Stage -Stage $Stage -Detail ("{0} => {1}" -f $launcherName, $launcherDetail) -Status OK
+
+    return @{
+        Name = $launcherName
+        Detail = $launcherDetail
+    }
+}
+
 function Test-PipelineSmoke {
     param(
         [Parameter(Mandatory)][string]$Platform,
@@ -479,7 +582,8 @@ function Write-NodeReadinessRecord {
         [Parameter(Mandatory)][string]$Status,
         [Parameter(Mandatory)][string[]]$VerifiedStages,
         [Parameter(Mandatory)][string]$RepoName,
-        [Parameter(Mandatory)][string]$RepoPath,
+        [string]$RepoPath,
+        [string]$RuntimeRepoPath,
         [Parameter(Mandatory)][hashtable]$ToolRecord
     )
 
@@ -490,10 +594,13 @@ function Write-NodeReadinessRecord {
         status = $Status
         lastVerifiedAt = (Get-Date).ToString("o")
         verifiedStages = $VerifiedStages
-        repoPaths = @{
-            $RepoName = $RepoPath
-        }
+        repoPaths = @{}
+        runtimeRepoPath = $RuntimeRepoPath
         tools = $ToolRecord
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RepoPath)) {
+        $record.repoPaths[$RepoName] = $RepoPath
     }
 
     $existing = Get-CachedNodeRecord -Cache $Cache -NodeId $NodeId
@@ -524,9 +631,88 @@ function New-StagedTaskSpec {
     return $stagedPath
 }
 
+function New-GeneratedTaskSpec {
+    param(
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][string]$Content
+    )
+
+    $tempRoot = Join-Path $env:TEMP "gal-xmachine-tests"
+    $taskDir = Join-Path $tempRoot ([guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Force -Path $taskDir | Out-Null
+    $stagedPath = Join-Path $taskDir ("task-{0}-execute-smoke.md" -f $Label)
+    Set-Content -Path $stagedPath -Value $Content -Encoding UTF8
+    return $stagedPath
+}
+
+function New-ExecuteSmokeTaskSpec {
+    param(
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][string]$Platform,
+        [Parameter(Mandatory)][string]$RemoteRuntimeRepoPath
+    )
+
+    $laneDescription = if ($Platform -eq "windows") { "remote Windows execute-mode" } else { "POSIX execute-mode" }
+    $runtimeWrapper = if ($Platform -eq "windows") { "$RemoteRuntimeRepoPath\scripts\Invoke-XmachineRemoteTask.ps1" } else { "$RemoteRuntimeRepoPath/scripts/Invoke-XmachineLocalTask.sh" }
+    $runtimeStartScript = if ($Platform -eq "windows") { "$RemoteRuntimeRepoPath\scripts\Start-xMachine.ps1" } else { "$RemoteRuntimeRepoPath/scripts/Start-xMachine.sh" }
+    $content = @"
+# Task Spec: xmachine Execute-Mode Smoke Test
+
+## Goal
+
+Produce a read-only smoke-test summary proving that the $laneDescription lane can read the GAL runtime checkout at `$RemoteRuntimeRepoPath` and emit the standard xmachine runtime outputs without relying on a persistent target repo checkout.
+
+## Task Type
+
+repo-scan
+
+## Endpoint Class
+
+execute-mode
+
+## Context
+
+This is a bounded smoke test for execute mode only. Read these runtime-checkout files:
+
+- `$RemoteRuntimeRepoPath/.dev/project.md`
+- `$RemoteRuntimeRepoPath/docs/collaborative-tools/xmachine.md`
+- `$runtimeWrapper`
+- `$runtimeStartScript`
+
+## Constraints
+
+- This task is read-only.
+- Do not modify any tracked file under `$RemoteRuntimeRepoPath`.
+- Do not create commits.
+- Do not manually create `summary.md`, `status.json`, `runtime.log`, or `result.patch`.
+
+## Output Format
+
+### Final assistant response
+
+End with a concise final assistant response that states:
+
+- whether the required files were read successfully
+- that the execute-mode lane ran without a persistent target repo checkout
+- what this smoke test validated and what it did not validate
+- any blockers or anomalies discovered
+
+### result.patch
+
+- The xmachine wrapper should produce an empty `result.patch`.
+
+## Notes
+
+Keep the summary concise and factual. Do not propose architecture changes in this smoke test.
+"@
+
+    return New-GeneratedTaskSpec -Label $Label -Content $content
+}
+
 try {
     $repoRoot = Get-RepoRoot
-    $repoName = Get-RepoName -RepoRoot $repoRoot
+    $repoContextRoot = Get-RepoContextRoot
+    $repoName = Get-RepoName -RepoRoot $repoContextRoot
     $xmachineConfig = Read-XmachineConfig -RepoRoot $repoRoot
 
     if ([string]::IsNullOrWhiteSpace($WorkNode)) {
@@ -536,13 +722,27 @@ try {
     $workNodeRecord = Get-XmachineNodeRecord -RequestedNode $WorkNode -Nodes $xmachineConfig.nodes -ConfigPath $xmachineConfig.path
     $resolvedWorkNodeTarget = Resolve-WorkNodeTarget -RequestedNode $WorkNode -NodeRecord $workNodeRecord -ConfigPath $xmachineConfig.path
     $configuredWorkRepoPath = Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord
+    $configuredRuntimeRepoPath = Get-ConfiguredRuntimeRepoPath -NodeRecord $workNodeRecord
+    $repoMappingKey = Get-RepoMappingKey -RepoContextRoot $repoContextRoot
+    $repoMapping = Get-ConfiguredRepoMapping -NodeRecord $workNodeRecord -RepoKey $repoMappingKey
 
     $remoteTemplate = Join-Path $repoRoot "templates\task-xmachine-remote-smoke.md"
-    $remoteDispatch = Join-Path $repoRoot "scripts\Invoke-XmachineRemoteTask.ps1"
-    $remoteRetrieve = Join-Path $repoRoot "scripts\Get-XmachineRemoteResult.ps1"
+    $localTemplate = Join-Path $repoRoot "templates\task-xmachine-local-smoke.md"
+    $directDispatch = Join-Path $repoRoot "scripts\Invoke-XmachineTask.ps1"
 
     $cache = Read-XmachineNodeCache
-    $resolvedRepoPath = Resolve-WorkRepoPath -RequestedPath $WorkRepoPath -Cache $cache -NodeId $WorkNode -RepoName $repoName -ConfiguredPath $configuredWorkRepoPath -ConfigPath $xmachineConfig.path
+    $cachedRecord = Get-CachedNodeRecord -Cache $cache -NodeId $WorkNode
+    $cachedRepoPath = if ($null -ne $cachedRecord -and $null -ne $cachedRecord.repoPaths -and $cachedRecord.repoPaths.ContainsKey($repoName)) { [string]$cachedRecord.repoPaths[$repoName] } else { $null }
+    $mappedProjectRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains("repoPath")) { [string]$repoMapping["repoPath"] } else { $null }
+    $mappedRuntimeRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains("runtimeRepoPath")) { [string]$repoMapping["runtimeRepoPath"] } else { $null }
+    $resolvedRepoPath = if (-not [string]::IsNullOrWhiteSpace($WorkRepoPath)) { $WorkRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($mappedProjectRepoPath)) { $mappedProjectRepoPath.Trim() } elseif (-not [string]::IsNullOrWhiteSpace($configuredWorkRepoPath)) { $configuredWorkRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($cachedRepoPath)) { $cachedRepoPath.Trim() } else { $null }
+    $resolvedRuntimeRepoPath = if (-not [string]::IsNullOrWhiteSpace($mappedRuntimeRepoPath)) { $mappedRuntimeRepoPath.Trim() } elseif (-not [string]::IsNullOrWhiteSpace($configuredRuntimeRepoPath)) { $configuredRuntimeRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($configuredWorkRepoPath)) { $configuredWorkRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($resolvedRepoPath)) { $resolvedRepoPath } else { $null }
+    if ([string]::IsNullOrWhiteSpace($resolvedRuntimeRepoPath)) {
+        throw "No GAL runtime path is configured for work node '$WorkNode'. Define 'runtimeRepoPath', repoMappings.<repo>.runtimeRepoPath, or fall back to node-level 'repoPath' in '$($xmachineConfig.path)'."
+    }
+
+    $executionMode = if ([string]::IsNullOrWhiteSpace($resolvedRepoPath)) { "execute" } else { "repo" }
+    $smokeRepoPath = if ($executionMode -eq "repo") { $resolvedRepoPath } else { $resolvedRuntimeRepoPath }
     $verifiedStages = @()
     $toolRecord = @{}
 
@@ -565,9 +765,9 @@ try {
     Write-Stage -Stage "platform" -Detail ("detected platform '{0}'" -f $resolvedPlatform) -Status OK
 
     if ($resolvedPlatform -eq "windows") {
-        Write-Stage -Stage "repo" -Detail ("checking repo path '{0}'" -f $resolvedRepoPath)
+        Write-Stage -Stage "repo" -Detail ("checking runtime path '{0}'" -f $smokeRepoPath)
         $repoCheck = Invoke-WindowsCommand -NodeId $resolvedWorkNodeTarget -Script @"
-if (Test-Path '$resolvedRepoPath\.git') {
+if (Test-Path '$smokeRepoPath\.git') {
     'XMACHINE_REPO_OK'
     exit 0
 }
@@ -575,120 +775,137 @@ if (Test-Path '$resolvedRepoPath\.git') {
 Write-Error 'Repo path is missing or is not a git checkout.'
 exit 1
 "@
-        Assert-StageSuccess -Stage "repo" -Result $repoCheck -FailureMessage ("Repo path '{0}' is not usable on work node '{1}'." -f $resolvedRepoPath, $WorkNode)
-        Write-Stage -Stage "repo" -Detail "repo path is ready" -Status OK
+        Assert-StageSuccess -Stage "repo" -Result $repoCheck -FailureMessage ("Runtime path '{0}' is not usable on work node '{1}'." -f $smokeRepoPath, $WorkNode)
+        Write-Stage -Stage "repo" -Detail (if ($executionMode -eq "repo") { "project repo path is ready" } else { "runtime repo path is ready for execute-mode smoke" }) -Status OK
 
-        $zellijVersion = Test-ToolVersion -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-zellij" -CommandName "zellij" -VersionCommand "zellij --version"
-        $geminiVersion = Test-ToolVersion -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-gemini" -CommandName "gemini" -VersionCommand "gemini -v"
-        $copilotVersion = Test-ToolVersion -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-copilot" -CommandName "copilot" -VersionCommand "copilot -v"
+        $aiToolDetails = Test-ToolBatch -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-batch-ai" -BatchLabel "AI CLIs used by the current smoke test (gemini, copilot)" -ToolSpecs @(
+            @{ CommandName = "gemini"; VersionCommand = "gemini -v" },
+            @{ CommandName = "copilot"; VersionCommand = "copilot -v" }
+        )
 
         if (-not $sshConfig.ContainsKey("user")) {
             throw "SSH config for work node '$WorkNode' does not expose a User value. Add User to the Host entry in .ssh/config before running the Windows work-node smoke test."
         }
 
-        if (-not (Test-Path $remoteTemplate)) {
-            throw "Missing remote smoke template: $remoteTemplate"
+        if (-not (Test-Path $directDispatch)) {
+            throw "Missing direct xmachine dispatcher: $directDispatch"
         }
 
-        $stagedTaskSpec = New-StagedTaskSpec -SourceTemplate $remoteTemplate -Label $WorkNode
-        Write-Stage -Stage "work-node-smoke" -Detail ("dispatching Windows work-node smoke via {0}" -f $stagedTaskSpec)
-        $dispatchOutput = & $remoteDispatch `
-            -RemoteHost $sshConfig["host"] `
-            -RemoteUser $sshConfig["user"] `
-            -RemoteRepoPath $resolvedRepoPath `
-            -TaskSpec $stagedTaskSpec `
-            -TimeoutMinutes $TimeoutMinutes 2>&1
+        $stagedTaskSpec = if ($executionMode -eq "repo") {
+            if (-not (Test-Path $remoteTemplate)) {
+                throw "Missing remote smoke template: $remoteTemplate"
+            }
 
-        $dispatchOutput | ForEach-Object { Write-Host $_ }
-
-        $taskId = ($dispatchOutput | Select-String 'Task ID:\s+(.+)$' | Select-Object -First 1).Matches.Groups[1].Value.Trim()
-        $remoteOutputDir = ($dispatchOutput | Select-String 'Remote output:\s+(.+)$' | Select-Object -First 1).Matches.Groups[1].Value.Trim()
-        if (-not $taskId -or -not $remoteOutputDir) {
-            throw "Could not parse task metadata from Invoke-XmachineRemoteTask output."
+            New-StagedTaskSpec -SourceTemplate $remoteTemplate -Label $WorkNode
+        }
+        else {
+            New-ExecuteSmokeTaskSpec -Label $WorkNode -Platform $resolvedPlatform -RemoteRuntimeRepoPath $resolvedRuntimeRepoPath
         }
 
+        Write-Stage -Stage "work-node-smoke" -Detail ("dispatching Windows work-node smoke via {0} ({1} mode)" -f $stagedTaskSpec, $executionMode)
+        $dispatchArgs = @{
+            WorkNode = $WorkNode
+            TaskSpec = $stagedTaskSpec
+            RemoteRuntimeRepoPath = $resolvedRuntimeRepoPath
+            WorkPlatform = $resolvedPlatform
+            TimeoutMinutes = $TimeoutMinutes
+        }
         if ($Wait) {
-            Write-Stage -Stage "work-node-smoke" -Detail "waiting for remote smoke completion"
-            $retrieveArgs = @{
-                RemoteHost = $sshConfig["host"]
-                RemoteUser = $sshConfig["user"]
-                TaskId = $taskId
-                RemoteOutputDir = $remoteOutputDir
-                RemoteRepoPath = $resolvedRepoPath
-                Wait = $true
-                TimeoutMinutes = [Math]::Max($TimeoutMinutes, 60)
-            }
-
-            if ($LocalOutputDir) {
-                $retrieveArgs.LocalOutputDir = $LocalOutputDir
-            }
-
-            & $remoteRetrieve @retrieveArgs
+            $dispatchArgs.Wait = $true
         }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedRepoPath)) {
+            $dispatchArgs.WorkRepoPath = $resolvedRepoPath
+        }
+        if ($LocalOutputDir) {
+            $dispatchArgs.LocalOutputDir = $LocalOutputDir
+        }
+
+        & $directDispatch @dispatchArgs
 
         Write-Stage -Stage "work-node-smoke" -Detail "Windows work-node smoke dispatched successfully" -Status OK
-        $verifiedStages = @("ssh-config", "ssh-batch", "platform", "repo", "tool-zellij", "tool-gemini", "tool-copilot", "work-node-smoke")
+        $verifiedStages = @("ssh-config", "ssh-batch", "platform", "repo", "tool-batch-ai", "work-node-smoke")
         $toolRecord = @{
-            zellij = $zellijVersion
-            gemini = $geminiVersion
-            copilot = $copilotVersion
+            gemini = $aiToolDetails[0]
+            copilot = $aiToolDetails[1]
         }
     }
     else {
-        Write-Stage -Stage "repo" -Detail ("checking repo path '{0}'" -f $resolvedRepoPath)
-        $repoCheck = Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script ("test -d `"{0}/.git`" && echo XMACHINE_REPO_OK" -f $resolvedRepoPath)
-        Assert-StageSuccess -Stage "repo" -Result $repoCheck -FailureMessage ("Repo path '{0}' is not usable on work node '{1}'." -f $resolvedRepoPath, $WorkNode)
-        Write-Stage -Stage "repo" -Detail "repo path is ready" -Status OK
+        Write-Stage -Stage "repo" -Detail ("checking runtime path '{0}'" -f $smokeRepoPath)
+        $repoCheck = Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script ("test -d `"{0}/.git`" && echo XMACHINE_REPO_OK" -f $smokeRepoPath)
+        Assert-StageSuccess -Stage "repo" -Result $repoCheck -FailureMessage ("Runtime path '{0}' is not usable on work node '{1}'." -f $smokeRepoPath, $WorkNode)
+        Write-Stage -Stage "repo" -Detail (if ($executionMode -eq "repo") { "project repo path is ready" } else { "runtime repo path is ready for execute-mode smoke" }) -Status OK
 
-        $coreRuntimeDetails = Test-ToolBatch -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-batch-runtime" -BatchLabel "POSIX core runtime tools (zellij, git, jq)" -ToolSpecs @(
-            @{ CommandName = "zellij"; VersionCommand = "zellij --version" },
-            @{ CommandName = "git"; VersionCommand = "git --version" },
+        $runtimeToolSpecs = @(
             @{ CommandName = "jq"; VersionCommand = "jq --version" }
         )
-        $scriptPath = Test-ToolVersion -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-shell-pty" -CommandName "script" -VersionCommand "command -v script"
+        if (-not [string]::IsNullOrWhiteSpace($resolvedRepoPath)) {
+            $runtimeToolSpecs = @(
+                @{ CommandName = "git"; VersionCommand = "git --version" },
+                @{ CommandName = "jq"; VersionCommand = "jq --version" }
+            )
+        }
+
+        $coreRuntimeDetails = Test-ToolBatch -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-batch-runtime" -BatchLabel "POSIX runtime tools" -ToolSpecs $runtimeToolSpecs
+        $launcherRecord = Test-PosixDetachedLauncher -NodeId $resolvedWorkNodeTarget -Stage "tool-launcher"
         $aiToolDetails = Test-ToolBatch -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -Stage "tool-batch-ai" -BatchLabel "AI CLIs used by the current smoke test (gemini, copilot)" -ToolSpecs @(
             @{ CommandName = "gemini"; VersionCommand = "gemini --version || gemini -v" },
             @{ CommandName = "copilot"; VersionCommand = "copilot -v" }
         )
 
-        $taskSpecPath = "{0}/templates/task-xmachine-local-smoke.md" -f $resolvedRepoPath
-        Write-Stage -Stage "work-node-smoke" -Detail "dispatching POSIX work-node smoke directly from the control node"
-        $posixDispatch = Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script ("cd `"{0}`" && bash scripts/Invoke-XmachineLocalTask.sh --task-spec `"{1}`" --repo-path `"{0}`" --timeout-minutes {2}" -f $resolvedRepoPath, $taskSpecPath, $TimeoutMinutes)
-        Assert-StageSuccess -Stage "work-node-smoke" -Result $posixDispatch -FailureMessage ("POSIX work-node dispatch failed for '{0}'." -f $WorkNode)
-        $posixDispatch.Output | ForEach-Object { Write-Host $_ }
+        $stagedTaskSpec = if ($executionMode -eq "repo") {
+            if (-not (Test-Path $localTemplate)) {
+                throw "Missing local smoke template: $localTemplate"
+            }
 
-        $localTaskId = ($posixDispatch.Output | Select-String '^[ ]*TaskId:\s+(.+)$' | Select-Object -First 1).Matches.Groups[1].Value.Trim()
-        $localOutputDir = ($posixDispatch.Output | Select-String '^[ ]*Output:\s+(.+)$' | Select-Object -First 1).Matches.Groups[1].Value.Trim()
-        if (-not $localTaskId -or -not $localOutputDir) {
-            throw "Could not parse TaskId or Output from the POSIX work-node dispatch output."
+            New-StagedTaskSpec -SourceTemplate $localTemplate -Label $WorkNode
+        }
+        else {
+            New-ExecuteSmokeTaskSpec -Label $WorkNode -Platform $resolvedPlatform -RemoteRuntimeRepoPath $resolvedRuntimeRepoPath
         }
 
-        Write-Stage -Stage "work-node-smoke" -Detail "waiting for POSIX work-node smoke completion"
-        $posixRetrieve = Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script ("cd `"{0}`" && bash scripts/Get-XmachineLocalResult.sh --task-id `"{1}`" --output-dir `"{2}`" --wait --timeout-minutes {3} --repo-path `"{0}`"" -f $resolvedRepoPath, $localTaskId, $localOutputDir, [Math]::Max($TimeoutMinutes, 60))
-        Assert-StageSuccess -Stage "work-node-smoke" -Result $posixRetrieve -FailureMessage ("POSIX work-node smoke failed for '{0}'." -f $WorkNode)
-        $posixRetrieve.Output | ForEach-Object { Write-Host $_ }
+        Write-Stage -Stage "work-node-smoke" -Detail ("dispatching POSIX work-node smoke via {0} ({1} mode)" -f $stagedTaskSpec, $executionMode)
+        $dispatchArgs = @{
+            WorkNode = $WorkNode
+            TaskSpec = $stagedTaskSpec
+            RemoteRuntimeRepoPath = $resolvedRuntimeRepoPath
+            WorkPlatform = $resolvedPlatform
+            TimeoutMinutes = $TimeoutMinutes
+        }
+        if ($Wait) {
+            $dispatchArgs.Wait = $true
+        }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedRepoPath)) {
+            $dispatchArgs.WorkRepoPath = $resolvedRepoPath
+        }
+        if ($LocalOutputDir) {
+            $dispatchArgs.LocalOutputDir = $LocalOutputDir
+        }
+
+        & $directDispatch @dispatchArgs
         Write-Stage -Stage "work-node-smoke" -Detail "POSIX work-node smoke completed" -Status OK
-        $verifiedStages = @("ssh-config", "ssh-batch", "platform", "repo", "tool-batch-runtime", "tool-shell-pty", "tool-batch-ai", "work-node-smoke")
+        $verifiedStages = @("ssh-config", "ssh-batch", "platform", "repo", "tool-batch-runtime", "tool-launcher", "tool-batch-ai", "work-node-smoke")
         $toolRecord = @{
-            zellij = $coreRuntimeDetails[0]
-            git = $coreRuntimeDetails[1]
-            jq = $coreRuntimeDetails[2]
-            script = $scriptPath
+            launcher = $launcherRecord.Name
+            detachedLauncher = $launcherRecord.Detail
+            jq = if ($runtimeToolSpecs.Count -eq 1) { $coreRuntimeDetails[0] } else { $coreRuntimeDetails[1] }
             gemini = $aiToolDetails[0]
             copilot = $aiToolDetails[1]
         }
+        if ($runtimeToolSpecs.Count -gt 1) {
+            $toolRecord.git = $coreRuntimeDetails[0]
+        }
     }
 
-    $null = Write-NodeReadinessRecord -Cache $cache -NodeId $WorkNode -SshTarget $resolvedWorkNodeTarget -Platform $resolvedPlatform -Status "tooling-ready" -VerifiedStages $verifiedStages -RepoName $repoName -RepoPath $resolvedRepoPath -ToolRecord $toolRecord
+    $null = Write-NodeReadinessRecord -Cache $cache -NodeId $WorkNode -SshTarget $resolvedWorkNodeTarget -Platform $resolvedPlatform -Status "tooling-ready" -VerifiedStages $verifiedStages -RepoName $repoName -RepoPath $resolvedRepoPath -RuntimeRepoPath $resolvedRuntimeRepoPath -ToolRecord $toolRecord
 
     Write-Stage -Stage "cache" -Detail ("updated {0}" -f (Get-XmachineNodeCachePath)) -Status OK
-    Write-Stage -Stage "summary" -Detail "work node passed SSH, repo, tool-batch, and work-node smoke stages; cache marked it tooling-ready while GAL pipeline smoke is validated." -Status INFO
+    Write-Stage -Stage "summary" -Detail "work node passed SSH, runtime validation, tool-batch, and work-node smoke stages; cache marked it tooling-ready while GAL pipeline smoke is validated." -Status INFO
 
-    [void](Test-PipelineSmoke -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -RepoPath $resolvedRepoPath)
+    [void](Test-PipelineSmoke -Platform $resolvedPlatform -NodeId $resolvedWorkNodeTarget -RepoPath $smokeRepoPath)
     $verifiedStages = @($verifiedStages + @("pipeline-smoke"))
-    $null = Write-NodeReadinessRecord -Cache $cache -NodeId $WorkNode -SshTarget $resolvedWorkNodeTarget -Platform $resolvedPlatform -Status "readied" -VerifiedStages $verifiedStages -RepoName $repoName -RepoPath $resolvedRepoPath -ToolRecord $toolRecord
+    $null = Write-NodeReadinessRecord -Cache $cache -NodeId $WorkNode -SshTarget $resolvedWorkNodeTarget -Platform $resolvedPlatform -Status "readied" -VerifiedStages $verifiedStages -RepoName $repoName -RepoPath $resolvedRepoPath -RuntimeRepoPath $resolvedRuntimeRepoPath -ToolRecord $toolRecord
     Write-Stage -Stage "cache" -Detail ("updated {0} with readied status" -f (Get-XmachineNodeCachePath)) -Status OK
-    Write-Stage -Stage "summary" -Detail "work node passed SSH, repo, tool-batch, work-node smoke, and pipeline-smoke stages; node is now readied for pipeline offload." -Status OK
+    Write-Stage -Stage "summary" -Detail "work node passed SSH, runtime validation, tool-batch, work-node smoke, and pipeline-smoke stages; node is now readied for bounded direct-task offload." -Status OK
 }
 catch {
     $message = $_.Exception.Message

@@ -102,11 +102,13 @@ if [[ "$KEEP" -eq 0 ]]; then
     echo "Cleaning up..."
 
     WT_PATH=""
+    EXECUTION_MODE=""
     if [[ -f "$STATUS_PATH" ]]; then
         WT_PATH="$(jq -r '.worktreePath // empty' "$STATUS_PATH" 2>/dev/null || true)"
+        EXECUTION_MODE="$(jq -r '.executionMode // empty' "$STATUS_PATH" 2>/dev/null || true)"
     fi
 
-    if [[ -n "$WT_PATH" && -d "$WT_PATH" ]]; then
+    if [[ "$EXECUTION_MODE" == "repo" && -n "$WT_PATH" && -d "$WT_PATH" ]]; then
         # Need a real repo path to call `git worktree remove` — derive from worktree
         # parent if --repo-path not given.
         repo="${REPO_PATH:-${WT_PATH%-xmachine-*}}"

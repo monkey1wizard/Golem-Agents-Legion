@@ -46,7 +46,7 @@ Rejected examples:
 - `/gal pipeline on node-name`
 - `/gal pipeline --xmachine`
 
-If the dispatcher emits `TASK_REF`, `FROM`, and `STOP_AT`, treat them as authoritative for this invocation. A shorthand such as `/gal xmachine node-name to do TP-007` is expected to arrive here as a bounded single-task pipeline run with `FROM=TP-007` and `STOP_AT=TP-007`.
+If the dispatcher emits `TASK_REF`, `FROM`, and `STOP_AT`, treat them as authoritative for this invocation. A shorthand such as `/gal xmachine node-name to do TP-007` is expected to arrive here as a bounded single-task control-plane run with `FROM=TP-007` and `STOP_AT=TP-007`.
 
 ## Model Assignment
 
@@ -70,6 +70,9 @@ Use the dispatcher path resolved by `/gal`'s invoke rules for every script-dispa
 Rules:
 
 - Do not send the entire pipeline to the work node.
+- If the dispatcher emits `OFFLOAD: direct-task`, use the GAL runtime checkout's `scripts/Invoke-XmachineTask.ps1 -WorkNode node-name -TaskSpec <phase-task-spec> -Wait` for the bounded phase; do not use `Invoke-XmachinePipeline.ps1` / `Invoke-XmachinePipeline.sh`.
+- If the dispatcher emits `XMACHINE_MODE: execute`, do not pass `-WorkRepoPath` unless the target repo has an intentional persistent checkout on the work node.
+- In `XMACHINE_MODE: execute`, make the phase task spec self-contained: include the exact file contents, minimal reproduction commands, or explicit temporary-materialization instructions needed on the work node. Do not tell the work node to inspect local control-node paths or stale remote repo paths.
 - Use the GAL runtime checkout's `scripts/Invoke-XmachineTask.ps1 -WorkNode node-name -TaskSpec <phase-task-spec> -Wait` for supported bounded phases when no repo-local wrapper exists.
 - Retrieve and inspect `status.json`, `summary.md`, `runtime.log`, and `result.patch` on the control node.
 - Apply any returned patch only on the control-node checkout.

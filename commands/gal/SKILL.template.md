@@ -94,7 +94,9 @@ In that mode, xmachine node aliases are validated from the GAL runtime checkout'
 `/gal xmachine <node> to do <task-ref>` is a narrow shorthand for bounded execution of a single task from the active plan.
 
 - It is not a generic freeform remote prompt.
-- It normalizes to a pipeline-style single-task execution with `FROM` and `STOP_AT` both set to the same task reference.
+- It uses the pipeline procedure only to resolve the plan task and prepare the bounded task spec.
+- The actual offload is a direct `Invoke-XmachineTask` run in default `execute` mode, not `Invoke-XmachinePipeline`.
+- Do not pass `-WorkRepoPath` unless the target repo has an intentional persistent checkout on the work node.
 - It requires the selected node to be `readied` and the task reference to exist in the chosen active plan.
 - Use `#file:<plan>` only when the active-plan lookup should be overridden explicitly.
 
@@ -110,6 +112,8 @@ The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no infe
 | `READ` | Read this file before acting (may appear multiple times) |
 | `PLAN` | Optional explicit plan file path for workflows that support file override. When present, prefer this plan over `.dev/state.md` active-plan lookup. |
 | `EXECUTION` | Optional execution hint. `xmachine` means the dispatcher has validated the activation phrase for remote execution. |
+| `OFFLOAD` | Optional xmachine offload style. `direct-task` means prepare a bounded task spec locally, then call `Invoke-XmachineTask`; do not call `Invoke-XmachinePipeline`. |
+| `XMACHINE_MODE` | Optional xmachine workspace mode. `execute` means do not require or pass a target repo checkout unless explicitly configured. |
 | `WORK_NODE` | Optional xmachine node alias from `xmachine.config.json`. Present only when `EXECUTION: xmachine` is emitted. |
 | `TASK_REF` | Optional bounded task reference for single-task execution, such as `TP-007` or `T-003`. |
 | `FROM` | Optional lower execution bound for pipeline-style task iteration. |

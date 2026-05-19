@@ -17,6 +17,8 @@ param(
 
     [string]$WorkRepoPath,
 
+    [string]$RemoteRuntimeRepoPath,
+
     [ValidateSet("auto", "posix", "windows")]
     [string]$WorkPlatform = "auto",
 
@@ -37,6 +39,24 @@ function Get-RepoRoot {
     }
 
     return Split-Path -Parent $PSScriptRoot
+}
+
+function Get-RepoContextRoot {
+    $current = (Get-Location).Path
+
+    while ($true) {
+        $statePath = Join-Path $current ".dev\state.md"
+        if (Test-Path $statePath) {
+            return $current
+        }
+
+        $parent = Split-Path $current -Parent
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $current) {
+            return (Get-Location).Path
+        }
+
+        $current = $parent
+    }
 }
 
 function Get-XmachineConfigPath {
@@ -130,6 +150,57 @@ function Get-ConfiguredWorkRepoPath {
     return $repoPath.Trim()
 }
 
+function Get-RepoMappingKey {
+    param([Parameter(Mandatory)][string]$RepoContextRoot)
+
+    return Split-Path $RepoContextRoot -Leaf
+}
+
+function Get-ConfiguredRepoMapping {
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord,
+        [Parameter(Mandatory)][string]$RepoKey
+    )
+
+    if (-not $NodeRecord.Contains("repoMappings")) {
+        return $null
+    }
+
+    $repoMappings = $NodeRecord["repoMappings"]
+    if ($repoMappings -isnot [System.Collections.IDictionary] -or -not $repoMappings.Contains($RepoKey)) {
+        return $null
+    }
+
+    $mapping = $repoMappings[$RepoKey]
+    if ($mapping -is [string]) {
+        return @{
+            repoPath = $mapping
+            runtimeRepoPath = $null
+        }
+    }
+
+    if ($mapping -isnot [System.Collections.IDictionary]) {
+        return $null
+    }
+
+    return $mapping
+}
+
+function Get-ConfiguredRuntimeRepoPath {
+    param([Parameter(Mandatory)][System.Collections.IDictionary]$NodeRecord)
+
+    if (-not $NodeRecord.Contains("runtimeRepoPath")) {
+        return $null
+    }
+
+    $runtimeRepoPath = [string]$NodeRecord["runtimeRepoPath"]
+    if ([string]::IsNullOrWhiteSpace($runtimeRepoPath)) {
+        return $null
+    }
+
+    return $runtimeRepoPath.Trim()
+}
+
 function ConvertFrom-SshConfigOutput {
     param([Parameter(Mandatory)][string[]]$Lines)
 
@@ -160,7 +231,7 @@ function Resolve-WorkPlatform {
         return $Platform
     }
 
-    $windowsProbe = & ssh -o BatchMode=yes $NodeId "cmd /c ver" 2>&1
+    & ssh -o BatchMode=yes $NodeId "cmd /c ver" 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         return "windows"
     }
@@ -189,6 +260,37 @@ function Invoke-PosixCommand {
 
     $bootstrap = "export PATH=/opt/homebrew/bin:/usr/local/bin:`$HOME/.local/bin:`$PATH; source ~/.zprofile >/dev/null 2>&1 || true; source ~/.zshrc >/dev/null 2>&1 || true; "
     return Invoke-SshCommand -NodeId $NodeId -RemoteCommand ($bootstrap + $Script)
+}
+
+function Copy-PosixRuntimeScripts {
+    param(
+        [Parameter(Mandatory)][string]$SshTarget,
+        [Parameter(Mandatory)][string]$RemoteRuntimeStagePath
+    )
+
+    $remoteScriptsDir = "$RemoteRuntimeStagePath/scripts"
+    $mkdirResult = Invoke-PosixCommand -NodeId $SshTarget -Script "mkdir -p '$remoteScriptsDir'"
+    if ($mkdirResult.ExitCode -ne 0) {
+        throw "Failed to create staged xmachine runtime directory '$remoteScriptsDir'.`n$($mkdirResult.Output -join [Environment]::NewLine)"
+    }
+
+    foreach ($scriptName in @("Invoke-XmachineLocalTask.sh", "Start-xMachine.sh", "Get-XmachineLocalResult.sh")) {
+        $localScript = Join-Path $PSScriptRoot $scriptName
+        if (-not (Test-Path $localScript)) {
+            throw "Missing local xmachine runtime script '$localScript'."
+        }
+
+        & scp -o BatchMode=yes -q $localScript "${SshTarget}:$remoteScriptsDir/$scriptName"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to stage xmachine runtime script '$scriptName' on '$SshTarget'."
+        }
+    }
+
+    $normalizeScript = "for f in '$remoteScriptsDir'/*.sh; do tmp=`"`$f.tmp`"; tr -d '\r' < `"`$f`" > `"`$tmp`" && mv `"`$tmp`" `"`$f`" && chmod +x `"`$f`"; done"
+    $normalizeResult = Invoke-PosixCommand -NodeId $SshTarget -Script $normalizeScript
+    if ($normalizeResult.ExitCode -ne 0) {
+        throw "Failed to normalize staged xmachine runtime scripts in '$remoteScriptsDir'.`n$($normalizeResult.Output -join [Environment]::NewLine)"
+    }
 }
 
 function Get-SshConnectionInfo {
@@ -250,8 +352,10 @@ function Receive-PosixTaskArtifacts {
         [Parameter(Mandatory)][string]$SshTarget,
         [Parameter(Mandatory)][string]$TaskId,
         [Parameter(Mandatory)][string]$RemoteOutputDir,
-        [Parameter(Mandatory)][string]$RemoteRepoPath,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$RemoteProjectRepoPath,
+        [Parameter(Mandatory)][string]$RemoteRuntimeRepoPath,
         [Parameter(Mandatory)][string]$LocalOutputDir,
+        [string]$RemoteRuntimeStagePath = "",
         [switch]$KeepRemote
     )
 
@@ -306,7 +410,20 @@ function Receive-PosixTaskArtifacts {
     }
 
     if (-not $KeepRemote) {
-        $cleanupScript = "cd '$RemoteRepoPath' && bash scripts/Get-XmachineLocalResult.sh --task-id '$TaskId' --output-dir '$RemoteOutputDir' --repo-path '$RemoteRepoPath' >/dev/null"
+        if (-not [string]::IsNullOrWhiteSpace($RemoteRuntimeStagePath)) {
+            $cleanupScript = "bash '$RemoteRuntimeStagePath/scripts/Get-XmachineLocalResult.sh' --task-id '$TaskId' --output-dir '$RemoteOutputDir'"
+            if (-not [string]::IsNullOrWhiteSpace($RemoteProjectRepoPath)) {
+                $cleanupScript += " --repo-path '$RemoteProjectRepoPath'"
+            }
+            $cleanupScript += " >/dev/null; rm -rf '$RemoteRuntimeStagePath'"
+        }
+        else {
+            $cleanupScript = "cd '$RemoteRuntimeRepoPath' && bash scripts/Get-XmachineLocalResult.sh --task-id '$TaskId' --output-dir '$RemoteOutputDir'"
+            if (-not [string]::IsNullOrWhiteSpace($RemoteProjectRepoPath)) {
+                $cleanupScript += " --repo-path '$RemoteProjectRepoPath'"
+            }
+            $cleanupScript += " >/dev/null"
+        }
         & ssh -o BatchMode=yes $SshTarget $cleanupScript 2>$null | Out-Null
     }
 
@@ -315,13 +432,25 @@ function Receive-PosixTaskArtifacts {
 }
 
 $repoRoot = Get-RepoRoot
+$repoContextRoot = Get-RepoContextRoot
 $xmachineConfig = Read-XmachineConfig -RepoRoot $repoRoot
 $workNodeRecord = Get-XmachineNodeRecord -RequestedNode $WorkNode -Nodes $xmachineConfig.nodes -ConfigPath $xmachineConfig.path
 $resolvedWorkNodeTarget = Resolve-WorkNodeTarget -RequestedNode $WorkNode -NodeRecord $workNodeRecord -ConfigPath $xmachineConfig.path
-$resolvedRepoPath = if ($WorkRepoPath) { $WorkRepoPath } else { Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord }
+$configuredNodeRepoPath = Get-ConfiguredWorkRepoPath -NodeRecord $workNodeRecord
+$repoMappingKey = Get-RepoMappingKey -RepoContextRoot $repoContextRoot
+$repoMapping = Get-ConfiguredRepoMapping -NodeRecord $workNodeRecord -RepoKey $repoMappingKey
+$mappedProjectRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains("repoPath")) { [string]$repoMapping["repoPath"] } else { $null }
+$mappedRuntimeRepoPath = if ($null -ne $repoMapping -and $repoMapping.Contains("runtimeRepoPath")) { [string]$repoMapping["runtimeRepoPath"] } else { $null }
+$resolvedProjectRepoPath = if ($WorkRepoPath) { $WorkRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($mappedProjectRepoPath)) { $mappedProjectRepoPath.Trim() } else { $null }
+$executionMode = if ([string]::IsNullOrWhiteSpace($resolvedProjectRepoPath)) { "execute" } else { "repo" }
 
-if ([string]::IsNullOrWhiteSpace($resolvedRepoPath)) {
-    throw "No repo path is configured for work node '$WorkNode'. Pass -WorkRepoPath or define 'repoPath' in '$($xmachineConfig.path)'."
+$resolvedRemoteRuntimeRepoPath = if ($RemoteRuntimeRepoPath) { $RemoteRuntimeRepoPath } elseif (-not [string]::IsNullOrWhiteSpace($mappedRuntimeRepoPath)) { $mappedRuntimeRepoPath.Trim() } else { Get-ConfiguredRuntimeRepoPath -NodeRecord $workNodeRecord }
+if ([string]::IsNullOrWhiteSpace($resolvedRemoteRuntimeRepoPath)) {
+    $resolvedRemoteRuntimeRepoPath = $configuredNodeRepoPath
+}
+
+if ([string]::IsNullOrWhiteSpace($resolvedRemoteRuntimeRepoPath)) {
+    throw "No GAL runtime path is configured for work node '$WorkNode'. Pass -RemoteRuntimeRepoPath or define 'runtimeRepoPath' or 'repoPath' in '$($xmachineConfig.path)'."
 }
 
 if (-not (Test-Path $TaskSpec)) {
@@ -337,12 +466,18 @@ if ($resolvedPlatform -eq "windows") {
         throw "SSH config for work node '$WorkNode' does not expose a User value."
     }
 
-    $dispatchOutput = & (Join-Path $PSScriptRoot "Invoke-XmachineRemoteTask.ps1") `
-        -RemoteHost $sshConnection.Host `
-        -RemoteUser $sshConnection.User `
-        -RemoteRepoPath $resolvedRepoPath `
-        -TaskSpec $TaskSpec `
-        -TimeoutMinutes $TimeoutMinutes 2>&1
+    $dispatchArgs = @{
+        RemoteHost = $sshConnection.Host
+        RemoteUser = $sshConnection.User
+        RemoteScriptsPath = (Join-Path $resolvedRemoteRuntimeRepoPath "scripts")
+        TaskSpec = $TaskSpec
+        TimeoutMinutes = $TimeoutMinutes
+    }
+    if ($executionMode -eq "repo") {
+        $dispatchArgs.RemoteRepoPath = $resolvedProjectRepoPath
+    }
+
+    $dispatchOutput = & (Join-Path $PSScriptRoot "Invoke-XmachineRemoteTask.ps1") @dispatchArgs 2>&1
 
     $dispatchOutput | ForEach-Object { Write-Host $_ }
 
@@ -358,7 +493,7 @@ if ($resolvedPlatform -eq "windows") {
             RemoteUser = $sshConnection.User
             TaskId = $taskId
             RemoteOutputDir = $remoteOutputDir
-            RemoteRepoPath = $resolvedRepoPath
+            RemoteRepoPath = $resolvedProjectRepoPath
             Wait = $true
             TimeoutMinutes = [Math]::Max($TimeoutMinutes, 60)
             KeepRemote = $KeepRemote
@@ -376,10 +511,18 @@ if ($resolvedPlatform -eq "windows") {
 
 $taskSpecName = Split-Path -Leaf $TaskSpec
 $remoteTaskSpec = "/tmp/gal-xmachine-task-$taskId-$taskSpecName"
+$remoteRuntimeStagePath = if ($executionMode -eq "execute") { "/tmp/gal-xmachine-runtime-$taskId" } else { "" }
+$dispatchRuntimePath = if ($executionMode -eq "execute") { $remoteRuntimeStagePath } else { $resolvedRemoteRuntimeRepoPath }
 
 Write-Host "GAL Remote Task: $taskId"
 Write-Host "  Machine:  $resolvedWorkNodeTarget"
-Write-Host "  Repo:     $resolvedRepoPath"
+if ($executionMode -eq "repo") {
+    Write-Host "  Project:  $resolvedProjectRepoPath"
+}
+else {
+    Write-Host "  Project:  (execute mode; temp workspace only)"
+}
+Write-Host "  Runtime:  $resolvedRemoteRuntimeRepoPath"
 Write-Host "  TaskSpec: $taskSpecName"
 Write-Host "  Timeout:  ${TimeoutMinutes}m"
 Write-Host ""
@@ -390,11 +533,24 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to copy task spec to POSIX work node '$resolvedWorkNodeTarget'."
 }
 
+if ($executionMode -eq "execute") {
+    Write-Host "[1/3] Staging execute-mode xmachine runtime scripts..."
+    Copy-PosixRuntimeScripts -SshTarget $resolvedWorkNodeTarget -RemoteRuntimeStagePath $remoteRuntimeStagePath
+}
+
 Write-Host "[2/3] Dispatching task on POSIX work node..."
-$dispatchScript = "cd '$resolvedRepoPath' && bash scripts/Invoke-XmachineLocalTask.sh --task-spec '$remoteTaskSpec' --repo-path '$resolvedRepoPath' --timeout-minutes $TimeoutMinutes --task-id '$taskId'"
+$dispatchScript = "cd '$dispatchRuntimePath' && bash scripts/Invoke-XmachineLocalTask.sh --task-spec '$remoteTaskSpec' --timeout-minutes $TimeoutMinutes --task-id '$taskId'"
+if ($executionMode -eq "repo") {
+    $dispatchScript += " --repo-path '$resolvedProjectRepoPath'"
+}
 $dispatchResult = Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script $dispatchScript
 $dispatchOutput = $dispatchResult.Output
 if ($dispatchResult.ExitCode -ne 0) {
+    $failedDispatchCleanup = "rm -f '$remoteTaskSpec'"
+    if (-not [string]::IsNullOrWhiteSpace($remoteRuntimeStagePath)) {
+        $failedDispatchCleanup += "; rm -rf '$remoteRuntimeStagePath'"
+    }
+    Invoke-PosixCommand -NodeId $resolvedWorkNodeTarget -Script $failedDispatchCleanup | Out-Null
     throw "Failed to dispatch task on POSIX work node '$resolvedWorkNodeTarget'.`n$($dispatchOutput -join [Environment]::NewLine)"
 }
 
@@ -423,4 +579,4 @@ if (-not $Wait) {
 
 $resolvedLocalOutputDir = if ($LocalOutputDir) { $LocalOutputDir } else { Join-Path (Get-Location) "gal-results\$taskId" }
 Wait-ForPosixTaskCompletion -SshTarget $resolvedWorkNodeTarget -RemoteOutputDir $remoteOutputDir -TaskId $taskId -TimeoutMinutes ([Math]::Max($TimeoutMinutes, 60))
-Receive-PosixTaskArtifacts -SshTarget $resolvedWorkNodeTarget -TaskId $taskId -RemoteOutputDir $remoteOutputDir -RemoteRepoPath $resolvedRepoPath -LocalOutputDir $resolvedLocalOutputDir -KeepRemote:$KeepRemote
+Receive-PosixTaskArtifacts -SshTarget $resolvedWorkNodeTarget -TaskId $taskId -RemoteOutputDir $remoteOutputDir -RemoteProjectRepoPath $resolvedProjectRepoPath -RemoteRuntimeRepoPath $resolvedRemoteRuntimeRepoPath -LocalOutputDir $resolvedLocalOutputDir -RemoteRuntimeStagePath $remoteRuntimeStagePath -KeepRemote:$KeepRemote

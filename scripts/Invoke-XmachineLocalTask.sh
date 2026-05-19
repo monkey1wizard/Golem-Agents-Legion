@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Invoke-XmachineLocalTask.sh — macOS/Linux local async dispatcher.
 #
-# Hosts each task in a detached Zellij session named "task-<taskId>" so the
+# Hosts each task in a detached launcher so the
 # task run survives:
 #   - VS Code Remote-SSH disconnect
 #   - SSH session drop
@@ -14,11 +14,12 @@
 # Usage:
 #   Invoke-XmachineLocalTask.sh \
 #       --task-spec /path/to/task.md \
-#       --repo-path /Users/username/Code/Golem-Agents-Legion \
+#       [--repo-path /Users/username/Code/target-repo] \
 #       [--timeout-minutes 30] \
 #       [--task-id 20260422-abc123]   # auto-generated if omitted
 #
-# Prints the generated TaskId, OutputDir, and Zellij session name on success.
+# Prefers Zellij when available and falls back to `nohup` when it is not.
+# Prints the generated TaskId, OutputDir, and launcher metadata on success.
 
 set -euo pipefail
 
@@ -38,28 +39,36 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$TASK_SPEC" || -z "$REPO_PATH" ]]; then
-    echo "Usage: Invoke-XmachineLocalTask.sh --task-spec <file> --repo-path <repo> [--timeout-minutes N] [--task-id ID]" >&2
+if [[ -z "$TASK_SPEC" ]]; then
+    echo "Usage: Invoke-XmachineLocalTask.sh --task-spec <file> [--repo-path <repo>] [--timeout-minutes N] [--task-id ID]" >&2
     exit 2
 fi
 if [[ ! -f "$TASK_SPEC" ]]; then
     echo "Task spec not found: $TASK_SPEC" >&2
     exit 2
 fi
-if [[ ! -d "$REPO_PATH/.git" ]]; then
+if [[ -n "$REPO_PATH" && ! -d "$REPO_PATH/.git" ]]; then
     echo "Not a git repo: $REPO_PATH" >&2
     exit 2
 fi
 
-for tool in zellij git jq; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        echo "Missing required tool: $tool" >&2
-        exit 2
-    fi
-done
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Missing required tool: jq" >&2
+    exit 2
+fi
 
-if ! command -v script >/dev/null 2>&1; then
-    echo "Missing required system PTY utility: script" >&2
+if [[ -n "$REPO_PATH" ]] && ! command -v git >/dev/null 2>&1; then
+    echo "Missing required tool for repo mode: git" >&2
+    exit 2
+fi
+
+LAUNCHER=""
+if command -v zellij >/dev/null 2>&1 && command -v script >/dev/null 2>&1; then
+    LAUNCHER="zellij"
+elif command -v nohup >/dev/null 2>&1; then
+    LAUNCHER="nohup"
+else
+    echo "Missing detached launcher. Install zellij with the system 'script' utility, or ensure 'nohup' is available." >&2
     exit 2
 fi
 
@@ -80,82 +89,119 @@ if [[ -z "$TASK_ID" ]]; then
 fi
 
 OUTPUT_DIR="${TMPDIR:-/tmp}/gal-xmachine/task-$TASK_ID"
-WORKTREE="${REPO_PATH%/}-xmachine-$TASK_ID"
+WORKTREE="$OUTPUT_DIR/workspace"
 SESSION="task-$TASK_ID"
 TASK_SPEC_LOCAL="$OUTPUT_DIR/task.md"
 
 mkdir -p "$OUTPUT_DIR"
 cp "$TASK_SPEC" "$TASK_SPEC_LOCAL"
 
-# ── Create disposable worktree, bypassing the gal-config smudge filter ────────
-# The smudge filter calls scripts/gal-smudge.sh, which doesn't exist yet during
-# checkout (race condition); -c overrides the filter for this command only.
-echo "Creating disposable worktree: $WORKTREE"
-if ! git -C "$REPO_PATH" \
-        -c filter.gal-config.smudge=cat \
-        -c filter.gal-config.clean=cat \
-        worktree add --detach "$WORKTREE" HEAD 2>&1; then
-    echo "Failed to create worktree at $WORKTREE" >&2
-    exit 3
-fi
-
-# ── Spawn the task runtime inside a detached Zellij session ──────────────────
-# Pattern (verified on macOS 26 / zellij 0.44.1):
-#   script -q /dev/null zellij attach --create-background <name>
-# `script` is a system PTY utility from the base POSIX userland; it provides the
-# pty zellij requires here, while `--create-background` keeps the
-# session detached so this dispatcher returns immediately.
-#
-# Then `zellij --session <name> run -- ...` launches the task runtime as a new pane
-# inside that session. The pane survives terminal close, SSH drop, and Win11
-# shutdown.
-echo "Spawning detached Zellij session: $SESSION"
-script -q /dev/null zellij attach --create-background "$SESSION" \
-    </dev/null >/dev/null 2>&1 &
-SPAWN_PID=$!
-
-# Wait briefly for the session to register (zellij list-sessions output
-# contains ANSI color codes, so use a plain substring grep)
-session_exists() {
-    zellij list-sessions 2>/dev/null | grep -q -F "$SESSION"
-}
-
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if session_exists; then
-        break
+if [[ -n "$REPO_PATH" ]]; then
+    # ── Create disposable worktree, bypassing the gal-config smudge filter ────────
+    # The smudge filter calls scripts/gal-smudge.sh, which doesn't exist yet during
+    # checkout (race condition); -c overrides the filter for this command only.
+    WORKTREE="${REPO_PATH%/}-xmachine-$TASK_ID"
+    echo "Creating disposable worktree: $WORKTREE"
+    if ! git -C "$REPO_PATH" \
+            -c filter.gal-config.smudge=cat \
+            -c filter.gal-config.clean=cat \
+            worktree add --detach "$WORKTREE" HEAD 2>&1; then
+        echo "Failed to create worktree at $WORKTREE" >&2
+        exit 3
     fi
-    sleep 0.3
-done
-
-if ! session_exists; then
-    echo "Failed to start Zellij session $SESSION" >&2
-    kill "$SPAWN_PID" 2>/dev/null || true
-    git -C "$REPO_PATH" worktree remove --force "$WORKTREE" 2>/dev/null || true
-    exit 4
+else
+    echo "Creating disposable execute workspace: $WORKTREE"
+    mkdir -p "$WORKTREE"
 fi
 
-# Launch the task runtime as a pane inside the detached session
-zellij --session "$SESSION" run --close-on-exit -- \
-    bash "$RUNTIME_SCRIPT" \
-        --task-id        "$TASK_ID" \
-        --worktree       "$WORKTREE" \
-        --task-spec      "$TASK_SPEC_LOCAL" \
-        --output-dir     "$OUTPUT_DIR" \
+# ── Spawn the task runtime inside a detached launcher ────────────────────────
+if [[ "$LAUNCHER" == "zellij" ]]; then
+    # Pattern (verified on macOS 26 / zellij 0.44.1):
+    #   script -q /dev/null zellij attach --create-background <name>
+    # `script` is a system PTY utility from the base POSIX userland; it provides the
+    # pty zellij requires here, while `--create-background` keeps the session detached.
+    echo "Spawning detached Zellij session: $SESSION"
+    script -q /dev/null zellij attach --create-background "$SESSION" \
+        </dev/null >/dev/null 2>&1 &
+    SPAWN_PID=$!
+
+    session_exists() {
+        zellij list-sessions 2>/dev/null | grep -q -F "$SESSION"
+    }
+
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if session_exists; then
+            break
+        fi
+        sleep 0.3
+    done
+
+    if ! session_exists; then
+        echo "Failed to start Zellij session $SESSION" >&2
+        kill "$SPAWN_PID" 2>/dev/null || true
+        if [[ -n "$REPO_PATH" ]]; then
+            git -C "$REPO_PATH" worktree remove --force "$WORKTREE" 2>/dev/null || true
+        else
+            rm -rf "$WORKTREE"
+        fi
+        exit 4
+    fi
+
+    zellij --session "$SESSION" run --close-on-exit -- \
+        bash "$RUNTIME_SCRIPT" \
+            --task-id        "$TASK_ID" \
+            --worktree       "$WORKTREE" \
+            --task-spec      "$TASK_SPEC_LOCAL" \
+            --output-dir     "$OUTPUT_DIR" \
+            --timeout-minutes "$TIMEOUT_MINUTES" \
+            --engine         gemini \
+        >/dev/null 2>&1
+else
+    echo "Spawning detached nohup process for task: $TASK_ID"
+    nohup bash "$RUNTIME_SCRIPT" \
+        --task-id "$TASK_ID" \
+        --worktree "$WORKTREE" \
+        --task-spec "$TASK_SPEC_LOCAL" \
+        --output-dir "$OUTPUT_DIR" \
         --timeout-minutes "$TIMEOUT_MINUTES" \
-        --engine         gemini \
-    >/dev/null 2>&1
+        --engine gemini \
+        >/dev/null 2>&1 </dev/null &
+    SPAWN_PID=$!
+    disown "$SPAWN_PID" 2>/dev/null || true
+    sleep 0.2
+
+    if ! kill -0 "$SPAWN_PID" 2>/dev/null; then
+        echo "Failed to start detached nohup process for task $TASK_ID" >&2
+        if [[ -n "$REPO_PATH" ]]; then
+            git -C "$REPO_PATH" worktree remove --force "$WORKTREE" 2>/dev/null || true
+        else
+            rm -rf "$WORKTREE"
+        fi
+        exit 4
+    fi
+fi
 
 # ── Print dispatch metadata ───────────────────────────────────────────────────
+if [[ "$LAUNCHER" == "zellij" ]]; then
+        live_hint="zellij attach $SESSION              # detach with Ctrl-p, d"
+        session_line="  Session:   $SESSION"
+else
+        live_hint="tail -f $OUTPUT_DIR/runtime.log"
+        session_line=""
+fi
+
 cat <<EOF
 
 Dispatched local async task.
-  TaskId:    $TASK_ID
-  Session:   $SESSION
-  Worktree:  $WORKTREE
-  Output:    $OUTPUT_DIR
+    TaskId:    $TASK_ID
+    Mode:      $( [[ -n "$REPO_PATH" ]] && printf repo || printf execute )
+    Launcher:  $LAUNCHER
+$session_line
+    Workspace: $WORKTREE
+    Output:    $OUTPUT_DIR
 
 Inspect live:
-  zellij attach $SESSION              # detach with Ctrl-p, d
+    $live_hint
 Retrieve when done:
-    scripts/Get-XmachineLocalResult.sh --task-id $TASK_ID --output-dir $OUTPUT_DIR
+        scripts/Get-XmachineLocalResult.sh --task-id $TASK_ID --output-dir $OUTPUT_DIR
 EOF

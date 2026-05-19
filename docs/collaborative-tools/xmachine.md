@@ -9,7 +9,7 @@ The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a no
 When xmachine is active, GAL can execute tasks through a shared contract across the following implemented paths:
 
 - **Windows Work-Node Dispatch**: Task execution over SSH targeting Windows machines.
-- **POSIX-Compatible Detached Execution**: Asynchronous execution on macOS or Linux targets capable of running the bash-based local asynchronous path using Bash, Zellij, and required shell utilities.
+- **POSIX-Compatible Detached Execution**: Asynchronous execution on macOS or Linux targets capable of running the bash-based local asynchronous path using Bash plus a detached launcher. The direct bounded-task lane prefers Zellij when available and falls back to `nohup` when it is not.
 - **Standardized Runtime Outputs**: Generation of task-specific artifacts including `status.json`, `summary.md`, `runtime.log`, and `result.patch`.
 - **Smoke-Test Integration**: Predefined entry points and a patch-first retrieval workflow for validating node health.
 
@@ -44,24 +44,24 @@ xmachine is a repo-owned utility rather than a third-party package. `Setup-Tools
 - **SSH Access**: Every control node must have an SSH client and permission to access target work nodes.
 - **Repository Visibility**: Target work nodes must have SSH enabled and provide access to the repository checkout.
 - **Authentication**: You **MUST** configure SSH key-based (passwordless) authentication. xmachine scripts use `BatchMode=yes`; connections requiring interactive passwords will fail.
-- **Detached Execution**: Every work node must have Zellij installed, as the xmachine contract standardizes on Zellij for detached execution.
-- **POSIX Runtime Tools**: The bash-based local path requires `zellij`, `git`, and `jq`.
-- **System PTY Utility**: The bash-based local path expects the POSIX `script` command to be available in the `PATH`. This is a standard system PTY utility rather than an AI tool or repo-specific dependency.
+- **Detached Execution**: POSIX direct-task dispatch needs a detached launcher. Zellij plus the system `script` utility is preferred; `nohup` is the supported fallback for bounded direct tasks. The separate multi-step pipeline runner still expects Zellij today.
+- **POSIX Runtime Tools**: The bash-based local path always requires `jq`. `git` is required for repo mode and optional for pure execute mode.
+- **System PTY Utility**: The POSIX `script` command is only required when the launcher path uses Zellij.
 - **AI Tool CLIs**: The selected execution path may require configured AI CLIs (e.g., `gemini`, `copilot`, `claude`, or `codex`), depending on the engine family being used.
 
 ### POSIX Smoke-Test Batches
 
 The POSIX work-node smoke path checks readiness in three distinct batches:
 
-1. **POSIX Core Tools**: `zellij`, `git`, and `jq`
-2. **System PTY Utility**: `script`
+1. **POSIX Runtime Tools**: `jq`, plus `git` when the smoke path uses repo mode
+2. **Detached Launcher**: `zellij` together with `script`, or `nohup`
 3. **AI Tool CLIs**: The specific AI engines required for the current task (e.g., `gemini` and `copilot`).
 
 ### Readiness Progression
 
 xmachine readiness advances in two cacheable stages:
 
-1. **`tooling-ready`**: The node passed SSH connectivity, repo validation, tool-batch checks, and the work-node smoke path.
+1. **`tooling-ready`**: The node passed SSH connectivity, runtime checkout validation, detached-launcher checks, and the work-node smoke path. When a persistent project checkout is configured, the smoke path may use repo mode; otherwise it validates execute mode against the runtime checkout.
 2. **`readied`**: The node passed `pipeline-smoke`, verifying that the repo-local GAL entry point can successfully dispatch the pipeline from that node.
 
 Only `readied` nodes are considered `ready` by `Setup-Tools.ps1`.
@@ -95,9 +95,9 @@ Define work nodes in the GAL runtime checkout's `xmachine.config.json` to provid
 
 - The top-level `nodes` object is keyed by work-node alias.
 - Each node must define a `target` value.
-- Each node should usually define a `repoPath` value so `-WorkRepoPath` can stay optional.
-- `runtimeRepoPath` is optional and points at the GAL runtime checkout when it differs from the target project checkout.
-- `repoMappings` is optional and lets one work node map multiple target repositories by current repo name.
+- `runtimeRepoPath` is optional and points at the GAL runtime checkout when it differs from the node's fallback `repoPath`.
+- `repoPath` is now best treated as a persistent remote checkout for repo-mode runs or as a fallback GAL runtime path on older configs.
+- `repoMappings` is optional and should be used only for target repositories that really exist as persistent remote checkouts on that node.
 - `target` can be either a `Host` entry from `.ssh/config` or a direct `user@host` string.
 - The `-WorkNode` parameter must match a defined alias.
 
@@ -140,11 +140,23 @@ In this setup, `-WorkNode node-name` resolves to `username@mechine-name` before 
 
 ### Repo Path Precedence
 
-`Test-Xmachine.ps1` resolves the work-node repo path in this order:
+`Test-Xmachine.ps1` resolves the work-node project/runtime paths separately.
+
+Project checkout path resolves in this order:
 
 1. Explicit `-WorkRepoPath`
-2. `repoPath` on the selected node in `xmachine.config.json`
-3. The existing machine-local cache in `~/.gal/xmachine-nodes.json`
+2. `repoMappings.<current-repo>.repoPath` on the selected node
+3. `repoPath` on the selected node in `xmachine.config.json`
+4. The existing machine-local cache in `~/.gal/xmachine-nodes.json`
+
+Runtime checkout path resolves in this order:
+
+1. `repoMappings.<current-repo>.runtimeRepoPath` on the selected node
+2. `runtimeRepoPath` on the selected node
+3. `repoPath` on the selected node
+4. The resolved project checkout path
+
+If no project checkout resolves, `Test-Xmachine.ps1` now validates direct-task execute mode against the runtime checkout instead of failing immediately for a missing repo path.
 
 `Invoke-XmachinePipeline.ps1` resolves the remote project/runtime paths in this order:
 
@@ -161,11 +173,24 @@ Remote GAL runtime path resolves in this order:
 
 This allows a node to host both a GAL runtime checkout and separate target repo checkouts without forcing every repo to share the same remote path.
 
+`Invoke-XmachineTask.ps1` and `Invoke-XmachineTask.sh` use the same split for direct task specs:
+
+1. The project checkout comes from explicit `-WorkRepoPath` / `--work-repo-path`, then `repoMappings.<current-repo>.repoPath`.
+2. The GAL runtime checkout comes from explicit `-RemoteRuntimeRepoPath` / `--remote-runtime-repo-path`, then `repoMappings.<current-repo>.runtimeRepoPath`, then node-level `runtimeRepoPath`, then node-level `repoPath`, then the resolved project checkout.
+
+If no direct-task project checkout resolves, xmachine now defaults to `execute` mode: it stages only the task spec into a temporary remote workspace, runs there, and removes that workspace afterward. That means `repoMappings` is no longer required for ordinary one-off test or run tasks.
+
+Use `repoMappings.<target-repo-folder>.repoPath` only when that target repo is intentionally mirrored to the work node and you want direct tasks to run against that persistent remote checkout. The mapping key is the local project-root folder that contains `.dev/state.md`; for example, a local checkout at `C:\Code\zawip` uses the key `zawip`.
+
+`Invoke-XmachinePipeline.ps1` and `Invoke-XmachinePipeline.sh` still use persistent repo mode today. Multi-step plan execution has not yet been switched to default `execute` mode.
+
 ## `/gal xmachine ...` Shorthand
 
 `/gal xmachine <node> to do <task-ref>` is a bounded shorthand for a single active-plan task.
 
-- The dispatcher normalizes it to pipeline-style execution with `FROM` and `STOP_AT` set to the same task reference.
+- The dispatcher uses pipeline task resolution with `FROM` and `STOP_AT` set to the same task reference, then offloads the bounded task spec through direct `Invoke-XmachineTask` execution.
+- The direct offload defaults to `execute` mode, so it does not require a persistent target repo checkout on the work node.
+- Do not add `repoMappings` or pass `-WorkRepoPath` for this shorthand unless the work node really has an intentional persistent checkout for that target repo.
 - It is intended for active-plan task references such as `TP-007` or `T-003`, not as a generic freeform remote prompt.
 - The selected node still needs to be `readied`, and the task must exist in the resolved plan.
 
@@ -174,7 +199,7 @@ This allows a node to host both a GAL runtime checkout and separate target repo 
 | Path | Primary Entry Point | Use Case |
 | --- | --- | --- |
 | **Windows Work Node** | Windows PowerShell control node | Remote burst execution via SSH/SCP to a Windows checkout. |
-| **POSIX-Compatible Node** | PowerShell control node or direct shell | Long-running asynchronous execution using Zellij sessions on macOS or Linux. |
+| **POSIX-Compatible Node** | PowerShell control node or direct shell | Long-running asynchronous execution on macOS or Linux using Zellij when available, with `nohup` fallback for bounded direct tasks. |
 
 ### Ownership Boundary
 
@@ -189,6 +214,7 @@ xmachine paths are treated as disposable execution environments:
 xmachine does not invent bounded task specs on its own. It only executes a task spec that the control node already prepared and passed through `-TaskSpec`.
 
 - `Invoke-XmachineTask.ps1` requires the provided `-TaskSpec` path to exist before dispatch starts.
+- In `execute` mode, the task spec must be self-contained enough for the work node to run without a target repo checkout. Include exact file contents, minimal reproduction commands, or temporary-materialization instructions instead of pointing at local-only or stale remote paths.
 - In `/gal pipeline` xmachine mode, the pipeline orchestrator stays on the control node and may generate per-phase bounded task-spec markdown files so it can offload only the current implement, test, review, security, or verifier slice.
 - Those pipeline-generated task specs may be staged under the target project's `.dev/` directory with names such as `.dev/xmachine-t001-feature1.md`.
 - These files are transient control-plane artifacts for xmachine dispatch, not durable workflow state like `.dev/state.md` or `.dev/plans/<plan-slug>.prompt.md`.
@@ -203,7 +229,7 @@ All xmachine paths produce a consistent set of artifacts for each task run. Thes
 - `status.json`: Machine-readable state for a single task run (status, timing, exit code, etc.).
 - `summary.md`: Human-readable summary of the task execution.
 - `runtime.log`: Raw execution logs (stdout/stderr).
-- `result.patch`: A git diff of changes made in the disposable worktree.
+- `result.patch`: A git diff of changes made in repo mode, or an empty file in execute mode.
 
 `status.json` is distinct from the repo's `.dev/state.md` and the machine-local cache at `~/.gal/xmachine-nodes.json`:
 
@@ -310,7 +336,7 @@ bash scripts/Get-XmachineLocalResult.sh \
 
 ### Session Naming
 
-Detached Zellij sessions are named `task-<taskId>`.
+Detached Zellij sessions are named `task-<taskId>`. When the launcher falls back to `nohup`, no Zellij session is created.
 
 ### Patch Handling
 
@@ -324,7 +350,7 @@ git apply path/to/result.patch
 
 ### Cleanup
 
-- `Get-XmachineLocalResult.sh` removes the disposable worktree, Zellij session, and output directory unless `--keep` is specified.
+- `Get-XmachineLocalResult.sh` removes the disposable worktree, any matching Zellij session, and the output directory unless `--keep` is specified.
 - `Get-XmachineRemoteResult.ps1` removes remote temporary assets unless `-KeepRemote` is specified.
 
 ## Control-Node Consumption

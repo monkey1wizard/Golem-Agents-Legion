@@ -5,6 +5,7 @@ set -euo pipefail
 WORK_NODE=""
 TASK_SPEC=""
 WORK_REPO_PATH=""
+REMOTE_RUNTIME_REPO_PATH=""
 WORK_PLATFORM="auto"
 TIMEOUT_MINUTES=30
 WAIT=0
@@ -16,6 +17,7 @@ while [[ $# -gt 0 ]]; do
         --work-node) WORK_NODE="$2"; shift 2 ;;
         --task-spec) TASK_SPEC="$2"; shift 2 ;;
         --work-repo-path) WORK_REPO_PATH="$2"; shift 2 ;;
+        --remote-runtime-repo-path) REMOTE_RUNTIME_REPO_PATH="$2"; shift 2 ;;
         --work-platform) WORK_PLATFORM="$2"; shift 2 ;;
         --timeout-minutes) TIMEOUT_MINUTES="$2"; shift 2 ;;
         --wait) WAIT=1; shift ;;
@@ -26,7 +28,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$WORK_NODE" || -z "$TASK_SPEC" ]]; then
-    echo "Usage: Invoke-XmachineTask.sh --work-node alias --task-spec file [--work-repo-path path] [--work-platform auto|posix|windows] [--timeout-minutes N] [--wait] [--local-output-dir dir] [--keep-remote]" >&2
+    echo "Usage: Invoke-XmachineTask.sh --work-node alias --task-spec file [--work-repo-path path] [--remote-runtime-repo-path path] [--work-platform auto|posix|windows] [--timeout-minutes N] [--wait] [--local-output-dir dir] [--keep-remote]" >&2
     exit 2
 fi
 
@@ -93,6 +95,27 @@ new_task_id() {
     printf '%s-%s\n' "$(date -u +%Y%m%d)" "$rand"
 }
 
+get_repo_context_root() {
+    local current
+    current="$(pwd)"
+
+    while true; do
+        if [[ -f "$current/.dev/state.md" ]]; then
+            printf '%s\n' "$current"
+            return 0
+        fi
+
+        local parent
+        parent="$(dirname "$current")"
+        if [[ -z "$parent" || "$parent" == "$current" ]]; then
+            pwd
+            return 0
+        fi
+
+        current="$parent"
+    done
+}
+
 wait_for_posix_task_completion() {
     local ssh_target="$1"
     local remote_output_dir="$2"
@@ -125,9 +148,11 @@ receive_posix_task_artifacts() {
     local ssh_target="$1"
     local task_id="$2"
     local remote_output_dir="$3"
-    local remote_repo_path="$4"
-    local local_output_dir="$5"
-    local keep_remote="$6"
+    local remote_project_repo_path="$4"
+    local remote_runtime_repo_path="$5"
+    local local_output_dir="$6"
+    local remote_runtime_stage_path="$7"
+    local keep_remote="$8"
 
     mkdir -p "$local_output_dir"
 
@@ -180,7 +205,21 @@ receive_posix_task_artifacts() {
     fi
 
     if [[ "$keep_remote" -eq 0 ]]; then
-        ssh -o BatchMode=yes "$ssh_target" "cd '$remote_repo_path' && bash scripts/Get-XmachineLocalResult.sh --task-id '$task_id' --output-dir '$remote_output_dir' --repo-path '$remote_repo_path' >/dev/null" 2>/dev/null || true
+        local cleanup_script
+        if [[ -n "$remote_runtime_stage_path" ]]; then
+            cleanup_script="bash '$remote_runtime_stage_path/scripts/Get-XmachineLocalResult.sh' --task-id '$task_id' --output-dir '$remote_output_dir'"
+            if [[ -n "$remote_project_repo_path" ]]; then
+                cleanup_script+=" --repo-path '$remote_project_repo_path'"
+            fi
+            cleanup_script+=" >/dev/null; rm -rf '$remote_runtime_stage_path'"
+        else
+            cleanup_script="cd '$remote_runtime_repo_path' && bash scripts/Get-XmachineLocalResult.sh --task-id '$task_id' --output-dir '$remote_output_dir'"
+            if [[ -n "$remote_project_repo_path" ]]; then
+                cleanup_script+=" --repo-path '$remote_project_repo_path'"
+            fi
+            cleanup_script+=" >/dev/null"
+        fi
+        ssh -o BatchMode=yes "$ssh_target" "$cleanup_script" 2>/dev/null || true
     fi
 
     echo
@@ -286,11 +325,12 @@ receive_windows_task_artifacts() {
     fi
 
     if [[ "$keep_remote" -eq 0 ]]; then
-        local wt_path cleanup_cmd
+        local wt_path execution_mode cleanup_cmd
         wt_path="$(jq -r '.worktreePath // empty' "$status_path" 2>/dev/null || true)"
-        if [[ -n "$wt_path" ]]; then
+        execution_mode="$(jq -r '.executionMode // empty' "$status_path" 2>/dev/null || true)"
+        if [[ "$execution_mode" == "repo" && -n "$wt_path" ]]; then
             cleanup_cmd="\$wt = '$wt_path'; if (Test-Path \$wt) { git worktree unlock \"\$wt\" 2>\$null; git worktree remove --force \"\$wt\" 2>&1; Write-Host \"  Worktree removed: \$wt\" } else { Write-Host \"  Worktree already gone.\" }; Remove-Item -Recurse -Force '$remote_output_dir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
-        elif [[ -n "$remote_repo_path" ]]; then
+        elif [[ "$execution_mode" == "repo" && -n "$remote_repo_path" ]]; then
             cleanup_cmd="Set-Location '$remote_repo_path'; \$wt = (git worktree list --porcelain | Select-String '$task_id' | Select-Object -First 1)?.Line?.Split(' ')[1]; if (\$wt) { git worktree unlock \"\$wt\" 2>\$null; git worktree remove --force \"\$wt\" 2>&1; Write-Host \"  Worktree removed: \$wt\" } else { Write-Host \"  Worktree not found (may already be removed)\" }; Remove-Item -Recurse -Force '$remote_output_dir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
         else
             cleanup_cmd="Remove-Item -Recurse -Force '$remote_output_dir' -ErrorAction SilentlyContinue; Write-Host '  Output dir removed.'"
@@ -308,10 +348,41 @@ if [[ -z "$resolved_work_node_target" ]]; then
     exit 1
 fi
 
+repo_context_root="$(get_repo_context_root)"
+repo_mapping_key="$(basename "$repo_context_root")"
 configured_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].repoPath // empty' "$CONFIG_PATH")"
-resolved_repo_path="${WORK_REPO_PATH:-$configured_repo_path}"
-if [[ -z "$resolved_repo_path" ]]; then
-    echo "No repo path is configured for work node '$WORK_NODE'. Pass --work-repo-path or define repoPath in '$CONFIG_PATH'." >&2
+mapped_project_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '.nodes[$node].repoMappings[$repo].repoPath // empty' "$CONFIG_PATH")"
+mapped_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '.nodes[$node].repoMappings[$repo].runtimeRepoPath // empty' "$CONFIG_PATH")"
+configured_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].runtimeRepoPath // empty' "$CONFIG_PATH")"
+
+if [[ -n "$WORK_REPO_PATH" ]]; then
+    resolved_project_repo_path="$WORK_REPO_PATH"
+elif [[ -n "$mapped_project_repo_path" ]]; then
+    resolved_project_repo_path="$mapped_project_repo_path"
+else
+    resolved_project_repo_path=""
+fi
+
+if [[ -n "$resolved_project_repo_path" ]]; then
+    execution_mode="repo"
+else
+    execution_mode="execute"
+fi
+
+if [[ -n "$REMOTE_RUNTIME_REPO_PATH" ]]; then
+    resolved_remote_runtime_repo_path="$REMOTE_RUNTIME_REPO_PATH"
+elif [[ -n "$mapped_runtime_repo_path" ]]; then
+    resolved_remote_runtime_repo_path="$mapped_runtime_repo_path"
+elif [[ -n "$configured_runtime_repo_path" ]]; then
+    resolved_remote_runtime_repo_path="$configured_runtime_repo_path"
+elif [[ -n "$configured_repo_path" ]]; then
+    resolved_remote_runtime_repo_path="$configured_repo_path"
+else
+    resolved_remote_runtime_repo_path=""
+fi
+
+if [[ -z "$resolved_remote_runtime_repo_path" ]]; then
+    echo "No GAL runtime path is configured for work node '$WORK_NODE'. Pass --remote-runtime-repo-path or define runtimeRepoPath or repoPath in '$CONFIG_PATH'." >&2
     exit 1
 fi
 
@@ -327,7 +398,11 @@ if [[ "$resolved_platform" == "windows" ]]; then
         exit 1
     fi
 
-    dispatch_output="$(bash "$SCRIPT_DIR/Invoke-XmachineRemoteTask.sh" --remote-host "$remote_host" --remote-user "$remote_user" --remote-repo-path "$resolved_repo_path" --task-spec "$TASK_SPEC" --timeout-minutes "$TIMEOUT_MINUTES" 2>&1)"
+    remote_args=(--remote-host "$remote_host" --remote-user "$remote_user" --remote-scripts-path "${resolved_remote_runtime_repo_path}\\scripts" --task-spec "$TASK_SPEC" --timeout-minutes "$TIMEOUT_MINUTES")
+    if [[ "$execution_mode" == "repo" ]]; then
+        remote_args+=(--remote-repo-path "$resolved_project_repo_path")
+    fi
+    dispatch_output="$(bash "$SCRIPT_DIR/Invoke-XmachineRemoteTask.sh" "${remote_args[@]}" 2>&1)"
     printf '%s\n' "$dispatch_output"
 
     task_id="$(printf '%s\n' "$dispatch_output" | sed -nE 's/^[[:space:]]*Task ID:[[:space:]]+(.+)$/\1/p' | head -n1 | sed -E 's/[[:space:]]+$//')"
@@ -340,7 +415,7 @@ if [[ "$resolved_platform" == "windows" ]]; then
     if [[ "$WAIT" -eq 1 ]]; then
         resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/gal-results/$task_id}"
         wait_for_windows_task_completion "${remote_user}@${remote_host}" "$remote_output_dir" "$task_id" "$(( TIMEOUT_MINUTES > 60 ? TIMEOUT_MINUTES : 60 ))"
-        receive_windows_task_artifacts "${remote_user}@${remote_host}" "$task_id" "$remote_output_dir" "$resolved_repo_path" "$resolved_local_output_dir" "$KEEP_REMOTE"
+        receive_windows_task_artifacts "${remote_user}@${remote_host}" "$task_id" "$remote_output_dir" "$resolved_project_repo_path" "$resolved_local_output_dir" "$KEEP_REMOTE"
     fi
 
     exit 0
@@ -348,10 +423,21 @@ fi
 
 task_spec_name="$(basename "$TASK_SPEC")"
 remote_task_spec="/tmp/gal-xmachine-task-$task_id-$task_spec_name"
+remote_runtime_stage_path=""
+dispatch_runtime_path="$resolved_remote_runtime_repo_path"
+if [[ "$execution_mode" == "execute" ]]; then
+    remote_runtime_stage_path="/tmp/gal-xmachine-runtime-$task_id"
+    dispatch_runtime_path="$remote_runtime_stage_path"
+fi
 
 echo "GAL Remote Task: $task_id"
 echo "  Machine:  $resolved_work_node_target"
-echo "  Repo:     $resolved_repo_path"
+if [[ "$execution_mode" == "repo" ]]; then
+    echo "  Project:  $resolved_project_repo_path"
+else
+    echo "  Project:  (execute mode; temp workspace only)"
+fi
+echo "  Runtime:  $resolved_remote_runtime_repo_path"
 echo "  TaskSpec: $task_spec_name"
 echo "  Timeout:  ${TIMEOUT_MINUTES}m"
 echo
@@ -362,11 +448,38 @@ if ! scp -o BatchMode=yes -q "$TASK_SPEC" "${resolved_work_node_target}:$remote_
     exit 1
 fi
 
+if [[ "$execution_mode" == "execute" ]]; then
+    echo "[1/3] Staging execute-mode xmachine runtime scripts..."
+    remote_runtime_scripts_path="$remote_runtime_stage_path/scripts"
+    if ! ssh -o BatchMode=yes "$resolved_work_node_target" "mkdir -p '$remote_runtime_scripts_path'"; then
+        echo "Failed to create staged xmachine runtime directory '$remote_runtime_scripts_path'." >&2
+        exit 1
+    fi
+    for script_name in Invoke-XmachineLocalTask.sh Start-xMachine.sh Get-XmachineLocalResult.sh; do
+        if ! scp -o BatchMode=yes -q "$SCRIPT_DIR/$script_name" "${resolved_work_node_target}:$remote_runtime_scripts_path/$script_name"; then
+            echo "Failed to stage xmachine runtime script '$script_name' on '$resolved_work_node_target'." >&2
+            exit 1
+        fi
+    done
+    if ! ssh -o BatchMode=yes "$resolved_work_node_target" "for f in '$remote_runtime_scripts_path'/*.sh; do tmp=\"\$f.tmp\"; tr -d '\r' < \"\$f\" > \"\$tmp\" && mv \"\$tmp\" \"\$f\" && chmod +x \"\$f\"; done"; then
+        echo "Failed to normalize staged xmachine runtime scripts in '$remote_runtime_scripts_path'." >&2
+        exit 1
+    fi
+fi
+
 echo "[2/3] Dispatching task on POSIX work node..."
-dispatch_script="cd '$resolved_repo_path' && bash scripts/Invoke-XmachineLocalTask.sh --task-spec '$remote_task_spec' --repo-path '$resolved_repo_path' --timeout-minutes $TIMEOUT_MINUTES --task-id '$task_id'"
+dispatch_script="cd '$dispatch_runtime_path' && bash scripts/Invoke-XmachineLocalTask.sh --task-spec '$remote_task_spec' --timeout-minutes $TIMEOUT_MINUTES --task-id '$task_id'"
+if [[ "$execution_mode" == "repo" ]]; then
+    dispatch_script+=" --repo-path '$resolved_project_repo_path'"
+fi
 dispatch_output="$(ssh -o BatchMode=yes "$resolved_work_node_target" "export PATH=/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH; source ~/.zprofile >/dev/null 2>&1 || true; source ~/.zshrc >/dev/null 2>&1 || true; $dispatch_script" 2>&1)"
 dispatch_exit=$?
 if [[ $dispatch_exit -ne 0 ]]; then
+    failed_dispatch_cleanup="rm -f '$remote_task_spec'"
+    if [[ -n "$remote_runtime_stage_path" ]]; then
+        failed_dispatch_cleanup+="; rm -rf '$remote_runtime_stage_path'"
+    fi
+    ssh -o BatchMode=yes "$resolved_work_node_target" "$failed_dispatch_cleanup" >/dev/null 2>&1 || true
     echo "Failed to dispatch task on POSIX work node '$resolved_work_node_target'." >&2
     printf '%s\n' "$dispatch_output" >&2
     exit 1
@@ -397,4 +510,4 @@ fi
 
 resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/gal-results/$task_id}"
 wait_for_posix_task_completion "$resolved_work_node_target" "$remote_output_dir" "$task_id" "$(( TIMEOUT_MINUTES > 60 ? TIMEOUT_MINUTES : 60 ))"
-receive_posix_task_artifacts "$resolved_work_node_target" "$task_id" "$remote_output_dir" "$resolved_repo_path" "$resolved_local_output_dir" "$KEEP_REMOTE"
+receive_posix_task_artifacts "$resolved_work_node_target" "$task_id" "$remote_output_dir" "$resolved_project_repo_path" "$resolved_remote_runtime_repo_path" "$resolved_local_output_dir" "$remote_runtime_stage_path" "$KEEP_REMOTE"
