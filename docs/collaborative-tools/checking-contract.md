@@ -56,6 +56,7 @@ Use these distinctions when documenting or implementing a tool:
 ## Current Tool Mappings
 
 - [graphify.md](graphify.md) for structural planning and review context.
+- [playwright-mcp.md](playwright-mcp.md) for browser-backed testing, verification, design audit, dynamic-page research, and browser-visible evaluation.
 - [opencli.md](opencli.md) for research-side structured external retrieval.
 - [gstack.md](gstack.md) for planning-stage review lanes and specialist collaboration.
 - [xmachine.md](xmachine.md) for execution-plane offload into SSH-based machine lanes.
