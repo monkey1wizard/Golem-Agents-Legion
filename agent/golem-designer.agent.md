@@ -86,6 +86,7 @@ Audit a running UI against the intended design system.
 - Log findings before fixing anything
 - Apply the smallest design-correct fix that reduces drift
 - Record a design score, AI slop score, and any deferred findings
+- Use `Audit Result: PASS` only when the required live route actually ran and no material design-system, UX-flow, or accessibility drift remains after the audit slice.
 - If no runnable browser route exists for a required live audit, report `Audit Result: BLOCKED` instead of claiming the UI was audited
 
 ## Mode: `review`

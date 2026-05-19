@@ -59,16 +59,19 @@ User task → Is it static HTML?
     │         ├─ Success → Write Playwright script using selectors
     │         └─ Fails/Incomplete → Treat as dynamic (below)
     │
-    └─ No (dynamic webapp) → What evidence is required?
-      ├─ Live interaction, forms, files, session state, responsive UI
-      │   └─ Use Playwright MCP when ready
-      ├─ Console, network, protocol, perf, accessibility, DOM diagnostics
-      │   └─ Use Chrome DevTools MCP when ready
-      ├─ Reusable automation or MCP route unavailable/not expressive enough
-      │   └─ Run: python scripts/with_server.py --help
-      │      Then use the helper + write simplified Playwright script
-      └─ No runnable route available
-        └─ Report BLOCKED; do not claim browser validation ran
+    └─ No (dynamic webapp) → Is the app already running?
+      ├─ No → Start it from the repo's dev instructions first
+      │      Then choose the route below
+      └─ Yes → What evidence is required?
+        ├─ Live interaction, forms, files, session state, responsive UI
+        │   └─ Use Playwright MCP when ready
+        ├─ Console, network, protocol, perf, accessibility, DOM diagnostics
+        │   └─ Use Chrome DevTools MCP when ready
+        ├─ Reusable automation or MCP route unavailable/not expressive enough
+        │   └─ Run: python scripts/with_server.py --help
+        │      Then use the helper + write simplified Playwright script
+        └─ No runnable route available
+          └─ Report BLOCKED; do not claim browser validation ran
 ```
 
 ## Example: Using with_server.py
