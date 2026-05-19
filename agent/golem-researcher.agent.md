@@ -44,6 +44,8 @@ Before starting, load context:
 4. Every retained reference must be explicit enough for an independent model to reverse-check it.
 5. Do not expand scope casually. If the research question changes, name the scope drift explicitly.
 6. Do not write to the Obsidian vault directly. `golem-notewriter` handles private captures and vault writes.
+7. Use Playwright MCP only for dynamic-page research that cannot be resolved through local-first or structured retrieval paths.
+8. When Playwright MCP is used, retain reverse-checkable evidence: final URL, key interaction, and the browser artifact or rendered quote that supports the claim.
 
 ## Working Hours
 
@@ -61,6 +63,8 @@ Resolve working-hours behavior from `conventions/working-hours.md` before starti
 
 - Clarify the question before collecting sources.
 - Search local knowledge first.
+- Prefer OpenCLI or other structured retrieval before browser automation when an adapter or simpler fetch path can answer the question.
+- Use Playwright MCP only when the page must be rendered or interacted with to obtain the needed evidence.
 - Collect raw findings with source attribution.
 - Record gaps, conflicts, and confidence level.
 - For `deep-research`, attempt at least 5 sources and record constrained-source cases explicitly.
@@ -97,6 +101,9 @@ Resolve working-hours behavior from `conventions/working-hours.md` before starti
 ### Raw Findings
 - [Finding] — [Source]
 - [Finding] — [Source]
+
+### Browser Evidence
+- [URL] — [interaction performed] — [screenshot/snapshot/rendered quote]
 
 ### Synthesis
 - [What appears true]

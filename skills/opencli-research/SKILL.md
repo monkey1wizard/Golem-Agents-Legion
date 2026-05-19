@@ -8,7 +8,8 @@ mcpDependencies:
   optional:
     - fetch
     - imagefetch
-    - puppeteer
+    - playwright
+    - chrome-devtools
 ---
 
 # OpenCLI Research
@@ -24,8 +25,10 @@ This skill follows the shared collaborative-tool state model in [docs/collaborat
 
 1. Use OpenCLI when an existing adapter already matches the source and fields you need.
 2. Use MCP `fetch` or `imagefetch` when the task is still web retrieval but OpenCLI is unavailable or not the right fit.
-3. Use MCP browser tools when the task depends on interaction, DOM inspection, screenshots, or adapter debugging.
+3. Use Playwright MCP or Chrome DevTools MCP when the task depends on interaction, rendered state, screenshots, or adapter debugging.
 4. Use workspace file and symbol tools for repo-local code understanding instead of forcing OpenCLI into the wrong lane.
+
+Use Playwright MCP only after local-first and structured retrieval paths fail to answer the question, and retain reverse-checkable browser evidence when it is used.
 
 ## Availability Check
 
@@ -45,7 +48,7 @@ Treat adapter or session setup gaps as `available-but-needs-init`. Treat unsuppo
 If OpenCLI is unavailable or the required adapter cannot reach the needed data:
 
 1. If the target is a normal web page, fall back to MCP `fetch` or `imagefetch`.
-2. If the target requires page interaction, DOM inspection, screenshots, or network debugging, fall back to MCP browser tools.
+2. If the target requires page interaction, rendered state, screenshots, or network debugging, fall back to Playwright MCP or Chrome DevTools MCP.
 3. If the task is repo-local code understanding, use workspace file/symbol tools instead.
 
 Do not silently pretend OpenCLI succeeded when it did not.
@@ -83,6 +86,8 @@ This applies both when OpenCLI is `unavailable` and when it is installed but `av
 - You need comments, live chat, or other interactions outside an existing adapter surface.
 - You need to debug why an adapter is failing.
 - The task is repo-local code or git analysis.
+
+If browser tooling is required, record the final URL, the interaction performed, and the evidence artifact or rendered quote so the result remains independently checkable.
 
 ## YouTube Example
 

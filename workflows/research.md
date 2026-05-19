@@ -20,6 +20,8 @@ This workflow is **independent of the Coding Flow**. It can run in parallel with
 3. **Reference verification must be independent**. The model that performs VERIFY must not be the same model that authored the research findings.
 4. **`deep-research` must attempt at least 5 sources**. If fewer than 5 are available, document the failed search attempts and why the source pool is constrained.
 5. **CROSS-REVIEW is about source-to-source consistency**. It is not a substitute for architecture, business, or design review.
+6. **Playwright MCP is a dynamic-page aid, not a research default**. Use it only after local-first and structured retrieval paths cannot answer the question.
+7. **Browser-backed research must preserve reverse-checkable evidence**. Record the URL, the interaction performed, and the artifact or observation that supports the claim.
 
 ## State Machine
 
@@ -53,6 +55,8 @@ No active research. Waiting for a research question or topic.
   - Identify candidate sources: documentation, codebase, web, and existing vault notes.
   - **Local-first**: Always search the Obsidian vault first (via local-first-search skill) before external sources.
   - **Collaborative-tool preflight**: if the task maps to OpenCLI, resolve the tool state through [docs/collaborative-tools/checking-contract.md](../docs/collaborative-tools/checking-contract.md) before attempting structured retrieval. If OpenCLI is unavailable or not ready, fall back through [opencli.md](../docs/collaborative-tools/opencli.md).
+  - Use Playwright MCP only when the source requires rendering or interaction that local docs, OpenCLI, fetch, or Defuddle cannot provide directly.
+  - If Playwright MCP is used, capture reverse-checkable evidence such as the final URL, key interaction, and screenshot/snapshot or quoted rendered output.
   - Collect raw findings with source attribution.
   - For `deep-research`, attempt at least 5 sources and record failed search paths if the pool is constrained.
 - **Golem**: researcher

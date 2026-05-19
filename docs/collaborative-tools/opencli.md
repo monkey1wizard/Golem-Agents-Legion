@@ -35,7 +35,7 @@ OpenCLI follows the shared preflight model in [checking-contract.md](checking-co
 | Task shape | Default tool | Upgrade when |
 | --- | --- | --- |
 | Known site, known schema, stable structured output needed | OpenCLI | The adapter is missing fields or fails |
-| Unknown page, unknown DOM, clicking or scrolling required | MCP browser tools | The interaction becomes stable enough to justify an adapter |
+| Unknown page, unknown DOM, clicking or scrolling required | Playwright MCP or other MCP browser tools after local-first checks | The interaction becomes stable enough to justify an adapter |
 | Read a normal article page once | MCP `fetch` or `imagefetch` | A site adapter yields cleaner structured output |
 | Batch retrieval or repeatable shell workflow | OpenCLI | The task depends on one-off manual exploration |
 | Logged-in browser-backed data with an adapter available | OpenCLI | The browser bridge or session path is unavailable |
@@ -58,7 +58,8 @@ OpenCLI follows the shared preflight model in [checking-contract.md](checking-co
 - Prefer OpenCLI when an existing site adapter already returns the fields you need.
 - Prefer `-f json` and an explicit `--limit` whenever possible.
 - Prefer public adapters over browser-backed adapters.
-- Use MCP browser tools first when exploring a new site or debugging a broken adapter.
+- Use Playwright MCP or other MCP browser tools only when the page requires rendering, interaction, or adapter debugging that structured retrieval cannot provide.
+- When browser tooling informs research output, preserve reverse-checkable evidence such as the final URL, key interaction, and screenshot/snapshot or rendered quote.
 - Do not route repo-local code or git tasks into OpenCLI.
 - Do not make OpenCLI a required dependency for `/gal`, `/gal research`, or any other control-plane command.
 - Do not generalize OpenCLI-first behavior into a repo-wide rule.
@@ -79,7 +80,7 @@ question
 If OpenCLI is unavailable, needs initialization, or is not ready for the current task:
 
 - fall back to MCP `fetch` or `imagefetch` for standard page retrieval
-- fall back to MCP browser tools for interaction, DOM inspection, screenshots, or adapter debugging
+- fall back to Playwright MCP or other MCP browser tools for interaction, DOM inspection, screenshots, or adapter debugging
 - fall back to workspace tools for repo-local code understanding
 - stop with a clear missing-capability message if no documented path can satisfy the task
 

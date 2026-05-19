@@ -19,6 +19,8 @@ When current documentation is needed, prefer MCP tools over generic recollection
 - Use `context7` for library, framework, SDK, and package documentation
 - Use `fetch` for raw MCP spec pages, GitHub READMEs, and general web documentation
 
+When evaluating an MCP server, use Playwright MCP only when the server exposes browser-visible behavior such as a Web UI, rendered docs, or end-user browser flows that cannot be verified well through Inspector or CLI-only checks. API-only or read-only server evaluation should stay on MCP Inspector, unit tests, and deterministic CLI paths.
+
 If these MCPs are unavailable, fall back to direct web retrieval.
 
 ---
@@ -168,6 +170,8 @@ After implementing your MCP server, create comprehensive evaluations to test its
 #### 4.1 Understand Evaluation Purpose
 
 Use evaluations to test whether LLMs can effectively use your MCP server to answer realistic, complex questions.
+
+If the evaluation target is browser-visible, capture reverse-checkable evidence from the browser route. If the target is not browser-visible, do not add browser automation just because Playwright MCP exists.
 
 #### 4.2 Create 10 Evaluation Questions
 
