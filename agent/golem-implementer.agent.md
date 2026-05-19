@@ -172,15 +172,30 @@ When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This i
 - Architectural escalation rules still apply — stop if `/deep-planning` is required
 - **Failure-focused output**: when running build or verification commands, emit only failures, errors, and directly relevant context. Do not echo full pass output into the conversation.
 
+### Pipeline Fix Mode
+
+When `/gal pipeline` re-invokes you for `TASK_SCOPE: T-NNN` in fix mode after a failed `TEST` or `REVIEW` round, treat `## Status > ### Handoff Notes` as the durable retry log.
+
+Update the active `#### Retry Handoff — T-NNN / ...` block instead of creating a second blocker note. For the current retry attempt, record:
+
+- the specific failing test, blocking finding, or security issue being addressed
+- the exact remediation attempted in this round
+- the validation command, reviewer rerun, or `not-run` result for this round
+- the resulting commit hash, or `none` when no commit was produced
+- any remaining uncertainty the next person must know before trying again
+
+Do not leave the retry history implied by chat memory alone. The handoff block must let a human see what changed on attempt 1, 2, and 3 without rerunning prior context.
+
 ### On Completion
 
 1. Ensure `git status` is clean — no uncommitted changes
 2. Run `git rev-parse HEAD` to capture the final commit hash
 3. Write it to the plan's `## Status` as `Task Final Commit: <hash>`
 4. Update `## Status`: set `Last activity: YYYY-MM-DD — T-NNN implementation complete`
-5. **Do NOT** mark `T-NNN` as complete in `## Tasks` — the pipeline marks completion only after test + review pass
-6. Write a one-line checkpoint to `## Status`: `Checkpoint: T-NNN implemented — <one-line description of what changed>`
-7. Report ready for test phase — pipeline will advance
+5. If the active `Retry Handoff — T-NNN / ...` issue was cleared by this change, mark that handoff block `Status: RESOLVED` and replace `Next human step` with the validation or reviewer result that cleared it. Do not delete the history.
+6. **Do NOT** mark `T-NNN` as complete in `## Tasks` — the pipeline marks completion only after test + review pass
+7. Write a one-line checkpoint to `## Status`: `Checkpoint: T-NNN implemented — <one-line description of what changed>`
+8. Report ready for test phase — pipeline will advance
 
 ### Hard Commit Gate
 

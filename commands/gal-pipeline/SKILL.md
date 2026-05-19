@@ -112,6 +112,38 @@ If prerequisites are not met: tell the user what is missing and stop. If the exe
 
 If xmachine mode is requested, also verify that the selected node is already `readied`. If not, stop and instruct the user to run the GAL runtime checkout's `scripts/Test-Xmachine.ps1 -WorkNode node-name -Wait` first.
 
+### Retry And Blocker Handoff Contract
+
+The active execution prompt's `## Status > ### Handoff Notes` is the durable human-takeover surface for pipeline failures. Do not leave takeover detail only in chat output.
+
+When a task hits repeated failure or an immediate human-required stop, append or refresh a single task-scoped block in `### Handoff Notes` using this format:
+
+```markdown
+#### Retry Handoff — T-NNN / [TEST | REVIEW | SECURITY | XMACHINE]
+
+- Status: OPEN | RESOLVED
+- Problem: <latest blocking problem statement>
+- Evidence:
+  - Test Results: <latest task-scoped subsection or `not-applicable`>
+  - Review Results: <latest task-scoped subsection or `not-applicable`>
+  - Security Review: <latest task-scoped subsection or `not-applicable`>
+  - xmachine Artifacts: <`gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`>
+- Attempts:
+  1. <YYYY-MM-DD> — <attempt summary>
+     - Result: <what changed or why it still failed>
+     - Validation: <command, reviewer verdict, or `not-run`>
+     - Commit: <hash or `none`>
+  2. ...
+- Next human step: <exact next inspection or repair step>
+```
+
+Rules:
+
+- Keep exactly one `OPEN` handoff block per `Current Task` and active phase. Update the existing block instead of appending duplicates.
+- Record every retry-triggered fix attempt in order. By the third failed `TEST` or `REVIEW` round, the handoff must tell the human what was tried on attempts 1-3 without reconstructing history from chat.
+- For `SECURITY` and `XMACHINE`, write the same handoff format on the first stop even when no retry loop is involved.
+- When a later rerun clears the issue, keep the block for history but change `Status` to `RESOLVED` and replace `Next human step` with the confirmation that cleared it.
+
 ---
 
 ## Step 2 — Task Loop
@@ -138,6 +170,8 @@ Review Retry Count: 0
 Workflow: IMPLEMENT
 ```
 
+If `### Handoff Notes` contains an `OPEN` retry handoff for a previous task, mark it `RESOLVED` before starting the new task. Do not carry stale blocker state across tasks.
+
 ### 2c — Implement (CODER model)
 
 Run:
@@ -152,10 +186,11 @@ Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
 2. Implement only the work required by `T-NNN`
 3. Record `Task Final Commit` in `## Status` when done
 4. Ensure `git status` is clean before reporting complete
+5. In pipeline fix mode, update the active `Retry Handoff` block in `### Handoff Notes` with the attempted remediation, validation result, and commit hash (if any)
 
 **Hard Commit Gate:** If `git status` is not clean or `Task Final Commit` is not recorded, do not proceed. Stop and surface the issue.
 
-**xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate.
+**xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
 
 ### 2d — Test (TESTER model — different vendor from CODER)
 
@@ -174,10 +209,13 @@ Check result:
 - **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
+  - Refresh the active `Retry Handoff — T-NNN / TEST` block with the latest failing test names, the current `## Test Results` subsection, and the next fix target
   - If `Test Retry Count` < 3: dispatch implementer to fix failing tests (TASK_SCOPE: T-NNN, fix mode), then re-run tester
-  - If `Test Retry Count` = 3: **STOP**. Surface failures. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
+  - If `Test Retry Count` = 3: **STOP**. Surface failures. Tell user the retry ceiling (3) has been reached for `T-NNN`, include attempts 1-3 from the handoff block, and request human intervention
 
-**xmachine mode:** if active, offload only the bounded test task and converge any plan-section or artifact changes on the control node before deciding PASS/FAIL.
+If the tests pass after one or more failed rounds, mark `Retry Handoff — T-NNN / TEST` as `RESOLVED` and note the validation run that cleared it.
+
+**xmachine mode:** if active, offload only the bounded test task and converge any plan-section or artifact changes on the control node before deciding PASS/FAIL. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
 ### 2e — Review (REVIEWER model — different vendor from CODER and TESTER)
 
@@ -194,12 +232,15 @@ Check result:
 - **APPROVE (no BLOCKING)**: proceed to 2f
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`
+  - Refresh the active `Retry Handoff — T-NNN / REVIEW` block with the latest open BLOCKING findings, current review subsection, and the next fix target
   - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues (TASK_SCOPE: T-NNN, fix mode), update `Task Final Commit`, then re-run reviewer
-  - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN` and request human intervention
+  - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN`, include attempts 1-3 from the handoff block, and request human intervention
 
 **Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
 
-**xmachine mode:** if active, offload only the bounded review task, then apply any review-result plan updates on the control node before evaluating APPROVE/BLOCKING.
+If the review passes after one or more failed rounds, mark `Retry Handoff — T-NNN / REVIEW` as `RESOLVED` and note the reviewer pass that cleared it.
+
+**xmachine mode:** if active, offload only the bounded review task, then apply any review-result plan updates on the control node before evaluating APPROVE/BLOCKING. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
 ### 2f — Conditional Security Audit
 
@@ -226,9 +267,9 @@ Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task
 Check result:
 
 - **Security review clear**: proceed to 2g
-- **High or critical findings remain open**: **STOP immediately**. Do not auto-fix inside the pipeline. Surface the findings and request human intervention before task closeout
+- **High or critical findings remain open**: **STOP immediately**. Do not auto-fix inside the pipeline. Write `Retry Handoff — T-NNN / SECURITY` with the open findings, affected files, current remediation status, and the next human step before task closeout
 
-**xmachine mode:** if active, security audit remains a bounded offload and its returned results must be converged locally before continuing.
+**xmachine mode:** if active, security audit remains a bounded offload and its returned results must be converged locally before continuing. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
 ### 2g — Mark Task Complete
 
@@ -297,12 +338,26 @@ If any task or verifier is blocked, report with detail:
 --- PIPELINE BLOCKED ---
 
 Task:    T-NNN
-Phase:   [IMPLEMENT | TEST | REVIEW | SECURITY]
+Phase:   [IMPLEMENT | TEST | REVIEW | SECURITY | XMACHINE]
 Reason:  [description]
-Retry Count: N of 3
+Retry Count: N of 3 | not-applicable
+
+Attempts tried:
+1. [attempt summary]
+2. [attempt summary]
+3. [attempt summary]
+
+Evidence to inspect:
+- Handoff Notes: `## Status > ### Handoff Notes`
+- Test Results: [latest task-scoped subsection or `not-applicable`]
+- Review Results: [latest task-scoped subsection or `not-applicable`]
+- Security Review: [latest task-scoped subsection or `not-applicable`]
+- xmachine Artifacts: [`gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`]
 
 Action required: [what the user needs to do]
 ```
+
+The blocked output must mirror the active `Retry Handoff` block closely enough that a human can answer three questions immediately: what failed, what was tried already, and what artifact or file to inspect next.
 
 ---
 
@@ -332,6 +387,7 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | --- | --- |
 | BLOCKING security vuln or Protected Path | STOP immediately — human required |
 | Conditional security audit leaves high or critical findings open | STOP immediately — human required |
+| Any xmachine phase returns non-success `status.json` | STOP immediately — write `Retry Handoff — T-NNN / XMACHINE`, do not auto-apply a failed patch |
 | `Test Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | `Review Retry Count` reaches 3 | STOP before 4th attempt — human required |
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
