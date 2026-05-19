@@ -316,6 +316,10 @@ Core rules: never auto-install, never auto-initialize, never hide missing capabi
 
 A graph data structure tool. It analyzes all files in a folder into a graph format, writing the output to `graphify-out/`, enhancing subsequent AI query capabilities. GAL only consumes graphify when the repo already contains artifacts such as `graphify-out/GRAPH_REPORT.md`. `gal init` does not generate them automatically. `setup-tools`, `/gal status`, and `/gal whats-next` can report whether an existing stamped report still matches the installed graphify version, but GAL continues through the normal non-graph workflow when no graphify artifacts exist. See [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md).
 
+### Playwright MCP
+
+Playwright MCP is GAL's managed browser capability for browser-backed testing, verification, design audit, dynamic-page research, and browser-visible MCP evaluation. It follows the shared preflight and degrade contract and keeps tracked defaults isolated, headless, and non-persistent. See [docs/collaborative-tools/playwright-mcp.md](docs/collaborative-tools/playwright-mcp.md) and [docs/research/playwright-mcp-integration.md](docs/research/playwright-mcp-integration.md).
+
 ### OpenCLI
 
 Turns websites, browser sessions, Electron apps, and local tools into a command-line interface (CLI). You can reuse logged-in browsers, automate live operational flows, and crystallize repeated actions into reusable CLI commands. See [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md).
@@ -350,11 +354,13 @@ Everything related to the local machine environment that does not belong on the 
 | [docs/personalization.md](docs/personalization.md) | Local model routing, MCP overrides, and other personalization guidance |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | Shared preflight checking contract for collaborative tools |
 | [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | Graph-structured analysis tool |
+| [docs/collaborative-tools/playwright-mcp.md](docs/collaborative-tools/playwright-mcp.md) | Managed browser capability guide for Playwright MCP |
 | [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI guide and usage scenarios |
 | [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack collaborative tool contract: integration of planning and expert agents |
 | [docs/collaborative-tools/xmachine.md](docs/collaborative-tools/xmachine.md) | xmachine Execution Lanes, ownership model, smoke testing, and patch-first convergence |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# workflow guide |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first game asset workflow guide |
+| [docs/research/playwright-mcp-integration.md](docs/research/playwright-mcp-integration.md) | Upstream contract and safety assumptions behind the managed Playwright MCP defaults |
 
 ## References
 

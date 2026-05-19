@@ -317,6 +317,10 @@ applicability → availability → initialization status → readiness → route
 
 圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。GAL 只會在儲存庫已經存在 `graphify-out/GRAPH_REPORT.md` 等 graphify 產物時使用它。`gal init` 不會自動產生這些檔案。`setup-tools`、`/gal status`、`/gal whats-next` 可以檢查既有 stamped report 是否仍與目前安裝的 graphify 版本一致，但若 repo 沒有 graphify 產物，GAL 仍會照常走非 graphify 流程。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
+### Playwright MCP
+
+Playwright MCP 是 GAL 的受管理瀏覽器能力，供 browser-backed 測試、驗證、設計稽核、動態頁面研究與 browser-visible MCP 評估使用。它遵循共用 preflight 與降級契約，並把被追蹤預設維持在隔離、無頭、非持久化的安全邊界內。詳見 [docs/collaborative-tools/playwright-mcp.md](docs/collaborative-tools/playwright-mcp.md) 與 [docs/research/playwright-mcp-integration.md](docs/research/playwright-mcp-integration.md)。
+
 ### OpenCLI
 
 把網站、瀏覽器工作階段、Electron 應用程式與本機工具轉換成命令列介面（CLI）。你可以重用已登入的瀏覽器、把即時操作流程自動化，並把重複動作整理成可重複使用的 CLI 指令，詳見 [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md)。
@@ -351,11 +355,13 @@ xmachine 是 GAL 的協作執行工具，能透過 SSH 將工作任務路由到�
 | [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md) | 本機模型路由、MCP 覆寫等個人化指引 |
 | [docs/collaborative-tools/checking-contract.md](docs/collaborative-tools/checking-contract.md) | 協作工具共用 preflight 檢查契約 |
 | [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md) | 圖形結構化工具 |
+| [docs/collaborative-tools/playwright-mcp.md](docs/collaborative-tools/playwright-mcp.md) | Playwright MCP 受管理瀏覽器能力指引 |
 | [docs/collaborative-tools/opencli.md](docs/collaborative-tools/opencli.md) | OpenCLI 工具指引與使用時機 |
 | [docs/collaborative-tools/gstack.md](docs/collaborative-tools/gstack.md) | gstack 協作工具契約：規劃與專家 agents 整合 |
 | [docs/collaborative-tools/xmachine.zh-Hant.md](docs/collaborative-tools/xmachine.zh-Hant.md) | xmachine Execution Lane、所有權模型、smoke test 與 patch-first 收斂 |
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# 工作流導引 |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first 遊戲素材工作流導引 |
+| [docs/research/playwright-mcp-integration.md](docs/research/playwright-mcp-integration.md) | 受管理 Playwright MCP 預設背後的上游合約與安全假設 |
 
 ## 參考
 
