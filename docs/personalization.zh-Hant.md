@@ -172,6 +172,8 @@ Playwright 的 local-only override 範例：
 }
 ```
 
+這個 override 會取代 `playwright` 的整個 `args` 清單，因此你仍然需要把想保留的安全預設一併寫回去，例如 `--isolated` 與 `--headless`。`command` 與 `type` 仍會透過既有的 deep-merge 行為沿用被追蹤條目中的值。
+
 這些 env var 應放在 `config.local.env`，而被引用的檔案或目錄應放在 repo 追蹤範圍之外。不要把 storage-state、persistent browser profile、browser output artifacts 或任何類似秘密的本地檔案提交進 repo。
 
 同一台機器上有兩個 Postgres 資料庫時，可參考：

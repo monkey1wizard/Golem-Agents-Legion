@@ -172,6 +172,8 @@ Example local-only Playwright override:
 }
 ```
 
+This override replaces the full `args` list for `playwright`, so keep the inherited safe defaults you still want, such as `--isolated` and `--headless`. `command` and `type` continue to come from the tracked entry through the normal deep-merge behavior.
+
 Keep those env vars in `config.local.env`, and keep the referenced files/directories outside tracked repo paths. Do not commit storage-state files, persistent browser profiles, browser output artifacts, or any secret-like local files.
 
 Example for two Postgres databases on one machine:
