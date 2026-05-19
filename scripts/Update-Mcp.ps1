@@ -145,6 +145,7 @@ function Get-CodexBridgeProfile([string]$ServerName) {
         'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
         'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
         'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
+        'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
         'upstash/context7' { return [ordered]@{ Enabled = $true; Key = 'context7' } }
         'imageFetch' { return [ordered]@{ Enabled = $true; Key = 'imageFetch' } }
         'blender' { return [ordered]@{ Enabled = $true; Key = 'blender' } }
@@ -166,6 +167,7 @@ function Get-CopilotCliBridgeProfile([string]$ServerName) {
         'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
         'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
         'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
+        'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
         'upstash/context7' { return [ordered]@{ Enabled = $true; Key = 'context7' } }
         'blender' { return [ordered]@{ Enabled = $true; Key = 'blender' } }
         'freecad' { return [ordered]@{ Enabled = $true; Key = 'freecad' } }
@@ -401,12 +403,18 @@ function Remove-CodexManagedServersFromToml([string]$RawContent, [string[]]$Serv
 
 function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) {
     switch ($RuntimeName) {
+        'copilot-cli' {
+            switch ($ServerName) {
+                'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
+            }
+        }
         'gemini' {
             switch ($ServerName) {
                 'upstash/context7' { return @('context7') }
                 'microsoftdocs/mcp' { return @('Microsoft Learn MCP Server') }
                 'github/github-mcp-server' { return @('github') }
                 'chromedevtools/chrome-devtools-mcp' { return @('chrome-devtools') }
+                'playwright' { return @('microsoft/playwright-mcp', 'playwright-mcp') }
             }
         }
         'codex' {
@@ -416,6 +424,7 @@ function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) 
                 'imageFetch' { return @('imagefetch') }
                 'github/github-mcp-server' { return @('github') }
                 'chromedevtools/chrome-devtools-mcp' { return @('chrome-devtools') }
+                'playwright' { return @('microsoft/playwright-mcp', 'microsoft-playwright-mcp', 'playwright-mcp') }
             }
         }
     }
@@ -511,6 +520,11 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     }
     foreach ($legacyName in @('chromedevtools/chrome-devtools-mcp', 'github-mcp-server', 'microsoftdocs/mcp', 'microsoft/markitdown', 'upstash/context7')) {
         [void]$managedKeys.Add($legacyName)
+    }
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'copilot-cli' -ServerName $serverName)) {
+            [void]$managedKeys.Add($legacyAlias)
+        }
     }
 
     $changed = $false
