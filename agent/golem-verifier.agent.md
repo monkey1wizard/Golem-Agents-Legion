@@ -90,6 +90,14 @@ Execute actual verification:
 - Check build succeeds: `dotnet build` / `cargo build` / `npm run build`
 - Run any smoke tests from the plan
 
+If a must-have depends on browser-visible behavior, record which route actually verified it:
+- `Playwright MCP` for interaction-heavy browser evidence
+- `Chrome DevTools MCP` for diagnostics-heavy browser evidence
+- `Native Playwright` for scripted browser verification
+- `No runnable browser route` when browser verification could not run
+
+Do not mark a browser-visible claim VERIFIED unless a runnable route produced evidence. If browser evidence is required but no runnable route exists, mark the item `BLOCKED` or `GAPS_FOUND` instead of inferring success from code inspection alone.
+
 ## Step 4: Produce Verification Report
 
 ```markdown
@@ -97,11 +105,11 @@ Execute actual verification:
 
 ### Must-Have Verification
 
-| # | Truth | File / Component | Wired | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Users can log in | AuthService.cs | DI + route | PASS |
-| 2 | Invalid creds → 401 | AuthService.Validate | endpoint | PASS |
-| 3 | Session persists | TokenService.cs | middleware | FAIL |
+| # | Truth | File / Component | Wired | Browser Route | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Users can log in | AuthService.cs | DI + route | Native Playwright | PASS |
+| 2 | Invalid creds → 401 | AuthService.Validate | endpoint | No runnable browser route | BLOCKED |
+| 3 | Session persists | TokenService.cs | middleware | Playwright MCP | FAIL |
 
 ### Failed Items
 - **#3**: TokenService exists but middleware is not registered in pipeline.

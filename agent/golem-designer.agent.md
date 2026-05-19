@@ -79,10 +79,14 @@ Turn an approved design into runnable UI code.
 Audit a running UI against the intended design system.
 
 - Read `DESIGN.md`, the active plan, and the running app context
-- Use browser tooling to inspect the live UI
+- Choose the browser route by task shape before inspecting the live UI:
+	- `Playwright MCP` for interactive flows, state changes, responsive checks, forms, uploads, and screenshot-backed UI assertions
+	- `Chrome DevTools MCP` for DOM, console, network, rendering, performance, and accessibility diagnostics
+	- `Native Playwright` for scripted capture or repeatable audit flows when MCP routes are unavailable or insufficient
 - Log findings before fixing anything
 - Apply the smallest design-correct fix that reduces drift
 - Record a design score, AI slop score, and any deferred findings
+- If no runnable browser route exists for a required live audit, report `Audit Result: BLOCKED` instead of claiming the UI was audited
 
 ## Mode: `review`
 
@@ -214,6 +218,8 @@ If this task has no meaningful UI/UX surface, state:
 - `review` mode: discuss feedback in chat or plan review notes
 - `audit` mode: write findings in the plan's `## Review Results` section
 - `init`, `explore`, and `build` modes: write directly to the relevant repo artifact instead of producing only advisory text
+
+When a live browser route is used, label it explicitly as `Browser Route: Playwright MCP`, `Browser Route: Chrome DevTools MCP`, `Browser Route: Native Playwright`, or `Browser Route: No runnable browser route`.
 </output_format>
 
 <formal_writeback_contract>
@@ -238,6 +244,8 @@ When running in `audit` mode, append under `## Review Results`:
 
 **Date:** <today>
 **URL audited:** <url>
+**Browser Route:** <Playwright MCP | Chrome DevTools MCP | Native Playwright | No runnable browser route>
+**Audit Result:** <PASS | FAIL | BLOCKED>
 **Design Score:** <A-F>
 **AI Slop Score:** <low | medium | high>
 

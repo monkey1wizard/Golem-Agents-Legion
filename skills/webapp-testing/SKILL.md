@@ -3,7 +3,7 @@ name: webapp-testing
 description: Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.
 mcpDependencies:
   optional:
-    - puppeteer
+    - playwright
     - chrome-devtools
 license: Complete terms in LICENSE.txt
 ---
@@ -12,20 +12,34 @@ license: Complete terms in LICENSE.txt
 
 ## Preferred Tool Order
 
-1. Use browser MCP tools first for reconnaissance, live inspection, and simple interactions.
-2. Switch to native Playwright scripts when you need reusable automation or flows the MCP tools cannot express cleanly.
-3. Treat this as an explicit MCP-first exception to generic CLI-first patterns.
+1. Route by task shape instead of forcing a single browser tool.
+2. Use Playwright MCP first for live interaction, forms, uploads, session setup, responsive checks, and browser-backed assertions.
+3. Use Chrome DevTools MCP for console, network, protocol, DOM, performance, and accessibility diagnostics.
+4. Switch to native Playwright scripts when you need reusable automation or flows the MCP routes cannot express cleanly.
+5. Treat this as an explicit browser-visible exception to generic CLI-first patterns.
 
-If browser MCP tools are available, prefer them first for reconnaissance and simple interactions:
+## Route Selection
 
-- Use `chrome-devtools` for inspecting the live page, console output, network behavior, and accessibility snapshots
-- Use `puppeteer` for quick navigation, clicks, fills, and repeatable browser actions that do not need custom scripting
+- Use `playwright` MCP for interactive browser work: navigation, clicks, fills, uploads, auth/session preparation, screenshots, and task-scoped assertions against the rendered UI.
+- Use `chrome-devtools` MCP for inspection-heavy work: console output, network behavior, DOM snapshots, performance clues, protocol-level diagnostics, and accessibility tree checks.
+- Use native Playwright scripts when you need reusable automation, multi-page orchestration, helper-script integration, CI-friendly scripts, or behavior the MCP routes cannot express cleanly.
 
-Switch to native Playwright scripts when you need reusable automation, multi-page orchestration, helper-script integration, or behavior the MCP tools cannot express cleanly.
+If more than one route is viable, prefer the route that yields the smallest honest reproduction with the clearest evidence.
+
+## Required Result Labeling
+
+Always report which route actually ran:
+
+- `Browser Route: Playwright MCP`
+- `Browser Route: Chrome DevTools MCP`
+- `Browser Route: Native Playwright`
+- `Browser Route: No runnable browser route`
+
+If no runnable route exists, stop and mark the scenario `BLOCKED` instead of inferring success from static code or screenshots.
 
 ## No-Tool Behavior
 
-If neither browser MCP tools nor runnable Playwright automation are available, stop and report that browser automation capability is missing.
+If neither Playwright MCP, Chrome DevTools MCP, nor runnable Playwright automation are available, stop and report that browser automation capability is missing.
 
 - Do not fake UI verification from static assumptions.
 - Do not claim an interaction path was tested if no runnable browser path existed.
@@ -45,15 +59,16 @@ User task → Is it static HTML?
     │         ├─ Success → Write Playwright script using selectors
     │         └─ Fails/Incomplete → Treat as dynamic (below)
     │
-    └─ No (dynamic webapp) → Is the server already running?
-        ├─ No → Run: python scripts/with_server.py --help
-        │        Then use the helper + write simplified Playwright script
-        │
-        └─ Yes → Reconnaissance-then-action:
-            1. Navigate and wait for networkidle
-            2. Take screenshot or inspect DOM
-            3. Identify selectors from rendered state
-            4. Execute actions with discovered selectors
+    └─ No (dynamic webapp) → What evidence is required?
+      ├─ Live interaction, forms, files, session state, responsive UI
+      │   └─ Use Playwright MCP when ready
+      ├─ Console, network, protocol, perf, accessibility, DOM diagnostics
+      │   └─ Use Chrome DevTools MCP when ready
+      ├─ Reusable automation or MCP route unavailable/not expressive enough
+      │   └─ Run: python scripts/with_server.py --help
+      │      Then use the helper + write simplified Playwright script
+      └─ No runnable route available
+        └─ Report BLOCKED; do not claim browser validation ran
 ```
 
 ## Example: Using with_server.py
@@ -107,6 +122,7 @@ with sync_playwright() as p:
 ## Best Practices
 
 - **Use bundled scripts as black boxes** - To accomplish a task, consider whether one of the scripts available in `scripts/` can help. These scripts handle common, complex workflows reliably without cluttering the context window. Use `--help` to see usage, then invoke directly. 
+- Route by evidence needs, not habit. Playwright MCP is the default interactive path; Chrome DevTools MCP is the default diagnostics path.
 - Use `sync_playwright()` for synchronous scripts
 - Always close the browser when done
 - Use descriptive selectors: `text=`, `role=`, CSS selectors, or IDs

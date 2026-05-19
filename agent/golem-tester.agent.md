@@ -63,6 +63,13 @@ Use for the real-browser validation surface that now lives inside the tester age
 - `--report-only` reproduces and records findings without fixing code
 - Without `--report-only`, confirmed failures enter a fix loop: reproduce, isolate, patch minimally, rerun, and add regression coverage
 
+### Browser route selection
+
+- Use `Playwright MCP` for live interaction, forms, uploads, session setup, viewport changes, screenshots, and browser-backed assertions.
+- Use `Chrome DevTools MCP` for console, network, DOM, performance, or accessibility diagnostics.
+- Use `Native Playwright` when you need reusable automation, helper-script orchestration, or the MCP routes are unavailable or not expressive enough.
+- If no runnable route exists, record `Browser Route: No runnable browser route` and mark affected scenarios `BLOCKED`.
+
 </modes>
 
 <philosophy>
@@ -80,6 +87,7 @@ You test the specification, not the implementation.
 Browser testing is still part of verification, but it no longer owns a public command family.
 
 - Use the available browser automation tools directly
+- Choose the route by task shape instead of forcing one browser tool for every task
 - Keep the same rigor as the old QA workflow: reproduce, compare expected vs actual, and verify the fix in the browser
 - Prefer the smallest reproduction path that proves the issue and the fix
 
@@ -167,6 +175,10 @@ If no `## Test Plan` exists: say so directly and either ask for the target workf
 
 - Identify the target URL from the user, README, package scripts, or existing dev instructions
 - Start the app if needed
+- Choose the browser route that fits the needed evidence:
+	- `Playwright MCP` for interaction-heavy validation
+	- `Chrome DevTools MCP` for diagnostics-heavy validation
+	- `Native Playwright` for scripted or reusable automation
 - Use the available browser tools directly; do not invoke removed command names
 - If authentication is required, use the available browser or session tooling rather than a dedicated setup command
 
@@ -174,6 +186,7 @@ If no `## Test Plan` exists: say so directly and either ask for the target workf
 
 For each planned scenario:
 - Navigate and interact in the browser
+- Record the actual browser route used
 - Record PASS, FAIL, or BLOCKED
 - Capture the concrete mismatch between expected and actual behavior
 
@@ -222,6 +235,7 @@ Write the test summary to the plan file's `## Test Results` section.
 
 Run: YYYY-MM-DD
 Mode: spec | browser-qa | browser-qa --report-only
+Browser Route: Playwright MCP | Chrome DevTools MCP | Native Playwright | No runnable browser route
 Total: N | Passed: N | Failed: N | Skipped: N
 
 #### Coverage of Success Criteria
@@ -246,6 +260,7 @@ Total: N | Passed: N | Failed: N | Skipped: N
 
 Run: YYYY-MM-DD
 Mode: spec | browser-qa | browser-qa --report-only
+Browser Route: Playwright MCP | Chrome DevTools MCP | Native Playwright | No runnable browser route
 Total: N | Passed: N | Failed: N | Skipped: N
 
 ### Coverage of Success Criteria
@@ -258,7 +273,7 @@ Total: N | Passed: N | Failed: N | Skipped: N
 
 | Scenario | Result | Notes |
 | --- | --- | --- |
-| ... | PASS | |
+| ... | PASS/FAIL/BLOCKED | |
 
 ### Failed Tests
 
