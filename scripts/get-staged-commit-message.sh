@@ -33,6 +33,17 @@ done
 
 diff_text="$(git diff --cached --no-ext-diff || true)"
 lower_diff="$(printf '%s' "$diff_text" | tr '[:upper:]' '[:lower:]')"
+file_count="$(printf '%s\n' "${paths[@]}" | sort -u | wc -l | tr -d ' ')"
+
+is_agy_migration=false
+if printf '%s' "$lower_diff" | grep -Eq 'gemini' && printf '%s' "$lower_diff" | grep -Eq 'antigravity|\bagy\b'; then
+  is_agy_migration=true
+fi
+
+is_rename_or_migration=false
+if [[ "$is_agy_migration" == true ]] || printf '%s' "$lower_diff" | grep -Eq '\brename(d|s|ing)?\b|\bmigrat(e|es|ed|ing|ion)\b|\bswitch(ed|es|ing)?\b|\breplace(d|s|ment|ing)?\b'; then
+  is_rename_or_migration=true
+fi
 
 all_docs=true
 for path in "${paths[@]}"; do
@@ -49,6 +60,8 @@ elif printf '%s\n' "${paths[@]}" | grep -Eq '^\.github/(workflows|actions)/'; th
   type="ci"
 elif printf '%s\n' "${paths[@]}" | grep -Eq '(^|/)(test|tests)/'; then
   type="test"
+elif [[ "$is_rename_or_migration" == true ]]; then
+  type="refactor"
 elif printf '%s' "$lower_diff" | grep -Eq 'broken|stale|invalid|repair|fix|reasoning|<think>|code fence|plain text|corrected commit|local model|stabil'; then
   type="fix"
 elif paste <(printf '%s\n' "${statuses[@]}") <(printf '%s\n' "${paths[@]}") | grep -Eq '^A[^[:space:]]*[[:space:]]+(commands|agent|skills|workflows|templates)/'; then
@@ -58,8 +71,10 @@ elif printf '%s\n' "${paths[@]}" | grep -Eq '^(scripts/|opencode\.json$|mcp\.jso
 fi
 
 scope=''
-if printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$' || printf '%s' "$lower_diff" | grep -Eq 'opencode'; then
+if printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$'; then
   scope='opencode'
+elif [[ "$is_agy_migration" == true ]]; then
+  scope='antigravity'
 else
   command_names="$(printf '%s\n' "${paths[@]}" | sed -n 's#^commands/\([^/]*\)/.*#\1#p' | sort -u)"
   skill_names="$(printf '%s\n' "${paths[@]}" | sed -n 's#^skills/\([^/]*\)/.*#\1#p' | sort -u)"
@@ -89,7 +104,11 @@ if printf '%s' "$lower_diff" | grep -Eq 'local model|<think>|code fence|reasonin
   mentions_local=true
 fi
 
-if [[ "$has_git_commit" == true ]]; then
+if [[ "$is_agy_migration" == true ]]; then
+  subject='switch gemini cli references to agy cli'
+elif [[ "$is_rename_or_migration" == true && -n "$scope" ]]; then
+  subject="migrate $scope"
+elif [[ "$has_git_commit" == true ]]; then
   case "$type" in
     feat)
       if [[ "$mentions_local" == true ]]; then
@@ -123,19 +142,19 @@ else
 fi
 
 declare -a bullets=()
-if printf '%s\n' "${paths[@]}" | grep -Eq '^commands/git-commit-msg/'; then
+if [[ "$is_agy_migration" == true ]]; then
+  bullets+=('move GAL-managed MCP wiring from Gemini settings into Antigravity config')
+  bullets+=('update runtime selection, skills, and path wiring for antigravity-cli')
+  bullets+=('keep Gemini as a compatibility bridge where legacy Google surfaces remain')
+elif printf '%s\n' "${paths[@]}" | grep -Eq '^commands/git-commit-msg/'; then
   bullets+=('add a source-of-truth git-commit-msg command under commands/')
-fi
-
-if printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$'; then
+elif printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$'; then
   bullets+=('route the repo OpenCode git-commit-msg command through staged helper output')
-fi
-
-if printf '%s' "$lower_diff" | grep -Eq '<think>|code fence|plain text|reasoning'; then
+elif printf '%s' "$lower_diff" | grep -Eq '<think>|code fence|plain text|reasoning'; then
   bullets+=('block reasoning-tag and fenced-output regressions in commit responses')
 fi
 
-if [[ ${#bullets[@]} -gt 0 ]]; then
+if [[ "$file_count" -gt 3 && ${#bullets[@]} -gt 0 ]]; then
   printf '\n'
   printf -- '- %s\n' "${bullets[@]:0:3}"
 fi

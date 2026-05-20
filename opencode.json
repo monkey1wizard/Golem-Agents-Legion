@@ -13,7 +13,7 @@
   "command": {
     "git-commit-msg": {
       "description": "Generate a commit message from staged changes",
-      "template": "Run the repo helper below and return its output exactly. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS\n\n!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`"
+      "template": "Run the repo helper below and return its output exactly. The helper decides whether the output is header-only or includes a body, so do not invent bullets or rewrite the summary. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS\n\n!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`"
     }
   },
   "permission": {

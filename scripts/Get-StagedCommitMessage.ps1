@@ -49,6 +49,22 @@ function Test-AllDocs([object[]]$Entries) {
     return $true
 }
 
+function Get-StagedFileCount([object[]]$Entries) {
+    return @($Entries | Select-Object -ExpandProperty Path -Unique).Count
+}
+
+function Test-AgyMigration([string]$LowerDiff) {
+    return ($LowerDiff -match 'gemini') -and ($LowerDiff -match 'antigravity|\bagy\b')
+}
+
+function Test-RenameOrMigration([string]$LowerDiff) {
+    if (Test-AgyMigration $LowerDiff) {
+        return $true
+    }
+
+    return $LowerDiff -match '\brename(d|s|ing)?\b|\bmigrat(e|es|ed|ing|ion)\b|\bswitch(ed|es|ing)?\b|\breplace(d|s|ment|ing)?\b'
+}
+
 function Get-CommitType([object[]]$Entries, [string]$LowerDiff) {
     if (Test-AllDocs $Entries) {
         return 'docs'
@@ -60,6 +76,10 @@ function Get-CommitType([object[]]$Entries, [string]$LowerDiff) {
 
     if ($Entries.Path -match '(^|/)(test|tests)/') {
         return 'test'
+    }
+
+    if (Test-RenameOrMigration $LowerDiff) {
+        return 'refactor'
     }
 
     if ($LowerDiff -match 'broken|stale|invalid|repair|fix|reasoning|<think>|code fence|plain text|corrected commit|local model|stabil') {
@@ -78,8 +98,12 @@ function Get-CommitType([object[]]$Entries, [string]$LowerDiff) {
 }
 
 function Get-CommitScope([object[]]$Entries, [string]$LowerDiff) {
-    if ($Entries.Path -contains 'opencode.json' -or $LowerDiff -match 'opencode') {
+    if ($Entries.Path -contains 'opencode.json') {
         return 'opencode'
+    }
+
+    if (Test-AgyMigration $LowerDiff) {
+        return 'antigravity'
     }
 
     $commandEntries = @($Entries | Where-Object { $_.Path -match '^commands/[^/]+/' })
@@ -116,6 +140,14 @@ function Get-CommitScope([object[]]$Entries, [string]$LowerDiff) {
 function Get-CommitSubject([string]$Type, [string]$Scope, [object[]]$Entries, [string]$LowerDiff) {
     $hasGitCommit = ($LowerDiff -match 'git-commit-msg|git-commit|git-commits') -or ($Entries.Path -match 'git-commit-msg|git-commit|git-commits')
     $mentionsLocalModels = $LowerDiff -match 'local model|<think>|code fence|reasoning'
+
+    if (Test-AgyMigration $LowerDiff) {
+        return 'switch gemini cli references to agy cli'
+    }
+
+    if (Test-RenameOrMigration $LowerDiff -and -not [string]::IsNullOrWhiteSpace($Scope)) {
+        return 'migrate ' + $Scope
+    }
 
     if ($hasGitCommit) {
         switch ($Type) {
@@ -171,6 +203,13 @@ function Get-CommitSubject([string]$Type, [string]$Scope, [object[]]$Entries, [s
 function Get-CommitBullets([object[]]$Entries, [string]$LowerDiff) {
     $bullets = New-Object System.Collections.Generic.List[string]
 
+    if (Test-AgyMigration $LowerDiff) {
+        $bullets.Add('move GAL-managed MCP wiring from Gemini settings into Antigravity config')
+        $bullets.Add('update runtime selection, skills, and path wiring for antigravity-cli')
+        $bullets.Add('keep Gemini as a compatibility bridge where legacy Google surfaces remain')
+        return @($bullets | Select-Object -First 3)
+    }
+
     if (($Entries.Path -match '^commands/git-commit-msg/') -contains $true) {
         $bullets.Add('add a source-of-truth git-commit-msg command under commands/')
     }
@@ -223,9 +262,10 @@ try {
     }
 
     $bullets = @(Get-CommitBullets $entries $lowerDiff)
+    $fileCount = Get-StagedFileCount $entries
 
     Write-Output $header
-    if ($bullets.Count -gt 0) {
+    if ($fileCount -gt 3 -and $bullets.Count -gt 0) {
         Write-Output ''
         foreach ($bullet in $bullets) {
             Write-Output ('- ' + $bullet)

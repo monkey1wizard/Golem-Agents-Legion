@@ -22,6 +22,8 @@ Run `./scripts/get-staged-commit-message.sh` when the PowerShell helper is unava
 ## Instructions
 
 - Return the helper output exactly.
+- The helper decides whether the result is header-only or includes a body.
+- Do not invent bullets or extend the body beyond helper output.
 - Do not add explanations, markdown fences, reasoning tags, or extra prose.
 - If the helper reports `No changes staged for commit.` or `Not a git repository.`, return that text exactly.
 
