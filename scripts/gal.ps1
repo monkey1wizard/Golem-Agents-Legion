@@ -302,6 +302,100 @@ function Get-ExplicitPlanArgument {
     return $null
 }
 
+function Get-PipelineDispatchContext {
+    param([string[]]$Tokens)
+
+    $remainingTokens = [System.Collections.Generic.List[string]]::new()
+    $requested = $false
+    $phase = $null
+    $taskScope = $null
+    $fixMode = $false
+
+    for ($index = 0; $index -lt $Tokens.Count; $index++) {
+        $token = $Tokens[$index]
+        if ([string]::IsNullOrWhiteSpace($token)) {
+            continue
+        }
+
+        switch ($token) {
+            '--pipeline-phase' {
+                $requested = $true
+                if ($index + 1 -ge $Tokens.Count -or [string]::IsNullOrWhiteSpace($Tokens[$index + 1])) {
+                    return [pscustomobject]@{
+                        Requested = $false
+                        Phase = $null
+                        TaskScope = $null
+                        FixMode = $false
+                        RemainingTokens = @()
+                        Error = 'Missing phase after --pipeline-phase. Expected one of: implement, test, review, verify, security.'
+                    }
+                }
+
+                $index++
+                $phase = $Tokens[$index].Trim().ToLowerInvariant()
+                continue
+            }
+            '--task-scope' {
+                if ($index + 1 -ge $Tokens.Count -or [string]::IsNullOrWhiteSpace($Tokens[$index + 1])) {
+                    return [pscustomobject]@{
+                        Requested = $false
+                        Phase = $null
+                        TaskScope = $null
+                        FixMode = $false
+                        RemainingTokens = @()
+                        Error = 'Missing task reference after --task-scope.'
+                    }
+                }
+
+                $index++
+                $taskScope = $Tokens[$index].Trim()
+                continue
+            }
+            '--fix-mode' {
+                $fixMode = $true
+                continue
+            }
+            default {
+                $remainingTokens.Add($token)
+            }
+        }
+    }
+
+    if ($requested) {
+        $validPhases = @('implement','test','review','verify','security')
+        if ([string]::IsNullOrWhiteSpace($phase)) {
+            return [pscustomobject]@{
+                Requested = $false
+                Phase = $null
+                TaskScope = $null
+                FixMode = $false
+                RemainingTokens = @()
+                Error = 'Pipeline-bound dispatch requires --pipeline-phase <implement|test|review|verify|security>.'
+            }
+        }
+
+        if ($validPhases -notcontains $phase) {
+            return [pscustomobject]@{
+                Requested = $false
+                Phase = $null
+                TaskScope = $null
+                FixMode = $false
+                RemainingTokens = @()
+                Error = "Unsupported pipeline phase '$phase'. Expected one of: implement, test, review, verify, security."
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Requested = $requested
+        Phase = $phase
+        TaskScope = $taskScope
+        FixMode = $fixMode
+        RemainingTokens = @($remainingTokens)
+        Error = $null
+    }
+}
+
 function Get-XmachineTaskShorthandContext {
     param([string[]]$Tokens)
 
@@ -356,14 +450,14 @@ function Get-XmachineTaskShorthandContext {
 function Resolve-Golem([string]$Name) {
     $known = @('golem-architect','golem-analyst','golem-implementer',
                'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
-               'golem-notewriter','golem-designer','golem-researcher')
+               'golem-notewriter','golem-designer','golem-researcher',
+               'golem-security','golem-releaser')
     # accept with or without 'golem-' prefix
     $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
     if ($known -contains $full) { return $full }
     return $null
 }
 
-$domainGolems  = @('golem-architect','golem-analyst','golem-designer','golem-researcher')
 $utilityGolems = @('golem-debugger','golem-notewriter')
 
 switch ($Command) {
@@ -404,16 +498,24 @@ switch ($Command) {
     }
     "dispatch" {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
-        $subText = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] -join ' ' } else { '' }
         $dispatchTokens = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] } else { @() }
         $xmachineContext = Get-XmachineDispatchContext -Tokens $dispatchTokens
         $explicitPlan = if ($intent -eq 'pipeline') { Get-ExplicitPlanArgument -Tokens $dispatchTokens } else { $null }
+        $pipelineContext = Get-PipelineDispatchContext -Tokens $dispatchTokens
 
         if ($xmachineContext.Requested -and -not $xmachineContext.WorkNode) {
             $availableNodes = if ($xmachineContext.AvailableNodes.Count -gt 0) { $xmachineContext.AvailableNodes -join ', ' } else { '<none configured>' }
             Write-Dispatch @{
                 COMMAND = 'error'
                 ACTION = "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $availableNodes"
+            }
+            break
+        }
+
+        if ($pipelineContext.Error) {
+            Write-Dispatch @{
+                COMMAND = 'error'
+                ACTION = $pipelineContext.Error
             }
             break
         }
@@ -468,17 +570,41 @@ switch ($Command) {
 
         $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
         if ($resolved) {
+            $isPipelineGolem = @('golem-implementer','golem-tester','golem-reviewer','golem-verifier') -contains $resolved
+
             if ($utilityGolems -contains $resolved) {
                 $mode = 'utility'
+            } elseif ($pipelineContext.Requested -and $isPipelineGolem) {
+                $mode = 'bound'
             } else {
                 $mode = 'consult'
             }
-            $action = if ($subText) { $subText } else { "Invoke $resolved — awaiting user instruction." }
+
+            $pipelineAction = if ($pipelineContext.RemainingTokens.Count -gt 0) { $pipelineContext.RemainingTokens -join ' ' } else { $null }
+            $action = if ($pipelineContext.Requested) {
+                if ($pipelineAction) { $pipelineAction } else { "Invoke $resolved for pipeline phase '$($pipelineContext.Phase)'." }
+            } elseif ($dispatchTokens.Count -gt 0) {
+                $dispatchTokens -join ' '
+            } else {
+                "Invoke $resolved — awaiting user instruction."
+            }
+
             $dispatchFields = [ordered]@{
                 ROLE         = $resolved
                 MODE         = $mode
                 ACTION       = $action
                 ON_COMPLETE  = 'Report result to user.'
+            }
+
+            if ($pipelineContext.Requested -and $isPipelineGolem) {
+                $dispatchFields['DISPATCH_KIND'] = 'pipeline-phase'
+                $dispatchFields['PIPELINE_PHASE'] = $pipelineContext.Phase
+                if ($pipelineContext.TaskScope) {
+                    $dispatchFields['TASK_SCOPE'] = $pipelineContext.TaskScope
+                }
+                if ($pipelineContext.FixMode) {
+                    $dispatchFields['FIX_MODE'] = 'true'
+                }
             }
 
             if ($xmachineContext.Requested) {
@@ -501,7 +627,6 @@ switch ($Command) {
 
         # Auto-detect from state
         $context = Get-StateContext
-        $state = $context.WorkflowState
         if ($context.Kind -eq 'uninitialized') {
             Write-Dispatch @{
                 COMMAND = 'suggest'

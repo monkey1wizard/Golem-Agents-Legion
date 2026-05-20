@@ -189,6 +189,12 @@ Verdict: APPROVE / REQUEST_CHANGES / BLOCK
 
 **Resolved BLOCKINGs:** Any BLOCKING finding that has been fixed must have its `Resolution` field updated from `OPEN` to a description of the fix. No OPEN BLOCKING may remain in a completed task's subsection — `/gal whats-next` scans `## Review Results` for `OPEN` BLOCKINGs and will treat them as active blockers.
 
+Pipeline-bound reviewer contract:
+
+- Require `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: review`, and `TASK_SCOPE: T-NNN` before treating the run as a pipeline-owned review phase.
+- Write or refresh the task-scoped subsection and its `Verdict` line before reporting APPROVE, REQUEST_CHANGES, or BLOCK.
+- If the subsection or verdict could not be written, report the run as incomplete instead of implying approval or blocking from chat memory alone.
+
 **STAFF_REVIEW marker (after final task):** When all plan tasks are complete and this is the last task's review pass, write the following at the **root level** of `## Review Results`, outside any task subsection:
 
 ```markdown

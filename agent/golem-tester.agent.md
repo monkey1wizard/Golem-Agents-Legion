@@ -253,6 +253,12 @@ Total: N | Passed: N | Failed: N | Skipped: N
 - [What was skipped and why]
 ```
 
+Pipeline-bound tester contract:
+
+- Require `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: test`, and `TASK_SCOPE: T-NNN` before treating the run as a pipeline-owned phase.
+- Write or refresh the task-scoped `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results` before reporting PASS or FAIL.
+- If the task-scoped subsection could not be written, report the run as incomplete instead of implying PASS or FAIL from chat memory alone.
+
 ### Standalone mode
 
 ```markdown

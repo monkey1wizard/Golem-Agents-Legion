@@ -156,6 +156,8 @@ After all steps complete:
 
 When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This is a hard boundary — do not start work on adjacent tasks.
 
+Treat the dispatch as pipeline-bound only when the dispatcher emits `MODE: bound` plus `DISPATCH_KIND: pipeline-phase`. In that contract, `PIPELINE_PHASE: implement` means this invocation owns implementation for the current task, and `FIX_MODE: true` means it is a retry remediation round rather than the first pass.
+
 ### On Entry
 
 1. Read the task description for `T-NNN` from `## Tasks` in the plan file
@@ -171,6 +173,7 @@ When invoked with `TASK_SCOPE: T-NNN`, you operate on a single task only. This i
 - Never modify files outside the scope of `T-NNN` unless strictly required by a dependency
 - Architectural escalation rules still apply — stop if `/deep-planning` is required
 - **Failure-focused output**: when running build or verification commands, emit only failures, errors, and directly relevant context. Do not echo full pass output into the conversation.
+- In OpenCode or any low step-budget runtime, write a concise `Checkpoint: T-NNN implement in progress — <files changed>; next <command/action>` line in `## Status` before starting expensive validation or broad edits. This gives `/gal pipeline` a durable resume point if the runtime reaches its step limit mid-task.
 
 ### Pipeline Fix Mode
 
@@ -200,6 +203,8 @@ Do not leave the retry history implied by chat memory alone. The handoff block m
 ### Hard Commit Gate
 
 The pipeline will not advance to the test phase until `git status` is clean and `Task Final Commit` is recorded. If the worktree is dirty after implementation, stop and resolve before reporting complete.
+
+If the previous invocation was interrupted with a dirty worktree and `Workflow: IMPLEMENT`, resume from the existing changes instead of restarting the task. Verify, commit, record `Task Final Commit`, then mark the interrupted-phase handoff `RESOLVED`.
 </task_scope_mode>
 
 <anti_patterns>

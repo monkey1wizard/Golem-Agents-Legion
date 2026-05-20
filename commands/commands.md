@@ -84,10 +84,10 @@ Ownership does not imply that every specialist currently has a dispatcher entry 
 
 | Golem | Class | Default Mode |
 | --- | --- | --- |
-| golem-implementer | Pipeline | consult |
-| golem-tester | Pipeline | consult |
-| golem-reviewer | Pipeline | consult |
-| golem-verifier | Pipeline | consult |
+| golem-implementer | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
+| golem-tester | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
+| golem-reviewer | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
+| golem-verifier | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
 | golem-architect | Domain | consult |
 | golem-analyst | Domain | consult |
 | golem-designer | Domain | consult |
@@ -118,6 +118,10 @@ For script-dispatched subcommands (`init`, `research`, `deep-research`, golem na
 COMMAND: <init|error|suggest>
 ROLE: <golem-name>
 MODE: <bound|consult|utility>
+DISPATCH_KIND: <pipeline-phase>
+PIPELINE_PHASE: <implement|test|review|verify|security>
+TASK_SCOPE: <T-NNN>
+FIX_MODE: <true>
 READ: <file-path>
 ACTION: <instruction text>
 ON_COMPLETE: <next-step hint>

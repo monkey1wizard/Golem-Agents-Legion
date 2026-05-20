@@ -41,7 +41,7 @@
   },
   "agent": {
     "build": {
-      "steps": 12,
+      "steps": 40,
       "permission": {
         "bash": {
           "*": "ask",

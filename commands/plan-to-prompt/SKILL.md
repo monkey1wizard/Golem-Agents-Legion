@@ -76,6 +76,7 @@ This is the shared mutable execution work file consumed by control-plane chat, /
 ---
 ## Status          (with ### Deviations table and ### Handoff Notes)
 ## Tasks
+## Deferred Follow-up
 ## Analyze
 ## Test Plan
 ## Test Results
@@ -92,7 +93,8 @@ This is the shared mutable execution work file consumed by control-plane chat, /
   - `## Scope — Out-of-Scope` → `## Approach` (out-of-scope paragraph)
   - `## Steps (Roadmap)` → note in `## Status` Step count; do not create a non-standard section
 - If the source plan already contains execution-style sections (drift), salvage their content into the matching standard mutable sections instead of copying the non-standard structure.
-- `## Status`, `## Tasks`, `## Analyze`, `## Test Plan`, `## Test Results`, `## Review Results`, `## Debug Log`, `### Deviations`, and `### Handoff Notes` are execution-owned sections of the shared mutable work file. Initialize them from the template scaffold only when creating a new prompt; in refresh mode, preserve existing execution-state content unless the user explicitly asked for a reset.
+- `## Status`, `## Tasks`, `## Deferred Follow-up`, `## Analyze`, `## Test Plan`, `## Test Results`, `## Review Results`, `## Debug Log`, `### Deviations`, and `### Handoff Notes` are execution-owned sections of the shared mutable work file. Initialize them from the template scaffold only when creating a new prompt; in refresh mode, preserve existing execution-state content unless the user explicitly asked for a reset.
+- `## Tasks` is the blocking task list only. Move optional, deferred, or non-blocking follow-up items into `## Deferred Follow-up` instead of leaving them inside `## Tasks`.
 - `## Open Questions` — carry forward existing `OQ-NNN` items. Format: `- [ ] OQ-NNN — description *(raised by: source)*`
 - Carry forward planning-stage review content from the source plan into the matching prompt sections, including `## Review Results > ### Architecture Review`, `## Review Results > ### Engineering Review`, and `## Approval > Architect review`.
 - The source plan is expected to already contain the implementation contract from `/refining-plan`; seed the first execution prompt from that `## Tasks`, `## Test Plan`, and engineering review content.

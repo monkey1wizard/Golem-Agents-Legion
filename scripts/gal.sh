@@ -135,6 +135,62 @@ get_explicit_plan_argument() {
   return 0
 }
 
+get_pipeline_dispatch_context() {
+  PIPELINE_REQUESTED=0
+  PIPELINE_PHASE=""
+  PIPELINE_TASK_SCOPE=""
+  PIPELINE_FIX_MODE=0
+  PIPELINE_ERROR=""
+  PIPELINE_REMAINING_TOKENS=()
+
+  local token
+  while (($#)); do
+    token="$1"
+    shift
+
+    [[ -n "$token" ]] || continue
+
+    case "$token" in
+      --pipeline-phase)
+        PIPELINE_REQUESTED=1
+        if (($# == 0)) ; then
+          PIPELINE_ERROR="Missing phase after --pipeline-phase. Expected one of: implement, test, review, verify, security."
+          return 0
+        fi
+        PIPELINE_PHASE="${1,,}"
+        shift
+        ;;
+      --task-scope)
+        if (($# == 0)) ; then
+          PIPELINE_ERROR="Missing task reference after --task-scope."
+          return 0
+        fi
+        PIPELINE_TASK_SCOPE="$1"
+        shift
+        ;;
+      --fix-mode)
+        PIPELINE_FIX_MODE=1
+        ;;
+      *)
+        PIPELINE_REMAINING_TOKENS+=("$token")
+        ;;
+    esac
+  done
+
+  if [[ "$PIPELINE_REQUESTED" -eq 1 ]]; then
+    case "$PIPELINE_PHASE" in
+      implement|test|review|verify|security)
+        ;;
+      "")
+        PIPELINE_ERROR="Pipeline-bound dispatch requires --pipeline-phase <implement|test|review|verify|security>."
+        ;;
+      *)
+        PIPELINE_ERROR="Unsupported pipeline phase '$PIPELINE_PHASE'. Expected one of: implement, test, review, verify, security."
+        ;;
+    esac
+  fi
+}
+
 parse_xmachine_task_shorthand() {
   XMACHINE_SHORTHAND_ERROR=""
   XMACHINE_SHORTHAND_NODE=""
@@ -345,7 +401,8 @@ resolve_golem() {
   case "$full" in
     golem-architect|golem-analyst|golem-implementer|\
     golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
-    golem-notewriter|golem-designer|golem-researcher) echo "$full" ;;
+    golem-notewriter|golem-designer|golem-researcher|\
+    golem-security|golem-releaser) echo "$full" ;;
     *) echo "" ;;
   esac
 }
@@ -353,7 +410,7 @@ resolve_golem() {
 golem_class() {
   case "$1" in
     golem-debugger|golem-notewriter) echo utility ;;
-    golem-architect|golem-analyst|golem-designer|golem-researcher) echo domain ;;
+    golem-architect|golem-analyst|golem-designer|golem-researcher|golem-security|golem-releaser) echo domain ;;
     *) echo pipeline ;;
   esac
 }
@@ -377,9 +434,9 @@ case "$command" in
     ;;
   dispatch)
     intent="${1:-}"
-    sub_text="${*:2}"
     dispatch_tokens=("${@:2}")
     get_xmachine_dispatch_context "${dispatch_tokens[@]}"
+    get_pipeline_dispatch_context "${dispatch_tokens[@]}"
     explicit_plan=""
     if [[ "$intent" == "pipeline" ]]; then
       explicit_plan="$(get_explicit_plan_argument "${dispatch_tokens[@]}")"
@@ -392,6 +449,11 @@ case "$command" in
         available_nodes="${available_nodes%, }"
       fi
       write_dispatch COMMAND error ACTION "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $available_nodes"
+      exit 0
+    fi
+
+    if [[ -n "$PIPELINE_ERROR" ]]; then
+      write_dispatch COMMAND error ACTION "$PIPELINE_ERROR"
       exit 0
     fi
 
@@ -452,14 +514,37 @@ case "$command" in
           cls="$(golem_class "$resolved")"
           if [[ "$cls" == utility ]]; then
             mode=utility
+          elif [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier)$ ]]; then
+            mode=bound
           else
             mode=consult
           fi
-          action="${sub_text:-Invoke $resolved — awaiting user instruction.}"
-          if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
-            write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user." READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
+
+          if (( ${#PIPELINE_REMAINING_TOKENS[@]} > 0 )); then
+            action="${PIPELINE_REMAINING_TOKENS[*]}"
+          elif [[ "$PIPELINE_REQUESTED" -eq 1 ]]; then
+            action="Invoke $resolved for pipeline phase '$PIPELINE_PHASE'."
+          elif (( ${#dispatch_tokens[@]} > 0 )); then
+            action="${dispatch_tokens[*]}"
           else
-            write_dispatch ROLE "$resolved" MODE "$mode" ACTION "$action" ON_COMPLETE "Report result to user."
+            action="Invoke $resolved — awaiting user instruction."
+          fi
+
+          dispatch_extra=()
+          if [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier)$ ]]; then
+            dispatch_extra+=(DISPATCH_KIND pipeline-phase PIPELINE_PHASE "$PIPELINE_PHASE")
+            if [[ -n "$PIPELINE_TASK_SCOPE" ]]; then
+              dispatch_extra+=(TASK_SCOPE "$PIPELINE_TASK_SCOPE")
+            fi
+            if [[ "$PIPELINE_FIX_MODE" -eq 1 ]]; then
+              dispatch_extra+=(FIX_MODE true)
+            fi
+          fi
+
+          if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
+            write_dispatch ROLE "$resolved" MODE "$mode" "${dispatch_extra[@]}" ACTION "$action" ON_COMPLETE "Report result to user." READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
+          else
+            write_dispatch ROLE "$resolved" MODE "$mode" "${dispatch_extra[@]}" ACTION "$action" ON_COMPLETE "Report result to user."
           fi
         else
           write_dispatch COMMAND error ACTION "Unknown argument: '$intent'. Use a subcommand (init/research/deep-research/pipeline) or a golem name."

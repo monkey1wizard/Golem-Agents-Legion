@@ -52,10 +52,11 @@ If sections are unpopulated placeholders, show: *Pending.*
 
 ### Spec Readiness
 
-From `## Open Questions`, `## Tasks`, and `## Analyze` in the active plan's `.prompt.md`:
+From `## Open Questions`, `## Tasks`, `## Deferred Follow-up` when present, and `## Analyze` in the active plan's `.prompt.md`:
 
 - **Open Questions**: count of unresolved `OQ-NNN` items (`- [ ]`)
-- **Tasks**: X of Y complete (count checked vs total `T-NNN` items)
+- **Blocking Tasks**: X of Y complete (count checked vs total `T-NNN` items under `## Tasks` only)
+- **Deferred Follow-up**: advisory count from `## Deferred Follow-up` when present; if missing, show *None recorded.*
 - **Analyze verdict**: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN` from `<!-- ANALYZE: ... -->`
 
 If any section is missing or not yet initialized: show *Not yet run.*

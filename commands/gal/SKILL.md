@@ -108,7 +108,11 @@ The script outputs a `--- GAL DISPATCH ---` block. Act on it exactly — no infe
 | --- | --- |
 | `COMMAND` | Execute this workflow action: `init` / `error` / `suggest` |
 | `ROLE` | Adopt this golem. Mutually exclusive with `COMMAND`. |
-| `MODE` | `bound` = act with full authority · `consult` = advise only · `utility` = no restrictions |
+| `MODE` | `bound` = act with explicit execution authority · `consult` = advise only · `utility` = no restrictions |
+| `DISPATCH_KIND` | Optional orchestration context. `pipeline-phase` means `/gal pipeline` owns this dispatch rather than a direct user consult. |
+| `PIPELINE_PHASE` | Optional pipeline phase marker: `implement` / `test` / `review` / `verify` / `security`. |
+| `TASK_SCOPE` | Optional current task reference for pipeline-bound execution. |
+| `FIX_MODE` | Optional retry hint. `true` means this pipeline-bound dispatch is a remediation round. |
 | `READ` | Read this file before acting (may appear multiple times) |
 | `PLAN` | Optional explicit plan file path for workflows that support file override. When present, prefer this plan over `.dev/state.md` active-plan lookup. |
 | `EXECUTION` | Optional execution hint. `xmachine` means the dispatcher has validated the activation phrase for remote execution. |

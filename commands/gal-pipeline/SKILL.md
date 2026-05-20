@@ -5,7 +5,7 @@ description: "Task-driven autopilot. Iterates through every T-NNN task in the ac
 
 # /gal-pipeline
 
-Run the full implementation pipeline task by task: for each `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Each core phase uses a different AI vendor per `model-roles.local.md`. After all tasks complete, run a final verifier pass.
+Run the full implementation pipeline task by task: for each blocking `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Prefer different AI vendors per `model-roles.local.md` when the active runtime can actually enforce that split. After all blocking tasks complete, run a final verifier pass.
 
 ## Role
 
@@ -50,7 +50,7 @@ If the dispatcher emits `TASK_REF`, `FROM`, and `STOP_AT`, treat them as authori
 
 ## Model Assignment
 
-Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
+Prefer a different AI vendor for each phase, using `model-roles.local.md` as the desired role mapping and the active runtime config as the enforcement surface:
 
 | Phase | Golem | Role | Why different |
 | --- | --- | --- | --- |
@@ -60,6 +60,35 @@ Each phase uses a different AI vendor, enforced by `model-roles.local.md`:
 | Verify | `golem-verifier` | VERIFIER | Must differ from CODER — goal-backward plan verification |
 
 `golem-security` is not an always-on fifth pipeline phase. It remains a domain specialist that `/gal pipeline` dispatches only when the implemented change touches auth, data storage or sensitive data handling, user input processing, public API surface, or deployment and environment trust boundaries.
+
+### Runtime Preflight
+
+Before starting the task loop, resolve model separation in this order:
+
+1. Treat runtime-enforced per-agent model routing as authoritative.
+2. Treat `model-roles.local.md` as the desired separation policy, not proof that the current runtime can enforce it.
+3. If the active runtime cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER routes, degrade explicitly to same-runtime fallback.
+
+OpenCode-specific rule:
+
+- Different models only count when the active OpenCode configuration assigns agent-specific `model` values.
+- Inherited subagent execution under the same primary agent model does not satisfy independent verification.
+- If no verified per-agent model split exists, OpenCode must follow the documented same-runtime fallback instead of pretending multi-model verification is available.
+
+### Runtime Step-Budget Preflight
+
+Provider turn limits and OpenCode agent `steps` limits are hard runtime boundaries. GAL cannot remove them, so the pipeline must avoid treating a provider cutoff as a workflow decision.
+
+Before starting the task loop:
+
+1. If the active runtime is OpenCode, inspect the nearest repo `opencode.json` when present and note the active agent step budget when it is visible.
+2. In OpenCode, enter **single-task tranche mode** by default. Only disable it when the user explicitly asks for a multi-task turn and the visible active-agent `steps` budget is high enough for that larger run.
+3. If the active OpenCode agent is `build` and its `steps` value is `20` or lower, warn that even one full task may exceed the runtime budget and rely on the interrupted-phase handoff if the cutoff still happens.
+4. In single-task tranche mode, complete at most one blocking task per invocation, including implement, test, review, and any required security pass. After marking that task complete, stop cleanly and tell the user to rerun `/gal pipeline` to continue from the next unchecked task.
+
+This is a normal continuation strategy, not a BLOCKED state. It prevents low-step agents from finishing multiple tasks and then being cut off mid-implementation on the next one.
+
+If a runtime cutoff still occurs mid-phase and the next invocation sees `Workflow: IMPLEMENT`, `TEST`, `REVIEW`, `SECURITY`, or `VERIFY` with incomplete phase write-back, treat it as an interrupted phase and resume that phase before considering any new task.
 
 ## xmachine Mode
 
@@ -99,12 +128,13 @@ The filesystem is authoritative for explicit plan resolution:
 
 Verify:
 
-- `## Tasks` exists with at least one `T-NNN` task
+- `## Tasks` exists with at least one blocking `T-NNN` task
 - `## Test Plan` exists in the plan file (required for golem-tester)
 - No unresolved `BLOCKING` items in `## Review Results` at the root level
 - Workflow state is not already `DONE`
+- Any deferred or non-blocking follow-up lives outside `## Tasks` and is not used as a pipeline loop gate
 
-If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task.
+If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task. If `### Handoff Notes` contains an `OPEN` `Interrupted Phase` block, or if `Workflow` names a phase whose convergence gate is incomplete, resume that phase first.
 
 Never run Step 2 task execution directly against a source plan when the matching execution prompt exists. `## Status`, retry counters, commit checkpoints, handoff notes, and task completion write-back belong in `.dev/plans/<slug>.prompt.md`.
 
@@ -144,11 +174,39 @@ Rules:
 - For `SECURITY` and `XMACHINE`, write the same handoff format on the first stop even when no retry loop is involved.
 - When a later rerun clears the issue, keep the block for history but change `Status` to `RESOLVED` and replace `Next human step` with the confirmation that cleared it.
 
+### Interruption Handoff Contract
+
+Use interruption handoff for non-decision runtime cutoffs such as OpenCode `steps` exhaustion, provider max-turn limits, context exhaustion, or terminal/tool availability ending a phase before its convergence gate is reached.
+
+If the current invocation receives a runtime message equivalent to "maximum steps reached" or resumes and finds an incomplete current phase, write or refresh this block before doing any unrelated work:
+
+```markdown
+#### Interrupted Phase — T-NNN / [IMPLEMENT | TEST | REVIEW | SECURITY | VERIFY]
+
+- Status: OPEN | RESOLVED
+- Cause: runtime-step-limit | context-limit | tool-unavailable | unknown
+- Workflow at interruption: <Workflow value>
+- Durable state present:
+  - Task Base Commit: <hash or `missing`>
+  - Task Final Commit: <hash or `missing`>
+  - Worktree: clean | dirty | unknown
+  - Test Results: <task-scoped subsection present? yes/no/not-applicable>
+  - Review Results: <task-scoped subsection plus verdict present? yes/no/not-applicable>
+- Resume action: <exact next command or phase action>
+```
+
+Rules:
+
+- Keep exactly one `OPEN` interrupted-phase block per task and phase. Update it instead of appending duplicates.
+- An interrupted phase is not the same as a failed phase. Do not increment `Test Retry Count` or `Review Retry Count` unless a real failing test or review finding exists.
+- On resume, clear the interrupted-phase block only after the phase's normal convergence gate succeeds.
+- If the interrupted phase is `IMPLEMENT` and the worktree is dirty, continue from the existing changes, run the scoped verification, commit, and record `Task Final Commit`. Do not start a new task.
+
 ---
 
 ## Step 2 — Task Loop
 
-Repeat for each unchecked `T-NNN` task (in order, respecting `from` / `stop-at`):
+Repeat for each unchecked blocking `T-NNN` task in `## Tasks` (in order, respecting `from` / `stop-at` and any single-task tranche mode):
 
 ### 2a — Working Hours Check
 
@@ -177,10 +235,10 @@ If `### Handoff Notes` contains an `OPEN` retry handoff for a previous task, mar
 Run:
 
 ```powershell
-.\scripts\gal.ps1 dispatch golem-implementer
+.\scripts\gal.ps1 dispatch golem-implementer --pipeline-phase implement --task-scope T-NNN
 ```
 
-Invoke with `TASK_SCOPE: T-NNN`. The implementer must:
+The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: implement`, and `TASK_SCOPE: T-NNN`. The implementer must:
 
 1. Record `Task Base Commit` in `## Status` before any changes
 2. Implement only the work required by `T-NNN`
@@ -199,18 +257,19 @@ Update plan `## Status`: set `Workflow: TEST`
 Run:
 
 ```powershell
-.\scripts\gal.ps1 dispatch golem-tester
+.\scripts\gal.ps1 dispatch golem-tester --pipeline-phase test --task-scope T-NNN
 ```
 
-Invoke in task-scoped mode for `T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
+The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: test`, and `TASK_SCOPE: T-NNN`. The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.
 
 Check result:
 
+- **No task-scoped subsection was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / TEST` with the missing write-back as the problem. Do not infer PASS or FAIL from chat alone.
 - **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
   - Refresh the active `Retry Handoff — T-NNN / TEST` block with the latest failing test names, the current `## Test Results` subsection, and the next fix target
-  - If `Test Retry Count` < 3: dispatch implementer to fix failing tests (TASK_SCOPE: T-NNN, fix mode), then re-run tester
+  - If `Test Retry Count` < 3: dispatch implementer to fix failing tests with `--pipeline-phase implement --task-scope T-NNN --fix-mode`, then re-run tester
   - If `Test Retry Count` = 3: **STOP**. Surface failures. Tell user the retry ceiling (3) has been reached for `T-NNN`, include attempts 1-3 from the handoff block, and request human intervention
 
 If the tests pass after one or more failed rounds, mark `Retry Handoff — T-NNN / TEST` as `RESOLVED` and note the validation run that cleared it.
@@ -222,18 +281,19 @@ If the tests pass after one or more failed rounds, mark `Retry Handoff — T-NNN
 Run:
 
 ```powershell
-.\scripts\gal.ps1 dispatch golem-reviewer
+.\scripts\gal.ps1 dispatch golem-reviewer --pipeline-phase review --task-scope T-NNN
 ```
 
-Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
+The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: review`, and `TASK_SCOPE: T-NNN`. Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
 
 Check result:
 
+- **No task-scoped subsection or verdict was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / REVIEW` with the missing write-back as the problem. Do not infer approval or block from chat alone.
 - **APPROVE (no BLOCKING)**: proceed to 2f
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`
   - Refresh the active `Retry Handoff — T-NNN / REVIEW` block with the latest open BLOCKING findings, current review subsection, and the next fix target
-  - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues (TASK_SCOPE: T-NNN, fix mode), update `Task Final Commit`, then re-run reviewer
+  - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues with `--pipeline-phase implement --task-scope T-NNN --fix-mode`, update `Task Final Commit`, then re-run reviewer
   - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN`, include attempts 1-3 from the handoff block, and request human intervention
 
 **Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
@@ -283,7 +343,8 @@ All gates passed for `T-NNN`:
    ```
 
 1. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
-2. Otherwise: advance to the next unchecked task and return to 2a.
+2. If single-task tranche mode is active: **STOP CLEANLY**. Report task complete, state that this is a runtime step-budget tranche, and tell the user to rerun `/gal pipeline` to continue.
+3. Otherwise: advance to the next unchecked task and return to 2a.
 
 ---
 
@@ -296,7 +357,7 @@ After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-lev
 Run:
 
 ```powershell
-.\scripts\gal.ps1 dispatch golem-verifier
+.\scripts\gal.ps1 dispatch golem-verifier --pipeline-phase verify
 ```
 
 Instruct the verifier explicitly: "Run Steps 1–4 only. Do not mark the plan ABSORBED or delete the plan file."
@@ -366,10 +427,10 @@ The blocked output must mirror the active `Retry Handoff` block closely enough t
 If the script cannot be run (e.g. macOS / Linux), run:
 
 ```bash
-./scripts/gal.sh dispatch golem-implementer
+./scripts/gal.sh dispatch golem-implementer --pipeline-phase implement --task-scope T-NNN
 ```
 
-(and equivalent for tester, reviewer, security, verifier)
+(and equivalent phase-marked invocations for tester, reviewer, and verifier; keep `golem-security` as a direct specialist dispatch)
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
 
@@ -393,4 +454,6 @@ Or invoke each golem directly by asking the user to switch to the appropriate AI
 | Verifier returns GAPS_FOUND or BLOCKED | STOP — surface gaps, human required |
 | Working-hours boundary active before next task | STOP — offer wrap-up once, wait for confirmation |
 | `stop-at T-NNN` reached | STOP — prompt user before continuing |
+| Single-task tranche complete | STOP cleanly — rerun `/gal pipeline` to continue; not a blocker |
+| Runtime step or turn limit interrupts a phase | On next invocation, write or refresh `Interrupted Phase — T-NNN / PHASE` and resume the incomplete phase before new work |
 | All tasks + verifier VERIFIED | Natural completion — READY FOR RELEASE |

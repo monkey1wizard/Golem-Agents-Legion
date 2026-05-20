@@ -24,10 +24,11 @@ From `.dev/state.md` and the active plan file, extract these data points:
 4. Active plan `## Test Results` — pass / fail / pending
 5. Active plan `### Handoff Notes` — interrupted work context
 6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
-7. Active plan `## Tasks` — task completion state
-8. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
-9. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
-10. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
+7. Active plan `## Tasks` — blocking task completion state
+8. Active plan `## Deferred Follow-up` — advisory non-blocking work when present
+9. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
+10. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
+11. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
 
 ## Step 2 — Decide
 
@@ -39,6 +40,7 @@ Apply this decision tree in order:
 | Active plan points to source plan only, no execution prompt yet | Run `/refining-plan` to lock the implementation contract into the source plan |
 | No eng review recorded | Run the engineering review lane for the source plan through the configured provider, or use `/refining-plan` as the fallback, then refresh the prompt with `/plan-to-prompt` |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
+| `### Handoff Notes` contains an OPEN `Interrupted Phase` block | Resume that exact task and phase through `/gal pipeline`; do not start a new task |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
 | Implementation complete, no test results | `golem-tester` in `browser-qa` or `spec` mode, depending on the missing verification surface |
 | Tests failing | Return to implementation — summarize what needs fixing |
@@ -46,7 +48,8 @@ Apply this decision tree in order:
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
 | Review clean, security-sensitive scope, and no security review recorded | `golem-security` for a security audit before release work |
 | `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `golem-reviewer` to update verdict |
-| `## Tasks` has incomplete items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
+| `## Tasks` has incomplete blocking items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
+| All blocking `## Tasks` are complete and only `## Deferred Follow-up` remains | Continue toward verification, release prep, or wrap-up — do not reopen the implementation loop for advisory follow-up alone |
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
 | Review clean, plan not yet verified | `golem-releaser` for release prep, or `/gal wrap-up` if the user is pausing instead of landing |
 | Blocker listed in `.dev/state.md` | State the blocker and what resolves it before any other action |
