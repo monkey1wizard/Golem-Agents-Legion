@@ -1,4 +1,4 @@
-# Plan: GAL AGY Plugin-First Packaging
+# Plan: GAL Provider Plugin Packaging
 
 ## Goal
 
@@ -128,7 +128,7 @@ Build graph 原則：首版只建立 AGY renderer，不做完整跨 runtime plug
 
 ### Step 1: 定義 AGY plugin 作為新安裝邊界
 
-- **Files**: `docs/plans/feat-gal-agy-plugin-first-packaging.md` only in this planning phase; implementation likely touches `scripts/common/Common.ps1`, `scripts/common/common.sh`, `scripts/Update-Skills.ps1`, `scripts/update-skills.sh`, `scripts/Update-Commands.ps1`, `scripts/update-commands.sh`, `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh`
+- **Files**: `docs/plans/feat-gal-provider-plugin-packaging.md` only in this planning phase; implementation likely touches `scripts/common/Common.ps1`, `scripts/common/common.sh`, `scripts/Update-Skills.ps1`, `scripts/update-skills.sh`, `scripts/Update-Commands.ps1`, `scripts/update-commands.sh`, `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh`
 - **What**: 把 AGY runtime 的 owner boundary 從「多個 setup 腳本各自管理自己的落點」改成「一個 GAL-managed AGY plugin」。
 - **Verify**: 能清楚回答 AGY 相關 source 由誰產生、安裝到哪裡、由誰清理、由誰驗證。
 
