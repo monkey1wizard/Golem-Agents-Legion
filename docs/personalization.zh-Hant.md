@@ -10,21 +10,21 @@
 - `primaryRuntime` 記錄了哪一個執行環境應該作為你的預設進入點。
 - GAL 儲存庫仍然是 `agent/`、`skills/` 和 `commands/` 的唯一真相來源（source of truth）。主要執行環境（primary runtime）只會影響預設值和摘要，不會改變底層原始內容。
 
-Antigravity 使用分離的介面：機器層級的技能與 MCP 設定位在 `~/.gemini/antigravity/` 下，而儲存庫本機的脈絡則來自於產生的 `.agents/rules/gal.md`，該檔案透過 Antigravity 文件的 `@filename` 規則語法來參考 `AGENTS.md`。`Update-Personalization` 讓此整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案。
+Antigravity CLI 是 GAL 在 Google 系上的主要終端 runtime。它的機器層級 MCP 設定與全域安裝的 GAL skills 位在 `~/.gemini/antigravity-cli/` 下。`Update-Personalization` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
 
 如果你想要更改所選的執行環境或主要的執行環境，請再次在 Windows 上執行 setup 並加上 `-Reconfigure` 參數，或在 macOS/Linux 加上 `--reconfigure`。
 
 在 Windows 與 macOS/Linux 上，機器的設定介面現在已依據關注點（concern）拆分：
 
 - `scripts/Setup-Machine.ps1` 執行完整流程
-- `scripts/Update-Personalization.ps1` 更新 install-state、設定橋接、Antigravity 工作區規則策略、本機設定植入，以及 `gal-context.md`
-- `scripts/Update-Skills.ps1` 更新 agents、skills、Antigravity 技能連結，以及 GAL 根連結
-- `scripts/Update-Commands.ps1` 更新綁定的命令 skills、Antigravity 命令技能連結，以及原生 Gemini / Claude 命令檔案
+- `scripts/Update-Personalization.ps1` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity runtime 整合，以及本機設定植入
+- `scripts/Update-Skills.ps1` 更新 agents、Antigravity 全域 skills、其餘共享技能連結，以及 GAL 根連結
+- `scripts/Update-Commands.ps1` 更新綁定的命令 skills、Antigravity 全域 command-skill links，以及 legacy Gemini / Claude 原生命令檔案
 - `scripts/Update-Mcp.ps1` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 的 `mcp_config.json`
 - `scripts/setup-machine.sh` 執行完整流程
-- `scripts/update-personalization.sh` 更新 install-state、設定橋接、Antigravity 工作區規則策略、本機設定植入，以及 `gal-context.md`
-- `scripts/update-skills.sh` 更新 agents、skills、Antigravity 技能連結，以及 GAL 根連結
-- `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 命令技能連結，以及原生 Gemini / Claude 命令檔案
+- `scripts/update-personalization.sh` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity runtime 整合，以及本機設定植入
+- `scripts/update-skills.sh` 更新 agents、Antigravity 全域 skills、其餘共享技能連結，以及 GAL 根連結
+- `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 全域 command-skill links，以及 legacy Gemini / Claude 原生命令檔案
 - `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 的 `mcp_config.json`
 
 ## 你可能需要填寫的佔位符 (Placeholders You May Need To Fill)
@@ -69,7 +69,7 @@ Antigravity 使用分離的介面：機器層級的技能與 MCP 設定位在 `~
 如果你想為特定的命令技能（command skill）加入要在 `Setup-Machine` 之後依然保留的機器本機自訂內容，請建立 `commands/<command>/SKILL.local.md`。
 
 - `SKILL.local.md` 會被 Git 忽略，並被視為使用者擁有的機器本機輸入。
-- `Setup-Machine` 會處理 `SKILL.template.md`，然後在重新生成 Gemini 和 Claude 命令檔案之前，將 `SKILL.local.md` 附加到生成的 `SKILL.md` 中。
+- `Setup-Machine` 會處理 `SKILL.template.md`，然後在重新生成 legacy Gemini 與 Claude 命令檔案之前，將 `SKILL.local.md` 附加到生成的 `SKILL.md` 中。
 - **請勿**直接編輯 `commands/<command>/SKILL.md`。它仍是產生的檔案，且會在下次執行 setup 時被覆蓋。
 - `SKILL.local.md` 僅能包含額外的指示內容。請勿在裡面加入第二個 frontmatter 區塊。
 
@@ -212,12 +212,11 @@ Playwright 的 local-only override 範例：
 | 執行環境 | 典型的 MCP 設定位置 |
 | --- | --- |
 | VS Code | 使用者的 `mcp.json` |
-| Gemini CLI | `mcpServers` 下的 `settings.json` |
-| Antigravity | `mcpServers` 下的 `~/.gemini/antigravity/mcp_config.json` |
+| Antigravity CLI | `mcpServers` 下的 `~/.gemini/antigravity-cli/mcp_config.json` |
 | Codex CLI | `[mcp_servers.*]` 下的 `config.toml` |
 | Claude Code | 透過 `claude mcp` 管理的 user-scope MCP 條目 |
 
-GAL 現在將 `mcp.json` 加上 `mcp.local.json` 視為 MCP 的真相來源。重新執行 `Update-Mcp.ps1` 或 `update-mcp.sh` 時，只會覆寫受支援 runtime 內由 GAL 管理的 server 名稱，並保留其他由使用者定義的無關條目。
+GAL 現在將 `mcp.json` 加上 `mcp.local.json` 視為 MCP 的唯一來源。重新執行 `Update-Mcp.ps1` 或 `update-mcp.sh` 時，只會覆寫受支援 runtime 內由 GAL 管理的 server 名稱，並保留其他由使用者定義的無關條目。即使 Gemini 的舊指令和內容相容層仍保留，Google 側的 MCP 安裝也統一由 Antigravity CLI 的 `mcp_config.json` 承接，且會移除先前寫進 `settings.json` 的 GAL 管理 Gemini MCP 條目。
 
 ## 何時該重新執行 Setup (When To Rerun Setup)
 

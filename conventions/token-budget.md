@@ -107,7 +107,7 @@ These rules apply to all agents and runtimes. Follow them during exploration, im
 Do not load generated adapters or build outputs into context by default:
 
 - Exclude `bin/`, `obj/`, and other build output directories.
-- Exclude generated runtime adapters: `.github/copilot-instructions.md`, `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `ANTIGRAVITY.md`, and equivalent generated files.
+- Exclude generated runtime adapters: `.github/copilot-instructions.md`, `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, and equivalent generated files.
 - Read generated files only when the task is explicitly about auditing or fixing their content.
 
 ### Directed Exploration

@@ -10,21 +10,21 @@ The machine installer now persists runtime selection in `~/.gal/install-state.js
 - `primaryRuntime` records which runtime should be treated as your default entry point.
 - The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
 
-Antigravity uses a split surface: machine-layer skills and MCP config live under `~/.gemini/antigravity/`, while repo-local context comes from generated `.agents/rules/gal.md` that references `AGENTS.md` through Antigravity's documented `@filename` rule syntax. `Update-Personalization` keeps that integration conservative and does not mutate user-owned global Antigravity rule files.
+Antigravity CLI is the primary Google terminal runtime for GAL. Its machine-layer MCP config and globally installed GAL skills live under `~/.gemini/antigravity-cli/`. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
 
 Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
 The machine setup surface is now split by concern on both Windows and macOS/Linux:
 
 - `scripts/Setup-Machine.ps1` runs the full sequence
-- `scripts/Update-Personalization.ps1` refreshes install-state, settings bridges, Antigravity workspace-rule strategy, local config seeding, and `gal-context.md`
-- `scripts/Update-Skills.ps1` refreshes agents, skills, Antigravity skill links, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity command skill links, and native Gemini / Claude command files
+- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity runtime integration, and local config seeding
+- `scripts/Update-Skills.ps1` refreshes agents, Antigravity global skills, remaining shared skill links, and GAL root links
+- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity global command-skill links, and legacy Gemini / Claude native command files
 - `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
 - `scripts/setup-machine.sh` runs the full sequence
-- `scripts/update-personalization.sh` refreshes install-state, settings bridges, Antigravity workspace-rule strategy, local config seeding, and `gal-context.md`
-- `scripts/update-skills.sh` refreshes agents, skills, Antigravity skill links, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills, Antigravity command skill links, and native Gemini / Claude command files
+- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity runtime integration, and local config seeding
+- `scripts/update-skills.sh` refreshes agents, Antigravity global skills, remaining shared skill links, and GAL root links
+- `scripts/update-commands.sh` refreshes baked command skills, Antigravity global command-skill links, and legacy Gemini / Claude native command files
 - `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
 
 ## Placeholders You May Need To Fill
@@ -69,7 +69,7 @@ The machine setup surface is now split by concern on both Windows and macOS/Linu
 If you want a machine-local customization for a specific command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`.
 
 - `SKILL.local.md` is gitignored and treated as user-owned machine-local input.
-- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating Gemini and Claude command files.
+- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating the legacy Gemini and Claude command files.
 - Do not edit `commands/<command>/SKILL.md` directly. It remains a generated file and will be replaced on the next setup run.
 - Keep `SKILL.local.md` to additional instruction content only. Do not add a second frontmatter block.
 
@@ -210,12 +210,11 @@ The installed runtime configs remain user-owned even when GAL refreshes GAL-mana
 | Runtime | Typical MCP config location |
 | --- | --- |
 | VS Code | user `mcp.json` |
-| Gemini CLI | `settings.json` under `mcpServers` |
-| Antigravity | `~/.gemini/antigravity/mcp_config.json` under `mcpServers` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/mcp_config.json` under `mcpServers` |
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
 | Claude Code | user-scope MCP entries managed through `claude mcp` |
 
-GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries.
+GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. Google-side MCP installation is owned by Antigravity CLI's `mcp_config.json`, even when Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
 
 ## When To Rerun Setup
 

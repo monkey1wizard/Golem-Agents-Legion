@@ -2,7 +2,7 @@
 
 [English](README.md) | 繁體中文
 
-現在的 AI 工具（如 GitHub Copilot, Gemini CLI, Claude Code）更替速度很快，很多設定像是 skills/agents 等僅可於特定工具內使用，工作進度也難銜接，容易遺失先前的對話脈絡與規劃。此外，複雜的專案也常因為缺乏明確的狀態管理，導致開發進度難以追蹤。因此設計了此系統以同步各個工具間的設定及工作狀態，並加速整個開發流程。
+現在的 AI 工具（如 GitHub Copilot、Antigravity CLI、Claude Code）更替速度很快，很多設定像是 skills/agents 等僅可於特定工具內使用，工作進度也難銜接，容易遺失先前的對話脈絡與規劃。此外，複雜的專案也常因為缺乏明確的狀態管理，導致開發進度難以追蹤。因此設計了此系統以同步各個工具間的設定及工作狀態，並加速整個開發流程。
 
 GAL 是一套為開發工作帶來結構化流程的 AI 工作系統。它將你的「開發計畫」、「目前狀態」與「審查紀錄」全部儲存在專案本地的 Markdown 檔案中（`.dev/` 與 `docs/`）。無論你今天用哪一個 AI CLI 工具開啟專案，都能無縫接續昨天的工作。系統核心包含 12 個專職的 Golem Agent 與 `/gal` 控制平面，以文件驅動的開發模式運作。
 
@@ -19,7 +19,7 @@ GAL 採用基於檔案的記憶模型（file-owned memory model）。儲存庫�
 在開始使用 GAL 之前，請確保你的環境具備以下條件：
 
 1. **終端機環境**：必須具備 Bash (macOS/Linux/Git Bash) 或 PowerShell (Windows)。
-2. **AI CLI 工具**：必須安裝至少一款支援的 AI 指令列工具（如 GitHub Copilot CLI, Gemini CLI, Codex CLI, 或 Claude Code）。
+2. **AI CLI 工具**：必須安裝至少一款支援的 AI 指令列工具（如 GitHub Copilot CLI、Antigravity CLI、Codex CLI、或 Claude Code）。
 3. **基礎工具**：確保已安裝 Git，以便進行版本控制與狀態追蹤。
 
 ## 快速開始

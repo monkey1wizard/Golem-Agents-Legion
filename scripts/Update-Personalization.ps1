@@ -33,7 +33,7 @@ function Invoke-UpdatePersonalization {
     }
     else {
         $skillImports = $skillDirs | Sort-Object Name | ForEach-Object {
-            '@' + (Join-Path (Join-Path $context.SharedSkillsTarget $_.Name) 'SKILL.md')
+            '@' + (Join-Path $_.FullName 'SKILL.md')
         }
         $contextContent = ($skillImports -join "`n") + "`n"
 
@@ -88,7 +88,7 @@ function Invoke-UpdatePersonalization {
     }
 
     Write-Host ''
-    Write-Host '=== Antigravity workspace rule strategy ==='
+    Write-Host '=== Antigravity runtime integration ==='
     if ($script:SetupOptions.Uninstall) {
         Write-Host '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
     }
@@ -96,7 +96,38 @@ function Invoke-UpdatePersonalization {
         Write-Host '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
     }
     else {
-        Write-Host '  [OK] Antigravity global rules preserved; rely on generated .agents/rules/gal.md plus AGENTS.md inside each initialized repo.'
+        Write-Host '  [OK] Antigravity uses ~/.gemini/antigravity-cli for GAL integration; Setup-Machine does not create repo-local .agents content.'
+    }
+
+    Write-Host ''
+    Write-Host '=== Migration: repo .agents cleanup ==='
+    $workspaceRuleFile = Join-Path $context.WorkspaceRulesTarget 'gal.md'
+    if (Test-Path $workspaceRuleFile) {
+        if (-not (Test-GalManagedFile $workspaceRuleFile)) {
+            Write-Host "  [SKIP] User-owned repo rule preserved: $workspaceRuleFile"
+        }
+        elseif ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $workspaceRuleFile"
+        }
+        else {
+            Remove-Item $workspaceRuleFile -Force
+            Write-Host "  [REMOVED] $workspaceRuleFile"
+        }
+    }
+    foreach ($dir in @($context.WorkspaceSkillsTarget, $context.WorkspaceRulesTarget, $context.WorkspaceAgentsRoot)) {
+        if (-not (Test-Path $dir)) { continue }
+        $hasChildren = @(Get-ChildItem $dir -Force -ErrorAction SilentlyContinue).Count -gt 0
+        if ($hasChildren) {
+            Write-Host "  [SKIP] Non-empty repo path preserved: $dir"
+            continue
+        }
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove empty directory: $dir"
+        }
+        else {
+            Remove-Item $dir -Force
+            Write-Host "  [REMOVED] Empty directory: $dir"
+        }
     }
 
     Write-Host ''

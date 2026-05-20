@@ -13,7 +13,7 @@ function New-SetupContext {
     $skillsTarget = Join-Path $copilotRoot 'skills'
     $codexRoot = Join-Path $env:USERPROFILE '.codex'
     $openCodeRoot = Join-Path $env:USERPROFILE '.config\opencode'
-    $antigravityRoot = Join-Path $env:USERPROFILE '.gemini\antigravity'
+    $antigravityRoot = Join-Path $env:USERPROFILE '.gemini\antigravity-cli'
 
     $galSource = Join-Path $repoRoot 'commands\gal'
     $commandsSourceDir = Join-Path $repoRoot 'commands'
@@ -61,6 +61,10 @@ function New-SetupContext {
         SharedAgentsRoot = Join-Path $env:USERPROFILE '.agents'
         SharedSkillsTarget = Join-Path $env:USERPROFILE '.agents\skills'
 
+        WorkspaceAgentsRoot = Join-Path $repoRoot '.agents'
+        WorkspaceSkillsTarget = Join-Path $repoRoot '.agents\skills'
+        WorkspaceRulesTarget = Join-Path $repoRoot '.agents\rules'
+
         GeminiRoot = Join-Path $env:USERPROFILE '.gemini'
         GeminiSkillsTarget = Join-Path $env:USERPROFILE '.gemini\skills'
         GeminiCommandsTarget = Join-Path $env:USERPROFILE '.gemini\commands'
@@ -101,8 +105,8 @@ function New-SetupContext {
         ActiveCommandSkillNames = @($commandSkillDirs | ForEach-Object { $_.Name })
         RuntimeCatalog = @(
             [pscustomobject]@{ Key = 'copilot'; Label = 'GitHub Copilot'; Description = 'shared Copilot agents, skills, GAL commands, VS Code settings bridge, VS Code MCP bridge, Copilot CLI MCP bridge' },
-            [pscustomobject]@{ Key = 'gemini'; Label = 'Gemini CLI'; Description = 'native command files, GAL context, shared skills, Gemini MCP bridge' },
-            [pscustomobject]@{ Key = 'antigravity'; Label = 'Antigravity'; Description = 'global Antigravity skills, workspace rules adapter, Antigravity MCP bridge' },
+            [pscustomobject]@{ Key = 'antigravity'; Label = 'Antigravity CLI'; Description = 'Antigravity global skills, Antigravity MCP bridge, and Antigravity GAL_ROOT link' },
+            [pscustomobject]@{ Key = 'gemini'; Label = 'Gemini CLI'; Description = 'legacy native command files plus GAL context/settings compatibility bridge' },
             [pscustomobject]@{ Key = 'codex'; Label = 'Codex CLI'; Description = 'installed GAL command skills, shared skills, Codex MCP bridge' },
             [pscustomobject]@{ Key = 'opencode'; Label = 'OpenCode'; Description = 'OpenCode agents, commands, reusable skill discovery, OpenCode MCP bridge' },
             [pscustomobject]@{ Key = 'claude'; Label = 'Claude Code'; Description = 'Claude skills, native command files, repo-local CLAUDE.md adapter' }
@@ -164,7 +168,8 @@ function Initialize-SetupSession {
     $script:SetupContext | Add-Member -NotePropertyName InstallCodex -NotePropertyValue ($selectedRuntimes -contains 'codex') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallOpenCode -NotePropertyValue ($selectedRuntimes -contains 'opencode') -Force
     $script:SetupContext | Add-Member -NotePropertyName InstallClaude -NotePropertyValue ($selectedRuntimes -contains 'claude') -Force
-    $script:SetupContext | Add-Member -NotePropertyName InstallSharedSkills -NotePropertyValue (($selectedRuntimes -contains 'gemini') -or ($selectedRuntimes -contains 'codex') -or ($selectedRuntimes -contains 'opencode')) -Force
+    $script:SetupContext | Add-Member -NotePropertyName InstallSharedSkills -NotePropertyValue (($selectedRuntimes -contains 'codex') -or ($selectedRuntimes -contains 'opencode')) -Force
+    $script:SetupContext | Add-Member -NotePropertyName InstallGoogleWorkspaceSkills -NotePropertyValue (($selectedRuntimes -contains 'gemini') -or ($selectedRuntimes -contains 'antigravity')) -Force
     $script:SetupContext | Add-Member -NotePropertyName NeedsBakedCommandSkills -NotePropertyValue (
         ($selectedRuntimes -contains 'copilot') -or
         ($selectedRuntimes -contains 'gemini') -or
@@ -501,13 +506,47 @@ function Split-ConfigList([string]$Value) {
 }
 
 function Get-DefaultPrimaryRuntime([string[]]$SelectedRuntimes) {
-    foreach ($preferred in @('copilot', 'gemini', 'codex', 'claude', 'opencode')) {
+    foreach ($preferred in @('copilot', 'antigravity', 'codex', 'claude', 'opencode', 'gemini')) {
         if ($SelectedRuntimes -contains $preferred) {
             return $preferred
         }
     }
 
     return $null
+}
+
+function Convert-LegacyRuntimeSelection {
+    param(
+        [string[]]$SelectedRuntimes,
+        [string]$PrimaryRuntime
+    )
+
+    $migrateGeminiToAntigravity = ($SelectedRuntimes -contains 'gemini') -and -not ($SelectedRuntimes -contains 'antigravity')
+    $normalized = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($runtime in @($SelectedRuntimes)) {
+        $resolvedRuntime = if ($migrateGeminiToAntigravity -and $runtime -eq 'gemini') { 'antigravity' } else { $runtime }
+        if ($resolvedRuntime -notin $script:SetupContext.RuntimeCatalog.Key) { continue }
+        if ($normalized -contains $resolvedRuntime) { continue }
+        $normalized.Add($resolvedRuntime)
+    }
+
+    $resolvedPrimaryRuntime = if ($migrateGeminiToAntigravity -and $PrimaryRuntime -eq 'gemini') {
+        'antigravity'
+    }
+    else {
+        $PrimaryRuntime
+    }
+
+    if ($normalized -notcontains $resolvedPrimaryRuntime) {
+        $resolvedPrimaryRuntime = Get-DefaultPrimaryRuntime -SelectedRuntimes $normalized
+    }
+
+    return [pscustomobject]@{
+        SelectedRuntimes = @($normalized)
+        PrimaryRuntime = $resolvedPrimaryRuntime
+        Migrated = $migrateGeminiToAntigravity
+    }
 }
 
 function ConvertFrom-MultiSelectAnswer([string]$Answer, [int]$MaxIndex) {
@@ -619,6 +658,9 @@ function Get-DetectedRuntimeSelection {
         (Get-ChildItem $context.GeminiCommandsTarget -Filter '*.toml' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalManagedFile $_.FullName } | Select-Object -First 1)
     if ($geminiInstalled) { $detected.Add('gemini') }
 
+    $antigravityInstalled = Test-GalRepoLink $context.GalRootAntigravity
+    if ($antigravityInstalled) { $detected.Add('antigravity') }
+
     $codexInstalled = (Get-ChildItem $context.CodexSkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1)
     if ($codexInstalled) { $detected.Add('codex') }
 
@@ -642,12 +684,28 @@ function Get-InstallSelectionState {
     if ($state -is [System.Collections.IDictionary] -and -not $script:SetupOptions.Reconfigure) {
         $selected = @($state['selectedRuntimes']) | Where-Object { $_ -in $context.RuntimeCatalog.Key }
         $primary = [string]$state['primaryRuntime']
+        $normalizedSelection = Convert-LegacyRuntimeSelection -SelectedRuntimes $selected -PrimaryRuntime $primary
+        $selected = @($normalizedSelection.SelectedRuntimes)
+        $primary = $normalizedSelection.PrimaryRuntime
         if ($selected.Count -gt 0 -and $selected -contains $primary) {
             Write-Host ''
             Write-Host '=== GAL runtime selection ==='
             Write-Host ('  [OK] Using saved install state from {0}' -f $context.InstallStateFile)
+            if ($normalizedSelection.Migrated) {
+                Write-Host '  [OK] Migrated saved runtime selection: gemini -> antigravity'
+            }
             Write-Host ('  [OK] Selected runtimes: {0}' -f ($selected -join ', '))
             Write-Host ('  [OK] Primary runtime: {0}' -f $primary)
+            if ($normalizedSelection.Migrated -and -not $script:SetupOptions.DryRun) {
+                Write-JsonOrderedMap $context.InstallStateFile ([ordered]@{
+                    schemaVersion = 1
+                    selectedRuntimes = @($selected)
+                    primaryRuntime = $primary
+                    installedAt = if ($state.Contains('installedAt')) { $state['installedAt'] } else { (Get-Date -Format 'o') }
+                    lastConfiguredAt = (Get-Date -Format 'o')
+                })
+                Write-Host ('  [OK] Updated install state: {0}' -f $context.InstallStateFile)
+            }
             return [pscustomobject]@{
                 SelectedRuntimes = $selected
                 PrimaryRuntime = $primary

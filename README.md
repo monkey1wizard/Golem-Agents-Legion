@@ -2,7 +2,7 @@
 
 English | [繁體中文](README.zh-Hant.md)
 
-AI tools (like GitHub Copilot, Gemini CLI, Claude Code) are changing rapidly. Many configurations, such as skills/agents, can only be used within specific tools, making it difficult to seamlessly transfer work progress and often resulting in lost conversational context and planning. Furthermore, complex projects often lack clear state management, making it hard to track development progress. Therefore, this system was designed to synchronize settings and work states across different tools, accelerating the overall development process.
+AI tools (like GitHub Copilot, Antigravity CLI, and Claude Code) are changing rapidly. Many configurations, such as skills/agents, can only be used within specific tools, making it difficult to seamlessly transfer work progress and often resulting in lost conversational context and planning. Furthermore, complex projects often lack clear state management, making it hard to track development progress. Therefore, this system was designed to synchronize settings and work states across different tools, accelerating the overall development process.
 
 GAL is an AI working system that brings structure to development. It stores your "development plans," "current state," and "review records" entirely in local Markdown files (`.dev/` and `docs/`). No matter which AI CLI tool you use today, you can seamlessly pick up where you left off yesterday. Its core consists of 12 specialized Golem Agents plus a `/gal` control plane, operating in a document-driven model.
 
@@ -19,7 +19,7 @@ If you have multiple devices, you can also use xmachine to route AI tasks via SS
 Before using GAL, ensure your environment meets the following requirements:
 
 1. **Terminal**: Must have Bash (macOS/Linux/Git Bash) or PowerShell (Windows).
-2. **AI CLI Tool**: Must have at least one supported AI command-line tool installed (e.g., GitHub Copilot CLI, Gemini CLI, Codex CLI, or Claude Code).
+2. **AI CLI Tool**: Must have at least one supported AI command-line tool installed (e.g., GitHub Copilot CLI, Antigravity CLI, Codex CLI, or Claude Code).
 3. **Basic Tools**: Ensure Git is installed for version control and state tracking.
 
 ## Quick Start

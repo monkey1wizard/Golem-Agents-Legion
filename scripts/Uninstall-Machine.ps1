@@ -8,7 +8,8 @@
         Removes GAL-managed artifacts such as:
       - ~/.copilot/agents/*.agent.md symlinks
       - ~/.copilot/skills/*/ symlinks
-            - ~/.agents/skills/*/ symlinks (shared reusable skills for Gemini/Codex)
+            - <repo>/.agents/skills/*/ symlinks (workspace reusable skills for Antigravity/Gemini compatibility)
+            - ~/.agents/skills/*/ symlinks (shared reusable skills for Codex/OpenCode compatibility)
             - ~/.claude/skills/*/ symlinks
             - ~/.copilot/skills/gal*/ symlinks (GAL command skills)
             - ~/.codex/skills/gal*/ symlinks (GAL command skills)

@@ -223,7 +223,7 @@ invoke_update_skills() {
     done
 
     echo ''
-    echo "=== Antigravity Skills (${#skill_dirs[@]} reusable directories) ==="
+    echo "=== AGY Global Skills (${#skill_dirs[@]} reusable directories) ==="
     for skill_dir in "${skill_dirs[@]}"; do
         skill_name="$(basename "$skill_dir")"
         link_path="$ANTIGRAVITY_SKILLS_TARGET/$skill_name"
@@ -232,6 +232,14 @@ invoke_update_skills() {
         else
             safe_link "$link_path" "$skill_dir"
         fi
+    done
+
+    echo ''
+    echo '=== Migration: repo .agents skills cleanup ==='
+    for skill_dir in "${skill_dirs[@]}"; do
+        skill_name="$(basename "$skill_dir")"
+        link_path="$WORKSPACE_SKILLS_TARGET/$skill_name"
+        safe_unlink "$link_path"
     done
 
     echo ''
@@ -265,12 +273,11 @@ invoke_update_skills() {
         fi
     done
 
-    echo ''
-    echo "=== Shared Skills - Gemini + Codex (${#skill_dirs[@]} reusable directories via .agents) ==="
+    echo "=== Shared Skills - Codex + OpenCode (${#skill_dirs[@]} reusable directories via ~/.agents) ==="
     for skill_dir in "${skill_dirs[@]}"; do
         skill_name="$(basename "$skill_dir")"
         link_path="$SHARED_SKILLS_TARGET/$skill_name"
-        if $UNINSTALL || ! $INSTALL_SHARED_SKILLS; then
+        if $UNINSTALL || { ! $INSTALL_CODEX && ! $INSTALL_OPENCODE; }; then
             safe_unlink "$link_path"
         else
             safe_link "$link_path" "$skill_dir"

@@ -40,7 +40,7 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 ### 5. Do not optimize one runtime by breaking portability
 
-- If a change makes Copilot, Gemini, and Codex diverge in contract or file flow, it is usually the wrong change.
+- If a change makes Copilot, Antigravity, and Codex diverge in contract or file flow, it is usually the wrong change.
 - README, docs, templates, and setup scripts should preserve cross-runtime parity first.
 
 ### 6. Navigation docs must not become a second spec
@@ -64,17 +64,19 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Layer | Location | Purpose |
 | --- | --- | --- |
 | Layer 1 | the GAL repo | main methodology source |
-| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.gemini/antigravity/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
+| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.gemini/antigravity-cli/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
 | Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
 | Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
+
+Naming note: upstream docs still use the full product name `Antigravity CLI` and the path segment `antigravity-cli`, but Google also exposes `AGY CLI` as the short name. In GAL-owned helper and function names, prefer `Agy` or `agy` for internal identifiers; keep `Antigravity CLI` and `antigravity-cli` for user-facing labels, runtime keys, and upstream-owned paths.
 
 ### Cross-Runtime Surface
 
 | Runtime | Machine-layer install | Command surface | Notes |
 | --- | --- | --- | --- |
 | Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
-| Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal/`, and shared `~/.agents/skills/` | generated native `.toml` commands | also merges `mcpServers` into `settings.json` |
-| Antigravity | `~/.gemini/antigravity/skills/`, `~/.gemini/antigravity/gal/`, and `~/.gemini/antigravity/mcp_config.json` | installed named skills plus repo-local workspace rule | uses generated `.agents/rules/gal.md` to reference `AGENTS.md` via Antigravity's documented `@filename` rule syntax; phase 1 does not generate native slash workflows |
+| Antigravity CLI | `~/.gemini/antigravity-cli/skills/`, `~/.gemini/antigravity-cli/gal/`, and `~/.gemini/antigravity-cli/mcp_config.json` | installed named skills | primary Google CLI runtime; installs GAL skills globally into AGY and does not create repo-local `.agents` content |
+| Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
 | Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, and user-scope `claude mcp` config | generated command markdown plus repo-local `CLAUDE.md` | MCP install is managed through the Claude CLI |
 
@@ -83,9 +85,9 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
 | --- | --- | --- | --- | --- | --- |
 | `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed | not installed | not installed |
-| `skills/*/` | `~/.copilot/skills/` | `~/.agents/skills/` | `~/.gemini/antigravity/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity/gal/` | not required | not required |
+| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
+| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` | not required | not required |
 
 ### Generated Runtime Files
 
@@ -93,9 +95,25 @@ This section absorbs the setup topology that maintainers need when changing `Set
 | --- | --- |
 | `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
-| `.agents/rules/gal.md` | thin Antigravity workspace rule shim that references `AGENTS.md` |
 | `~/.claude/commands/*.md` | Claude-native command surface generated from the baked command skill |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
+
+### Archived Gemini CLI Surfaces
+
+These are the remaining Gemini CLI compatibility surfaces that still exist on purpose. Treat them as archived bridges to be retired gradually as AGY reaches parity. Do not expand them unless the change is explicitly about keeping Gemini compatibility working during that transition.
+
+| Archived surface | Owning files | Why it still exists | Expected retirement path |
+| --- | --- | --- | --- |
+| Gemini runtime selection, path constants, and install-state detection | `scripts/common/Common.ps1`, `scripts/common/common.sh` | Setup still needs to detect and manage Gemini-specific compatibility outputs such as `~/.gemini/commands/`, `~/.gemini/settings.json`, `~/.gemini/gal-context.md`, and `~/.gemini/gal/`. | Remove once no GAL-managed Gemini install target remains. |
+| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
+| Gemini shared-skill context bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
+| Gemini settings.json bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
+| Gemini `GAL_ROOT` link and legacy skill cleanup | `scripts/Update-Skills.ps1`, `scripts/update-skills.sh` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
+| Legacy Gemini MCP cleanup | `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh` | Gemini is no longer the MCP owner, but GAL still removes old Gemini MCP entries from `~/.gemini/settings.json` so AGY MCP ownership stays clean. | Remove after legacy Gemini MCP residue no longer exists in supported installs. |
+| `GEMINI.md` generated adapter filename | `scripts/Sync-DevContext.ps1`, `scripts/sync-dev-context.sh`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` | The repo still emits `GEMINI.md` as a Google-runtime compatibility adapter filename even though AGY is the primary Google CLI runtime. | Rename or remove only when Google-runtime consumers no longer depend on the `GEMINI.md` carrier. |
+| xmachine Gemini headless execution lane | `scripts/Start-xMachine.ps1`, `scripts/Start-xMachine.sh` | xmachine remote execution still invokes Gemini CLI headlessly and maps Gemini exit codes. | Replace when xmachine is migrated to AGY or another runtime end-to-end. |
+
+If you are removing one of these archived surfaces, also audit the matching maintainer guidance in [../scripts/scripts.md](../scripts/scripts.md), [personalization.md](personalization.md), and [personalization.zh-Hant.md](personalization.zh-Hant.md) so the docs stop describing a retired bridge.
 
 ### Install-State
 
@@ -128,17 +146,16 @@ For Playwright MCP specifically:
 `Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
 
 - VS Code: overwrite tracked server entries inside user `mcp.json`
-- Gemini CLI: overwrite tracked server entries inside `settings.json` under `mcpServers`
-- Antigravity: overwrite tracked server entries inside `~/.gemini/antigravity/mcp_config.json` under `mcpServers`
+- Antigravity CLI: overwrite tracked server entries inside `~/.gemini/antigravity-cli/mcp_config.json` under `mcpServers`
 - JSON-based runtime bridges also preserve managed top-level `inputs` entries by input `id` when the merged manifest includes them.
 - Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
 - Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
 
-Provider-owned config still stays user-owned. GAL only takes ownership of the server names declared in the tracked manifest and preserves unrelated user-defined entries.
+Provider-owned config still stays user-owned. GAL only takes ownership of the server names declared in the tracked manifest, preserves unrelated user-defined entries, and removes the GAL-managed legacy Gemini MCP names previously written into `settings.json`.
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/`, `~/.gemini/gal/`, and `~/.gemini/antigravity/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
+`~/.copilot/gal/`, `~/.gemini/gal/`, and `~/.gemini/antigravity-cli/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
 
 ## Common Change Entry Points
 
@@ -196,7 +213,7 @@ After changing install or setup logic, verify at least these points:
 - the stable repo symlink exists for each supported runtime that needs one
 - generated `commands/*/SKILL.md` files no longer contain `{{GAL_ROOT}}`
 - Gemini native command files were regenerated from the baked command content
-- Antigravity generated `.agents/rules/gal.md`, its `@` reference resolves to `AGENTS.md`, and installed command skills resolve through `~/.gemini/antigravity/gal/`
+- Antigravity installed command skills resolve through `~/.gemini/antigravity-cli/gal/`
 - shared skill directories contain reusable skills only, not duplicated command aliases
 - MCP reruns update tracked server entries correctly without clobbering unrelated provider-owned config
 
@@ -249,7 +266,7 @@ These rules apply to all maintainer and agent work in this repo. The full policy
 
 ### Generated-Artifact Exclusion
 
-Do not read generated adapters (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.github/copilot-instructions.md`, `ANTIGRAVITY.md`) or build outputs (`bin/`, `obj/`) unless the current task is explicitly about auditing those generated files. They are large, frequently regenerated, and contain no information not already in their source templates.
+Do not read generated adapters (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.github/copilot-instructions.md`) or build outputs (`bin/`, `obj/`) unless the current task is explicitly about auditing those generated files. They are large, frequently regenerated, and contain no information not already in their source templates.
 
 ### Directed Exploration
 

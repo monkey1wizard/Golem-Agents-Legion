@@ -2,7 +2,7 @@
 
 ## Goal
 
-GAL has one authoritative file-system memory model that works across sessions, projects, providers, chat interactions, and implementation agents. Copilot, Gemini CLI, Codex, Claude Code, and future runtimes must all recover and update the same repo-owned Markdown memory without relying on provider-local chat history, external memory frameworks, vector stores, databases, or hand-edited generated adapters.
+GAL has one authoritative file-system memory model that works across sessions, projects, providers, chat interactions, and implementation agents. Copilot, Antigravity CLI, Codex, Claude Code, and future runtimes must all recover and update the same repo-owned Markdown memory without relying on provider-local chat history, external memory frameworks, vector stores, databases, or hand-edited generated adapters.
 
 ## Requirements
 

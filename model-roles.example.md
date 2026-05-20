@@ -14,8 +14,8 @@ Reviewer work should be higher-level than tester work when possible.
 
 | Machine | OS | LLM Resources |
 | --- | --- | --- |
-| Windows PC | Windows 11 | Copilot, Gemini CLI, Ollama (GPU) |
-| Mac Mini | macOS | Copilot, Gemini CLI, Ollama (Apple Silicon) |
+| Windows PC | Windows 11 | Copilot, Antigravity CLI, Ollama (GPU) |
+| Mac Mini | macOS | Copilot, Antigravity CLI, Ollama (Apple Silicon) |
 
 ## Current Mapping
 
@@ -24,11 +24,11 @@ Reviewer work should be higher-level than tester work when possible.
 | ARCHITECT | Claude Opus 4.6 | Different model from the planning author when practical | Adversarial plan review |
 | DESIGNER | GPT-5.4 | Different model from CODER | Visual design, UX flow, accessibility, design-system review |
 | RESEARCHER | GPT-5.4 | Frontier model for research flow | Owns RESEARCH, SYNTHESIZE, and CROSS-REVIEW |
-| RESEARCH-VERIFIER | Gemini CLI (Gemini 2.5 Pro) | Different model from RESEARCHER | Reverse-checks references during VERIFY |
+| RESEARCH-VERIFIER | Antigravity CLI (Gemini 2.5 Pro) | Different model from RESEARCHER | Reverse-checks references during VERIFY |
 | CODER | Copilot Agent Mode | VS Code Copilot | Main implementation agent |
-| TESTER | Gemini CLI (Gemini 2.5 Pro) | Gemini CLI | Spec-driven tests and browser QA; different model from CODER |
-| REVIEWER | Copilot (GPT 4.1) or Gemini CLI | Gemini CLI | Higher-level review than tester |
-| SECURITY | Copilot Agent Mode or Gemini CLI | Different model from CODER when practical | OWASP and STRIDE audit before release-sensitive work |
+| TESTER | Antigravity CLI (Gemini 2.5 Pro) | Antigravity CLI | Spec-driven tests and browser QA; different model from CODER |
+| REVIEWER | Copilot (GPT 4.1) or Antigravity CLI | Antigravity CLI | Higher-level review than tester |
+| SECURITY | Copilot Agent Mode or Antigravity CLI | Different model from CODER when practical | OWASP and STRIDE audit before release-sensitive work |
 | RELEASER | Copilot Agent Mode | Same machine as CODER is acceptable | Release prep, deploy orchestration, and doc sync |
 | LOCAL | Ollama: Breeze2-8B, TAIDE-LX-8B | Ollama: larger models | Privacy-sensitive and local-language tasks |
 

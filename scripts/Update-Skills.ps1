@@ -193,7 +193,7 @@ function Invoke-UpdateSkills {
     }
 
     Write-Host ''
-    Write-Host ("=== Antigravity Skills ({0} reusable directories) ===" -f $skillDirs.Count)
+    Write-Host ("=== AGY Global Skills ({0} reusable directories) ===" -f $skillDirs.Count)
     foreach ($skillDir in $skillDirs) {
         $linkPath = Join-Path $context.AntigravitySkillsTarget $skillDir.Name
         if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
@@ -202,6 +202,13 @@ function Invoke-UpdateSkills {
         else {
             New-SafeSymlink $linkPath $skillDir.FullName 'Directory' | Out-Null
         }
+    }
+
+    Write-Host ''
+    Write-Host '=== Migration: repo .agents skills cleanup ==='
+    foreach ($skillDir in $skillDirs) {
+        $linkPath = Join-Path $context.WorkspaceSkillsTarget $skillDir.Name
+        Remove-SafeLink $linkPath
     }
 
     Write-Host ''
@@ -225,11 +232,10 @@ function Invoke-UpdateSkills {
         }
     }
 
-    Write-Host ''
-    Write-Host ("=== Shared Skills - Gemini + Codex ({0} reusable directories via .agents) ===" -f $skillDirs.Count)
+    Write-Host ("=== Shared Skills - Codex + OpenCode ({0} reusable directories via ~/.agents) ===" -f $skillDirs.Count)
     foreach ($skillDir in $skillDirs) {
         $linkPath = Join-Path $context.SharedSkillsTarget $skillDir.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallSharedSkills) {
+        if ($script:SetupOptions.Uninstall -or (-not $context.InstallCodex -and -not $context.InstallOpenCode)) {
             Remove-SafeLink $linkPath
         }
         else {

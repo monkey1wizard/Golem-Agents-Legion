@@ -186,7 +186,6 @@ echo "- Generated: .github/copilot-instructions.md"
 echo "- Generated: GEMINI.md"
 echo "- Generated: CLAUDE.md"
 echo "- Generated: AGENTS.md"
-echo "- Generated: .agents/rules/gal.md"
 echo "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if [[ ${#source_docs[@]} -gt 0 ]]; then

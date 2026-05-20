@@ -191,7 +191,6 @@ Write-Host "- Generated: .github/copilot-instructions.md"
 Write-Host "- Generated: GEMINI.md"
 Write-Host "- Generated: CLAUDE.md"
 Write-Host "- Generated: AGENTS.md"
-Write-Host "- Generated: .agents/rules/gal.md"
 Write-Host "- Next: review .dev/project.md, fill in summary fields, then run /gal status"
 
 if ($sourceDocs.Count -gt 0) {

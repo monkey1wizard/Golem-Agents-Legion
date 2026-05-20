@@ -166,23 +166,51 @@ function Sync-ManagedMcpInputs([System.Collections.IDictionary]$Data, [System.Co
     return $false
 }
 
-function ConvertTo-GeminiMcpConfig([System.Collections.IDictionary]$Config) {
-    $converted = [ordered]@{}
+function Remove-ManagedMcpInputs([System.Collections.IDictionary]$Data, [System.Collections.IDictionary]$ManagedManifest) {
+    if (-not $Data.Contains('inputs') -or $Data['inputs'] -isnot [System.Collections.IEnumerable] -or $Data['inputs'] -is [string]) {
+        return $false
+    }
 
-    foreach ($key in $Config.Keys) {
-        if ($key -eq 'type') { continue }
-        if ($key -eq 'url' -and $Config.Contains('type') -and [string]$Config['type'] -eq 'http') {
-            $converted['httpUrl'] = [string]$Config['url']
+    if (-not $ManagedManifest.Contains('inputs')) {
+        return $false
+    }
+
+    $managedIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($managedInput in @($ManagedManifest['inputs'])) {
+        if ($managedInput -is [System.Collections.IDictionary] -and $managedInput.Contains('id') -and -not [string]::IsNullOrWhiteSpace([string]$managedInput['id'])) {
+            [void]$managedIds.Add([string]$managedInput['id'])
+        }
+    }
+
+    if ($managedIds.Count -eq 0) {
+        return $false
+    }
+
+    $preservedInputs = [System.Collections.Generic.List[object]]::new()
+    foreach ($existingInput in @($Data['inputs'])) {
+        if ($existingInput -is [System.Collections.IDictionary] -and $existingInput.Contains('id') -and $managedIds.Contains([string]$existingInput['id'])) {
             continue
         }
 
-        $converted[$key] = $Config[$key]
+        $preservedInputs.Add($existingInput)
     }
 
-    return $converted
+    $newInputs = @($preservedInputs.ToArray())
+    if (Test-JsonLikeEqual $Data['inputs'] $newInputs) {
+        return $false
+    }
+
+    if ($newInputs.Count -eq 0) {
+        $Data.Remove('inputs')
+    }
+    else {
+        $Data['inputs'] = $newInputs
+    }
+
+    return $true
 }
 
-function ConvertTo-AntigravityMcpConfig([System.Collections.IDictionary]$Config) {
+function ConvertTo-AgyMcpConfig([System.Collections.IDictionary]$Config) {
     $converted = [ordered]@{}
 
     foreach ($key in $Config.Keys) {
@@ -684,75 +712,22 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     }
 }
 
-function Update-GeminiMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+function Update-AgyMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
     $context = $script:SetupContext
-    $geminiSettings = Read-JsonOrderedMap $context.GeminiSettingsFile
-    if ($null -eq $geminiSettings) { return }
-
-    if (-not $geminiSettings.Contains('mcpServers') -or $geminiSettings['mcpServers'] -isnot [System.Collections.IDictionary]) {
-        $geminiSettings['mcpServers'] = [ordered]@{}
+    $agyConfig = Read-JsonOrderedMap $context.AntigravityMcpFile
+    if ($null -eq $agyConfig) {
+        $agyConfig = [ordered]@{}
     }
 
-    $changed = $false
-    foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'gemini' -ServerName $serverName)) {
-            if ($geminiSettings['mcpServers'].Contains($legacyAlias)) {
-                $geminiSettings['mcpServers'].Remove($legacyAlias)
-                $changed = $true
-                if ($script:SetupOptions.DryRun) {
-                    Write-Host "  [DRY RUN] Would remove Gemini MCP alias: $legacyAlias"
-                }
-                else {
-                    Write-Host "  [CLEANUP] Gemini MCP alias removed: $legacyAlias"
-                }
-            }
-        }
-
-        $converted = ConvertTo-GeminiMcpConfig $ManagedManifest['servers'][$serverName]
-        if (-not $geminiSettings['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $geminiSettings['mcpServers'][$serverName] $converted)) {
-            $geminiSettings['mcpServers'][$serverName] = $converted
-            $changed = $true
-            if ($script:SetupOptions.DryRun) {
-                Write-Host "  [DRY RUN] Would set Gemini MCP server: $serverName"
-            }
-            else {
-                Write-Host "  [SET] Gemini MCP server: $serverName"
-            }
-        }
-    }
-
-    if (Sync-ManagedMcpInputs -Data $geminiSettings -ManagedManifest $ManagedManifest) {
-        $changed = $true
-        if ($script:SetupOptions.DryRun) {
-            Write-Host '  [DRY RUN] Would sync Gemini MCP inputs'
-        }
-        else {
-            Write-Host '  [SET] Gemini MCP inputs'
-        }
-    }
-
-    if ($changed -and -not $script:SetupOptions.DryRun) {
-        Write-JsonOrderedMap $context.GeminiSettingsFile $geminiSettings
-        Write-Host "  [OK] $($context.GeminiSettingsFile)"
-    }
-}
-
-function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
-    $context = $script:SetupContext
-    $antigravityConfig = Read-JsonOrderedMap $context.AntigravityMcpFile
-    if ($null -eq $antigravityConfig) {
-        $antigravityConfig = [ordered]@{}
-    }
-
-    if (-not $antigravityConfig.Contains('mcpServers') -or $antigravityConfig['mcpServers'] -isnot [System.Collections.IDictionary]) {
-        $antigravityConfig['mcpServers'] = [ordered]@{}
+    if (-not $agyConfig.Contains('mcpServers') -or $agyConfig['mcpServers'] -isnot [System.Collections.IDictionary]) {
+        $agyConfig['mcpServers'] = [ordered]@{}
     }
 
     $changed = $false
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'antigravity' -ServerName $serverName)) {
-            if ($antigravityConfig['mcpServers'].Contains($legacyAlias)) {
-                $antigravityConfig['mcpServers'].Remove($legacyAlias)
+            if ($agyConfig['mcpServers'].Contains($legacyAlias)) {
+                $agyConfig['mcpServers'].Remove($legacyAlias)
                 $changed = $true
                 if ($script:SetupOptions.DryRun) {
                     Write-Host "  [DRY RUN] Would remove Antigravity MCP alias: $legacyAlias"
@@ -764,9 +739,9 @@ function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedMan
         }
     }
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        $converted = ConvertTo-AntigravityMcpConfig $ManagedManifest['servers'][$serverName]
-        if (-not $antigravityConfig['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $antigravityConfig['mcpServers'][$serverName] $converted)) {
-            $antigravityConfig['mcpServers'][$serverName] = $converted
+        $converted = ConvertTo-AgyMcpConfig $ManagedManifest['servers'][$serverName]
+        if (-not $agyConfig['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $agyConfig['mcpServers'][$serverName] $converted)) {
+            $agyConfig['mcpServers'][$serverName] = $converted
             $changed = $true
             if ($script:SetupOptions.DryRun) {
                 Write-Host "  [DRY RUN] Would set Antigravity MCP server: $serverName"
@@ -777,7 +752,7 @@ function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedMan
         }
     }
 
-    if (Sync-ManagedMcpInputs -Data $antigravityConfig -ManagedManifest $ManagedManifest) {
+    if (Sync-ManagedMcpInputs -Data $agyConfig -ManagedManifest $ManagedManifest) {
         $changed = $true
         if ($script:SetupOptions.DryRun) {
             Write-Host '  [DRY RUN] Would sync Antigravity MCP inputs'
@@ -788,8 +763,64 @@ function Update-AntigravityMcpConfig([System.Collections.IDictionary]$ManagedMan
     }
 
     if ($changed -and -not $script:SetupOptions.DryRun) {
-        Write-JsonOrderedMap $context.AntigravityMcpFile $antigravityConfig
+        Write-JsonOrderedMap $context.AntigravityMcpFile $agyConfig
         Write-Host "  [OK] $($context.AntigravityMcpFile)"
+    }
+}
+
+function Remove-LegacyGeminiMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+    $context = $script:SetupContext
+    if (-not (Test-Path $context.GeminiSettingsFile)) {
+        return
+    }
+
+    $geminiSettings = Read-JsonOrderedMap $context.GeminiSettingsFile
+    if ($null -eq $geminiSettings) {
+        return
+    }
+
+    $changed = $false
+    if ($geminiSettings.Contains('mcpServers') -and $geminiSettings['mcpServers'] -is [System.Collections.IDictionary]) {
+        foreach ($serverName in $ManagedManifest['servers'].Keys) {
+            foreach ($managedName in @($serverName) + @(Get-LegacyManagedMcpAliases -RuntimeName 'gemini' -ServerName $serverName)) {
+                if ($geminiSettings['mcpServers'].Contains($managedName)) {
+                    $geminiSettings['mcpServers'].Remove($managedName)
+                    $changed = $true
+                    if ($script:SetupOptions.DryRun) {
+                        Write-Host "  [DRY RUN] Would remove legacy Gemini MCP entry: $managedName"
+                    }
+                    else {
+                        Write-Host "  [CLEANUP] Legacy Gemini MCP entry removed: $managedName"
+                    }
+                }
+            }
+        }
+
+        if ($geminiSettings['mcpServers'].Count -eq 0) {
+            $geminiSettings.Remove('mcpServers')
+            $changed = $true
+            if ($script:SetupOptions.DryRun) {
+                Write-Host '  [DRY RUN] Would remove empty legacy Gemini mcpServers block'
+            }
+            else {
+                Write-Host '  [CLEANUP] Empty legacy Gemini mcpServers block removed'
+            }
+        }
+    }
+
+    if (Remove-ManagedMcpInputs -Data $geminiSettings -ManagedManifest $ManagedManifest) {
+        $changed = $true
+        if ($script:SetupOptions.DryRun) {
+            Write-Host '  [DRY RUN] Would remove legacy Gemini MCP inputs'
+        }
+        else {
+            Write-Host '  [CLEANUP] Legacy Gemini MCP inputs removed'
+        }
+    }
+
+    if ($changed -and -not $script:SetupOptions.DryRun) {
+        Write-JsonOrderedMap $context.GeminiSettingsFile $geminiSettings
+        Write-Host "  [OK] $($context.GeminiSettingsFile)"
     }
 }
 
@@ -955,8 +986,10 @@ function Invoke-UpdateMcp {
             Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.VscodeMcpFile)"
             Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CopilotCliMcpFile)"
         }
-        if ($context.InstallGemini) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.GeminiSettingsFile)" }
-        if ($context.InstallAntigravity) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.AntigravityMcpFile)" }
+        if ($context.InstallGemini -or $context.InstallAntigravity) {
+            Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.AntigravityMcpFile)"
+            Write-Host "  [DRY RUN] Would remove GAL-managed legacy Gemini MCP entries from: $($context.GeminiSettingsFile)"
+        }
         if ($context.InstallCodex) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CodexConfigFile)" }
         if ($context.InstallOpenCode) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.OpenCodeConfigFile)" }
         if ($context.InstallClaude) { Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope' }
@@ -969,8 +1002,10 @@ function Invoke-UpdateMcp {
         Update-VscodeMcpConfig -ManagedManifest $manifest
         Update-CopilotCliMcpConfig -ManagedManifest $manifest
     }
-    if ($context.InstallGemini) { Update-GeminiMcpConfig -ManagedManifest $manifest }
-    if ($context.InstallAntigravity) { Update-AntigravityMcpConfig -ManagedManifest $manifest }
+    if ($context.InstallGemini -or $context.InstallAntigravity) {
+        Update-AgyMcpConfig -ManagedManifest $manifest
+        Remove-LegacyGeminiMcpConfig -ManagedManifest $manifest
+    }
     if ($context.InstallCodex) { Update-CodexMcpConfig -ManagedManifest $manifest }
     if ($context.InstallOpenCode) { Update-OpenCodeMcpConfig -ManagedManifest $manifest }
     if ($context.InstallClaude) { Update-ClaudeMcpConfig -ManagedManifest $manifest }

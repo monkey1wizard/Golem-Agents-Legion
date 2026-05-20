@@ -30,7 +30,7 @@ invoke_update_personalization() {
         local skill_dir skill_name
         for skill_dir in "${skill_dirs[@]}"; do
             skill_name="$(basename "$skill_dir")"
-            context_lines+="@$SHARED_SKILLS_TARGET/$skill_name/SKILL.md"$'\n'
+            context_lines+="@$skill_dir/SKILL.md"$'\n'
         done
 
         if $DRY_RUN; then
@@ -68,13 +68,42 @@ invoke_update_personalization() {
     fi
 
     echo ''
-    echo '=== Antigravity workspace rule strategy ==='
+    echo '=== Antigravity runtime integration ==='
     if $UNINSTALL; then
         echo '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
     elif ! $INSTALL_ANTIGRAVITY; then
         echo '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
     else
-        echo '  [OK] Antigravity global rules preserved; rely on generated .agents/rules/gal.md plus ANTIGRAVITY.md inside each initialized repo.'
+        echo '  [OK] Antigravity uses ~/.gemini/antigravity-cli for GAL integration; Setup-Machine does not create repo-local .agents content.'
+    fi
+
+    echo ''
+    echo '=== Migration: repo .agents cleanup ==='
+    local workspace_rule_file="$WORKSPACE_RULES_TARGET/gal.md"
+    if [ -f "$workspace_rule_file" ]; then
+        if ! is_gal_managed_file "$workspace_rule_file"; then
+            echo "  [SKIP] User-owned repo rule preserved: $workspace_rule_file"
+        elif $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $workspace_rule_file"
+        else
+            rm "$workspace_rule_file"
+            echo "  [REMOVED] $workspace_rule_file"
+        fi
+    fi
+
+    local repo_agents_path
+    for repo_agents_path in "$WORKSPACE_SKILLS_TARGET" "$WORKSPACE_RULES_TARGET" "$WORKSPACE_AGENTS_ROOT"; do
+        [ -d "$repo_agents_path" ] || continue
+        if find "$repo_agents_path" -mindepth 1 -maxdepth 1 | read -r _; then
+            echo "  [SKIP] Non-empty repo path preserved: $repo_agents_path"
+            continue
+        fi
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove empty directory: $repo_agents_path"
+        else
+            rmdir "$repo_agents_path"
+            echo "  [REMOVED] Empty directory: $repo_agents_path"
+        fi
     fi
 
     echo ''

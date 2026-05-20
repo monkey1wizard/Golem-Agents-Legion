@@ -211,7 +211,14 @@ function Invoke-UpdateCommands {
     }
 
     Write-Host ''
-    Write-Host '=== Migration: .agents command cleanup ==='
+    Write-Host '=== Migration: repo .agents command cleanup ==='
+    foreach ($commandSkill in $context.CommandSkillDirs) {
+        $workspaceTarget = Join-Path $context.WorkspaceSkillsTarget $commandSkill.Name
+        Remove-SafeLink $workspaceTarget
+    }
+
+    Write-Host ''
+    Write-Host '=== Migration: ~/.agents command cleanup ==='
     foreach ($commandSkill in $context.CommandSkillDirs) {
         $sharedCommandPath = Join-Path $context.SharedSkillsTarget $commandSkill.Name
         if (-not (Test-Path $sharedCommandPath)) { continue }

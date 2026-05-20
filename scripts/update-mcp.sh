@@ -24,11 +24,9 @@ invoke_update_mcp() {
             echo "  [DRY RUN] Would merge MCP servers into: $VSCODE_MCP_FILE"
             echo "  [DRY RUN] Would merge MCP servers into: $COPILOT_CLI_MCP_FILE"
         fi
-        if $INSTALL_GEMINI; then
-            echo "  [DRY RUN] Would merge MCP servers into: $GEMINI_SETTINGS_FILE"
-        fi
-        if $INSTALL_ANTIGRAVITY; then
+        if $INSTALL_GEMINI || $INSTALL_ANTIGRAVITY; then
             echo "  [DRY RUN] Would merge MCP servers into: $ANTIGRAVITY_MCP_FILE"
+            echo "  [DRY RUN] Would remove GAL-managed legacy Gemini MCP entries from: $GEMINI_SETTINGS_FILE"
         fi
         if $INSTALL_CODEX; then
             echo "  [DRY RUN] Would merge MCP servers into: $CODEX_CONFIG_FILE"
@@ -55,7 +53,7 @@ mcp_local = Path(sys.argv[3])
 vscode_mcp = Path(sys.argv[4])
 copilot_cli_mcp = Path(sys.argv[5])
 gemini_settings = Path(sys.argv[6])
-antigravity_mcp = Path(sys.argv[7])
+agy_mcp = Path(sys.argv[7])
 codex_config = Path(sys.argv[8])
 opencode_config = Path(sys.argv[9])
 install_copilot = sys.argv[10].lower() == 'true'
@@ -236,6 +234,39 @@ def sync_managed_inputs(data, manifest):
     return True
 
 
+def remove_managed_inputs(data, manifest):
+    current_inputs = data.get('inputs')
+    if not isinstance(current_inputs, list):
+        return False
+
+    managed_inputs = manifest.get('inputs')
+    if not isinstance(managed_inputs, list):
+        return False
+
+    managed_ids = {
+        str(item.get('id'))
+        for item in managed_inputs
+        if isinstance(item, dict) and item.get('id')
+    }
+    if not managed_ids:
+        return False
+
+    preserved = []
+    for existing in current_inputs:
+        if isinstance(existing, dict) and str(existing.get('id')) in managed_ids:
+            continue
+        preserved.append(existing)
+
+    if json_like_equal(current_inputs, preserved):
+        return False
+
+    if preserved:
+        data['inputs'] = preserved
+    else:
+        data.pop('inputs', None)
+    return True
+
+
 def get_bridge_profile(server_name, runtime_name):
     profile = {'enabled': True, 'key': server_name}
     profile.update(BRIDGE_PROFILES.get(server_name, {}).get(runtime_name, {}))
@@ -250,19 +281,7 @@ def json_like_equal(left, right):
     return json.dumps(left, sort_keys=True) == json.dumps(right, sort_keys=True)
 
 
-def convert_gemini_config(config):
-    converted = {}
-    for key, value in config.items():
-        if key == 'type':
-            continue
-        if key == 'url' and config.get('type') == 'http':
-            converted['httpUrl'] = value
-            continue
-        converted[key] = value
-    return converted
-
-
-def convert_antigravity_config(config):
+def convert_agy_config(config):
     converted = {}
     for key, value in config.items():
         if key == 'type':
@@ -577,36 +596,8 @@ def update_copilot_cli(manifest):
         print(f'  [OK] {copilot_cli_mcp}')
 
 
-def update_gemini(manifest):
-    data = read_json(gemini_settings)
-    servers = data.setdefault('mcpServers', {})
-    changed = False
-    for server_name, server_config in manifest['servers'].items():
-        for alias in legacy_aliases('gemini', server_name):
-            if alias in servers:
-                changed = True
-                prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
-                print(f'  {prefix} Gemini MCP alias: {alias}')
-                if not dry_run:
-                    del servers[alias]
-        converted = convert_gemini_config(server_config)
-        if server_name not in servers or not json_like_equal(servers[server_name], converted):
-            changed = True
-            prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
-            print(f'  {prefix} Gemini MCP server: {server_name}')
-            if not dry_run:
-                servers[server_name] = converted
-    if sync_managed_inputs(data, manifest):
-        changed = True
-        prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
-        print(f'  {prefix} Gemini MCP inputs')
-    if changed and not dry_run:
-        write_json(gemini_settings, data)
-        print(f'  [OK] {gemini_settings}')
-
-
 def update_antigravity(manifest):
-    data = read_json(antigravity_mcp)
+    data = read_json(agy_mcp)
     servers = data.setdefault('mcpServers', {})
     changed = False
     for server_name, server_config in manifest['servers'].items():
@@ -617,7 +608,7 @@ def update_antigravity(manifest):
                 print(f'  {prefix} Antigravity MCP alias: {alias}')
                 if not dry_run:
                     del servers[alias]
-        converted = convert_antigravity_config(server_config)
+        converted = convert_agy_config(server_config)
         if server_name not in servers or not json_like_equal(servers[server_name], converted):
             changed = True
             prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
@@ -629,8 +620,42 @@ def update_antigravity(manifest):
         prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
         print(f'  {prefix} Antigravity MCP inputs')
     if changed and not dry_run:
-        write_json(antigravity_mcp, data)
-        print(f'  [OK] {antigravity_mcp}')
+        write_json(agy_mcp, data)
+        print(f'  [OK] {agy_mcp}')
+
+
+def cleanup_legacy_gemini_mcp(manifest):
+    data = read_json(gemini_settings)
+    if not data:
+        return
+
+    servers = data.get('mcpServers')
+    changed = False
+    if isinstance(servers, dict):
+        for server_name in manifest['servers']:
+            for managed_name in [server_name, *legacy_aliases('gemini', server_name)]:
+                if managed_name in servers:
+                    changed = True
+                    prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+                    print(f'  {prefix} legacy Gemini MCP entry: {managed_name}')
+                    if not dry_run:
+                        del servers[managed_name]
+
+        if not servers:
+            changed = True
+            prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+            print(f'  {prefix} empty legacy Gemini mcpServers block')
+            if not dry_run:
+                data.pop('mcpServers', None)
+
+    if remove_managed_inputs(data, manifest):
+        changed = True
+        prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+        print(f'  {prefix} legacy Gemini MCP inputs')
+
+    if changed and not dry_run:
+        write_json(gemini_settings, data)
+        print(f'  [OK] {gemini_settings}')
 
 
 def update_codex(manifest):
@@ -728,10 +753,9 @@ if manifest is None:
 if install_copilot:
     update_vscode(manifest)
     update_copilot_cli(manifest)
-if install_gemini:
-    update_gemini(manifest)
-if install_antigravity:
+if install_gemini or install_antigravity:
     update_antigravity(manifest)
+    cleanup_legacy_gemini_mcp(manifest)
 if install_codex:
     update_codex(manifest)
 if install_opencode:

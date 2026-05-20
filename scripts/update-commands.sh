@@ -221,7 +221,15 @@ invoke_update_commands() {
     done
 
     echo ''
-    echo '=== Migration: .agents command cleanup ==='
+    echo '=== Migration: repo .agents command cleanup ==='
+    local workspace_target
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        workspace_target="$WORKSPACE_SKILLS_TARGET/$command_skill_name"
+        safe_unlink "$workspace_target"
+    done
+
+    echo ''
+    echo '=== Migration: ~/.agents command cleanup ==='
     local shared_command_path
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         shared_command_path="$SHARED_SKILLS_TARGET/$command_skill_name"
