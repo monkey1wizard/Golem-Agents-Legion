@@ -28,7 +28,7 @@ From `.dev/state.md` and the active plan file, extract these data points:
 8. Active plan `## Deferred Follow-up` — advisory non-blocking work when present
 9. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
 10. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
-11. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
+11. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. If the report exists without a version stamp, keep it `FRESH` and note that version verification is unavailable. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
 
 ## Step 2 — Decide
 
@@ -62,6 +62,6 @@ State in plain language:
 1. **Where you are** — one sentence describing the current position in the plan lifecycle
 2. **Next action** — the single command, review lane, or task to start
 3. **Open this first** — which file or context is needed to begin
-4. **Graphify note** — only when graphify freshness is `STALE-BY-TOOL-VERSION` or `UNSTAMPED`; if stale, say GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context
+4. **Graphify note** — include only when graphify freshness is `STALE-BY-TOOL-VERSION`, or when the user explicitly asked about graphify stamping. If stale, say GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context. If the report is merely unstamped, say the report is still usable and version verification is unavailable.
 
 Do not present multiple options. Commit to one clear next step.

@@ -15,7 +15,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **Repo is initialized but no active plan. Use `/planning` to start sprint planning.**
 - If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
-- Also inspect `graphify-out/GRAPH_REPORT.md` and the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file.
+- Also inspect `graphify-out/GRAPH_REPORT.md` and the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file. If the report is usable but no version stamp exists, keep the state `FRESH`, show `Report stamp: Not stamped`, and note that automatic version verification is unavailable.
 
 ## Step 2 — Project
 
@@ -82,7 +82,7 @@ From `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VER
 - **State**: `NOT-PRESENT` / `FRESH` / `STALE-BY-TOOL-VERSION` / `UNSTAMPED`
 - **Report stamp**: stamped graphify version if the version file exists; otherwise *Not stamped*
 - **Installed version**: current graphify version if available; otherwise *Unavailable*
-- **Action**: if stale, note that GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context; if the report is missing, say that no action is required for normal GAL flow; otherwise say whether no action is required or freshness cannot be verified automatically
+- **Action**: if stale, note that GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context; if the report is missing, say that no action is required for normal GAL flow; if the report exists without a version stamp, say that no action is required for normal GAL flow and that automatic version verification is unavailable; otherwise say whether no action is required or freshness cannot be verified automatically
 
 ### Specialist Readiness
 

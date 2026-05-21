@@ -61,7 +61,7 @@ When `GAL_GRAPHIFY_VERSION.txt` exists, GAL may compare its stamped graphify ver
 - If the versions match, the report stays usable as normal advisory context.
 - If the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, GAL treats the report as stale-by-tool-version and continues without graphify context unless the user explicitly wants refreshed graph artifacts.
 - If `GRAPH_REPORT.md` is newer than the stamp file, GAL assumes the graph may have been manually refreshed after the last GAL stamp and keeps the report advisory instead of blocking on the mismatch.
-- If no version stamp exists, GAL does not try to infer freshness from codebase drift; it simply treats the report as unstamped advisory context.
+- If no version stamp exists, GAL does not try to infer freshness from codebase drift; it keeps the report usable as advisory context, treats it as fresh unless another stale signal is provable, and may note that automatic version verification is unavailable.
 
 ## Integration Level
 

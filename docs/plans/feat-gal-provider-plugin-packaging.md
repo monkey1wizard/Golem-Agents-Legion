@@ -6,6 +6,8 @@ GAL 建立一套以 AGY CLI、Copilot CLI、Codex 與 Claude Code 四個供應�
 
 供應商外掛程式應把 GAL 管理的 MCP 檔案預設安裝在各自 plugin root 底下。共同模型不保留供應商輸出路徑，也不保留已解析的 machine-local 機密或路徑值。`scripts/` 不是四個 provider 共同支援的 plugin root 承載，因此不屬於 provider-neutral package model；若未來特定 provider 需要可執行 helper，必須透過該 provider 原生機制處理，例如 skill-local helper scripts、hooks、`bin/` 或獨立 runtime install。
 
+對 AGY CLI 而言，本計畫將其視為全新的 plugin-only 安裝模式。所有既有的 GAL 管理 AGY 內容，不論是舊的 skills 連結、外部 runtime 路徑、全域 MCP 片段或其他散落在 plugin root 之外的受管資產，都必須在 setup/reinstall 時移除，並改由 `~/.gemini/antigravity-cli/plugins/gal/` 內的單一 plugin tree 承載。
+
 ## 需求
 
 - [ ] 定義一個供應商中立的外掛程式套件模型，能夠代表 AGY CLI、Copilot CLI、Codex 與 Claude Code 四者之間的共同最小基底。
@@ -26,6 +28,7 @@ GAL 建立一套以 AGY CLI、Copilot CLI、Codex 與 Claude Code 四個供應�
 - [ ] Windows PowerShell 與 Bash 流程必須共用相同的供應商套件合約與 AGY 渲染器行為。
 - [ ] `gal-results/` 屬於 xmachine output，不得用作 provider plugin staging 或 generated plugin artifact root。
 - [ ] AGY 目標路徑固定為 `~/.gemini/antigravity-cli/plugins/gal/`；`~/.gemini/config/plugins/` 視為舊 Gemini CLI 方法，不屬於本計畫。
+- [ ] AGY setup/reinstall 必須先移除所有既有的 GAL 管理 AGY 舊安裝內容，再以 plugin root 作為唯一的受管安裝面；不得保留 plugin 外的 GAL 受管殘留。
 - [ ] Gemini 不是第五個 renderer，而是 AGY migration/compatibility lane；現有 Gemini-specific cleanup 與 bridge 邏輯不得進入 provider-neutral substrate。
 - [ ] 文件必須說明共同基底、plugin-root MCP、AGY 優先遷移、Gemini migration lane，以及後續 Copilot CLI、Codex、Claude Code 的渲染器順序，且不得暗示所有供應商均使用 AGY 佈局。
 
@@ -49,7 +52,7 @@ GAL 原始碼合約
 
 - AGY plugin 是 namespaced bundle；plugin root 有 `plugin.json` required marker，並可承載 `skills/`、`rules/`、`mcp_config.json` 與 `hooks.json`。AGY CLI features 文件也列出 plugin 目錄可含 `agents/` 與 `mcp_config.json`。
 - AGY 使用獨立 `mcp_config.json`；remote MCP transport 使用 `serverUrl`，不是 `url`。
-- AGY plugin root 的 `mcp_config.json` 有官方文件支撐；全域 `~/.gemini/antigravity-cli/mcp_config.json` 僅作 legacy cleanup、非 plugin 管理模式或過渡相容用途。
+- AGY plugin root 的 `mcp_config.json` 有官方文件支撐；全域 `~/.gemini/antigravity-cli/mcp_config.json` 不再作為 GAL 的持續安裝面，只允許作為移除舊 GAL 受管內容時的 legacy cleanup 觸點。
 - AGY 最小 `plugin.json` 可只有 `name`，且 `name` 可省略並由目錄名稱推導。本 renderer 仍應輸出穩定 `name: gal` 以便測試與管理。
 - Gemini CLI extensions 會遷移為 Antigravity plugins，可透過 `agy plugin import gemini` 轉換；Gemini commands 會轉成 skills。Gemini 因此是 migration lane，不是 GAL 的第五個 provider renderer。
 - `scripts/` 不是 AGY、Copilot CLI、Codex 與 Claude Code 的共同 plugin root 承載。只有 skill-local helper scripts 或 provider-specific hooks/bin/scripts 能作為特定供應商能力使用。
@@ -91,7 +94,7 @@ OpenCode 不屬於靜態四供應商基底。其外掛程式模型是 JavaScript
 
 ### AGY 優先實作
 
-AGY 為第一個渲染器，因為它是目前直接寫入的痛點。AGY 渲染器在 ignored generated artifact root `dist/provider-plugins/agy/gal/` 下寫入生成的本地成品，然後設定程序將該目錄樹同步至 `~/.gemini/antigravity-cli/plugins/gal/`。`gal-results/` 不得使用，因為它屬於 xmachine output。
+AGY 為第一個渲染器，因為它是目前直接寫入的痛點。AGY 渲染器在 ignored generated artifact root `dist/provider-plugins/agy/gal/` 下寫入生成的本地成品，然後設定程序先移除 plugin root 之外所有既有的 GAL 管理 AGY 舊安裝內容，再將該目錄樹同步至 `~/.gemini/antigravity-cli/plugins/gal/`。`gal-results/` 不得使用，因為它屬於 xmachine output。
 
 AGY 渲染器輸出：
 
@@ -137,8 +140,8 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 #### 步驟 4：實作 AGY skills 與 command skills 渲染器
 
 - **檔案**：`scripts/Build-AgyPlugin.ps1`、`scripts/build-agy-plugin.sh`、`scripts/Update-Commands.ps1`、`scripts/update-commands.sh`、`scripts/Update-Skills.ps1`、`scripts/update-skills.sh`
-- **內容**：將共同套件中的 reusable skills 與 command skills 渲染至 AGY plugin `skills/`。停止直接 AGY skill 符號連結；此階段 Copilot CLI 與 Codex 的既有指令技能行為保持不變。
-- **驗證**：AGY 不再需要直接的 `~/.gemini/antigravity-cli/skills/<name>/` GAL-managed links；非 AGY 的既有安裝不受影響。
+- **內容**：將共同套件中的 reusable skills 與 command skills 渲染至 AGY plugin `skills/`。停止直接 AGY skill 符號連結，並在 setup/reinstall 時移除既有的 GAL 管理 AGY skill 安裝殘留；此階段 Copilot CLI 與 Codex 的既有指令技能行為保持不變。
+- **驗證**：AGY 不再需要直接的 `~/.gemini/antigravity-cli/skills/<name>/` GAL-managed links，且任何既有 GAL 管理 AGY skills 舊安裝都會被清除；非 AGY 的既有安裝不受影響。
 
 #### 步驟 5：實作 AGY agents 渲染器
 
@@ -149,8 +152,8 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 #### 步驟 6：將 AGY MCP 路由至 plugin root
 
 - **檔案**：`scripts/Update-Mcp.ps1`、`scripts/update-mcp.sh`、AGY renderer helpers
-- **內容**：重用現有 MCP 規格與 AGY 轉換，但將 GAL 管理的 AGY MCP 寫入 plugin root `mcp_config.json`。共同模型只攜帶 canonical MCP 規格與 local-only 邊界；已解析的本地值只在本地 render/install 階段物化。僅從全域 AGY MCP 設定中移除 GAL 管理的舊版項目或指向舊位置的殘留。
-- **驗證**：使用者自有的全域 AGY MCP 項目保留，GAL 管理的重複舊版項目被移除，plugin root `mcp_config.json` 成為 GAL 的權威來源。
+- **內容**：重用現有 MCP 規格與 AGY 轉換，但將 GAL 管理的 AGY MCP 寫入 plugin root `mcp_config.json`。共同模型只攜帶 canonical MCP 規格與 local-only 邊界；已解析的本地值只在本地 render/install 階段物化。setup/reinstall 必須移除所有既有的 GAL 管理 AGY MCP 舊安裝內容與指向 plugin 外位置的殘留，確保 plugin root 成為唯一的 GAL 受管 MCP 載體。
+- **驗證**：plugin root `mcp_config.json` 成為 GAL 的唯一權威來源；任何既有的 GAL 管理 AGY MCP 舊安裝或舊指標都會被移除，且不留下 plugin 外的 GAL 受管 MCP 內容。
 
 #### 步驟 7：渲染 AGY 指令集而不復活 `.agents`
 
@@ -161,8 +164,8 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 #### 步驟 8：更新設定生命週期
 
 - **檔案**：`scripts/Setup-Machine.ps1`、`scripts/setup-machine.sh`、解除安裝/更新輔助程式
-- **內容**：讓設定程序建置共同套件、渲染 AGY、同步 `~/.gemini/antigravity-cli/plugins/gal/`、更新受管理狀態，並清除舊版直接寫入的殘留與不再需要的外部 AGY runtime 連結。解除安裝移除 GAL-managed plugin directory，保護 user-owned global MCP entries，不自動恢復舊 symlink 模式。
-- **驗證**：重新安裝可確定性地覆寫 `plugins/gal/`，解除安裝可移除受管理的外掛程式輸出，舊版殘留不遮蔽外掛程式內容。
+- **內容**：讓設定程序建置共同套件、渲染 AGY、先清空所有既有的 GAL 管理 AGY 舊安裝面，再同步 `~/.gemini/antigravity-cli/plugins/gal/` 並更新受管理狀態。清除範圍包含舊版直接寫入資產、外部 AGY runtime 連結、plugin 外的 GAL 管理 skills、MCP 與其他 legacy 指標。解除安裝移除 GAL-managed plugin directory 與其對應的 legacy GAL-managed AGY 殘留，不自動恢復舊 symlink 模式。
+- **驗證**：重新安裝會先移除既有 GAL 管理 AGY 舊內容，再確定性地覆寫 `plugins/gal/`；解除安裝會移除受管理的外掛程式輸出與對應 legacy 殘留，不留下 plugin 外的 GAL 受管 AGY 內容。
 
 #### 步驟 9：更新文件
 
@@ -196,7 +199,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - `scripts/update-commands.sh` - Bash 對應的指令路由。
 - `scripts/Update-Skills.ps1` - AGY 可重用技能與代理程式承載透過外掛程式渲染器路由。
 - `scripts/update-skills.sh` - Bash 對應的技能與承載路由。
-- `scripts/Update-Mcp.ps1` - AGY MCP 寫入外掛程式根目錄 `mcp_config.json` 並清除受管理的舊版全域項目。
+- `scripts/Update-Mcp.ps1` - AGY MCP 寫入外掛程式根目錄 `mcp_config.json`，並移除所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容。
 - `scripts/update-mcp.sh` - Bash 對應的 MCP。
 - `scripts/Update-Personalization.ps1` - AGY `rules/gal.md` 投影與 `.agents` 清理邊界。
 - `scripts/update-personalization.sh` - Bash 對應的個人化。
@@ -236,13 +239,12 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - [ ] 共同驗證在 `runtimeScripts`、外掛程式根目錄 `scripts/` 或 `gal-results/` 出現在供應商中立套件模型或 AGY 輸出計畫中時失敗。
 - [ ] AGY 渲染器建立 `dist/provider-plugins/agy/gal/plugin.json`、`skills/`、`agents/`、`rules/gal.md` 與 `mcp_config.json`。
 - [ ] AGY 渲染器不建立 `hooks.json`、`scripts/`、`.codex-plugin/`、`.claude-plugin/`、Copilot 專屬檔案或空的供應商存根。
-- [ ] AGY 外掛程式承載不包含符號連結或對 `~/.gemini/antigravity-cli/gal/` 的必要參考。
+- [ ] AGY 外掛程式承載不包含符號連結或對 `~/.gemini/antigravity-cli/gal/` 的必要參考，且 setup 後 plugin 外不存在 GAL 管理 AGY 舊安裝內容。
 - [ ] 設定完成後，可從外掛程式 `skills/` 中發現 AGY 指令技能與可重用技能。
 - [ ] Copilot CLI 與 Codex 現有的指令技能安裝行為在 AGY 遷移期間保持不變。
 - [ ] AGY 外掛程式根目錄 `mcp_config.json` 是由規範 MCP 規格加上本地安裝時解析所生成。
-- [ ] 舊版清理僅移除 GAL 管理的全域 AGY MCP 項目或過時的指標，並保留使用者擁有的全域項目。
-- [ ] PowerShell 上的設定會安裝或更新 `~/.gemini/antigravity-cli/plugins/gal/`，且不會散佈新的 AGY 直接寫入資產。
-- [ ] Bash 上的設定產生相同的生成 AGY 外掛程式佈局與清理行為。
+- [ ] PowerShell 上的設定會先移除既有的 GAL 管理 AGY 舊安裝內容，再安裝或更新 `~/.gemini/antigravity-cli/plugins/gal/`，且不會散佈新的 AGY 直接寫入資產。
+- [ ] Bash 上的設定產生相同的生成 AGY 外掛程式佈局與舊安裝移除行為。
 - [ ] 文件描述共同基底、AGY 優先渲染器、外掛程式根目錄 MCP、移除 `runtimeScripts`、Gemini 遷移路徑，以及未來的 Copilot CLI、Codex、Claude Code 渲染器順序。
 
 ## 成功標準
@@ -251,9 +253,9 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - [ ] AGY 被實作為共同模型上的第一個渲染器，而非核心架構。
 - [ ] 共同模型沒有供應商專屬輸出路徑、沒有已解析的機器本地機密或路徑，且沒有 `runtimeScripts`。
 - [ ] AGY 外掛程式的安裝、更新與解除安裝透過 `~/.gemini/antigravity-cli/plugins/gal/` 進行管理。
-- [ ] AGY 外掛程式承載使用外掛程式根目錄 MCP，不需要 `gal-results/`、外掛程式根目錄 `scripts/` 或外部 `~/.gemini/antigravity-cli/gal/` 執行階段連結。
+- [ ] AGY 外掛程式承載使用外掛程式根目錄 MCP，不需要 `gal-results/`、外掛程式根目錄 `scripts/` 或外部 `~/.gemini/antigravity-cli/gal/` 執行階段連結，且 plugin 外不殘留任何 GAL 管理 AGY 安裝內容。
 - [ ] GAL 原始碼合約保持由儲存庫擁有，永遠不會被暫存的外掛程式輸出取代。
-- [ ] MCP 擁有權明確：規範 MCP 由原始碼擁有，外掛程式根目錄 `mcp_config.json` 是渲染器輸出，舊版全域 AGY 項目被精確清理。
+- [ ] MCP 擁有權明確：規範 MCP 由原始碼擁有，外掛程式根目錄 `mcp_config.json` 是渲染器輸出，而所有既有的 GAL 管理 AGY MCP 舊安裝內容都被移除。
 - [ ] Gemini 被文件記錄為 AGY 遷移/相容性路徑，而非第五個渲染器。
 - [ ] 未來的 Copilot CLI、Codex 與 Claude Code 渲染器可以重用共同基底，而無需複製 AGY 佈局。
 - [ ] 在擁有供應商專屬的安全性與生命週期審查之前，Hooks 保持在 v1 之外。
@@ -268,7 +270,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - 如果指令被視為 AGY `rules/`，非 AGY 供應商將獲得錯誤的載體。將指令視為內容，而非路徑。
 - 如果 hooks 進入 v1，遷移將成為生命週期自動化與安全性專案，而非封裝。推遲 hooks。
 - 如果將本地設定完成的成品與可分享套件混淆，MCP 機密或機器路徑可能會外洩至未來的市集或團隊成品中。
-- 如果舊版 AGY 清理過於廣泛，使用者擁有的 MCP 項目或技能可能會被刪除。清理必須僅限於 GAL 管理的部分。
+- 如果 legacy AGY 清理邊界辨識錯誤，setup 可能刪除非 GAL 管理的使用者內容，或遺留 plugin 外的舊資產。清理規則必須精準辨識 GAL-managed 舊內容並完整移除。
 - 如果後續供應商渲染器工作在 AGY 驗證共同基底之前就開始，供應商專屬的修復可能會過早改變模型。
 
 ## 待確認問題
@@ -304,7 +306,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 | 保持供應商輸出路徑由渲染器擁有 | 允許所有四個外掛程式供應商使用正確的佈局 | 需要每個供應商渲染器的測試 | OK |
 | 將指令視為技能套件 | 適用於所有四個靜態外掛程式供應商 | 在 v1 中不使用 Claude 扁平指令 | OK |
 | 從共同模型中移除 `runtimeScripts` | 避免發明虛假的四供應商承載 | 供應商專屬可執行輔助程式需要後續設計 | OK |
-| 將 GAL 管理的 MCP 保持在外掛程式根目錄下 | 保持供應商擁有的全域設定更精簡且外掛程式承載獨立 | 需要本地渲染/安裝解析規則 | OK |
+| 將 GAL 管理的 MCP 與既有 AGY 受管內容完全收斂到外掛程式根目錄下 | 建立乾淨的 plugin-only 安裝面並移除外部 legacy 受管資產 | 需要精準的 legacy 清理與本地渲染/安裝解析規則 | OK |
 | 將指令視為內容，而非 `rules/` | 避免 AGY 專屬耦合 | 每個渲染器必須選擇指令載體 | OK |
 | 推遲 hooks | 避免過早的生命週期與安全性範圍 | v1 中沒有基於 hook 的自我修復 | OK |
 | 僅先實作 AGY 渲染器 | 解決目前痛點並同時證明共同模型 | Copilot/Codex/Claude 需等待後續計畫 | OK |
@@ -350,11 +352,11 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 | TP-002 | 腳本冒煙測試 | 共同驗證在技能與指令技能名稱衝突、不支援的元件存根以及供應商路徑外洩時失敗。 | T-002 |
 | TP-003 | 腳本冒煙測試 | `Build-AgyPlugin.ps1` 從共同套件模型在 `dist/provider-plugins/agy/gal/` 下渲染 AGY 外掛程式輸出。 | T-003, T-004, T-005, T-006, T-007 |
 | TP-004 | 腳本冒煙測試 | `build-agy-plugin.sh` 渲染與 PowerShell 路徑相同的 AGY 外掛程式結構。 | T-003, T-004, T-005, T-006, T-007 |
-| TP-005 | 迴歸測試 | AGY 指令技能、可重用技能與代理程式透過外掛程式承載路由，而非直接的 AGY 連結。 | T-004, T-005 |
+| TP-005 | 迴歸測試 | AGY 指令技能、可重用技能與代理程式透過外掛程式承載路由，且 setup 會移除既有的 GAL 管理 AGY 連結與舊安裝內容。 | T-004, T-005, T-008 |
 | TP-006 | 迴歸測試 | Copilot CLI 與 Codex 現有的指令技能安裝行為在 AGY 遷移期間保持不變。 | T-004 |
-| TP-007 | 整合測試 | AGY 外掛程式根目錄 `mcp_config.json` 由規範 MCP 規格生成，且舊版全域 GAL 管理的項目被精確清理。 | T-006 |
+| TP-007 | 整合測試 | AGY 外掛程式根目錄 `mcp_config.json` 由規範 MCP 規格生成，且所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容都被精確移除。 | T-006, T-008 |
 | TP-008 | 整合測試 | AGY `rules/gal.md` 由指令語料庫生成，且不重新建立儲存庫本地的 `.agents`。 | T-007 |
-| TP-009 | 手動冒煙測試 | PowerShell 與 Bash 設定安裝或更新 `~/.gemini/antigravity-cli/plugins/gal/`，將 MCP 保留在外掛程式根目錄下，且不散佈新的 AGY 直接寫入資產。 | T-008 |
+| TP-009 | 手動冒煙測試 | PowerShell 與 Bash 設定會先移除既有的 GAL 管理 AGY 舊安裝內容，再安裝或更新 `~/.gemini/antigravity-cli/plugins/gal/`，將 MCP 保留在外掛程式根目錄下，且不散佈新的 AGY 直接寫入資產。 | T-008 |
 | TP-010 | 文件審查 | 文件描述共同基底、AGY 渲染器 1、外掛程式根目錄 MCP、移除 `runtimeScripts`、Gemini 遷移路徑，以及推遲的 Copilot CLI、Codex、Claude Code 渲染器順序。 | T-009 |
 
 ## 任務
@@ -364,7 +366,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - [ ] T-003 — 定義 AGY 生成成品根目錄與 `plugin.json` 清單輸出，且不使用 `gal-results/`。
 - [ ] T-004 — 在 PowerShell 與 Bash 中實作 AGY 可重用技能與指令技能渲染器。
 - [ ] T-005 — 在 PowerShell 與 Bash 中實作 AGY 代理程式渲染器。
-- [ ] T-006 — 透過外掛程式根目錄 `mcp_config.json` 路由 AGY MCP，並僅清理 GAL 管理的舊版全域 MCP 項目。
+- [ ] T-006 — 透過外掛程式根目錄 `mcp_config.json` 路由 AGY MCP，並移除所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容。
 - [ ] T-007 — 從指令語料庫渲染 AGY `rules/gal.md`，不重新引入儲存庫本地的 `.agents`。
-- [ ] T-008 — 圍繞 `~/.gemini/antigravity-cli/plugins/gal/` 更新設定、重新安裝、解除安裝與舊版清理生命週期，並移除過時的外部 AGY 執行階段相依性。
+- [ ] T-008 — 圍繞 `~/.gemini/antigravity-cli/plugins/gal/` 更新設定、重新安裝、解除安裝與舊版清理生命週期，先移除所有既有的 GAL 管理 AGY 舊安裝內容，再建立乾淨的 plugin-only 安裝面。
 - [ ] T-009 — 更新文件以描述共同基底、AGY 優先實作、外掛程式根目錄 MCP、移除 `runtimeScripts`、Gemini 遷移路徑、未來的供應商渲染器順序以及成品信任邊界。
