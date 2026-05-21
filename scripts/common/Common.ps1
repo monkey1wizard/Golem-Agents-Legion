@@ -88,6 +88,8 @@ function New-SetupContext {
         AntigravityRoot = $antigravityRoot
         AntigravitySkillsTarget = Join-Path $antigravityRoot 'skills'
         AntigravityMcpFile = Join-Path $antigravityRoot 'mcp_config.json'
+        AgyPluginArtifactRoot = Join-Path $repoRoot 'dist/provider-plugins/agy/gal'
+        AgyPluginInstallTarget = Join-Path $env:USERPROFILE '.gemini/antigravity-cli/plugins/gal'
 
         ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
         ClaudeSkillsTarget = Join-Path $env:USERPROFILE '.claude\skills'

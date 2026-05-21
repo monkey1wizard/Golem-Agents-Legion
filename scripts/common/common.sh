@@ -32,6 +32,8 @@ GEMINI_SETTINGS_FILE="$GEMINI_ROOT/settings.json"
 ANTIGRAVITY_ROOT="$GEMINI_ROOT/antigravity-cli"
 ANTIGRAVITY_SKILLS_TARGET="$ANTIGRAVITY_ROOT/skills"
 ANTIGRAVITY_MCP_FILE="$ANTIGRAVITY_ROOT/mcp_config.json"
+AGY_PLUGIN_ARTIFACT_ROOT="$REPO_ROOT/dist/provider-plugins/agy/gal"
+AGY_PLUGIN_INSTALL_TARGET="$HOME/.gemini/antigravity-cli/plugins/gal"
 
 if [[ "${OSTYPE:-}" == darwin* ]]; then
     VSCODE_SETTINGS_FILE="$HOME/Library/Application Support/Code/User/settings.json"
