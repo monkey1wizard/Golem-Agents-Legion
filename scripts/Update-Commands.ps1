@@ -112,14 +112,23 @@ function New-ClaudeCommandFileContent([string]$SkillPath, [string]$CommandName) 
     ) -join "`n"
 }
 
-function New-OpenCodeCommandFileContent([string]$SkillPath) {
+function New-OpenCodeCommandFileContent([string]$SkillPath, [string]$CommandName) {
     $rawContent = Get-Content $SkillPath -Raw -Encoding UTF8
     $description = Get-SkillFrontmatterDescription $rawContent
     if ([string]::IsNullOrWhiteSpace($description)) {
         $description = 'GAL command'
     }
 
-    $body = (Get-SkillMarkdownBody $rawContent).Trim()
+    $body = if ($CommandName -eq 'git-commit-msg') {
+        @(
+            'Run the repo helper below and return its output exactly. The helper decides whether the output is header-only or includes a body, so do not invent bullets or rewrite the summary. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS'
+            ''
+            '!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`'
+        ) -join "`n"
+    }
+    else {
+        (Get-SkillMarkdownBody $rawContent).Trim()
+    }
     $indentedDescription = ($description -replace "`r`n", "`n" -replace "`r", "`n") -split "`n" | ForEach-Object { '  ' + $_ }
 
     return @(
@@ -315,7 +324,7 @@ function Invoke-UpdateCommands {
             }
         }
         else {
-            $commandContent = New-OpenCodeCommandFileContent -SkillPath (Join-Path $commandSkill.Source 'SKILL.md')
+            $commandContent = New-OpenCodeCommandFileContent -SkillPath (Join-Path $commandSkill.Source 'SKILL.md') -CommandName $commandSkill.Name
             if ($script:SetupOptions.DryRun) {
                 Write-Host "  [DRY RUN] Would write: $commandFile"
             }

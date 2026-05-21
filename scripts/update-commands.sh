@@ -128,11 +128,18 @@ new_claude_command_file_content() {
 
 new_opencode_command_file_content() {
     local skill_path="$1"
+    local command_name="$2"
     local description body
 
     description="$(get_skill_frontmatter_description "$skill_path")"
     [ -n "$description" ] || description='GAL command'
-    body="$(get_skill_markdown_body "$skill_path")"
+    if [ "$command_name" = 'git-commit-msg' ]; then
+        body="Run the repo helper below and return its output exactly. The helper decides whether the output is header-only or includes a body, so do not invent bullets or rewrite the summary. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: \$ARGUMENTS
+
+!\`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1\`"
+    else
+        body="$(get_skill_markdown_body "$skill_path")"
+    fi
 
     {
         printf '%s\n' "$GAL_MANAGED_FILE_HEADER"
@@ -333,7 +340,7 @@ invoke_update_commands() {
             if $DRY_RUN; then
                 echo "  [DRY RUN] Would write: $command_file"
             else
-                command_content="$(new_opencode_command_file_content "$skill_path")"
+                command_content="$(new_opencode_command_file_content "$skill_path" "$command_skill_name")"
                 printf '%s\n' "$command_content" > "$command_file"
                 echo "  [OK] $command_file"
             fi
