@@ -125,6 +125,15 @@ build_provider_plugin_package() {
         fi
     fi
 
+    # --- Provider capability flags ---
+    local capabilities_json
+    capabilities_json='{
+        "agy": {"skills": true, "commandSkills": true, "agents": true, "instructions": true, "mcp": true, "hooks": false, "runtimeScripts": false},
+        "copilot": {"skills": true, "commandSkills": true, "agents": true, "instructions": true, "mcp": true, "hooks": false, "runtimeScripts": false},
+        "codex": {"skills": true, "commandSkills": true, "agents": false, "instructions": true, "mcp": true, "hooks": false, "runtimeScripts": false},
+        "claude": {"skills": true, "commandSkills": true, "agents": true, "instructions": true, "mcp": true, "hooks": false, "runtimeScripts": false}
+    }'
+
     # --- Assemble package ---
     jq -n \
         --arg name 'gal' \
@@ -135,6 +144,7 @@ build_provider_plugin_package() {
         --argjson mcpSpec "$mcp_spec_json" \
         --argjson corpusSources "$corpus_sources_json" \
         --argjson agents "$agents_json" \
+        --argjson capabilities "$capabilities_json" \
         '{
             metadata: {
                 name: $name,
@@ -148,6 +158,7 @@ build_provider_plugin_package() {
                 sources: $corpusSources
             },
             agents: $agents,
+            providerCapabilities: $capabilities,
             skippedComponents: ["hooks", "runtimeScripts"]
         }'
 }
@@ -220,6 +231,80 @@ validate_provider_plugin_package() {
     metadata_name="$(printf '%s' "$package_json" | jq -r '.metadata.name // empty')"
     if [ -z "$metadata_name" ]; then
         errors_json="$(printf '%s' "$errors_json" | jq '. + ["Package metadata.name is required"]')"
+    fi
+
+    # --- T-002: Unsupported component skip validation ---
+    local required_skipped=('hooks' 'runtimeScripts')
+    local component
+    for component in "${required_skipped[@]}"; do
+        local is_skipped
+        is_skipped="$(printf '%s' "$package_json" | jq --arg c "$component" '.skippedComponents // [] | contains([$c])')"
+        if [ "$is_skipped" != 'true' ]; then
+            local msg="Required skipped component '$component' is not explicitly recorded in skippedComponents"
+            errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+        fi
+    done
+
+    # --- T-002: Verify no stubs for unsupported components ---
+    local stub_indicators=('"hooks"' '"runtimeScripts"')
+    for indicator in "${stub_indicators[@]}"; do
+        # Count occurrences outside skippedComponents
+        local outside_count
+        outside_count="$(printf '%s' "$package_json" | jq -r --arg ind "$indicator" '
+            [paths as $p | select(. == ($ind | fromjson)) | $p]
+            | map(select($p | index("skippedComponents") | not))
+            | length
+        ')"
+        if [ "$outside_count" -gt 0 ]; then
+            local msg="Unsupported component stub detected: $indicator appears outside skippedComponents"
+            errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+        fi
+    done
+
+    # --- T-002: Explicit gal-results/ check ---
+    if printf '%s' "$package_json" | grep -qF 'gal-results/'; then
+        local msg="gal-results/ path leaked into provider-neutral package model"
+        errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+    fi
+
+    # --- T-002: Local-only artifact boundary validation ---
+    local mcp_disallowed_keys
+    mcp_disallowed_keys="$(printf '%s' "$package_json" | jq -r '
+        .mcpSpec // {}
+        | keys[]
+        | select(. != "canonicalSource" and . != "hasLocalOverrides")
+    ')"
+    if [ -n "$mcp_disallowed_keys" ]; then
+        while IFS= read -r key; do
+            [ -n "$key" ] || continue
+            local msg="MCP spec contains disallowed key '$key'; only canonicalSource and hasLocalOverrides are permitted in the common model"
+            errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+        done <<< "$mcp_disallowed_keys"
+    fi
+
+    # Ensure hasLocalOverrides is strictly boolean
+    local has_local_type
+    has_local_type="$(printf '%s' "$package_json" | jq -r '.mcpSpec.hasLocalOverrides | type // "null"')"
+    if [ "$has_local_type" != 'boolean' ] && [ "$has_local_type" != 'null' ]; then
+        local msg="MCP spec hasLocalOverrides must be a boolean flag, not a resolved value"
+        errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+    fi
+
+    # --- T-002: Provider capability flags validation ---
+    local has_capabilities
+    has_capabilities="$(printf '%s' "$package_json" | jq -r 'has("providerCapabilities")')"
+    if [ "$has_capabilities" != 'true' ]; then
+        errors_json="$(printf '%s' "$errors_json" | jq '. + ["Package providerCapabilities is required"]')"
+    else
+        local required_providers=('agy' 'copilot' 'codex' 'claude')
+        for provider in "${required_providers[@]}"; do
+            local has_provider
+            has_provider="$(printf '%s' "$package_json" | jq --arg p "$provider" 'has("providerCapabilities") and (.providerCapabilities | has($p))')"
+            if [ "$has_provider" != 'true' ]; then
+                local msg="Provider capability flags missing for '$provider'"
+                errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+            fi
+        done
     fi
 
     local valid=false

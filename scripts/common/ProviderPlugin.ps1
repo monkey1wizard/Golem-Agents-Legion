@@ -99,6 +99,46 @@ function New-ProviderPluginPackage {
         }
     }
 
+    # --- Provider capability flags ---
+    $package.providerCapabilities = [ordered]@{
+        agy = [ordered]@{
+            skills = $true
+            commandSkills = $true
+            agents = $true
+            instructions = $true
+            mcp = $true
+            hooks = $false
+            runtimeScripts = $false
+        }
+        copilot = [ordered]@{
+            skills = $true
+            commandSkills = $true
+            agents = $true
+            instructions = $true
+            mcp = $true
+            hooks = $false
+            runtimeScripts = $false
+        }
+        codex = [ordered]@{
+            skills = $true
+            commandSkills = $true
+            agents = $false
+            instructions = $true
+            mcp = $true
+            hooks = $false
+            runtimeScripts = $false
+        }
+        claude = [ordered]@{
+            skills = $true
+            commandSkills = $true
+            agents = $true
+            instructions = $true
+            mcp = $true
+            hooks = $false
+            runtimeScripts = $false
+        }
+    }
+
     # --- Skipped components for v1 ---
     $package.skippedComponents.Add('hooks')
     $package.skippedComponents.Add('runtimeScripts')
@@ -190,6 +230,66 @@ function Test-ProviderPluginPackage {
     # --- Required fields ---
     if (-not $Package.metadata -or [string]::IsNullOrWhiteSpace($Package.metadata.name)) {
         $errors.Add('Package metadata.name is required')
+    }
+
+    # --- T-002: Unsupported component skip validation ---
+    $requiredSkippedComponents = @('hooks', 'runtimeScripts')
+    foreach ($component in $requiredSkippedComponents) {
+        if ($Package.skippedComponents -notcontains $component) {
+            $errors.Add("Required skipped component '$component' is not explicitly recorded in skippedComponents")
+        }
+    }
+
+    # --- T-002: Verify no stubs for unsupported components ---
+    # If hooks or runtimeScripts appear anywhere other than skippedComponents, it's a stub
+    $jsonText = $Package | ConvertTo-Json -Depth 20
+    $stubIndicators = @('"hooks"', '"runtimeScripts"')
+    foreach ($indicator in $stubIndicators) {
+        $matches = [regex]::Matches($jsonText, [regex]::Escape($indicator))
+        foreach ($m in $matches) {
+            $before = $jsonText.Substring(0, $m.Index)
+            # If this occurrence is not inside skippedComponents, it's a stub
+            if (-not ($before -match '"skippedComponents"')) {
+                $errors.Add("Unsupported component stub detected: $indicator appears outside skippedComponents")
+            }
+        }
+    }
+
+    # --- T-002: Explicit gal-results/ check ---
+    if ($jsonText -match [regex]::Escape('gal-results/')) {
+        $errors.Add("gal-results/ path leaked into provider-neutral package model")
+    }
+
+    # --- T-002: Local-only artifact boundary validation ---
+    # Ensure mcpSpec only carries boolean hasLocalOverrides, not resolved values
+    if ($Package.mcpSpec -and $Package.mcpSpec -is [System.Collections.IDictionary]) {
+        $mcpKeys = @($Package.mcpSpec.Keys)
+        $allowedMcpKeys = @('canonicalSource', 'hasLocalOverrides')
+        foreach ($key in $mcpKeys) {
+            if ($allowedMcpKeys -notcontains $key) {
+                $errors.Add("MCP spec contains disallowed key '$key'; only canonicalSource and hasLocalOverrides are permitted in the common model")
+            }
+        }
+        # Ensure hasLocalOverrides is strictly boolean
+        if ($Package.mcpSpec.Contains('hasLocalOverrides')) {
+            $localOverridesValue = $Package.mcpSpec['hasLocalOverrides']
+            if ($localOverridesValue -isnot [bool]) {
+                $errors.Add("MCP spec hasLocalOverrides must be a boolean flag, not a resolved value")
+            }
+        }
+    }
+
+    # --- T-002: Provider capability flags validation ---
+    if (-not $Package.providerCapabilities -or $Package.providerCapabilities -isnot [System.Collections.IDictionary]) {
+        $errors.Add('Package providerCapabilities is required')
+    }
+    else {
+        $requiredProviders = @('agy', 'copilot', 'codex', 'claude')
+        foreach ($provider in $requiredProviders) {
+            if (-not $Package.providerCapabilities.Contains($provider)) {
+                $errors.Add("Provider capability flags missing for '$provider'")
+            }
+        }
     }
 
     return [pscustomobject]@{
