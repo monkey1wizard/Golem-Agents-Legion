@@ -714,52 +714,85 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
 
 function Update-AgyMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
     $context = $script:SetupContext
-    $agyConfig = Read-JsonOrderedMap $context.AntigravityMcpFile
-    if ($null -eq $agyConfig) {
-        $agyConfig = [ordered]@{}
+
+    # --- Write MCP config to the AGY plugin root ---
+    $pluginMcpFile = Join-Path $context.AgyPluginInstallTarget 'mcp_config.json'
+    $pluginDir = Split-Path $pluginMcpFile -Parent
+
+    # Build AGY-format MCP config from the managed manifest
+    $agyServers = [ordered]@{}
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $agyServers[$serverName] = ConvertTo-AgyMcpConfig $ManagedManifest['servers'][$serverName]
+    }
+    $pluginMcpConfig = [ordered]@{
+        mcpServers = $agyServers
+    }
+    if ($ManagedManifest.Contains('inputs')) {
+        $pluginMcpConfig['inputs'] = $ManagedManifest['inputs']
     }
 
+    if (-not $script:SetupOptions.DryRun) {
+        if (-not (Test-Path $pluginDir)) {
+            New-Item -ItemType Directory -Path $pluginDir -Force | Out-Null
+        }
+        Write-JsonOrderedMap $pluginMcpFile $pluginMcpConfig
+        Write-Host "  [SET] AGY plugin MCP config: $pluginMcpFile"
+    }
+    else {
+        Write-Host "  [DRY RUN] Would write AGY plugin MCP config: $pluginMcpFile"
+    }
+
+    # --- Clean up GAL-managed entries from the global AGY MCP config ---
+    $agyConfig = Read-JsonOrderedMap $context.AntigravityMcpFile
+    if ($null -eq $agyConfig) { return }
+
     if (-not $agyConfig.Contains('mcpServers') -or $agyConfig['mcpServers'] -isnot [System.Collections.IDictionary]) {
-        $agyConfig['mcpServers'] = [ordered]@{}
+        return
     }
 
     $changed = $false
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        # Remove the canonical name
+        if ($agyConfig['mcpServers'].Contains($serverName)) {
+            $agyConfig['mcpServers'].Remove($serverName)
+            $changed = $true
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove global AGY MCP entry: $serverName"
+            }
+            else {
+                Write-Host "  [CLEANUP] Global AGY MCP entry removed: $serverName"
+            }
+        }
+        # Remove legacy aliases
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'antigravity' -ServerName $serverName)) {
             if ($agyConfig['mcpServers'].Contains($legacyAlias)) {
                 $agyConfig['mcpServers'].Remove($legacyAlias)
                 $changed = $true
                 if ($script:SetupOptions.DryRun) {
-                    Write-Host "  [DRY RUN] Would remove Antigravity MCP alias: $legacyAlias"
+                    Write-Host "  [DRY RUN] Would remove global AGY MCP alias: $legacyAlias"
                 }
                 else {
-                    Write-Host "  [CLEANUP] Antigravity MCP alias removed: $legacyAlias"
+                    Write-Host "  [CLEANUP] Global AGY MCP alias removed: $legacyAlias"
                 }
-            }
-        }
-    }
-    foreach ($serverName in $ManagedManifest['servers'].Keys) {
-        $converted = ConvertTo-AgyMcpConfig $ManagedManifest['servers'][$serverName]
-        if (-not $agyConfig['mcpServers'].Contains($serverName) -or -not (Test-JsonLikeEqual $agyConfig['mcpServers'][$serverName] $converted)) {
-            $agyConfig['mcpServers'][$serverName] = $converted
-            $changed = $true
-            if ($script:SetupOptions.DryRun) {
-                Write-Host "  [DRY RUN] Would set Antigravity MCP server: $serverName"
-            }
-            else {
-                Write-Host "  [SET] Antigravity MCP server: $serverName"
             }
         }
     }
 
-    if (Sync-ManagedMcpInputs -Data $agyConfig -ManagedManifest $ManagedManifest) {
+    # Remove managed inputs from global config
+    if (Remove-ManagedMcpInputs -Data $agyConfig -ManagedManifest $ManagedManifest) {
         $changed = $true
         if ($script:SetupOptions.DryRun) {
-            Write-Host '  [DRY RUN] Would sync Antigravity MCP inputs'
+            Write-Host '  [DRY RUN] Would remove global AGY MCP inputs'
         }
         else {
-            Write-Host '  [SET] Antigravity MCP inputs'
+            Write-Host '  [CLEANUP] Global AGY MCP inputs removed'
         }
+    }
+
+    # Clean up empty mcpServers block
+    if ($agyConfig['mcpServers'].Count -eq 0) {
+        $agyConfig.Remove('mcpServers')
+        $changed = $true
     }
 
     if ($changed -and -not $script:SetupOptions.DryRun) {
@@ -977,7 +1010,18 @@ function Invoke-UpdateMcp {
     Write-Host '=== MCP config bridge ==='
 
     if ($script:SetupOptions.Uninstall) {
-        Write-Host '  [SKIP] MCP config files are preserved during uninstall.'
+        # Remove AGY plugin root MCP config
+        $pluginMcpFile = Join-Path $context.AgyPluginInstallTarget 'mcp_config.json'
+        if (Test-Path $pluginMcpFile) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove AGY plugin MCP config: $pluginMcpFile"
+            }
+            else {
+                Remove-Item -LiteralPath $pluginMcpFile -Force
+                Write-Host "  [CLEANUP] AGY plugin MCP config removed: $pluginMcpFile"
+            }
+        }
+        Write-Host '  [SKIP] Global MCP config files are preserved during uninstall.'
         return
     }
 

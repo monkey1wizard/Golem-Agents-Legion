@@ -366,7 +366,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - [x] T-003 — 定義 AGY 生成成品根目錄與 `plugin.json` 清單輸出，且不使用 `gal-results/`。 *(227ed7d)*
 - [x] T-004 — 在 PowerShell 與 Bash 中實作 AGY 可重用技能與指令技能渲染器。 *(Update-Skills 呼叫 Build-AgyPlugin -Force -Install 取代 AGY skill symlinks；Update-Commands 僅清理 legacy AGY command-skill symlinks；兩者均含 install/uninstall legacy cleanup)*
 - [x] T-005 — 在 PowerShell 與 Bash 中實作 AGY 代理程式渲染器。 *(227ed7d)*
-- [ ] T-006 — 透過外掛程式根目錄 `mcp_config.json` 路由 AGY MCP，並移除所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容。 *(git 稽核：227ed7d 未變更 Update-Mcp.*，目前沒有對應 lifecycle / cleanup 歷史證據)*
+- [x] T-006 — 透過外掛程式根目錄 `mcp_config.json` 路由 AGY MCP，並移除所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容。 *(Build-AgyPlugin.ps1/sh: MCP rendering now converts servers→mcpServers, url→serverUrl, removes type, merges local overrides; Update-Mcp.ps1/sh: Update-AgyMcpConfig writes to plugin root mcp_config.json, cleans up global AGY MCP entries on install, removes plugin root MCP on uninstall)*
 - [ ] T-007 — 從指令語料庫渲染 AGY `rules/gal.md`，不重新引入儲存庫本地的 `.agents`。 *(git 稽核：227ed7d 雖含 build-time rules 輸出，但未變更 Update-Personalization.* 來支持 install/sync 邊界完成)*
 - [ ] T-008 — 圍繞 `~/.gemini/antigravity-cli/plugins/gal/` 更新設定、重新安裝、解除安裝與舊版清理生命週期，先移除所有既有的 GAL 管理 AGY 舊安裝內容，再建立乾淨的 plugin-only 安裝面。
 - [ ] T-009 — 更新文件以描述共同基底、AGY 優先實作、外掛程式根目錄 MCP、移除 `runtimeScripts`、Gemini 遷移路徑、未來的供應商渲染器順序以及成品信任邊界。

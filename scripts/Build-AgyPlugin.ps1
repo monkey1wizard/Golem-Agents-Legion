@@ -147,17 +147,58 @@ foreach ($agent in $package.agents) {
 # --- Render MCP config ---
 if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
     Write-Host "Rendering mcp_config.json..." -ForegroundColor Cyan
-    $mcpSource = Get-Content -Raw -Path $package.mcpSpec.canonicalSource
-    $mcpConfig = $mcpSource | ConvertFrom-Json
 
-    # AGY-specific: resolve env var placeholders for common vars
-    $mcpJson = $mcpConfig | ConvertTo-Json -Depth 10
-    $mcpJson = $mcpJson -replace '\$\{MCP_MEMORY_FILE_PATH\}', '${MCP_MEMORY_FILE_PATH}'
-    $mcpJson = $mcpJson -replace '\$\{CONTEXT7_API_KEY\}', '${CONTEXT7_API_KEY}'
+    # Load canonical MCP spec
+    $mcpManifest = Read-JsonOrderedMap $package.mcpSpec.canonicalSource
+    if ($null -ne $mcpManifest) {
+        # Merge local overrides if present (boundary only; no resolved values in common model)
+        if ($package.mcpSpec.hasLocalOverrides) {
+            $mcpLocalFile = Join-Path (Split-Path $package.mcpSpec.canonicalSource -Parent) 'mcp.local.json'
+            if (Test-Path $mcpLocalFile) {
+                $localManifest = Read-JsonOrderedMap $mcpLocalFile
+                if ($null -ne $localManifest) {
+                    $mcpManifest = Merge-OrderedMap $mcpManifest $localManifest
+                }
+            }
+        }
 
-    $mcpDest = Join-Path $artifactRoot 'mcp_config.json'
-    $mcpJson | Set-Content -Path $mcpDest -Encoding UTF8
-    Write-Host "  -> mcp_config.json" -ForegroundColor Gray
+        # Convert to AGY format: url -> serverUrl, remove type field
+        $agyMcpConfig = [ordered]@{}
+        if ($mcpManifest.Contains('servers') -and $mcpManifest['servers'] -is [System.Collections.IDictionary]) {
+            $agyServers = [ordered]@{}
+            foreach ($serverName in $mcpManifest['servers'].Keys) {
+                $serverConfig = $mcpManifest['servers'][$serverName]
+                if ($serverConfig -is [System.Collections.IDictionary]) {
+                    $converted = [ordered]@{}
+                    foreach ($key in $serverConfig.Keys) {
+                        if ($key -eq 'type') { continue }
+                        if ($key -eq 'url') {
+                            $converted['serverUrl'] = [string]$serverConfig['url']
+                            continue
+                        }
+                        $converted[$key] = $serverConfig[$key]
+                    }
+                    $agyServers[$serverName] = $converted
+                }
+                else {
+                    $agyServers[$serverName] = $serverConfig
+                }
+            }
+            $agyMcpConfig['mcpServers'] = $agyServers
+        }
+
+        # Preserve inputs if present (AGY supports inputs)
+        if ($mcpManifest.Contains('inputs')) {
+            $agyMcpConfig['inputs'] = $mcpManifest['inputs']
+        }
+
+        $mcpDest = Join-Path $artifactRoot 'mcp_config.json'
+        Write-JsonOrderedMap $mcpDest $agyMcpConfig
+        Write-Host "  -> mcp_config.json" -ForegroundColor Gray
+    }
+    else {
+        Write-Host "  [WARN] Could not parse MCP source file; skipping mcp_config.json" -ForegroundColor Yellow
+    }
 }
 
 # --- Render rules/gal.md (instruction corpus) ---

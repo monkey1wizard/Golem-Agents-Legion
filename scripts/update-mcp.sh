@@ -10,7 +10,17 @@ invoke_update_mcp() {
     echo '=== MCP config bridge ==='
 
     if $UNINSTALL; then
-        echo '  [SKIP] MCP config files are preserved during uninstall.'
+        # Remove AGY plugin root MCP config
+        plugin_mcp_file="$HOME/.gemini/antigravity-cli/plugins/gal/mcp_config.json"
+        if [[ -f "$plugin_mcp_file" ]]; then
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove AGY plugin MCP config: $plugin_mcp_file"
+            else
+                rm -f "$plugin_mcp_file"
+                echo "  [CLEANUP] AGY plugin MCP config removed: $plugin_mcp_file"
+            fi
+        fi
+        echo '  [SKIP] Global MCP config files are preserved during uninstall.'
         return 0
     fi
 
@@ -597,28 +607,61 @@ def update_copilot_cli(manifest):
 
 
 def update_antigravity(manifest):
-    data = read_json(agy_mcp)
-    servers = data.setdefault('mcpServers', {})
-    changed = False
+    # --- Write MCP config to the AGY plugin root ---
+    plugin_install_target = Path(os.environ.get('HOME', Path.home())) / '.gemini' / 'antigravity-cli' / 'plugins' / 'gal'
+    plugin_mcp_file = plugin_install_target / 'mcp_config.json'
+
+    agy_servers = {}
     for server_name, server_config in manifest['servers'].items():
+        agy_servers[server_name] = convert_agy_config(server_config)
+    plugin_mcp_config = {'mcpServers': agy_servers}
+    if 'inputs' in manifest:
+        plugin_mcp_config['inputs'] = manifest['inputs']
+
+    if not dry_run:
+        plugin_install_target.mkdir(parents=True, exist_ok=True)
+        write_json(plugin_mcp_file, plugin_mcp_config)
+        print(f'  [SET] AGY plugin MCP config: {plugin_mcp_file}')
+    else:
+        print(f'  [DRY RUN] Would write AGY plugin MCP config: {plugin_mcp_file}')
+
+    # --- Clean up GAL-managed entries from the global AGY MCP config ---
+    data = read_json(agy_mcp)
+    if not data:
+        return
+    servers = data.get('mcpServers')
+    if not isinstance(servers, dict):
+        return
+
+    changed = False
+    for server_name in manifest['servers']:
+        # Remove the canonical name
+        if server_name in servers:
+            changed = True
+            prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+            print(f'  {prefix} global AGY MCP entry: {server_name}')
+            if not dry_run:
+                del servers[server_name]
+        # Remove legacy aliases
         for alias in legacy_aliases('antigravity', server_name):
             if alias in servers:
                 changed = True
                 prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
-                print(f'  {prefix} Antigravity MCP alias: {alias}')
+                print(f'  {prefix} global AGY MCP alias: {alias}')
                 if not dry_run:
                     del servers[alias]
-        converted = convert_agy_config(server_config)
-        if server_name not in servers or not json_like_equal(servers[server_name], converted):
-            changed = True
-            prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
-            print(f'  {prefix} Antigravity MCP server: {server_name}')
-            if not dry_run:
-                servers[server_name] = converted
-    if sync_managed_inputs(data, manifest):
+
+    # Remove managed inputs from global config
+    if remove_managed_inputs(data, manifest):
         changed = True
-        prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
-        print(f'  {prefix} Antigravity MCP inputs')
+        prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+        print(f'  {prefix} global AGY MCP inputs')
+
+    # Clean up empty mcpServers block
+    if isinstance(servers, dict) and not servers:
+        data.pop('mcpServers', None)
+        changed = True
+
     if changed and not dry_run:
         write_json(agy_mcp, data)
         print(f'  [OK] {agy_mcp}')

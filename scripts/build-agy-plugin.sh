@@ -172,9 +172,48 @@ done < <(printf '%s' "$package_json" | jq -r '.agents[].sourcePath // empty')
 
 # --- Render MCP config ---
 mcp_spec="$(printf '%s' "$package_json" | jq -r '.mcpSpec.canonicalSource // empty')"
+has_local_overrides="$(printf '%s' "$package_json" | jq -r '.mcpSpec.hasLocalOverrides // false')"
 if [[ -n "$mcp_spec" && -f "$mcp_spec" ]]; then
     echo "Rendering mcp_config.json..."
-    cp "$mcp_spec" "$artifact_root/mcp_config.json"
+
+    # Start with canonical source
+    mcp_manifest="$(cat "$mcp_spec")"
+
+    # Merge local overrides if present
+    if [[ "$has_local_overrides" == 'true' ]]; then
+        mcp_local_file="$(dirname "$mcp_spec")/mcp.local.json"
+        if [[ -f "$mcp_local_file" ]]; then
+            mcp_manifest="$(printf '%s\n%s' "$mcp_manifest" "$(cat "$mcp_local_file")" | jq -s 'def deep_merge(a;b):
+              reduce (b | keys) as $k (.;
+                if (.[$k] // null) == null then .[$k] = b[$k]
+                elif (.[$k] | type) == "object" and (b[$k] | type) == "object" then .[$k] = deep_merge(.[$k]; b[$k])
+                else .[$k] = b[$k]
+                end
+              );
+              deep_merge(.[0]; .[1])')"
+        fi
+    fi
+
+    # Convert to AGY format: servers -> mcpServers, url -> serverUrl, remove type field
+    agy_mcp="$(printf '%s' "$mcp_manifest" | jq '
+        {
+            mcpServers: ((.servers // {}) | to_entries | map(
+                select(.value != null) |
+                {
+                    key: .key,
+                    value: ((.value | to_entries | map(
+                        select(.key != "type") |
+                        if .key == "url" then {key: "serverUrl", value: .value}
+                        else {key: .key, value: .value}
+                        end
+                    )) | from_entries)
+                }
+            ) | from_entries),
+            inputs: (.inputs // null)
+        } | del(.. | nulls)
+    ')"
+
+    printf '%s\n' "$agy_mcp" > "$artifact_root/mcp_config.json"
     echo "  -> mcp_config.json"
 fi
 
