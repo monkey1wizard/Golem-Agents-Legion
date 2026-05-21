@@ -364,7 +364,7 @@ AGY v1 明確不生成 `hooks.json`、`scripts/`、市集 metadata、Copilot/Cod
 - [x] T-001 — 新增針對 metadata、skills、指令技能、規範 MCP 規格、指令語料庫及可選代理程式的供應商中立套件清單輔助程式。 *(6a68390)*
 - [x] T-002 — 新增針對名稱衝突、供應商路徑外洩、不支援元件略過、僅限本地成品邊界、`runtimeScripts` 排除及 `gal-results/` 排除的共同套件驗證。 *(1dcf191)*
 - [x] T-003 — 定義 AGY 生成成品根目錄與 `plugin.json` 清單輸出，且不使用 `gal-results/`。 *(227ed7d)*
-- [ ] T-004 — 在 PowerShell 與 Bash 中實作 AGY 可重用技能與指令技能渲染器。 *(git 稽核：227ed7d 僅直接變更 Build-AgyPlugin.*，未涵蓋 Update-Commands / Update-Skills 路由與舊安裝清理)*
+- [x] T-004 — 在 PowerShell 與 Bash 中實作 AGY 可重用技能與指令技能渲染器。 *(Update-Skills 呼叫 Build-AgyPlugin -Force -Install 取代 AGY skill symlinks；Update-Commands 僅清理 legacy AGY command-skill symlinks；兩者均含 install/uninstall legacy cleanup)*
 - [x] T-005 — 在 PowerShell 與 Bash 中實作 AGY 代理程式渲染器。 *(227ed7d)*
 - [ ] T-006 — 透過外掛程式根目錄 `mcp_config.json` 路由 AGY MCP，並移除所有 plugin 外的 GAL 管理 AGY MCP 舊安裝內容。 *(git 稽核：227ed7d 未變更 Update-Mcp.*，目前沒有對應 lifecycle / cleanup 歷史證據)*
 - [ ] T-007 — 從指令語料庫渲染 AGY `rules/gal.md`，不重新引入儲存庫本地的 `.agents`。 *(git 稽核：227ed7d 雖含 build-time rules 輸出，但未變更 Update-Personalization.* 來支持 install/sync 邊界完成)*

@@ -185,7 +185,7 @@ function Invoke-UpdateCommands {
     }
 
     Write-Host ''
-    Write-Host '=== GAL command skill symlinks ==='
+    Write-Host '=== GAL command skill symlinks (Copilot + Codex) ==='
     foreach ($commandSkill in $context.CommandSkillDirs) {
         if ($script:SetupOptions.Uninstall -or -not $context.InstallCopilot) {
             Remove-SafeLink $commandSkill.CopilotTarget
@@ -194,20 +194,21 @@ function Invoke-UpdateCommands {
             New-SafeSymlink $commandSkill.CopilotTarget $commandSkill.Source 'Directory' | Out-Null
         }
 
-        $antigravityTarget = Join-Path $context.AntigravitySkillsTarget $commandSkill.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
-            Remove-SafeLink $antigravityTarget
-        }
-        else {
-            New-SafeSymlink $antigravityTarget $commandSkill.Source 'Directory' | Out-Null
-        }
-
         if ($script:SetupOptions.Uninstall -or -not $context.InstallCodex) {
             Remove-SafeLink $commandSkill.CodexTarget
         }
         else {
             New-SafeSymlink $commandSkill.CodexTarget $commandSkill.Source 'Directory' | Out-Null
         }
+    }
+
+    Write-Host ''
+    Write-Host '=== AGY command skill legacy cleanup ==='
+    # AGY command skills are now rendered by Build-AgyPlugin.ps1 (called from Update-Skills).
+    # This section only cleans up legacy symlinks that predate the plugin model.
+    foreach ($commandSkill in $context.CommandSkillDirs) {
+        $antigravityTarget = Join-Path $context.AntigravitySkillsTarget $commandSkill.Name
+        Remove-SafeLink $antigravityTarget
     }
 
     Write-Host ''

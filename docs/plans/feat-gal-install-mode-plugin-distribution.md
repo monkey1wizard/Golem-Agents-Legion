@@ -4,6 +4,8 @@
 
 GAL 提供一套以供應商原生 plugin install 機制為主的安裝模式，讓一般使用者不需要 clone GAL repo，也不需要在 `~/.copilot/gal`、`~/.gemini/gal` 或 `~/.gemini/antigravity-cli/gal` 建立 repo-root shortcut 才能使用 GAL。現有 clone repo 加 symlink 的方式保留為 contributor/developer mode，不再是一般使用者的預設安裝路徑。
 
+同時將 C# / dart / flutter / golang 等等特定語言的 skills 移出GAL，改為使用 official plugin 的形式安裝，畢竟不同人需要的開發語言 skill 不同。
+
 ## 需求
 
 - [ ] 比較 AGY CLI、Copilot CLI、Codex 與 Claude Code 的 plugin 架構、安裝方式、cache 行為、manifest 位置、支援承載與不支援承載。

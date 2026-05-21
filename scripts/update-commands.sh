@@ -193,12 +193,11 @@ invoke_update_commands() {
     fi
 
     echo ''
-    echo '=== GAL command skill symlinks ==='
-    local copilot_target antigravity_target codex_target
+    echo '=== GAL command skill symlinks (Copilot + Codex) ==='
+    local copilot_target codex_target
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
         copilot_target="$SKILLS_TARGET/$command_skill_name"
-        antigravity_target="$ANTIGRAVITY_SKILLS_TARGET/$command_skill_name"
         codex_target="$CODEX_SKILLS_TARGET/$command_skill_name"
 
         if $UNINSTALL || ! $INSTALL_COPILOT; then
@@ -207,17 +206,21 @@ invoke_update_commands() {
             safe_link "$copilot_target" "$command_skill_source"
         fi
 
-        if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
-            safe_unlink "$antigravity_target"
-        else
-            safe_link "$antigravity_target" "$command_skill_source"
-        fi
-
         if $UNINSTALL || ! $INSTALL_CODEX; then
             safe_unlink "$codex_target"
         else
             safe_link "$codex_target" "$command_skill_source"
         fi
+    done
+
+    echo ''
+    echo '=== AGY command skill legacy cleanup ==='
+    # AGY command skills are now rendered by build-agy-plugin.sh (called from update-skills).
+    # This section only cleans up legacy symlinks that predate the plugin model.
+    local antigravity_target
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        antigravity_target="$ANTIGRAVITY_SKILLS_TARGET/$command_skill_name"
+        safe_unlink "$antigravity_target"
     done
 
     echo ''

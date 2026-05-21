@@ -193,14 +193,53 @@ function Invoke-UpdateSkills {
     }
 
     Write-Host ''
-    Write-Host ("=== AGY Global Skills ({0} reusable directories) ===" -f $skillDirs.Count)
-    foreach ($skillDir in $skillDirs) {
-        $linkPath = Join-Path $context.AntigravitySkillsTarget $skillDir.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
-            Remove-SafeLink $linkPath
+    Write-Host '=== AGY Plugin (skills + command skills + agents) ==='
+    if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+        # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
+        foreach ($skillDir in $skillDirs) {
+            $legacyLink = Join-Path $context.AntigravitySkillsTarget $skillDir.Name
+            Remove-SafeLink $legacyLink
+        }
+        # Also clean up legacy command skill symlinks
+        foreach ($cmdName in $context.ActiveCommandSkillNames) {
+            $legacyLink = Join-Path $context.AntigravitySkillsTarget $cmdName
+            Remove-SafeLink $legacyLink
+        }
+        # Remove the installed plugin directory
+        if (Test-Path $context.AgyPluginInstallTarget) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove: $($context.AgyPluginInstallTarget)"
+            }
+            else {
+                Remove-Item $context.AgyPluginInstallTarget -Recurse -Force
+                Write-Host "  [REMOVED] $($context.AgyPluginInstallTarget)"
+            }
+        }
+    }
+    else {
+        # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
+        foreach ($skillDir in $skillDirs) {
+            $legacyLink = Join-Path $context.AntigravitySkillsTarget $skillDir.Name
+            Remove-SafeLink $legacyLink
+        }
+        foreach ($cmdName in $context.ActiveCommandSkillNames) {
+            $legacyLink = Join-Path $context.AntigravitySkillsTarget $cmdName
+            Remove-SafeLink $legacyLink
+        }
+
+        # Build and install the AGY plugin (includes reusable skills, command skills, agents)
+        $buildScript = Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1'
+        if (Test-Path $buildScript) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host '  [DRY RUN] Would run: Build-AgyPlugin.ps1 -Force -Install'
+            }
+            else {
+                & $buildScript -Force -Install
+                Write-Host '  [OK] AGY plugin built and installed'
+            }
         }
         else {
-            New-SafeSymlink $linkPath $skillDir.FullName 'Directory' | Out-Null
+            Write-Host "  [WARN] Build-AgyPlugin.ps1 not found at: $buildScript"
         }
     }
 

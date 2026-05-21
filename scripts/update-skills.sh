@@ -223,16 +223,53 @@ invoke_update_skills() {
     done
 
     echo ''
-    echo "=== AGY Global Skills (${#skill_dirs[@]} reusable directories) ==="
-    for skill_dir in "${skill_dirs[@]}"; do
-        skill_name="$(basename "$skill_dir")"
-        link_path="$ANTIGRAVITY_SKILLS_TARGET/$skill_name"
-        if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
-            safe_unlink "$link_path"
-        else
-            safe_link "$link_path" "$skill_dir"
+    echo '=== AGY Plugin (skills + command skills + agents) ==='
+    if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+        # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
+        for skill_dir in "${skill_dirs[@]}"; do
+            skill_name="$(basename "$skill_dir")"
+            legacy_link="$ANTIGRAVITY_SKILLS_TARGET/$skill_name"
+            safe_unlink "$legacy_link"
+        done
+        # Also clean up legacy command skill symlinks
+        for cmd_name in "${COMMAND_SKILL_NAMES[@]}"; do
+            legacy_link="$ANTIGRAVITY_SKILLS_TARGET/$cmd_name"
+            safe_unlink "$legacy_link"
+        done
+        # Remove the installed plugin directory
+        if [ -e "$AGY_PLUGIN_INSTALL_TARGET" ]; then
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove: $AGY_PLUGIN_INSTALL_TARGET"
+            else
+                rm -rf "$AGY_PLUGIN_INSTALL_TARGET"
+                echo "  [REMOVED] $AGY_PLUGIN_INSTALL_TARGET"
+            fi
         fi
-    done
+    else
+        # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
+        for skill_dir in "${skill_dirs[@]}"; do
+            skill_name="$(basename "$skill_dir")"
+            legacy_link="$ANTIGRAVITY_SKILLS_TARGET/$skill_name"
+            safe_unlink "$legacy_link"
+        done
+        for cmd_name in "${COMMAND_SKILL_NAMES[@]}"; do
+            legacy_link="$ANTIGRAVITY_SKILLS_TARGET/$cmd_name"
+            safe_unlink "$legacy_link"
+        done
+
+        # Build and install the AGY plugin (includes reusable skills, command skills, agents)
+        local build_script="$SCRIPT_DIR/build-agy-plugin.sh"
+        if [ -f "$build_script" ]; then
+            if $DRY_RUN; then
+                echo '  [DRY RUN] Would run: build-agy-plugin.sh --force --install'
+            else
+                bash "$build_script" --force --install
+                echo '  [OK] AGY plugin built and installed'
+            fi
+        else
+            echo "  [WARN] build-agy-plugin.sh not found at: $build_script"
+        fi
+    fi
 
     echo ''
     echo '=== Migration: repo .agents skills cleanup ==='
