@@ -13,7 +13,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **Repo is initialized but no active plan. Use `/planning` to start sprint planning.**
-- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists.
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 - Also inspect `graphify-out/GRAPH_REPORT.md` and the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file. If the report is usable but no version stamp exists, keep the state `FRESH`, show `Report stamp: Not stamped`, and note that automatic version verification is unavailable.
 
@@ -59,9 +59,10 @@ From `## Open Questions`, `## Tasks`, `## Deferred Follow-up` when present, and 
 
 - **Open Questions**: count of unresolved `OQ-NNN` items (`- [ ]`)
 - **Blocking Tasks**: X of Y complete (count checked vs total `T-NNN` items under `## Tasks` only)
+- **Source/prompt task sync**: `HEALTHY` when paired `docs/plans/<slug>.md` and `.dev/plans/<slug>.prompt.md` agree on blocking `T-NNN` checkbox state; otherwise `MISMATCH` with the task ids that disagree
 - **Deferred Follow-up**: advisory count from `## Deferred Follow-up` when present; if missing, show *None recorded.*
 - **Analyze verdict**: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN` from `<!-- ANALYZE: ... -->`
-- **Execution write-back health**: `HEALTHY` / `MISSING-DURABLE-STATE` based on whether `Workflow`, `Current Task`, `Next step`, task commit markers, and task-scoped test/review results exist when the current phase implies they should
+- **Execution write-back health**: `HEALTHY` / `MISSING-DURABLE-STATE` based on whether `Workflow`, `Current Task`, `Next step`, task commit markers, task-scoped test/review results, `.dev/state.md` session continuity, and source/prompt task checkbox sync exist when the current phase implies they should
 
 If any section is missing or not yet initialized: show *Not yet run.*
 

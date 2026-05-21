@@ -13,7 +13,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/planning` to start sprint planning.**
-- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists.
+- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
 From `.dev/state.md` and the active plan file, extract these data points:
@@ -25,10 +25,11 @@ From `.dev/state.md` and the active plan file, extract these data points:
 5. Active plan `### Handoff Notes` — interrupted work context and OPEN retry handoffs
 6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
 7. Active plan `## Tasks` — blocking task completion state
-8. Active plan `## Deferred Follow-up` — advisory non-blocking work when present
-9. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
-10. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
-11. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. If the report exists without a version stamp, keep it `FRESH` and note that version verification is unavailable. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
+8. Paired source plan `## Tasks` — compare checkbox state against the execution prompt when both files exist
+9. Active plan `## Deferred Follow-up` — advisory non-blocking work when present
+10. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
+11. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
+12. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. If the report exists without a version stamp, keep it `FRESH` and note that version verification is unavailable. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
 
 ## Step 2 — Decide
 
@@ -42,6 +43,7 @@ Apply this decision tree in order:
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
 | `### Handoff Notes` contains an OPEN `Retry Handoff` block | Resume that exact task and phase through `/gal pipeline`; do not start a new task |
 | `### Handoff Notes` contains an OPEN `Interrupted Phase` block | Resume that exact task and phase through `/gal pipeline`; do not start a new task |
+| Paired source plan and execution prompt disagree on any blocking `T-NNN` checkbox | Resume `/gal pipeline` for state convergence; do not start a new task until source plan, prompt, and `.dev/state.md` agree |
 | `Workflow: IMPLEMENT`, `Current Task` is set, and `Task Final Commit` is missing | Resume `/gal pipeline` on that task; implementation state was not durably closed |
 | `Workflow: TEST` and the current task has no task-scoped `## Test Results` subsection yet | Resume `/gal pipeline`; test phase write-back is incomplete |
 | `Workflow: REVIEW` and the current task has no task-scoped review verdict yet | Resume `/gal pipeline`; review phase write-back is incomplete |

@@ -53,7 +53,7 @@ This is the shared mutable execution work file consumed by control-plane chat, /
 
 [Mutable execution-owned state below this divider is shared by control-plane chat and specialist workflows. Preserve it on refresh unless the user explicitly requests a reset.]
 
-[Execution-stage agents write progress, retry state, review/test results, and resume markers in this file only. Do not mirror execution state back into `docs/plans/<slug>.md`.]
+[Execution-stage agents write detailed progress, retry state, review/test results, and resume markers in this file. After a pipeline task passes implement + test + review, /gal pipeline also synchronizes the source plan task checkbox, commit note, and .dev/state.md session continuity.]
 
 ## Status
 

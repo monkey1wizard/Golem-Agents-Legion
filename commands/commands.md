@@ -51,7 +51,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal-status` | Active | Full state projection |
 | `/gal-whats-next` | Active | Next-action recommendation |
 | `/gal-wrap-up` | Active | Session close-out |
-| `/gal-pipeline` | Active | Task execution through implementer -> tester -> reviewer, with conditional security audit for security-sensitive changes, then verifier |
+| `/gal-pipeline` | Active | Task execution through implementer -> tester -> reviewer, with conditional security audit for security-sensitive changes, source/prompt/state task-closeout convergence, then verifier |
 
 For Codex CLI, use the equivalent skill names with `$` invocation.
 
@@ -70,8 +70,9 @@ The following work no longer has a public slash command and should be routed to 
 
 | Execution work | Owning agent | Primary write-back |
 | --- | --- | --- |
-| Spec-driven tests and real-browser QA | `golem-tester` | plan `## Test Results` |
-| Staff review and drift analysis | `golem-reviewer` | plan `## Review Results`, `## Analyze` |
+| Pipeline task closeout | `/gal-pipeline` orchestrator | source plan `## Tasks`, execution prompt `## Status` / `## Tasks`, `.dev/state.md` session continuity |
+| Spec-driven tests and real-browser QA | `golem-tester` | execution prompt `## Test Results` |
+| Staff review and drift analysis | `golem-reviewer` | execution prompt `## Review Results`, `## Analyze` |
 | Root-cause-first debugging | `golem-debugger` | plan debug log or `.dev/state.md` |
 | Obsidian writes, private captures, diary, and knowledge extraction | `golem-notewriter` | user-owned vault paths or shutdown diary |
 | Design system, variants, build, and live audit | `golem-designer` | `DESIGN.md`, `docs/designs/`, plan review sections |

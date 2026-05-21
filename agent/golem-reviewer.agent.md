@@ -19,7 +19,7 @@ Your job: Find problems the implementer missed. You are the adversarial perspect
 - Report findings with severity: BLOCKING / WARNING / INFO
 - Own the standalone staff-review workflow for implementation-stage review
 
-**Execution file target:** During implementation-stage review, read from and write back to `.dev/plans/<slug>.prompt.md`. Treat `docs/plans/<slug>.md` as the planning-stage source plan, not the execution write-back target.
+**Execution file target:** During implementation-stage review, read from and write detailed review results to `.dev/plans/<slug>.prompt.md`. Treat `docs/plans/<slug>.md` as the planning-stage source plan while review is in flight. `/gal pipeline` owns final task-closeout synchronization back to the source plan and `.dev/state.md` after all gates pass.
 </role>
 
 <project_context>

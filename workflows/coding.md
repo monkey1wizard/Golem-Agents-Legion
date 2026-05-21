@@ -1,7 +1,7 @@
 # Coding Flow
 
 The primary development workflow is control-plane-and-agent-driven, not dispatcher-state-driven.
-Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, and execution-stage specialists write back to the `.dev/plans/<slug>.prompt.md` execution file.
+Within Coding Flow, the primary work-file model is: source plans live in `docs/plans/`, execution prompts live in `.dev/plans/`, repo continuity lives in `.dev/state.md`, planning-stage domain reviews write back to the source plan, execution-stage specialists write detailed phase results to the `.dev/plans/<slug>.prompt.md` execution file, and `/gal pipeline` synchronizes task completion summaries across all three durable surfaces at task closeout.
 Control-plane chat, `/gal status`, `/gal whats-next`, `/gal pipeline`, and execution-stage specialists all resume from the same repo-owned execution-memory substrate: `.dev/state.md` plus the active `.dev/plans/<slug>.prompt.md`.
 
 Cross-model verification remains the default guardrail: planning critique, testing, and review should be done by different models whenever a separate capable model is available.
@@ -34,10 +34,11 @@ The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispa
 
 ### File Ownership Rules
 
-- `docs/plans/<slug>.md` is the planning-stage source plan. Planning commands and planning review lanes may update it.
-- `.dev/plans/<slug>.prompt.md` is the execution-stage work file. `## Status`, `## Tasks`, retry counters, handoff notes, task commit markers, `## Test Results`, `## Review Results`, and `## Analyze` belong here.
-- When an execution prompt exists, execution-stage agents must not write execution progress back to `docs/plans/<slug>.md`.
-- If `/gal status` or `/gal whats-next` sees a live workflow phase without the expected durable markers in `.dev/plans/<slug>.prompt.md`, treat that as missing execution write-back rather than as a cleanly completed phase.
+- `docs/plans/<slug>.md` is the planning-stage source plan and human-readable task checklist. Planning commands and planning review lanes may update its full content; `/gal pipeline` may update task checkboxes and commit notes after a task passes implement, test, review, and any required security gate.
+- `.dev/plans/<slug>.prompt.md` is the execution-stage work file. `## Status`, retry counters, handoff notes, task commit markers, `## Test Results`, `## Review Results`, `## Analyze`, and detailed task execution history belong here.
+- `.dev/state.md` is the repo-level active-plan index and session-continuity surface. `/gal pipeline` updates it after each completed task so `/gal status` and `/gal whats-next` resume from the same place a human sees in the source plan.
+- Execution-stage specialists write detailed phase results to the prompt. The pipeline orchestrator owns cross-file convergence between source plan, execution prompt, and `.dev/state.md`.
+- If `/gal status` or `/gal whats-next` sees a live workflow phase without the expected durable markers in `.dev/plans/<slug>.prompt.md`, or sees source-plan and prompt task checkboxes disagree, treat that as missing execution write-back rather than as a cleanly completed phase.
 
 `golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
@@ -105,10 +106,11 @@ Plans are temporary work files, not permanent records. `docs/plans/` is a stagin
 3. **`/refining-plan` writes the implementation contract into the source plan** → `## Tasks`, `## Test Plan`, `## Review Results > ### Engineering Review`
 4. **`/plan-to-prompt` creates or refreshes the execution prompt from that reviewed source plan** → `.dev/plans/<type>-<slug>.prompt.md`
 5. **The execution prompt self-tracks progress** → `## Status` carries phase markers, step, deviations, and decisions
-6. **Implementation updates progress** during execution (not `.dev/state.md`)
+6. **Implementation updates prompt progress** during execution while the task is in flight
 7. **Testing and review write results** → execution prompt `## Test Results`, `## Review Results`, `## Analyze`
-8. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
-9. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
+8. **Pipeline task closeout converges state** → source plan task checkbox and commit note, execution prompt status/task summary, and `.dev/state.md` session continuity all agree before the next task starts
+9. **Verification confirms the goal** → extracts knowledge to `docs/`, marks the plan ready for closure
+10. **Plan is deleted after lifecycle closure** → task memory returns to zero, no orphaned state
 
 ### Plan Filename Convention
 
@@ -130,10 +132,11 @@ Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 
 | Responsibility | Where |
 | --- | --- |
-| Per-task phase marker, step progress, deviations | **Plan file** `## Status` |
+| Per-task phase marker, step progress, deviations | **Execution prompt** `## Status` |
+| Human-readable task completion checklist | **Source plan** `## Tasks`, synchronized by `/gal pipeline` closeout |
 | Active plans index (which branches have active plans) | **state.md** |
 | Repo-level blockers, cross-plan decisions | **state.md** |
-| Session continuity (last session, stopped at, next step) | **state.md** |
+| Session continuity (last session, stopped at, next step) | **state.md**, refreshed by `/gal pipeline` after each task |
 
 ## Context Handoff
 

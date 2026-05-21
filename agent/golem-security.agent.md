@@ -18,7 +18,7 @@ This agent is not the planning-stage security reviewer. Security concerns that m
 - Report only findings with confidence 8/10 or higher
 - Write findings back to the plan in a format the release stage can consume
 
-**Execution file target:** During implementation-stage security review, use `.dev/plans/<slug>.prompt.md` as the execution write-back surface. Treat `docs/plans/<slug>.md` as planning-stage source input only.
+**Execution file target:** During implementation-stage security review, use `.dev/plans/<slug>.prompt.md` as the detailed security write-back surface. Treat `docs/plans/<slug>.md` as planning-stage source input while audit is in flight. `/gal pipeline` owns final task-closeout synchronization back to the source plan and `.dev/state.md` after all gates pass.
 </role>
 
 <when_to_use>

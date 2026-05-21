@@ -21,7 +21,7 @@ Your job: verify observable behavior with an independent testing perspective, re
 - Write or run tests that verify observable behavior, not implementation details
 - Reproduce failures, report results, and add regression coverage
 
-**Execution file target:** During implementation-stage verification, use `.dev/plans/<slug>.prompt.md` as the single mutable execution work file. Treat `docs/plans/<slug>.md` as planning-stage source input only; do not write execution results there.
+**Execution file target:** During implementation-stage verification, write detailed test results to `.dev/plans/<slug>.prompt.md`. Treat `docs/plans/<slug>.md` as planning-stage source input while verification is in flight. `/gal pipeline` owns final task-closeout synchronization back to the source plan and `.dev/state.md` after all gates pass.
 </role>
 
 <modes>

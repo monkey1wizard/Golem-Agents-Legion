@@ -20,10 +20,11 @@ Pipeline orchestrator. Your job is to iterate through plan tasks automatically, 
 ## Syntax
 
 ```text
-/gal pipeline [#file:<plan.md>] [from T-NNN] [stop-at T-NNN]
+/gal pipeline [#file:<plan.md> | @<plan.md>] [from T-NNN] [stop-at T-NNN]
 ```
 
 - **`#file:<plan.md>`**: use the referenced plan file as the pipeline input for this invocation. When present, it overrides `.dev/state.md` active-plan lookup for Step 1 only. If the referenced file is a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, resolve to the execution prompt before continuing.
+- **`@<plan.md>`**: treat OpenCode-style attached path arguments the same as `#file:<plan.md>` after stripping the leading `@`.
 - **No arguments**: start from the first unchecked task, run until all tasks complete
 - **`from T-NNN`**: start from the specified task (skip earlier unchecked tasks)
 - **`stop-at T-NNN`**: after completing `T-NNN`, stop before starting the next task and prompt the user
@@ -113,7 +114,7 @@ Rules:
 
 Select the plan file using this precedence order:
 
-1. If the dispatcher emitted `PLAN: <path>`, resolve that explicit path first. If it points to a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, use the execution prompt for this invocation.
+1. If the dispatcher emitted `PLAN: <path>`, or the raw command argument contains `@<path>` / `#file:<path>`, resolve that explicit path first. Strip a leading `@` before path resolution. If it points to a source plan and the matching `.dev/plans/<slug>.prompt.md` exists, use the execution prompt for this invocation.
 2. Otherwise read the active plan file from `.dev/state.md`.
 
 If the dispatcher emitted `TASK_REF`, validate that the referenced task exists in the selected plan before entering the task loop. If `FROM` and `STOP_AT` are both present, use them as the explicit execution bounds even when the user did not type `from` / `stop-at` directly in chat.
@@ -136,7 +137,15 @@ Verify:
 
 If `Current Task` is set in `## Status` and no `from` argument was given, resume from that task. If `### Handoff Notes` contains an `OPEN` `Interrupted Phase` block, or if `Workflow` names a phase whose convergence gate is incomplete, resume that phase first.
 
-Never run Step 2 task execution directly against a source plan when the matching execution prompt exists. `## Status`, retry counters, commit checkpoints, handoff notes, and task completion write-back belong in `.dev/plans/<slug>.prompt.md`.
+Never run Step 2 task execution directly against a source plan when the matching execution prompt exists. `## Status`, retry counters, commit checkpoints, handoff notes, test results, and review results belong in `.dev/plans/<slug>.prompt.md`.
+
+When an execution prompt exists, keep the paired source plan path in memory for closeout. The pipeline owns cross-file state convergence after each task passes all gates:
+
+- `docs/plans/<slug>.md` — human-readable source plan task checkbox and task commit note
+- `.dev/plans/<slug>.prompt.md` — execution status, task checkbox, retry/review/test state, and resume markers
+- `.dev/state.md` — active-plan last activity plus session continuity
+
+Do not leave this convergence to implementer, tester, reviewer, or a later chat. A task is not pipeline-complete until all three surfaces are updated and re-read successfully.
 
 If prerequisites are not met: tell the user what is missing and stop. If the execution prompt is still stubbed, run `/refining-plan` on the source plan and then rerun `/plan-to-prompt` before attempting the pipeline again.
 
@@ -335,20 +344,51 @@ Check result:
 
 **xmachine mode:** if active, security audit remains a bounded offload and its returned results must be converged locally before continuing. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
-### 2g — Mark Task Complete
+### 2g — Mark Task Complete And Converge State
 
 All gates passed for `T-NNN`:
 
-1. Mark `T-NNN` as complete in `## Tasks` (check the checkbox)
-2. Update plan `## Status`:
+1. Resolve the durable state files for this task:
+
+Execution prompt is the active `.dev/plans/<slug>.prompt.md`; source plan is the paired `docs/plans/<slug>.md`; repo state is `.dev/state.md`.
+
+1. Mark `T-NNN` as complete in the execution prompt `## Tasks` and in the source plan `## Tasks`.
+
+Preserve the existing task text. If the task line has no commit note, append `*(<Task Final Commit>)*`. If the task line already has a stale or missing audit note from an earlier correction, replace it with the final commit note only after the task truly passed implement + test + review.
+
+1. Update the execution prompt `## Status`:
 
   ```text
    Last activity: YYYY-MM-DD — T-NNN complete (commit: <Task Final Commit>)
+  Current Task: —
+  Task Base Commit: —
+  Task Final Commit: —
+  Test Retry Count: 0
+  Review Retry Count: 0
+  Next step: implement <next unchecked T-NNN> | run verifier | release prep
    ```
 
+1. If the execution prompt uses a `### Completed Tasks` table or a `### Remaining Tasks` list inside `## Status`, update those summary surfaces too. Move `T-NNN` into completed with `<Task Final Commit>`, remove it from remaining, and ensure the next unchecked task matches `Next step`.
+
+1. Update `.dev/state.md`. Keep the active plan row valid. The `File` column may point at the source plan or the execution prompt, but `/gal status` and `/gal whats-next` must still be able to resolve the paired prompt. Set the active plan row `Last Activity` to `YYYY-MM-DD`. Update `## Session Continuity` so `Stopped at` names `T-NNN complete (commit: <Task Final Commit>)` and `Next step` names the next unchecked task, verifier, release prep, or the explicit `stop-at` boundary.
+
+1. Re-read all three files and run the **Task State Convergence Gate**.
+
+The gate passes only when:
+
+- source plan has `- [x] T-NNN`
+- execution prompt has `- [x] T-NNN` when it carries a `## Tasks` task list
+- execution prompt `## Status` no longer leaves `Current Task: T-NNN` with stale commit markers after task closeout
+- `.dev/state.md` session continuity no longer points at the completed task as unfinished
+- source plan and execution prompt do not disagree about which blocking `T-NNN` tasks are checked
+
+If any convergence check fails, **STOP immediately** and write an `Interrupted Phase — T-NNN / VERIFY` block explaining the missing write-back. Do not report the task complete from chat memory alone.
+
 1. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
-2. If single-task tranche mode is active: **STOP CLEANLY**. Report task complete, state that this is a runtime step-budget tranche, and tell the user to rerun `/gal pipeline` to continue.
-3. Otherwise: advance to the next unchecked task and return to 2a.
+
+1. If single-task tranche mode is active: **STOP CLEANLY**. Report task complete, state that this is a runtime step-budget tranche, and tell the user to rerun `/gal pipeline` to continue.
+
+1. Otherwise: advance to the next unchecked task and return to 2a.
 
 ---
 
