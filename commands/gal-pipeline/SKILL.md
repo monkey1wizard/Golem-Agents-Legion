@@ -226,6 +226,7 @@ Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
 Workflow: IMPLEMENT
+Next step: implement T-NNN
 ```
 
 If `### Handoff Notes` contains an `OPEN` retry handoff for a previous task, mark it `RESOLVED` before starting the new task. Do not carry stale blocker state across tasks.
@@ -241,12 +242,13 @@ Run:
 The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: implement`, and `TASK_SCOPE: T-NNN`. The implementer must:
 
 1. Record `Task Base Commit` in `## Status` before any changes
-2. Implement only the work required by `T-NNN`
-3. Record `Task Final Commit` in `## Status` when done
-4. Ensure `git status` is clean before reporting complete
-5. In pipeline fix mode, update the active `Retry Handoff` block in `### Handoff Notes` with the attempted remediation, validation result, and commit hash (if any)
+2. Set `Current Task: T-NNN` in `## Status` before reporting any implementation progress
+3. Implement only the work required by `T-NNN`
+4. Record `Task Final Commit` in `## Status` when done
+5. Ensure `git status` is clean before reporting complete
+6. In pipeline fix mode, update the active `Retry Handoff` block in `### Handoff Notes` with the attempted remediation, validation result, and commit hash (if any)
 
-**Hard Commit Gate:** If `git status` is not clean or `Task Final Commit` is not recorded, do not proceed. Stop and surface the issue.
+**Hard Commit Gate:** If `Current Task` is missing or points at a different task, `git status` is not clean, or `Task Final Commit` is not recorded, do not proceed. Stop and surface the missing write-back instead of inferring completion from chat alone.
 
 **xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
 
@@ -265,6 +267,7 @@ The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELI
 Check result:
 
 - **No task-scoped subsection was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / TEST` with the missing write-back as the problem. Do not infer PASS or FAIL from chat alone.
+- **`Workflow: TEST` is set but the latest task-scoped subsection is still missing or placeholder-only**: **STOP immediately**. Treat this as incomplete durable state, not as a passing or failing run.
 - **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
@@ -289,6 +292,7 @@ The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELI
 Check result:
 
 - **No task-scoped subsection or verdict was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / REVIEW` with the missing write-back as the problem. Do not infer approval or block from chat alone.
+- **`Workflow: REVIEW` is set but the latest task-scoped subsection still has no verdict**: **STOP immediately**. Treat this as incomplete durable state, not as approval.
 - **APPROVE (no BLOCKING)**: proceed to 2f
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`

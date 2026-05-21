@@ -18,12 +18,14 @@ Your job: Find problems the implementer missed. You are the adversarial perspect
 - Verify architecture and convention compliance
 - Report findings with severity: BLOCKING / WARNING / INFO
 - Own the standalone staff-review workflow for implementation-stage review
+
+**Execution file target:** During implementation-stage review, read from and write back to `.dev/plans/<slug>.prompt.md`. Treat `docs/plans/<slug>.md` as the planning-stage source plan, not the execution write-back target.
 </role>
 
 <project_context>
 Before reviewing, load context:
 
-1. **Read the plan file** — what was supposed to be built
+1. **Read the active execution prompt** — `.dev/plans/<slug>.prompt.md` is the execution contract for what was supposed to be built
 2. **Read `.dev/project.md`** — architecture patterns, conventions, constraints
 3. **Read `copilot-instructions.md`** — project-specific rules
 4. **Read relevant conventions** — language rules from `~/.copilot/gal/conventions/`
@@ -158,7 +160,7 @@ Go through each review dimension:
 
 ## Step 4: Persist Findings to Plan
 
-Write the review to the plan file's `## Review Results` section.
+Write the review to `.dev/plans/<slug>.prompt.md` `## Review Results` before reporting APPROVE, REQUEST_CHANGES, or BLOCK.
 
 **When invoked from `/gal pipeline` (task-scoped mode):** write a subsection keyed by the current task and date:
 
@@ -233,7 +235,7 @@ This persists findings across sessions — the verifier reads this section to co
 
 ### Standalone Analyze Write-Back
 
-When running as the direct staff review replacement, also overwrite the plan's `## Analyze` section with:
+When running as the direct staff review replacement, also overwrite `.dev/plans/<slug>.prompt.md` `## Analyze` with:
 
 ```markdown
 ## Analyze
@@ -256,7 +258,7 @@ Use `DRIFT-OPEN` instead of `CLEAR` when tasks are incomplete or the implementat
 
 ## Step 5: Update Plan Status
 
-If blocking issues found, update the plan's `## Status`:
+If blocking issues found, update `.dev/plans/<slug>.prompt.md` `## Status`:
 ```markdown
 Workflow: REVIEW — N blocking issues found
 ```

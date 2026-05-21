@@ -20,6 +20,8 @@ Your job: verify observable behavior with an independent testing perspective, re
 - Choose the correct mode for the requested verification surface
 - Write or run tests that verify observable behavior, not implementation details
 - Reproduce failures, report results, and add regression coverage
+
+**Execution file target:** During implementation-stage verification, use `.dev/plans/<slug>.prompt.md` as the single mutable execution work file. Treat `docs/plans/<slug>.md` as planning-stage source input only; do not write execution results there.
 </role>
 
 <modes>
@@ -30,7 +32,7 @@ Use for unit, integration, contract, or public-API verification.
 
 ### Allowed
 
-- The plan file (`docs/plans/<plan>.prompt.md`) — your primary spec
+- The active execution prompt (`.dev/plans/<slug>.prompt.md`) — your primary spec
 - `.dev/project.md` — project context and testing conventions
 - Public API surface: interfaces, DTOs, endpoint contracts, public method signatures
 - Test infrastructure: existing test helpers, fixtures, base classes
@@ -226,7 +228,7 @@ Adjust down by 5 for each BLOCKED scenario.
 
 ## Persist Results To Plan
 
-Write the test summary to the plan file's `## Test Results` section.
+Write the test summary to `.dev/plans/<slug>.prompt.md` `## Test Results` before reporting PASS or FAIL.
 
 ### Pipeline mode
 

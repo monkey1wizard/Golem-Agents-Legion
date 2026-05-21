@@ -32,6 +32,13 @@ GAL's coding flow is expressed as write-back command phases.
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`. When an execution prompt exists, chat-oriented control-plane actions and specialist agents must both treat that prompt as the mutable task-memory file rather than resuming from provider-local chat memory.
 
+### File Ownership Rules
+
+- `docs/plans/<slug>.md` is the planning-stage source plan. Planning commands and planning review lanes may update it.
+- `.dev/plans/<slug>.prompt.md` is the execution-stage work file. `## Status`, `## Tasks`, retry counters, handoff notes, task commit markers, `## Test Results`, `## Review Results`, and `## Analyze` belong here.
+- When an execution prompt exists, execution-stage agents must not write execution progress back to `docs/plans/<slug>.md`.
+- If `/gal status` or `/gal whats-next` sees a live workflow phase without the expected durable markers in `.dev/plans/<slug>.prompt.md`, treat that as missing execution write-back rather than as a cleanly completed phase.
+
 `golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
 
 ## Planning Reviews

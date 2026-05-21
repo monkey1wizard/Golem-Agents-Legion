@@ -19,10 +19,10 @@ Starting from the current working directory or opened workspace folder, walk upw
 From `.dev/state.md` and the active plan file, extract these data points:
 
 1. `.dev/state.md` — active plans table, blockers, session continuity
-2. Active plan `## Status` — plan phase marker if present, current step, next step
+2. Active plan `## Status` — plan phase marker if present, current step, next step, current task, task base commit, task final commit
 3. Active plan `## Review Results` — any BLOCKING findings
 4. Active plan `## Test Results` — pass / fail / pending
-5. Active plan `### Handoff Notes` — interrupted work context
+5. Active plan `### Handoff Notes` — interrupted work context and OPEN retry handoffs
 6. Active plan `## Open Questions` — count of unresolved OQ-NNN items
 7. Active plan `## Tasks` — blocking task completion state
 8. Active plan `## Deferred Follow-up` — advisory non-blocking work when present
@@ -40,7 +40,11 @@ Apply this decision tree in order:
 | Active plan points to source plan only, no execution prompt yet | Run `/refining-plan` to lock the implementation contract into the source plan |
 | No eng review recorded | Run the engineering review lane for the source plan through the configured provider, or use `/refining-plan` as the fallback, then refresh the prompt with `/plan-to-prompt` |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
+| `### Handoff Notes` contains an OPEN `Retry Handoff` block | Resume that exact task and phase through `/gal pipeline`; do not start a new task |
 | `### Handoff Notes` contains an OPEN `Interrupted Phase` block | Resume that exact task and phase through `/gal pipeline`; do not start a new task |
+| `Workflow: IMPLEMENT`, `Current Task` is set, and `Task Final Commit` is missing | Resume `/gal pipeline` on that task; implementation state was not durably closed |
+| `Workflow: TEST` and the current task has no task-scoped `## Test Results` subsection yet | Resume `/gal pipeline`; test phase write-back is incomplete |
+| `Workflow: REVIEW` and the current task has no task-scoped review verdict yet | Resume `/gal pipeline`; review phase write-back is incomplete |
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
 | Implementation complete, no test results | `golem-tester` in `browser-qa` or `spec` mode, depending on the missing verification surface |
 | Tests failing | Return to implementation — summarize what needs fixing |

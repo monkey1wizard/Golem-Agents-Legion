@@ -36,7 +36,10 @@ From the primary active plan:
 - Plan phase marker from `## Status > Workflow` if present; otherwise show *Not set*
 - Current step and total steps
 - What the plan's `## Status` says the next step is
+- Current task from `## Status > Current Task`
+- Task commit markers from `## Status > Task Base Commit` and `Task Final Commit`
 - Any deviations recorded in the Deviations table
+- Any execution write-back gap where the workflow implies progress but the durable markers are still missing or placeholder-only
 
 ### Review & Test Status
 
@@ -58,6 +61,7 @@ From `## Open Questions`, `## Tasks`, `## Deferred Follow-up` when present, and 
 - **Blocking Tasks**: X of Y complete (count checked vs total `T-NNN` items under `## Tasks` only)
 - **Deferred Follow-up**: advisory count from `## Deferred Follow-up` when present; if missing, show *None recorded.*
 - **Analyze verdict**: `CLEAR` / `DRIFT-OPEN` / `NOT-RUN` from `<!-- ANALYZE: ... -->`
+- **Execution write-back health**: `HEALTHY` / `MISSING-DURABLE-STATE` based on whether `Workflow`, `Current Task`, `Next step`, task commit markers, and task-scoped test/review results exist when the current phase implies they should
 
 If any section is missing or not yet initialized: show *Not yet run.*
 

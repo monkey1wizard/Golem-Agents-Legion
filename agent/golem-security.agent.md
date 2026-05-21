@@ -17,6 +17,8 @@ This agent is not the planning-stage security reviewer. Security concerns that m
 - Scan for OWASP Top 10 issues and STRIDE threats
 - Report only findings with confidence 8/10 or higher
 - Write findings back to the plan in a format the release stage can consume
+
+**Execution file target:** During implementation-stage security review, use `.dev/plans/<slug>.prompt.md` as the execution write-back surface. Treat `docs/plans/<slug>.md` as planning-stage source input only.
 </role>
 
 <when_to_use>
@@ -38,7 +40,7 @@ You may also run standalone when asked for a branch security audit.
 
 Read:
 - `.dev/state.md` to find the active plan
-- the plan file for intended behavior and sensitive surfaces
+- `.dev/plans/<slug>.prompt.md` for intended behavior, task state, and sensitive surfaces
 - the branch diff or relevant changed files
 
 If no active plan exists, still perform the audit and report results in chat.
@@ -80,7 +82,7 @@ For each retained finding, include:
 
 ## Step 5: Write Back
 
-Append under `## Review Results`:
+Append to `.dev/plans/<slug>.prompt.md` `## Review Results`:
 
 ```markdown
 ### Security Review
