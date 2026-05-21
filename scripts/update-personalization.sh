@@ -68,13 +68,32 @@ invoke_update_personalization() {
     fi
 
     echo ''
-    echo '=== Antigravity runtime integration ==='
-    if $UNINSTALL; then
-        echo '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
-    elif ! $INSTALL_ANTIGRAVITY; then
-        echo '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
+    echo '=== AGY Plugin (rules/gal.md) ==='
+    if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+        # Remove the installed plugin directory on uninstall or when AGY is not selected
+        if [ -e "$AGY_PLUGIN_INSTALL_TARGET" ]; then
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove: $AGY_PLUGIN_INSTALL_TARGET"
+            else
+                rm -rf "$AGY_PLUGIN_INSTALL_TARGET"
+                echo "  [REMOVED] $AGY_PLUGIN_INSTALL_TARGET"
+            fi
+        else
+            echo '  [SKIP] No AGY plugin installation to remove'
+        fi
     else
-        echo '  [OK] Antigravity uses ~/.gemini/antigravity-cli for GAL integration; Setup-Machine does not create repo-local .agents content.'
+        # Build and install the AGY plugin (includes rules/gal.md from instruction corpus)
+        local build_script="$SCRIPT_DIR/build-agy-plugin.sh"
+        if [ -f "$build_script" ]; then
+            if $DRY_RUN; then
+                echo '  [DRY RUN] Would run: build-agy-plugin.sh --force --install'
+            else
+                bash "$build_script" --force --install
+                echo '  [OK] AGY plugin built and installed (rules/gal.md from instruction corpus)'
+            fi
+        else
+            echo "  [WARN] build-agy-plugin.sh not found at: $build_script"
+        fi
     fi
 
     echo ''

@@ -88,15 +88,37 @@ function Invoke-UpdatePersonalization {
     }
 
     Write-Host ''
-    Write-Host '=== Antigravity runtime integration ==='
-    if ($script:SetupOptions.Uninstall) {
-        Write-Host '  [SKIP] Antigravity global rules are user-owned and are not modified during uninstall.'
-    }
-    elseif (-not $context.InstallAntigravity) {
-        Write-Host '  [SKIP] Antigravity runtime not selected; no Antigravity-specific personalization applied.'
+    Write-Host '=== AGY Plugin (rules/gal.md) ==='
+    if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+        # Remove the installed plugin directory on uninstall or when AGY is not selected
+        if (Test-Path $context.AgyPluginInstallTarget) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would remove: $($context.AgyPluginInstallTarget)"
+            }
+            else {
+                Remove-Item $context.AgyPluginInstallTarget -Recurse -Force
+                Write-Host "  [REMOVED] $($context.AgyPluginInstallTarget)"
+            }
+        }
+        else {
+            Write-Host '  [SKIP] No AGY plugin installation to remove'
+        }
     }
     else {
-        Write-Host '  [OK] Antigravity uses ~/.gemini/antigravity-cli for GAL integration; Setup-Machine does not create repo-local .agents content.'
+        # Build and install the AGY plugin (includes rules/gal.md from instruction corpus)
+        $buildScript = Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1'
+        if (Test-Path $buildScript) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host '  [DRY RUN] Would run: Build-AgyPlugin.ps1 -Force -Install'
+            }
+            else {
+                & $buildScript -Force -Install
+                Write-Host '  [OK] AGY plugin built and installed (rules/gal.md from instruction corpus)'
+            }
+        }
+        else {
+            Write-Host "  [WARN] Build-AgyPlugin.ps1 not found at: $buildScript"
+        }
     }
 
     Write-Host ''
