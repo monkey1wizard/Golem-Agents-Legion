@@ -75,7 +75,7 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | Runtime | Machine-layer install | Command surface | Notes |
 | --- | --- | --- | --- |
 | Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
-| Antigravity CLI | `~/.gemini/antigravity-cli/skills/`, `~/.gemini/antigravity-cli/gal/`, and `~/.gemini/antigravity-cli/mcp_config.json` | installed named skills | primary Google CLI runtime; installs GAL skills globally into AGY and does not create repo-local `.agents` content |
+| Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
 | Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, and user-scope `claude mcp` config | generated command markdown plus repo-local `CLAUDE.md` | MCP install is managed through the Claude CLI |
@@ -84,10 +84,10 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 
 | Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | not installed | not installed | not installed |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` | not required | not required |
+| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | not installed |
+| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
+| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | not required |
 
 ### Generated Runtime Files
 
@@ -146,7 +146,7 @@ For Playwright MCP specifically:
 `Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
 
 - VS Code: overwrite tracked server entries inside user `mcp.json`
-- Antigravity CLI: overwrite tracked server entries inside `~/.gemini/antigravity-cli/mcp_config.json` under `mcpServers`
+- Antigravity CLI: write GAL-managed MCP to plugin-root `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` under `mcpServers`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries
 - JSON-based runtime bridges also preserve managed top-level `inputs` entries by input `id` when the merged manifest includes them.
 - Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
 - Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
@@ -155,7 +155,42 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/`, `~/.gemini/gal/`, and `~/.gemini/antigravity-cli/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
+`~/.copilot/gal/` and `~/.gemini/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
+
+For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces the old `~/.gemini/antigravity-cli/gal/` symlink as the managed install surface. The plugin is self-contained and does not require an external `GAL_ROOT` symlink; setup removes the legacy `GAL_ROOT` symlink during pre-cleanup.
+
+## Provider Plugin Packaging
+
+GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth; each provider plugin is a generated artifact rendered by a provider-specific renderer.
+
+### Common Package Model
+
+The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provider-plugin.sh`) carries:
+
+| Field | Source | Shared across all four providers? |
+| --- | --- | --- |
+| `metadata` | repo name, display name, version diagnostics, generation timestamp | conceptually yes |
+| `skills` | `skills/<name>/SKILL.md` | yes |
+| `commandSkills` | `commands/*/SKILL.md` | yes, as skill bundles |
+| `mcpSpec` | `mcp.json` plus `mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
+| `instructionCorpus` | `.dev/project.md`, required conventions, workflows, `model-roles.md`, generated indexes | content yes, path no |
+| `agents` | `agent/*.agent.md` | optional; projected to three of four providers |
+
+The common model explicitly excludes: provider-specific output paths, resolved machine-local secrets or paths, `runtimeScripts`, plugin-root `scripts/`, `gal-results/`, and hooks (deferred from v1).
+
+### AGY Renderer
+
+AGY is renderer 1, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
+
+Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
+
+### Gemini Migration Lane
+
+Gemini CLI is not a fifth renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the AGY renderer concern; it does not enter the provider-neutral substrate.
+
+### Future Renderer Sequence
+
+After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
 
 ## Common Change Entry Points
 
@@ -213,7 +248,8 @@ After changing install or setup logic, verify at least these points:
 - the stable repo symlink exists for each supported runtime that needs one
 - generated `commands/*/SKILL.md` files no longer contain `{{GAL_ROOT}}`
 - Gemini native command files were regenerated from the baked command content
-- Antigravity installed command skills resolve through `~/.gemini/antigravity-cli/gal/`
+- Antigravity installed skills and agents resolve through `~/.gemini/antigravity-cli/plugins/gal/`
+- AGY plugin-root `mcp_config.json` is the sole GAL-managed MCP source for AGY; no GAL-managed MCP entries remain in the global `mcp_config.json` or `settings.json`
 - shared skill directories contain reusable skills only, not duplicated command aliases
 - MCP reruns update tracked server entries correctly without clobbering unrelated provider-owned config
 

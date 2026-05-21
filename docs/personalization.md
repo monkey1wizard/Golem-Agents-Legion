@@ -10,22 +10,22 @@ The machine installer now persists runtime selection in `~/.gal/install-state.js
 - `primaryRuntime` records which runtime should be treated as your default entry point.
 - The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
 
-Antigravity CLI is the primary Google terminal runtime for GAL. Its machine-layer MCP config and globally installed GAL skills live under `~/.gemini/antigravity-cli/`. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
+Antigravity CLI (AGY) is the primary Google terminal runtime for GAL. GAL installs into AGY as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/`, which carries skills, agents, rules, and MCP config as a self-contained plugin tree. The plugin is a generated artifact rendered by `Build-AgyPlugin` from a provider-neutral common package model; AGY is renderer 1, not the architecture itself. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
 
 Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
 The machine setup surface is now split by concern on both Windows and macOS/Linux:
 
 - `scripts/Setup-Machine.ps1` runs the full sequence
-- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity runtime integration, and local config seeding
-- `scripts/Update-Skills.ps1` refreshes agents, Antigravity global skills, remaining shared skill links, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity global command-skill links, and legacy Gemini / Claude native command files
-- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
+- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
+- `scripts/Update-Skills.ps1` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
+- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), and legacy Gemini / Claude native command files
+- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 - `scripts/setup-machine.sh` runs the full sequence
-- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity runtime integration, and local config seeding
-- `scripts/update-skills.sh` refreshes agents, Antigravity global skills, remaining shared skill links, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills, Antigravity global command-skill links, and legacy Gemini / Claude native command files
-- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity `mcp_config.json`
+- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
+- `scripts/update-skills.sh` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
+- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), and legacy Gemini / Claude native command files
+- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 
 ## Placeholders You May Need To Fill
 
@@ -208,13 +208,13 @@ Then add matching variables to `config.local.env` with any names you want. `Upda
 The installed runtime configs remain user-owned even when GAL refreshes GAL-managed entries.
 
 | Runtime | Typical MCP config location |
-| --- | --- |
+| --- | --- | |
 | VS Code | user `mcp.json` |
-| Antigravity CLI | `~/.gemini/antigravity-cli/mcp_config.json` under `mcpServers` |
+| Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` (plugin-root) |
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
 | Claude Code | user-scope MCP entries managed through `claude mcp` |
 
-GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. Google-side MCP installation is owned by Antigravity CLI's `mcp_config.json`, even when Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
+GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. For AGY, GAL-managed MCP lands in the plugin-root `mcp_config.json` at `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries. Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
 
 ## When To Rerun Setup
 
@@ -266,6 +266,40 @@ macOS/Linux:
 ./scripts/update-commands.sh
 ./scripts/update-mcp.sh
 ```
+
+## Provider Plugin Packaging
+
+GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth; each provider plugin is a generated artifact rendered by a provider-specific renderer.
+
+### Common Base
+
+The common package model carries metadata, reusable skills, command skills (as skill bundles), a canonical MCP spec, an instruction corpus, and optional agents with capability flags. It explicitly excludes:
+
+- Provider-specific output paths
+- Resolved machine-local secrets or paths
+- `runtimeScripts` or plugin-root `scripts/`
+- `gal-results/`
+- Hooks (deferred from v1)
+
+### AGY as Renderer 1
+
+AGY is the first renderer, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries:
+
+- `plugin.json` — manifest with stable `name: gal`
+- `skills/` — reusable skills and command skills
+- `agents/` — agent definitions
+- `rules/gal.md` — combined instruction corpus
+- `mcp_config.json` — MCP server configuration (plugin-root)
+
+Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
+
+### Gemini Migration Lane
+
+Gemini CLI is not a fifth renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the AGY renderer concern; it does not enter the provider-neutral substrate.
+
+### Future Renderer Sequence
+
+After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
 
 ## Responsibility Boundary
 

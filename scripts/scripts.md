@@ -109,21 +109,21 @@ The setup script creates these symlinks:
 
 | Source (repo) | Copilot Target | Gemini / Shared Target | Antigravity Target | Codex Target | OpenCode Target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | — | — | — | `~/.config/opencode/agents/*.md` |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/skills/` | `~/.agents/skills/` | `~/.config/opencode/skills/` |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.gemini/antigravity-cli/skills/gal/` | `~/.codex/skills/gal/` | `~/.config/opencode/commands/gal.md` |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.gemini/antigravity-cli/skills/gal-init/` | `~/.codex/skills/gal-init/` | `~/.config/opencode/commands/gal-init.md` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.gemini/antigravity-cli/skills/gal-status/` | `~/.codex/skills/gal-status/` | `~/.config/opencode/commands/gal-status.md` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
-| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/gal/` | — | — |
+| `agent/*.agent.md` | `~/.copilot/agents/` | — | `~/.gemini/antigravity-cli/plugins/gal/agents/` | — | `~/.config/opencode/agents/*.md` |
+| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.config/opencode/skills/` |
+| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal/` | `~/.codex/skills/gal/` | `~/.config/opencode/commands/gal.md` |
+| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-init/` | `~/.codex/skills/gal-init/` | `~/.config/opencode/commands/gal-init.md` |
+| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-status/` | `~/.codex/skills/gal-status/` | `~/.config/opencode/commands/gal-status.md` |
+| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
+| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
+| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
+| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | — | — |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
 Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. Setup-Machine then symlinks those command directories into Copilot and Codex skill targets while generating legacy Gemini native command files plus Claude and OpenCode markdown command files from the same baked content.
 
-Antigravity installs repo-owned reusable skills and baked command skill directories into `~/.gemini/antigravity-cli/skills/` so the AGY runtime itself changes on setup, while also mirroring the same repo-owned skills into workspace `.agents/skills/` for workspace-local discovery and compatibility. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up, and `~/.gemini/antigravity-cli/gal/` -> repo-root remains the stable `GAL_ROOT` link.
+Antigravity installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/`. The plugin tree carries skills, agents, rules, and MCP config as a self-contained bundle rendered by `Build-AgyPlugin` from the provider-neutral common package model. Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up.
 
 `Sync-DevContext` generates `.agents/rules/gal.md`, which references the repo-local `AGENTS.md` through Antigravity's documented `@filename` rule syntax instead of introducing a custom Antigravity-only adapter file.
 
@@ -135,11 +135,11 @@ Generates the legacy compatibility file `~/.gemini/gal-context.md` with sorted n
 
 - VS Code `mcp.json`
 - Copilot CLI `~/.copilot/mcp-config.json`
-- Antigravity `~/.gemini/antigravity-cli/mcp_config.json` `mcpServers`
+- Antigravity `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` `mcpServers` (plugin-root); global `~/.gemini/antigravity-cli/mcp_config.json` only touched for legacy cleanup
 - Codex `config.toml` `[mcp_servers.*]`
 - Claude Code user-scope MCP config via `claude mcp add/remove`
 
-Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Gemini CLI and Antigravity CLI share the `.gemini` root, but Google-side MCP ownership now lives only under Antigravity's `mcp_config.json`, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
+Copilot Chat and Copilot CLI continue to share the same `.copilot` skills and agents surface. Gemini CLI and Antigravity CLI share the `.gemini` root, but Google-side MCP ownership for GAL now lives in the AGY plugin-root `mcp_config.json`, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json` as well as legacy GAL-managed entries from the global AGY `mcp_config.json`.
 
 The merged manifest owns `servers` and can also carry optional top-level `inputs` for runtimes that accept prompt-backed MCP values.
 
