@@ -34,3 +34,6 @@ graphify-out/
 
 # xmachine generated local logs and results
 gal-results/
+
+# Generated provider plugin artifacts
+dist/

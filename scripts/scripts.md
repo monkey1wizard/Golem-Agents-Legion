@@ -6,6 +6,8 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
+| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific plugin artifacts to `dist/provider-plugins/agy/gal/` |
+| `build-agy-plugin.sh` | macOS/Linux | Same for Mac/Linux |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then inspect any existing graphify artifacts without generating new ones |
@@ -150,5 +152,56 @@ Rerun guidance:
 - `Update-Mcp.ps1` / `update-mcp.sh`: refresh runtime MCP config after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`.
 - `Sync-DevContext.ps1` / `sync-dev-context.sh`: regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` after changing their source-of-truth inputs.
 - `Setup-Machine.ps1` / `setup-machine.sh`: rerun the full concern stack when you want one top-level refresh.
+
+## AGY Plugin Renderer
+
+`Build-AgyPlugin.ps1` and `build-agy-plugin.sh` render a complete AGY plugin package from the GAL repo source contracts.
+
+### What It Does
+
+1. Builds a provider-neutral common package using `New-ProviderPluginPackage` / `build_provider_plugin_package`
+2. Validates the common package using `Test-ProviderPluginPackage` / `validate_provider_plugin_package`
+3. Renders AGY-specific artifacts to `dist/provider-plugins/agy/gal/`:
+   - `plugin.json` — manifest with stable `name: gal`, skill/agent indexes, capability flags
+   - `skills/` — reusable skills and command skills (as AGY skills)
+   - `agents/` — agent definitions
+   - `mcp_config.json` — MCP server configuration
+   - `rules/gal.md` — combined instruction corpus
+
+### What It Does NOT Output
+
+- `hooks.json`
+- `scripts/`
+- Marketplace metadata
+- Provider stubs (`.codex-plugin`, `.claude-plugin`, etc.)
+- `gal-results/`
+
+### Usage
+
+```powershell
+# Render to dist/provider-plugins/agy/gal/
+.\scripts\Build-AgyPlugin.ps1
+
+# Force overwrite existing artifacts
+.\scripts\Build-AgyPlugin.ps1 -Force
+
+# Render and install to ~/.gemini/antigravity-cli/plugins/gal/
+.\scripts\Build-AgyPlugin.ps1 -Install -Force
+```
+
+```bash
+# Render to dist/provider-plugins/agy/gal/
+./scripts/build-agy-plugin.sh
+
+# Force overwrite existing artifacts
+./scripts/build-agy-plugin.sh --force
+
+# Render and install to ~/.gemini/antigravity-cli/plugins/gal/
+./scripts/build-agy-plugin.sh --install --force
+```
+
+### Common Package Model
+
+The renderer relies on `scripts/common/ProviderPlugin.ps1` and `scripts/common/provider-plugin.sh` for the provider-neutral substrate. The common model contains no provider-specific paths, no resolved local secrets, and no runtime scripts. It explicitly records skipped components (`hooks`, `runtimeScripts`) so unsupported features are documented rather than silently omitted.
 
 See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.
