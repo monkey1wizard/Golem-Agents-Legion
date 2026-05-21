@@ -50,6 +50,60 @@ $ErrorActionPreference = 'Stop'
 
 $context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep
 
+# --- AGY legacy pre-cleanup ---
+# Remove all GAL-managed AGY legacy surfaces before any concern script runs.
+# This ensures a clean slate for the plugin-only install path.
+if ($context.InstallAntigravity -and -not $Uninstall) {
+    Write-Host ''
+    Write-Host '=== AGY legacy pre-cleanup ==='
+    $legacyPaths = @(
+        @{ Path = $context.AntigravitySkillsTarget; Label = 'legacy AGY skills directory'; Type = 'Directory' },
+        @{ Path = $context.GalRootAntigravity; Label = 'legacy AGY GAL_ROOT symlink'; Type = 'Link' },
+        @{ Path = $context.AgyPluginInstallTarget; Label = 'existing AGY plugin install'; Type = 'Directory' }
+    )
+    foreach ($legacy in $legacyPaths) {
+        if (Test-Path $legacy.Path) {
+            if ($DryRun) {
+                Write-Host "  [DRY RUN] Would remove $($legacy.Label): $($legacy.Path)"
+            }
+            else {
+                Remove-Item -LiteralPath $legacy.Path -Recurse -Force
+                Write-Host "  [REMOVED] $($legacy.Label): $($legacy.Path)"
+            }
+        }
+    }
+    # Clean GAL-managed entries from global AGY mcp_config.json
+    $globalMcpFile = $context.AntigravityMcpFile
+    if (Test-Path $globalMcpFile) {
+        $rawJson = Get-Content $globalMcpFile -Raw -Encoding UTF8
+        try {
+            $mcpConfig = $rawJson | ConvertFrom-Json
+            $serversProp = Get-Member -InputObject $mcpConfig -Name 'mcpServers' -MemberType NoteProperty
+            if ($null -ne $serversProp) {
+                $servers = $mcpConfig.mcpServers
+                $galKeys = @($servers.PSObject.Properties.Name) | Where-Object {
+                    $_ -match '^gal-' -or $_ -eq 'gal'
+                }
+                if ($galKeys.Count -gt 0) {
+                    if ($DryRun) {
+                        Write-Host "  [DRY RUN] Would remove GAL-managed MCP entries from: $globalMcpFile ($($galKeys -join ', '))"
+                    }
+                    else {
+                        foreach ($key in $galKeys) {
+                            $servers.PSObject.Properties.Remove($key)
+                        }
+                        [System.IO.File]::WriteAllText($globalMcpFile, ($mcpConfig | ConvertTo-Json -Depth 10), $context.Utf8NoBom)
+                        Write-Host "  [REMOVED] GAL-managed MCP entries from: $globalMcpFile ($($galKeys -join ', '))"
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Host "  [WARN] Could not parse $globalMcpFile for legacy cleanup — skipping" -ForegroundColor Yellow
+        }
+    }
+}
+
 $sharedArguments = @{
     Uninstall = $Uninstall
     Replace = $Replace

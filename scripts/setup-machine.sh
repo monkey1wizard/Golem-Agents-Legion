@@ -21,6 +21,85 @@ parse_setup_args "$@"
 initialize_setup_session
 ensure_ripgrep
 
+# --- AGY legacy pre-cleanup ---
+# Remove all GAL-managed AGY legacy surfaces before any concern script runs.
+# This ensures a clean slate for the plugin-only install path.
+agy_legacy_pre_cleanup() {
+    if ! $INSTALL_ANTIGRAVITY || $UNINSTALL; then
+        return 0
+    fi
+
+    echo ''
+    echo '=== AGY legacy pre-cleanup ==='
+    local legacy_paths=(
+        "$ANTIGRAVITY_SKILLS_TARGET:legacy AGY skills directory"
+        "$GAL_ROOT_ANTIGRAVITY:legacy AGY GAL_ROOT symlink"
+        "$AGY_PLUGIN_INSTALL_TARGET:existing AGY plugin install"
+    )
+    local legacy_entry legacy_path legacy_label
+    for legacy_entry in "${legacy_paths[@]}"; do
+        legacy_path="${legacy_entry%%:*}"
+        legacy_label="${legacy_entry##*:}"
+        if [ -e "$legacy_path" ]; then
+            if $DRY_RUN; then
+                echo "  [DRY RUN] Would remove $legacy_label: $legacy_path"
+            else
+                rm -rf "$legacy_path"
+                echo "  [REMOVED] $legacy_label: $legacy_path"
+            fi
+        fi
+    done
+    # Clean GAL-managed entries from global AGY mcp_config.json
+    if [ -f "$ANTIGRAVITY_MCP_FILE" ]; then
+        if command_exists jq; then
+            local gal_keys
+            gal_keys="$(jq -r '.mcpServers // {} | keys[] | select(. == "gal" or startswith("gal-"))' "$ANTIGRAVITY_MCP_FILE" 2>/dev/null || true)"
+            if [ -n "$gal_keys" ]; then
+                if $DRY_RUN; then
+                    echo "  [DRY RUN] Would remove GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE ($gal_keys)"
+                else
+                    local updated
+                    updated="$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-"))) | if .mcpServers == {} then del(.mcpServers) else . end' "$ANTIGRAVITY_MCP_FILE")"
+                    if [ -n "$updated" ]; then
+                        printf '%s\n' "$updated" > "$ANTIGRAVITY_MCP_FILE"
+                        echo "  [REMOVED] GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE"
+                    fi
+                fi
+            fi
+        else
+            echo "  [WARN] jq not found — cannot clean GAL-managed MCP entries from $ANTIGRAVITY_MCP_FILE"
+        fi
+    fi
+}
+
+agy_legacy_pre_cleanup
+        fi
+    done
+    # Clean GAL-managed entries from global AGY mcp_config.json
+    if [ -f "$ANTIGRAVITY_MCP_FILE" ]; then
+        if command_exists jq; then
+            local gal_keys
+            gal_keys="$(jq -r '.mcpServers // {} | keys[] | select(. == "gal" or startswith("gal-"))' "$ANTIGRAVITY_MCP_FILE" 2>/dev/null || true)"
+            if [ -n "$gal_keys" ]; then
+                if $DRY_RUN; then
+                    echo "  [DRY RUN] Would remove GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE ($gal_keys)"
+                else
+                    local updated
+                    updated="$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-"))) | .mcpServers' <<< "$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-")))' "$ANTIGRAVITY_MCP_FILE")" 2>/dev/null || true)"
+                    # Simpler approach: delete gal- prefixed keys
+                    updated="$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-"))) | if .mcpServers == {} then del(.mcpServers) else . end' "$ANTIGRAVITY_MCP_FILE")"
+                    if [ -n "$updated" ]; then
+                        printf '%s\n' "$updated" > "$ANTIGRAVITY_MCP_FILE"
+                        echo "  [REMOVED] GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE"
+                    fi
+                fi
+            fi
+        else
+            echo "  [WARN] jq not found — cannot clean GAL-managed MCP entries from $ANTIGRAVITY_MCP_FILE"
+        fi
+    fi
+fi
+
 shared_args=()
 $UNINSTALL && shared_args+=(--uninstall)
 $REPLACE && shared_args+=(--replace)
