@@ -37,7 +37,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal init` | How do I bootstrap this repo? | Scaffold `.dev/project.md` + `.dev/state.md` via script |
 | `/gal status` | Where are we right now? | Full state projection — active plans, review/test/blockers/continuity |
 | `/gal whats-next` | What do I do next? | Read state and recommend one next action |
-| `/gal wrap-up` | How do I close this session? | Converge handoff updates and update session continuity |
+| `/gal wrap-up` | How do I close this session? | Converge handoff updates and update per-plan session continuity |
 | `/gal research` | I need structured investigation | Invoke research golem via script |
 | `/gal deep-research` | I need multi-source investigation with cross-review | Invoke deep-research workflow via script |
 | `/gal xmachine <node> to do <task-ref>` | Run one active-plan task on a readied work node | Normalize to a bounded single-task xmachine pipeline dispatch |
@@ -70,7 +70,7 @@ The following work no longer has a public slash command and should be routed to 
 
 | Execution work | Owning agent | Primary write-back |
 | --- | --- | --- |
-| Pipeline task closeout | `/gal-pipeline` orchestrator | source plan `## Tasks`, execution prompt `## Status` / `## Tasks`, `.dev/state.md` session continuity |
+| Pipeline task closeout | `/gal-pipeline` orchestrator | source plan `## Tasks`, execution prompt `## Status` / `## Tasks`, matching `.dev/state.md` session continuity row |
 | Spec-driven tests and real-browser QA | `golem-tester` | execution prompt `## Test Results` |
 | Staff review and drift analysis | `golem-reviewer` | execution prompt `## Review Results`, `## Analyze` |
 | Root-cause-first debugging | `golem-debugger` | plan debug log or `.dev/state.md` |

@@ -7,6 +7,8 @@
 | Plan | File | Plan Phase | Last Activity |
 | --- | --- | --- | --- |
 
+<!-- When more than one plan is active, table order is priority order. `/gal whats-next` and `/gal wrap-up` use the first non-terminal row; if all rows are terminal, they fall back to the first row. -->
+
 ## Global Decisions
 
 | Date | Decision | Rationale | Scope |
@@ -16,10 +18,10 @@
 
 ## Session Continuity
 
-Last session:
-Stopped at:
-Next step:
-Context:
+<!-- Keep one row per active plan. Match rows by the paired source plan path. -->
+
+| Plan | Source Plan | Last Session | Stopped At | Next Step | Context |
+| --- | --- | --- | --- | --- | --- |
 
 ## Session Execution Context
 

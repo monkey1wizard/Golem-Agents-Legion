@@ -128,7 +128,7 @@ Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 
 ## State File Role
 
-`.dev/state.md` is a **global index + session continuity** file, not a per-task tracker.
+`.dev/state.md` is a **global index + per-plan session continuity** file, not a per-task tracker.
 
 | Responsibility | Where |
 | --- | --- |
@@ -136,14 +136,14 @@ Type prefixes: `feat-`, `fix-`, `refactor-`, `sec-`, `perf-`, `infra-`
 | Human-readable task completion checklist | **Source plan** `## Tasks`, synchronized by `/gal pipeline` closeout |
 | Active plans index (which branches have active plans) | **state.md** |
 | Repo-level blockers, cross-plan decisions | **state.md** |
-| Session continuity (last session, stopped at, next step) | **state.md**, refreshed by `/gal pipeline` after each task |
+| Session continuity (one row per active plan: last session, stopped at, next step, context) | **state.md**, refreshed by `/gal pipeline` after each task |
 
 ## Context Handoff
 
 Before switching worktrees or ending a session:
 
 1. Compress key context into the plan's `## Status > ### Handoff Notes`
-2. Update `.dev/state.md` Session Continuity section
+2. Update the matching `.dev/state.md` `## Session Continuity` row for that plan
 3. Commit changes to the current branch
 
 Before pausing work, switching providers, or switching machines, run `/gal wrap-up` so the active `.dev/plans/<slug>.prompt.md` and `.dev/state.md` become the authoritative handoff package. Resumption must come from those repo files, not from provider-local transcript memory.

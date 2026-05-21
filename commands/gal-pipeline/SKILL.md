@@ -143,7 +143,7 @@ When an execution prompt exists, keep the paired source plan path in memory for 
 
 - `docs/plans/<slug>.md` — human-readable source plan task checkbox and task commit note
 - `.dev/plans/<slug>.prompt.md` — execution status, task checkbox, retry/review/test state, and resume markers
-- `.dev/state.md` — active-plan last activity plus session continuity
+- `.dev/state.md` — active-plan last activity plus the matching per-plan session continuity row
 
 Do not leave this convergence to implementer, tester, reviewer, or a later chat. A task is not pipeline-complete until all three surfaces are updated and re-read successfully.
 
@@ -370,7 +370,7 @@ Preserve the existing task text. If the task line has no commit note, append `*(
 
 1. If the execution prompt uses a `### Completed Tasks` table or a `### Remaining Tasks` list inside `## Status`, update those summary surfaces too. Move `T-NNN` into completed with `<Task Final Commit>`, remove it from remaining, and ensure the next unchecked task matches `Next step`.
 
-1. Update `.dev/state.md`. Keep the active plan row valid. The `File` column may point at the source plan or the execution prompt, but `/gal status` and `/gal whats-next` must still be able to resolve the paired prompt. Set the active plan row `Last Activity` to `YYYY-MM-DD`. Update `## Session Continuity` so `Stopped at` names `T-NNN complete (commit: <Task Final Commit>)` and `Next step` names the next unchecked task, verifier, release prep, or the explicit `stop-at` boundary.
+1. Update `.dev/state.md`. Keep the active plan row valid. The `File` column may point at the source plan or the execution prompt, but `/gal status` and `/gal whats-next` must still be able to resolve the paired prompt. Set the active plan row `Last Activity` to `YYYY-MM-DD`. Update or create the matching `## Session Continuity` row for this plan, keyed by the paired source plan path. Set `Stopped At` to `T-NNN complete (commit: <Task Final Commit>)`, `Next Step` to the next unchecked task, verifier, release prep, or the explicit `stop-at` boundary, and refresh `Last Session` plus any needed context. Do not overwrite other plans' continuity rows.
 
 1. Re-read all three files and run the **Task State Convergence Gate**.
 
@@ -379,7 +379,7 @@ The gate passes only when:
 - source plan has `- [x] T-NNN`
 - execution prompt has `- [x] T-NNN` when it carries a `## Tasks` task list
 - execution prompt `## Status` no longer leaves `Current Task: T-NNN` with stale commit markers after task closeout
-- `.dev/state.md` session continuity no longer points at the completed task as unfinished
+- the matching `.dev/state.md` session continuity row no longer points at the completed task as unfinished
 - source plan and execution prompt do not disagree about which blocking `T-NNN` tasks are checked
 
 If any convergence check fails, **STOP immediately** and write an `Interrupted Phase — T-NNN / VERIFY` block explaining the missing write-back. Do not report the task complete from chat memory alone.

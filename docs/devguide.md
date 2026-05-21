@@ -323,7 +323,7 @@ Store full logs on disk when needed; retrieve specific lines selectively rather 
 When context is near the limit during an active task:
 
 1. Write the current task name, last completed step, and any key decisions to `### Handoff Notes` in the active plan's `## Status` section.
-2. Write `Stopped at:` and `Next step:` to `.dev/state.md` Session Continuity.
+2. Write or update the matching plan row in `.dev/state.md` `## Session Continuity` with `Stopped At` and `Next Step`.
 3. Do **not** create a separate `CONTEXT.md` file — the plan and state files are the only durable session state stores.
 
 This ensures the next session can resume without re-deriving context.

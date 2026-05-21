@@ -13,12 +13,13 @@ Starting from the current working directory or opened workspace folder, walk upw
 
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/planning` to start sprint planning.**
-- If `.dev/state.md` exists and names an active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
+- Resolve every row in `## Active Plans`. Table order is priority order. Treat the **target active plan** as the first row whose plan phase is not terminal (`Complete`, `Done`, `Verified`, `Closed`); if all rows are terminal, fall back to the first row.
+- For the target active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
 From `.dev/state.md` and the active plan file, extract these data points:
 
-1. `.dev/state.md` — active plans table, blockers, session continuity
+1. `.dev/state.md` — active plans table, blockers, full session continuity table, and the continuity row that matches the target plan's paired source plan path
 2. Active plan `## Status` — plan phase marker if present, current step, next step, current task, task base commit, task final commit
 3. Active plan `## Review Results` — any BLOCKING findings
 4. Active plan `## Test Results` — pass / fail / pending
@@ -59,7 +60,7 @@ Apply this decision tree in order:
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
 | Review clean, plan not yet verified | `golem-releaser` for release prep, or `/gal wrap-up` if the user is pausing instead of landing |
 | Blocker listed in `.dev/state.md` | State the blocker and what resolves it before any other action |
-| Session continuity shows interrupted work | Resume from "Stopped at" in `.dev/state.md` `## Session Continuity` |
+| Matching session continuity row shows interrupted work | Resume from that row's `Stopped at` and `Next step` in `.dev/state.md` `## Session Continuity` |
 
 ## Step 3 — Output
 
@@ -69,5 +70,7 @@ State in plain language:
 2. **Next action** — the single command, review lane, or task to start
 3. **Open this first** — which file or context is needed to begin
 4. **Graphify note** — include only when graphify freshness is `STALE-BY-TOOL-VERSION`, or when the user explicitly asked about graphify stamping. If stale, say GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context. If the report is merely unstamped, say the report is still usable and version verification is unavailable.
+
+When more than one active plan exists, mention which plan row was selected and why.
 
 Do not present multiple options. Commit to one clear next step.
