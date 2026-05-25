@@ -32,11 +32,17 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # --- Import common helpers ---
-$commonScript = Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1'
-if (-not (Test-Path $commonScript)) {
-    throw "Common helpers not found: $commonScript"
+$providerPluginScript = Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1'
+if (-not (Test-Path $providerPluginScript)) {
+    throw "Common helpers not found: $providerPluginScript"
 }
-. $commonScript
+. $providerPluginScript
+
+$commonHelpersScript = Join-Path $PSScriptRoot 'common' 'Common.ps1'
+if (-not (Test-Path $commonHelpersScript)) {
+    throw "Common helpers not found: $commonHelpersScript"
+}
+. $commonHelpersScript
 
 # --- Build and validate common package ---
 Write-Host "Building provider-neutral package..." -ForegroundColor Cyan
