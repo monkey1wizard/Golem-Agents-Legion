@@ -27,6 +27,53 @@ The machine setup surface is now split by concern on both Windows and macOS/Linu
 - `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), and legacy Gemini / Claude native command files
 - `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 
+## Install Mode vs Source Mode
+
+GAL supports two operational modes controlled by `~/.gal/config/config.json`:
+
+- **Install mode** — for end users who just want to use GAL. You don't need to clone the repo. Install via `winget` (Windows) or `homebrew` (macOS/Linux), and GAL manages its own `~/.gal/` runtime home. All provider-native plugin installs, updates, and uninstalls work without a source checkout. This is the eventual default once Claude, AGY, and Copilot smoke guards all pass.
+
+- **Source mode** — for GAL contributors. Keep a local clone of the GAL repo, set `galRoot` in `~/.gal/config/config.json` to that path, and enable `devMode`. This gives you live local overrides, direct repo-skill mounting, and the ability to test changes without packaging.
+
+To switch modes:
+- Set `installMode` to `install` or `source` in `~/.gal/config/config.json`.
+- In source mode, also set `galRoot` to your local GAL repo path and optionally enable `devMode`.
+- Rerun `Setup-Machine` after switching.
+
+## Companion Plugins and Support Tiers
+
+GAL keeps `gal-core` small: the control plane, golem agents, core workflows, essential conventions, and a small set of GAL-owned skills. Everything else is an external companion plugin you opt into.
+
+**Support tiers** tell you who maintains the content:
+
+| Tier | Maintained by | Auto-update | Example |
+| --- | --- | --- | --- |
+| `official-gal` | GAL repo / release artifacts | yes, via GAL releases | `gal-core` |
+| `curated-upstream` | external upstream repo; GAL locks the version | controlled, per lockfile pin | `dart-lang/skills` |
+| `mirrored` | external upstream, managed mirror by GAL | no unversioned copies | upstream that needs a managed cache |
+| `forked` | fork owner (GAL or user) | manual, with fork base tracking | a patched fork of an upstream skill |
+| `local` | you, for source-mode overrides only | never shared | `file://` local path |
+
+**Default profile**: the initial `default` profile only installs `gal-core`. All companion plugins are opt-in. Enable them through named profiles (e.g., `dart`, `flutter`, `dotnet`) or explicit plugin selection in `~/.gal/config/config.json`.
+
+**Known companion candidates** (all `curated-upstream`, all opt-in):
+- `dart-lang/skills` — Dart
+- `flutter/skills` — Flutter
+- `dotnet/skills` — .NET / C#
+- `anthropics/skills` — Claude ecosystem
+- `samber/cc-skills-golang` — Go
+- `twostraws/swift-agent-skills` — Swift
+- `kepano/obsidian-skills` — Obsidian
+- `actionbook/rust-skills` — Rust
+
+Game asset, Godot, and GStack framework skills remain in `gal-core` (GAL-owned, not external companion) unless confirmed otherwise.
+
+Your plugin selections, profiles, and resolver output live in:
+- `~/.gal/config/config.json` — what you want to install
+- `~/.gal/state/plugins.lock.json` — what is actually resolved and locked
+
+Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when migrating machines. Package-managed payloads, provider plugin install trees, and `~/.gal/generated/` content can be rebuilt by reinstalling.
+
 ## Placeholders You May Need To Fill
 
 | Placeholder | Meaning | Common use |
@@ -46,11 +93,11 @@ The machine setup surface is now split by concern on both Windows and macOS/Linu
 | `<WRAP_UP_TIME>` | Wrap-up Time in `HH:MM` | shutdown-window behavior |
 | `<HARD_STOP_TIME>` | Hard Stop in `HH:MM` | stop-work behavior |
 | `<LOCAL_SEARCH_PROJECT>` | clone path for the local search project | local-first and knowledge-management skills |
-| `<GAL_SKILLS>` | skills install path | helper skills that need a stable local path |
+| `<GAL_ROOT>` | path to local GAL repo clone (source mode only) | source mode contributor workflow |
 | `<TEMP_DIR>` | temp output directory | PDF and file-processing workflows |
 | `<MCP_FILESYSTEM_PATHS>` | allowed root paths for the filesystem MCP server | MCP manifest merge |
 | `<MCP_MEMORY_FILE_PATH>` | path to the persistent MCP memory JSON file | MCP manifest merge |
-| `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP manifest merge |
+| `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP manifest merge (materialized into `~/.gal/generated/mcp/managed.json`) |
 
 ## Common Personalization Steps
 

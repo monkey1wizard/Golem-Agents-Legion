@@ -27,6 +27,53 @@ Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL �
 - `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `Build-AgyPlugin`），以及 legacy Gemini / Claude 原生命令檔案
 - `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
 
+## 安裝模式 vs 原始碼模式 (Install Mode vs Source Mode)
+
+GAL 支援兩種由 `~/.gal/config/config.json` 控制的操作模式：
+
+- **安裝模式（Install mode）** — 給只想使用 GAL 的一般使用者。你不需要 clone 儲存庫。透過 `winget`（Windows）或 `homebrew`（macOS/Linux）安裝，GAL 自行管理 `~/.gal/` runtime home。所有 provider-native 外掛安裝、更新與解除安裝都不需要 source checkout。這是最終預設模式，但需 Claude、AGY 與 Copilot 三個 smoke guard 全部通過後才會正式切換。
+
+- **原始碼模式（Source mode）** — 給 GAL 貢獻者。保留 GAL 儲存庫的本機 clone，在 `~/.gal/config/config.json` 中設定 `galRoot` 指向該路徑，並啟用 `devMode`。這讓你可以直接掛載本機 skills、測試變更，無需經過封裝。
+
+切換模式：
+- 在 `~/.gal/config/config.json` 中將 `installMode` 設為 `install` 或 `source`。
+- 在 source mode 下，也需設定 `galRoot` 指向本機 GAL repo 路徑，並可選擇啟用 `devMode`。
+- 切換後重新執行 `Setup-Machine`。
+
+## 伴隨外掛與支援分層 (Companion Plugins and Support Tiers)
+
+GAL 將 `gal-core` 保持精簡：控制平面、golem agents、核心工作流、必要慣例與少量 GAL 自有 skills。其餘皆為你可選擇加入的外部伴隨外掛。
+
+**支援分層（Support tiers）** 說明內容由誰維護：
+
+| 分層 | 維護者 | 自動更新 | 範例 |
+| --- | --- | --- | --- |
+| `official-gal` | GAL repo / release artifacts | 是，透過 GAL releases | `gal-core` |
+| `curated-upstream` | 外部 upstream repo；GAL 鎖定版本 | 受控，依 lockfile pin | `dart-lang/skills` |
+| `mirrored` | 外部 upstream 的受管 mirror | 不允許無版本複製 | 需要受管快取的 upstream |
+| `forked` | fork 擁有者（GAL 或使用者） | 手動，需記錄 fork base | 已修補的 upstream skill fork |
+| `local` | 你，僅限 source-mode override | 永不共享 | `file://` 本機路徑 |
+
+**預設 profile**：初始 `default` profile 只安裝 `gal-core`。所有伴隨外掛均為 opt-in。透過 named profiles（例如 `dart`、`flutter`、`dotnet`）或 explicit plugin selection 在 `~/.gal/config/config.json` 中啟用。
+
+**已知伴隨候選**（全部 `curated-upstream`，全部 opt-in）：
+- `dart-lang/skills` — Dart
+- `flutter/skills` — Flutter
+- `dotnet/skills` — .NET / C#
+- `anthropics/skills` — Claude 生態系
+- `samber/cc-skills-golang` — Go
+- `twostraws/swift-agent-skills` — Swift
+- `kepano/obsidian-skills` — Obsidian
+- `actionbook/rust-skills` — Rust
+
+Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有，非外部伴隨），除非後續確認另有 upstream。
+
+你的外掛選擇、profiles 與 resolver 輸出存放於：
+- `~/.gal/config/config.json` — 你想安裝什麼
+- `~/.gal/state/plugins.lock.json` — 實際解析並鎖定的版本
+
+換機時請備份 `~/.gal/config/config.json` 與 `~/.gal/state/plugins.lock.json`。package-managed payload、provider plugin install tree 與 `~/.gal/generated/` 內容可於重新安裝後重建。
+
 ## 你可能需要填寫的佔位符 (Placeholders You May Need To Fill)
 
 | 佔位符 | 意義 | 常見用途 |
@@ -46,11 +93,11 @@ Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL �
 | `<WRAP_UP_TIME>` | 收工時間 (Wrap-up Time)，格式為 `HH:MM` | 關機視窗 (shutdown-window) 行為 |
 | `<HARD_STOP_TIME>` | 強制停工時間 (Hard Stop)，格式為 `HH:MM` | 停止工作行為 |
 | `<LOCAL_SEARCH_PROJECT>` | 本機搜尋專案的 clone 路徑 | local-first 與知識管理 skills |
-| `<GAL_SKILLS>` | 技能安裝路徑 | 需要穩定本機路徑的輔助 skills |
+| `<GAL_ROOT>` | 本機 GAL repo clone 路徑（僅 source mode） | source mode 貢獻者工作流 |
 | `<TEMP_DIR>` | 暫存輸出目錄 | PDF 與檔案處理工作流 |
 | `<MCP_FILESYSTEM_PATHS>` | filesystem MCP server 允許的根路徑 | MCP 清單合併 |
 | `<MCP_MEMORY_FILE_PATH>` | 存放持久化 MCP memory JSON 檔案的路徑 | MCP 清單合併 |
-| `<CONTEXT7_API_KEY>` | 需要 Context7 API key 的執行環境設定 | MCP 清單合併 |
+| `<CONTEXT7_API_KEY>` | 需要 Context7 API key 的執行環境設定 | MCP 清單合併（materialize 至 `~/.gal/generated/mcp/managed.json`） |
 
 ## 常見的個人化步驟 (Common Personalization Steps)
 

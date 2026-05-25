@@ -178,19 +178,96 @@ The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provide
 
 The common model explicitly excludes: provider-specific output paths, resolved machine-local secrets or paths, `runtimeScripts`, plugin-root `scripts/`, `gal-results/`, and hooks (deferred from v1).
 
-### AGY Renderer
+### Provider Lane Policy
+
+GAL targets are classified by provider-native install capability, not by a uniform renderer model.
+
+| Lane | Platform | Role | Success criteria |
+| --- | --- | --- | --- |
+| Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / installer target | `claude plugin install`, scope, update, uninstall via provider-native lifecycle |
+| Primary install target (near-parity) | Copilot CLI | Claude-compatible structure; `agents/`, `skills/`, `hooks.json`, `.mcp.json`, `lsp.json` share the same directory conventions as Claude | `/plugin install`, marketplace, GitHub/Git URL/local path; directory layout already aligns with Claude, no shortcut needed |
+| Primary install target | Codex | Claude baseline mapped renderer / marketplace target | `codex plugin install`, documented marketplace / cache install path, some components readable natively |
+| Primary install target (shortcut) | AGY CLI / Antigravity CLI | Claude baseline mapped renderer + catalog-aware install target | provider-native plugin staging / install, or capability shortcut pointing to `~/.gal/active/agy/`; no repo-root shortcut dependency |
+| Migration lane | Gemini CLI | legacy cleanup and compatibility only | not a fifth renderer; only cleanup or migration of existing GAL-managed Gemini surfaces |
+| Bridge lane | OpenCode | deferred independent bridge plan | can read catalog/lockfile, mount `~/.gal/active/opencode/` capability shortcut, but does not promise primary install parity |
+| Deferred / unsupported | other runtimes | out of scope | no documented install or skill discovery pathway |
+
+Shortcut policy:
+- Claude-compatible canonical package is the single source of truth.
+- Copilot CLI can consume Claude-compatible structure natively and does not need a shortcut.
+- AGY CLI and OpenCode, lacking native `plugin install` CLI, may use `~/.gal/active/<provider>/` as GAL-managed stable targets for capability-level shortcut redirection.
+- Install mode forbids repo-root shortcuts, baked source paths, and hidden `GAL_ROOT` dependencies.
+- Capability-level links in install mode must only point to `~/.gal/active/<provider>/` or its GAL-managed projection; source mode may point to user-specified local overrides.
+- Bridge lane must not imply primary provider-native install parity to users.
+
+### AGY Renderer (Implementation Status)
 
 AGY is renderer 1, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
 
 Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
 
-### Gemini Migration Lane
-
-Gemini CLI is not a fifth renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the AGY renderer concern; it does not enter the provider-neutral substrate.
-
 ### Future Renderer Sequence
 
 After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
+
+## Install Mode vs Source Mode
+
+GAL uses two distinct operational modes.
+
+| Mode | Audience | `gal-core` source | External plugin source | Shortcut policy |
+| --- | --- | --- | --- | --- |
+| Install mode | general users | Claude-compatible canonical package + provider-native install source | `~/.gal/config/config.json` + `~/.gal/state/plugins.lock.json` resolved upstream packages | provider-specific shortcuts only to `~/.gal/active/<provider>/`; repo-root shortcut forbidden |
+| Source mode | GAL contributors | `~/.gal/config/config.json.galRoot` pointing to local GAL repo | `~/.gal/state/plugins.lock.json` resolved cache, or `~/.gal/config/xmachine.json` explicit local override | repo link allowed but must be marked as source mode |
+| Migration cleanup | existing GAL users | existing managed surfaces | existing managed external skills | only removes GAL-managed legacy links/cache, never deletes user-owned config |
+| Bridge/degraded lane | OpenCode or runtimes lacking primary install parity | GAL-managed cache/artifact | resolved package subset | only capability-level links; not treated as primary install success |
+
+Key rules:
+- `galRoot` and `devMode` are controlled by `~/.gal/config/config.json`.
+- Xmachine routing is controlled by `~/.gal/config/xmachine.json`.
+- `GAL_SKILLS` is no longer part of the config surface; existing values are only migration input.
+- `context7ApiKey`, once rendered into `~/.gal/generated/mcp/managed.json`, is machine-local secret-bearing state — never tracked or shared.
+
+## Plugin Support Tiers
+
+| Tier | Content source | GAL responsibility | Update strategy |
+| --- | --- | --- | --- |
+| `official-gal` | GAL repo / GAL release artifact | GAL maintains content, testing, installation, and regression | updated directly by GAL releases |
+| `curated-upstream` | external upstream (e.g. `dart-lang/skills`) | GAL verifies metadata, provider compatibility, default profile, and lockfile; content maintained by upstream | updated per lockfile pin; manual or controlled updates allowed |
+| `mirrored` | managed mirror of external upstream | GAL responsible for provenance, license, checksum, and mirror drift | no unversioned copies; updates require drift check |
+| `forked` | fork maintained by GAL or user | fork owner responsible for divergence and fixes | must record fork base, diff policy, and update strategy |
+| `local` | `file://` or local path override | source mode / contributor override only | does not enter shareable lockfile; recorded as machine-local override |
+
+Default profile: initial `default` profile installs only `gal-core`. All companion plugins are opt-in through named profiles or explicit plugin selection.
+
+## Catalog and Lockfile Architecture
+
+GAL is a catalog + lockfile orchestrator, not a universal plugin runtime.
+
+```
+plugins/catalog.json
+  → ~/.gal/state/plugins.lock.json
+  → resolved plugin set
+  → provider-native install spec
+  → Claude-compatible canonical package
+  → provider-specific installer / renderer / shortcut mapping
+```
+
+Core layout under `~/.gal/`:
+
+| Path | Purpose |
+| --- | --- |
+| `~/.gal/config/config.json` | user-managed machine config: personalization, plugin/profile/provider selections, `galRoot`, `devMode` |
+| `~/.gal/config/xmachine.json` | machine-local xmachine binding: node aliases, machine profiles, local overrides |
+| `~/.gal/state/plugins.lock.json` | resolved lockfile: installed sources, versions, checksums, component maps |
+| `~/.gal/store/plugins/` | GAL-managed store of canonical packages and companion plugins |
+| `~/.gal/generated/mcp/managed.json` | GAL-produced MCP projection, replaces repo-root `mcp.local.json` in install mode |
+| `~/.gal/generated/xmachine/managed.json` | GAL-produced xmachine projection |
+| `~/.gal/generated/providers/` | GAL-produced provider config projections |
+| `~/.gal/active/<provider>/` | stable shortcut targets for AI tools; consumers do not point directly at store paths |
+
+The `plugins/catalog.json` in the repo is the authoritative catalog source and metadata registry. The `~/.gal/state/plugins.lock.json` is the deterministic machine-local resolution that can be backed up, transferred, and re-resolved.
+
+Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `dotnet/skills`, `anthropics/skills`, `samber/cc-skills-golang`, `twostraws/swift-agent-skills`, `kepano/obsidian-skills`, `actionbook/rust-skills` — all `curated-upstream`, all opt-in.
 
 ## Common Change Entry Points
 
