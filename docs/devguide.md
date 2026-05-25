@@ -269,6 +269,144 @@ The `plugins/catalog.json` in the repo is the authoritative catalog source and m
 
 Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `dotnet/skills`, `anthropics/skills`, `samber/cc-skills-golang`, `twostraws/swift-agent-skills`, `kepano/obsidian-skills`, `actionbook/rust-skills` — all `curated-upstream`, all opt-in.
 
+## Runtime File Schemas
+
+This section defines the structure, required fields, optional fields, secret boundaries, precedence rules, and drift metadata for the four authoritative `~/.gal/` runtime files.
+
+### `~/.gal/config/config.json` — User-Managed Machine Config
+
+Concentrates personalization, plugin/profile/provider selections, install/source mode, and `galRoot`/`devMode` in one user-owned file. This file is designed to be backed up and transferred between machines.
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `schemaVersion` | yes | integer | schema version for migration |
+| `galRoot` | source-mode only | string | absolute path to local GAL repo clone |
+| `devMode` | no | boolean | enables contributor tooling; defaults false |
+| `obsidianVault` | no | string | absolute path to Obsidian vault |
+| `obsidianVaultName` | no | string | display name of the vault |
+| `obsidianGuidePath` | no | string | vault-relative path to personal Guide |
+| `obsidianGuideMode` | no | string | `auto`, `guide`, or `generic` |
+| `obsidianPrivateResearchDir` | no | string | vault-relative private research directory |
+| `obsidianDiaryDir` | no | string | vault-relative work diary directory |
+| `obsidianScratchDir` | no | string | vault-relative scratch log directory |
+| `obsidianArchiveDir` | no | string | vault-relative diary archive directory |
+| `researchDefaultDest` | no | string | `repo`, `private`, `knowledge`, or `none` |
+| `localSearchProject` | no | string | clone path for local search project |
+| `tempDir` | no | string | temp output directory |
+| `mcpMemoryFilePath` | no | string | path to persistent MCP memory JSON file |
+| `mcpFilesystemPaths` | no | array | optional compatibility field; only output when filesystem MCP is present |
+| `context7ApiKey` | no | string | **SECRET-BEARING** — do not share; materialized into `mcp/managed.json` |
+| `workingHoursEnabled` | no | boolean | enables working-hours enforcement |
+| `workdayStart` | no | string | `HH:MM` format |
+| `workdayEnd` | no | string | `HH:MM` format |
+| `wrapUpTime` | no | string | `HH:MM` format |
+| `hardStopTime` | no | string | `HH:MM` format |
+| `defaultProfile` | no | string | default profile name; defaults to `default` |
+| `profiles` | no | object | map of profile name → plugin list |
+| `enabledPlugins` | no | array | explicit plugin selections |
+| `disabledPlugins` | no | array | explicit plugin exclusions |
+| `providerSelections` | no | object | per-provider enablement |
+| `installMode` | no | string | `install` or `source` |
+| `updateChannel` | no | string | update policy |
+| `allowAutoUpdate` | no | boolean | per-plugin auto-update override |
+| `preferredProviders` | no | array | ordered provider preference |
+| `userSettings` | no | object | free-form user extensions |
+
+**Secret boundary**: `context7ApiKey` is the only secret-bearing field. Once materialized into `~/.gal/generated/mcp/managed.json`, that generated file becomes machine-local secret-bearing state — never commit or share it.
+
+**Precedence**: `config.json` is the user-facing input. Profile selections, explicit enabled/disabled lists, and provider selections are resolved together. Explicit `enabledPlugins`/`disabledPlugins` override profile-level settings.
+
+**Excluded fields**: `GAL_SKILLS` is intentionally removed. Existing values are migration input only and must not appear in the final schema.
+
+### `~/.gal/state/plugins.lock.json` — Resolved Lockfile
+
+Deterministic machine-local resolution produced by the resolver from `plugins/catalog.json` and `~/.gal/config/config.json`. Designed to be backed up, transferred, and re-resolved.
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `schemaVersion` | yes | integer | lockfile schema version |
+| `resolverVersion` | yes | string | resolver tool version that produced this lock |
+| `lockTimestamp` | yes | string | ISO 8601 timestamp |
+| `plugins` | yes | array | resolved plugin entries |
+
+Each resolved plugin entry carries:
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `pluginId` | yes | string | matches catalog `pluginId` |
+| `resolvedSource` | yes | object | `{type, repo, ref, path}` |
+| `resolvedVersion` | yes | string | release tag, version, or commit SHA |
+| `resolvedChecksum` | yes | string | actual checksum of resolved content |
+| `resolvedLicense` | yes | string | confirmed license identifier |
+| `resolvedComponentMap` | yes | object | confirmed available components |
+| `selectedProviders` | yes | array | providers this plugin is active for |
+| `selectedProfiles` | yes | array | profiles that selected this plugin |
+| `installTimestamp` | yes | string | ISO 8601 when resolved and installed |
+
+**Drift detection metadata**: each plugin entry includes `resolvedChecksum` compared against catalog `checksumPolicy`. When the lockfile checksum differs from the catalog policy's expected value, the resolver must flag drift. Local overrides (source mode only) are recorded in `~/.gal/config/xmachine.json`, not in the lockfile.
+
+### `~/.gal/config/xmachine.json` — Machine-Local Xmachine Binding
+
+Machine-local binding file for xmachine routing. Not a team-shared configuration.
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `schemaVersion` | yes | integer | binding schema version |
+| `defaultXmachineNode` | no | string | default work node alias |
+| `xmachineNodeAliases` | no | object | map of alias → `{target, repoPath, runtimeRepoPath}` |
+| `machineProfiles` | no | object | machine-specific profile overrides |
+| `localPluginPaths` | no | array | source-mode local plugin path overrides |
+| `providerPathOverrides` | no | object | per-provider path mapping |
+| `additionalBindings` | no | object | free-form extension bindings |
+
+**Secret boundary**: `xmachine.json` may contain SSH targets and repo paths. Treat as machine-local and do not share.
+
+### `~/.gal/generated/mcp/managed.json` — GAL-Produced MCP Projection
+
+Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `mcp.json` + `mcp.local.json` boundary info with machine-local values resolved.
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `schemaVersion` | yes | integer | generated schema version |
+| `generatedAt` | yes | string | ISO 8601 generation timestamp |
+| `generatedBy` | yes | string | tool version that produced this file |
+| `mcpServers` | yes | object | resolved MCP server configurations |
+| `inputs` | no | array | resolved prompt-backed inputs |
+| `_metadata` | yes | object | generation metadata |
+
+**Server entry shape** (per server):
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `command` | conditional | string | CLI command (absent when `serverUrl` present) |
+| `args` | conditional | array | CLI args (absent when `serverUrl` present) |
+| `serverUrl` | conditional | string | HTTP MCP endpoint (absent when `command` present) |
+| `env` | no | object | environment variables (resolved, no placeholders) |
+| `headers` | no | object | HTTP headers (resolved, no placeholders) |
+
+**Secret boundary**: `context7ApiKey` is materialized directly into `headers.CONTEXT7_API_KEY` — no `${CONTEXT7_API_KEY}` placeholder remains. This file is **secret-bearing machine-local state**. It must never enter a tracked repo, shared lockfile, or team configuration. Mark it in `.gitignore`.
+
+**Resolved values rules**:
+- `mcpMemoryFilePath` is resolved to its absolute value.
+- `mcpFilesystemPaths` appears only when filesystem MCP is present in the resolved set; otherwise omitted.
+- No runtime placeholder resolution is required — all values are fully materialized.
+
+### Schema Precedence Chain
+
+```
+plugins/catalog.json (repo-tracked, authoritative catalog source)
+  ↓ resolved with
+~/.gal/config/config.json (user-owned, machine-local preferences)
+  ↓ produces
+~/.gal/state/plugins.lock.json (machine-local, deterministic, backup-safe)
+  ↓ renders into
+~/.gal/generated/mcp/managed.json (machine-local, secret-bearing, never shared)
+~/.gal/generated/xmachine/managed.json (machine-local, non-secret)
+~/.gal/generated/providers/ (machine-local provider projections)
+```
+
+`~/.gal/config/xmachine.json` is an independent leaf — it does not feed into the resolver chain but controls xmachine routing and local overrides for source mode.
+
 ## Common Change Entry Points
 
 ### Changing `/gal` or alias behavior
