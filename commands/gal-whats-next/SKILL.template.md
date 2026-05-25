@@ -13,11 +13,14 @@ Starting from the current working directory or opened workspace folder, walk upw
 
 - If no ancestor directory contains `.dev/state.md`, output **Repo not initialized — run `/gal init`.**
 - If `.dev/state.md` exists but there is no active plan entry under `## Active Plans`, output **No active plan. Use `/planning` to start sprint planning.**
-- Resolve every row in `## Active Plans`. Table order is priority order. Treat the **target active plan** as the first row whose plan phase is not terminal (`Complete`, `Done`, `Verified`, `Closed`); if all rows are terminal, fall back to the first row.
-- For the target active plan, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
+- Resolve every row in `## Active Plans`. Table order is the default priority order, but do not collapse to the first non-terminal row when current recorded state does not actually disambiguate priority.
+- First collect the non-terminal active rows (`Complete`, `Done`, `Verified`, and `Closed` are terminal). Then determine whether one row has a stronger execution signal than the others. Stronger signals are: an explicit blocker, an OPEN `Retry Handoff` or OPEN `Interrupted Phase` block, a current task already set, failing tests, BLOCKING review findings, task checkbox mismatch between source and prompt, or incomplete durable write-back for an active workflow phase.
+- If exactly one non-terminal row has the strongest signal, treat it as the **target active plan**.
+- If multiple non-terminal rows remain in the same coarse lifecycle state and none has a stronger signal than the others, treat them as an **ambiguous active set**. In that case, read each candidate plan's execution file and paired source plan as needed, and do not silently select only the first row.
+- When a row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
 
-From `.dev/state.md` and the active plan file, extract these data points:
+From `.dev/state.md` and the resolved target plan or ambiguous active-set plan files, extract these data points:
 
 1. `.dev/state.md` — active plans table, blockers, full session continuity table, and the continuity row that matches the target plan's paired source plan path
 2. Active plan `## Status` — plan phase marker if present, current step, next step, current task, task base commit, task final commit
@@ -31,6 +34,7 @@ From `.dev/state.md` and the active plan file, extract these data points:
 10. Active plan `## Analyze` — CLEAR / DRIFT-OPEN / NOT-RUN verdict
 11. Whether the active plan scope touches authentication, data storage, input handling, or public API surface
 12. Graphify freshness from `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and current `graphify --version` when available. Classify as `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch; only mark it stale when the stamped version differs and `GRAPH_REPORT.md` is not newer than the stamp file. If the report exists without a version stamp, keep it `FRESH` and note that version verification is unavailable. Treat graphify as advisory context only, never as the gating next action for normal GAL flow.
+13. Whether more than one non-terminal active plan remains equally runnable or equally paused after checking for stronger execution signals
 
 ## Step 2 — Decide
 
@@ -39,6 +43,7 @@ Apply this decision tree in order:
 | Condition | Next Action |
 | --- | --- |
 | No active plan, no work in progress | Repo is already initialized; use `/planning` to start sprint planning |
+| More than one non-terminal active plan remains equally ranked after checking blockers, OPEN handoffs, current task state, failing tests, review findings, task-sync mismatch, and active workflow write-back | Do not pick only the first row; list each tied active plan and tell the user to resolve plan priority before implementation starts |
 | Active plan points to source plan only, no execution prompt yet | Run `/refining-plan` to lock the implementation contract into the source plan |
 | No eng review recorded | Run the engineering review lane for the source plan through the configured provider, or use `/refining-plan` as the fallback, then refresh the prompt with `/plan-to-prompt` |
 | Plan reviewed, tasks exist, implementation not started | Describe the first implementation task from the plan |
@@ -60,7 +65,7 @@ Apply this decision tree in order:
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |
 | Review clean, plan not yet verified | `golem-releaser` for release prep, or `/gal wrap-up` if the user is pausing instead of landing |
 | Blocker listed in `.dev/state.md` | State the blocker and what resolves it before any other action |
-| Matching session continuity row shows interrupted work | Resume from that row's `Stopped at` and `Next step` in `.dev/state.md` `## Session Continuity` |
+| Matching session continuity row plus explicit OPEN interruption evidence in `### Handoff Notes` shows interrupted work | Resume from that row's `Stopped at` and `Next step` in `.dev/state.md` `## Session Continuity` |
 
 ## Step 3 — Output
 
@@ -69,8 +74,18 @@ State in plain language:
 1. **Where you are** — one sentence describing the current position in the plan lifecycle
 2. **Next action** — the single command, review lane, or task to start
 3. **Open this first** — which file or context is needed to begin
-4. **Graphify note** — include only when graphify freshness is `STALE-BY-TOOL-VERSION`, or when the user explicitly asked about graphify stamping. If stale, say GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context. If the report is merely unstamped, say the report is still usable and version verification is unavailable.
+4. **Graphify note** — include only when graphify freshness is `STALE-BY-TOOL-VERSION`, or when the user explicitly asked about graphify stamping. If stale, say GAL can continue without graphify and the user may refresh graphify artifacts manually if they want updated graph context. If the report is merely unstamped, do not mention graphify unless the user explicitly asked about graphify stamping; when asked, say the report is still usable and version verification is unavailable.
 
-When more than one active plan exists, mention which plan row was selected and why.
+If there is an ambiguous active set instead of one clear target plan:
 
-Do not present multiple options. Commit to one clear next step.
+1. **Where you are** — say the repo has multiple equally-ranked active plans and current recorded state does not prove which one should go first.
+2. **Next action** — say to resolve active-plan priority before starting implementation.
+3. **Active plans to compare** — list every tied plan with plan name, file path, current phase, and next step.
+4. **Open this first** — point to `.dev/state.md` plus the tied execution prompts.
+5. **Graphify note** — same stale-only rule as above.
+
+When more than one active plan exists, either mention which plan row was selected and why, or if no row is clearly prior, list every tied plan and state that current recorded state does not disambiguate priority.
+
+Treat `.dev/state.md` `## Session Continuity` as a checkpoint and resume-hint surface, not standalone proof of interrupted work. A continuity row only changes the next action when the active prompt also contains explicit OPEN interruption evidence in `### Handoff Notes`, or when the current workflow phase already has incomplete durable write-back markers.
+
+Do not present multiple unrelated options. If priority is ambiguous, the single next step is to resolve plan priority, and the output must list every tied active plan instead of pretending the first row is authoritative.
