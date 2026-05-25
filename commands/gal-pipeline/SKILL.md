@@ -83,7 +83,7 @@ Provider turn limits and OpenCode agent `steps` limits are hard runtime boundari
 Before starting the task loop:
 
 1. If the active runtime is OpenCode, inspect the nearest repo `opencode.json` when present and note the active agent step budget when it is visible.
-2. In OpenCode, enter **single-task tranche mode** by default. Only disable it when the user explicitly asks for a multi-task turn and the visible active-agent `steps` budget is high enough for that larger run.
+2. If the active OpenCode agent's `steps` value is **60 or higher**, do NOT enter single-task tranche mode — proceed with multi-task execution the same way non-OpenCode runtimes do. If `steps` is below 60, enter single-task tranche mode by default. The user may still explicitly request single-task tranche mode regardless of step budget.
 3. If the active OpenCode agent is `build` and its `steps` value is `20` or lower, warn that even one full task may exceed the runtime budget and rely on the interrupted-phase handoff if the cutoff still happens.
 4. In single-task tranche mode, complete at most one blocking task per invocation, including implement, test, review, and any required security pass. After marking that task complete, stop cleanly and tell the user to rerun `/gal pipeline` to continue from the next unchecked task.
 
