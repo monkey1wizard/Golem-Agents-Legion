@@ -468,7 +468,7 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 - [x] T-002 — 更新 provider lane、mode contract 與 support-tier 文件，明確區分 AGY、Copilot、Codex、Claude、Gemini migration lane 與 OpenCode bridge lane。 *(36df497)*
 - [x] T-003 — 建立 `plugins/catalog.json` schema 與初始 catalog，包含 `gal-core`、八個 curated-upstream companion candidates、support tier、source provenance、license 與 checksum policy。 *(29239fb)*
 - [x] T-004 — 定義 `~/.gal/config/config.json`、`~/.gal/state/plugins.lock.json`、`~/.gal/config/xmachine.json`、`~/.gal/generated/mcp/managed.json` schema、precedence、secret boundary 與 drift metadata。 *(c4b1b76)*
-- [ ] T-005 — 實作 catalog resolver、default profile 與 opt-in profile policy，輸出 deterministic resolved plugin set 與 lockfile。
+- [x] T-005 — 實作 catalog resolver、default profile 與 opt-in profile policy，輸出 deterministic resolved plugin set 與 lockfile。 *(5de04cb)*
 
 ### Phase 2：Resolver 與 package boundary
 

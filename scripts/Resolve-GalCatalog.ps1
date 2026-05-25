@@ -15,9 +15,9 @@
 
 [CmdletBinding()]
 param(
-    [string]$CatalogPath = (Join-Path $PSScriptRoot '..' 'plugins' 'catalog.json'),
-    [string]$ConfigPath = (Join-Path $env:USERPROFILE '.gal' 'config' 'config.json'),
-    [string]$LockfilePath = (Join-Path $env:USERPROFILE '.gal' 'state' 'plugins.lock.json'),
+    [string]$CatalogPath = (Join-Path (Join-Path (Join-Path $PSScriptRoot '..') 'plugins') 'catalog.json'),
+    [string]$ConfigPath = (Join-Path (Join-Path (Join-Path $env:USERPROFILE '.gal') 'config') 'config.json'),
+    [string]$LockfilePath = (Join-Path (Join-Path (Join-Path $env:USERPROFILE '.gal') 'state') 'plugins.lock.json'),
     [switch]$DryRun,
     [switch]$PassThru
 )
@@ -259,7 +259,7 @@ $resolution = Resolve-PluginSet -Catalog $Catalog -Config $Config
 if ($resolution.errors.Count -gt 0) {
     Write-Error "Catalog validation failed with $($resolution.errors.Count) error(s):"
     foreach ($err in $resolution.errors) { Write-Error "  - $err" }
-    if (-not $DryRun) { exit 1 }
+    if (-not $DryRun -and -not $PassThru) { exit 1 }
 }
 
 $lockfile = Build-Lockfile -Catalog $Catalog -Config $Config -ResolvedPlugins $resolution.resolvedPlugins -ProfileName $resolution.profileName
