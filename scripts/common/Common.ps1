@@ -466,7 +466,14 @@ function Write-JsonOrderedMap([string]$Path, [System.Collections.IDictionary]$Da
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
     }
 
-    [System.IO.File]::WriteAllText($Path, ($Data | ConvertTo-Json -Depth 20), $script:SetupContext.Utf8NoBom)
+    $encoding = if ($script:SetupContext -and $script:SetupContext.PSObject.Properties['Utf8NoBom']) {
+        $script:SetupContext.Utf8NoBom
+    }
+    else {
+        [System.Text.UTF8Encoding]::new($false)
+    }
+
+    [System.IO.File]::WriteAllText($Path, ($Data | ConvertTo-Json -Depth 20), $encoding)
 }
 
 function Read-KeyValueEnvFile([string]$Path) {
