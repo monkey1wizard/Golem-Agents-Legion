@@ -75,7 +75,6 @@ plugins/catalog.json
 
 ### 平台與 runtime lane policy
 
-
 | Lane | Platform | 本計畫角色 | 成功條件 |
 | --- | --- | --- | --- |
 | Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / installer target | `claude plugin install`、scope、update、uninstall 等 provider-native lifecycle |
@@ -429,49 +428,63 @@ Fallback analyst review（2026-05-25）結論：**CLEAR，無 blocking findings�
 
 ### Engineering Review
 
-待處理。下一步 `/refining-plan` 應填入可實作的任務、測試計畫、資料 shape 與工程審查結論。
+CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心，先把既有 provider-plugin substrate 收斂為 `gal-core` input，再逐步加入 resolver、`~/.gal/` machine-local state、provider projections、mode guards 與 lifecycle 驗證。實作必須分階段交付，先完成 schema / catalog / resolver 與 AGY regression guard，再處理 path decoupling 與 provider-native lifecycle，避免一次重寫 `Setup-Machine.*` 或重新引入 repo-root shortcut。
+
+工程限制如下：install mode 不得依賴 `GAL_ROOT`、source checkout absolute path 或 repo-root provider shortcut；Copilot lane 不得承諾未記錄的 plugin-local `bin` / general script runtime；`context7ApiKey` materialized 後只能存在 machine-local generated MCP projection；uninstall / migration cleanup 必須有 ownership guard，保留 user-owned provider config 與 local overrides。
+
+<!-- ENG_REVIEW: CLEAR -->
 
 ## Test Plan
 
-- Schema validation：`plugins/catalog.json`、`~/.gal/config/config.json`、`~/.gal/state/plugins.lock.json`、`~/.gal/config/xmachine.json`、`~/.gal/generated/mcp/managed.json` required fields、support tier、provider support、checksum policy、license policy。
-- Resolver validation：catalog + selected profile 產生 deterministic resolved plugin set，且 lockfile round-trip 穩定。
-- Drift validation：copied/mirrored skills 與 lockfile ref/checksum 不一致時失敗。
-- Mode validation：install mode 不產生 repo-root shortcut，但可產生指向 `~/.gal/active/<provider>/` 的 managed capability links；source mode 透過 `~/.gal/config/config.json.galRoot` 與 `devMode` 明確標示 repo link；bridge lane 顯示 capability-level links。
-- Provider validation：AGY baseline plugin-only lifecycle 先通過，再逐 provider 驗證 native install/list/status/update/uninstall。
-- Security validation：plugin artifacts 不包含 local secrets、machine-local paths 或 `~/.gal/generated/mcp/managed.json` 之外的未受管 MCP secret values；`context7ApiKey` 若被 materialize，必須只存在 machine-local generated MCP config。
-- Cleanup validation：uninstall 只移除 GAL-managed plugin/cache/staged/legacy items，保留 user-owned provider config。
+| ID | Type | Description | Covers |
+| --- | --- | --- | --- |
+| TP-001 | documentation | Verify docs define provider lane policy, install/source/migration/bridge modes, support tiers, companion ownership, and user-facing update/uninstall boundaries. | T-002, T-012 |
+| TP-002 | schema | Validate `plugins/catalog.json` requires plugin ID, support tier, source type, upstream provenance, license, checksum policy, component map, providers, install strategy, profiles, auto-update policy, and local override policy. | T-003 |
+| TP-003 | schema | Validate `~/.gal/config/config.json`, `~/.gal/state/plugins.lock.json`, `~/.gal/config/xmachine.json`, and `~/.gal/generated/mcp/managed.json` shapes, including required fields, optional compatibility fields, precedence rules, and secret-bearing generated-state markings. | T-004, T-010 |
+| TP-004 | unit | Resolve `default` profile and confirm only `gal-core` is selected; resolve named or explicit companion selections and confirm only requested curated-upstream plugins are included. | T-005 |
+| TP-005 | unit | Resolve the same catalog/profile/provider input twice and confirm deterministic plugin set, lockfile content, resolver version metadata, and round-trip stability. | T-005 |
+| TP-006 | unit | Fail catalog validation when `curated-upstream`, `mirrored`, or `forked` entries omit source, license, ref, checksum policy, or support-tier ownership metadata. | T-003, T-005 |
+| TP-007 | integration | Detect drift when copied or mirrored skill content does not match the lockfile ref/checksum policy; treat local overrides as source-mode-only machine-local bindings. | T-005, T-009 |
+| TP-008 | integration | Build `gal-core` canonical package from resolver output and confirm it includes only GAL-owned skills, commands, agents, conventions, workflows, and MCP boundaries, not the whole repo `skills/` tree or external companion payloads. | T-006 |
+| TP-009 | integration | Render provider artifacts and verify no artifact contains out-of-root symlinks, `gal-results/`, baked source checkout paths, or install-mode `{{GAL_ROOT}}` dependencies. | T-006, T-007, T-009 |
+| TP-010 | integration | Run install-mode dry run and confirm provider, resolved plugin set, support tiers, install strategy, canonical package source, bridge/degraded lane, and any `~/.gal/active/<provider>/` mapping are visible. | T-007, T-008 |
+| TP-011 | integration | Run source-mode dry run and confirm repo-root links are allowed only through explicit `galRoot` / `devMode`, are marked as source mode, and local plugin overrides come only from explicit machine-local binding. | T-008, T-009 |
+| TP-012 | integration | Render MCP projection and confirm `mcpMemoryFilePath` is resolved, `mcpFilesystemPaths` appears only when filesystem MCP is present, and materialized Context7 auth headers appear only in machine-local generated MCP state. | T-004, T-010 |
+| TP-013 | integration | Verify plugin-aware MCP update preserves user-owned global MCP settings and removes only GAL-managed legacy items during migration cleanup. | T-010, T-011 |
+| TP-014 | smoke | Re-run AGY plugin-only baseline for plugin-root MCP, `rules/gal.md`, legacy cleanup, reinstall, and uninstall before enabling new install-mode behavior. | T-001, T-011 |
+| TP-015 | smoke | Validate Copilot native install dry run uses only documented components and lifecycle surfaces, and does not require plugin-local `bin` or generic script execution. | T-007, T-011 |
+| TP-016 | smoke | Validate Codex and Claude dry runs produce mapped native install artifacts or marketplace-compatible package plans without repo-root shortcuts. | T-007, T-011 |
+| TP-017 | cleanup | Run uninstall plan and confirm only GAL-managed plugins, cache, staged artifacts, generated projections, and explicitly managed legacy links are removed; user-owned provider config remains untouched. | T-008, T-011 |
+| TP-018 | manual | Verify OpenCode and Gemini documentation labels them bridge / migration lanes and does not imply primary provider-native install parity. | T-002, T-012 |
 
 ## Tasks
 
 ### Phase 0：Baseline guard
 
-- [ ] A-001 — 驗證 [feat-gal-provider-plugin-packaging.md](feat-gal-provider-plugin-packaging.md) 完成後的 AGY plugin-only baseline 仍然通過，包含 plugin-root MCP、`rules/gal.md`、legacy cleanup 與 `Setup-Machine` reinstall/uninstall。
+- [ ] T-001 — 驗證 [feat-gal-provider-plugin-packaging.md](feat-gal-provider-plugin-packaging.md) 完成後的 AGY plugin-only baseline 仍然通過，包含 plugin-root MCP、`rules/gal.md`、legacy cleanup 與 `Setup-Machine` reinstall/uninstall。
 
 ### Phase 1：Inventory 與 catalog governance
 
-- [ ] A-002 — 盤點現有 `skills/`，提出 `gal-core`、external companion plugins、upstream/mirrored/forked/local entries 的初步分群。
-- [ ] A-003 — 定義 `plugins/catalog.json` schema，涵蓋 plugin ID、support tier、source type、upstream ref、license、checksum policy、component map、supported providers、install strategy、default profiles、local override policy。
-- [ ] A-004 — 定義 `~/.gal/config/config.json`、`~/.gal/state/plugins.lock.json`、`~/.gal/config/xmachine.json`、`~/.gal/generated/mcp/managed.json` schema 與 drift detection / precedence 規則。
-- [ ] A-005 — 定義 default profile 與 opt-in plugin profile policy。
+- [ ] T-002 — 更新 provider lane、mode contract 與 support-tier 文件，明確區分 AGY、Copilot、Codex、Claude、Gemini migration lane 與 OpenCode bridge lane。
+- [ ] T-003 — 建立 `plugins/catalog.json` schema 與初始 catalog，包含 `gal-core`、八個 curated-upstream companion candidates、support tier、source provenance、license 與 checksum policy。
+- [ ] T-004 — 定義 `~/.gal/config/config.json`、`~/.gal/state/plugins.lock.json`、`~/.gal/config/xmachine.json`、`~/.gal/generated/mcp/managed.json` schema、precedence、secret boundary 與 drift metadata。
+- [ ] T-005 — 實作 catalog resolver、default profile 與 opt-in profile policy，輸出 deterministic resolved plugin set 與 lockfile。
 
 ### Phase 2：Resolver 與 package boundary
 
-- [ ] A-006 — 實作 catalog resolver，輸出 deterministic resolved plugin set。
-- [ ] A-007 — 定義 Claude-compatible canonical package schema，並將現有 provider-neutral package model 彙整為 `gal-core` package input，不再無條件收集整個 repo `skills/`。
-- [ ] A-008 — 讓 provider renderers 接收 resolver output 並保留 external upstream package identity；對非 Claude provider 產生 `~/.gal/active/<provider>/` shortcut mapping。
+- [ ] T-006 — 定義 Claude-compatible canonical package schema，並將現有 provider-neutral package model 收斂為 `gal-core` package builder input。
+- [ ] T-007 — 更新 provider renderers 接收 resolver output、保留 external upstream identity，並只對需要的 lane 產生 `~/.gal/active/<provider>/` managed shortcut mapping。
 
 ### Phase 3：Mode selection 與 path decoupling
 
-- [ ] A-009 — 更新 `Setup-Machine.*` 支援 install mode / source mode / migration cleanup / bridge lane、`~/.gal/config/config.json` machine config、`~/.gal/config/xmachine.json` machine binding 與 `~/.gal/active/<provider>/` shortcut layout。
-- [ ] A-010 — 移除 install mode 對 `{{GAL_ROOT}}`、source checkout absolute path 與 provider repo-root shortcut path 的依賴；保留對 `~/.gal/active/<provider>/` 的 GAL-managed redirect。
-- [ ] A-011 — 實作 local override policy，允許 source mode 對外部 plugin 使用 explicit local path。
+- [ ] T-008 — 更新 `Setup-Machine.*` 與 install orchestration 支援 install mode、source mode、migration cleanup、bridge lane、`~/.gal/` runtime home 與 dry-run visibility。
+- [ ] T-009 — 移除 install mode 對 `{{GAL_ROOT}}`、source checkout absolute path 與 provider repo-root shortcut 的依賴，並實作 source-mode-only local override policy。
+- [ ] T-010 — 實作 plugin-aware MCP 與 xmachine generated projections，包含 machine-local secret materialization、ownership metadata 與 user-owned config preservation。
 
 ### Phase 4：Provider-native lifecycle
 
-- [ ] A-012 — 實作 provider-native installer / updater / uninstall flows，先維持 AGY baseline，再循序擴展 Copilot CLI、Codex、Claude Code。
-- [ ] A-013 — 將 OpenCode 記錄為 bridge/degraded lane，另案處理 plugin bridge，不納入本計畫 primary renderer。
+- [ ] T-011 — 實作 provider-native installer、updater、uninstall 與 smoke flows，先維持 AGY baseline，再循序擴展 Copilot CLI、Codex、Claude Code。
 
 ### Phase 5：Migration 與 docs
 
-- [ ] A-014 — 在 catalog governance 與 migration UX 明確後，規劃 repo copied external skills 的移除、mirror 或 fork 搬遷。
-- [ ] A-015 — 更新 README、繁中 README、personalization docs、devguide 與 scripts inventory，清楚說明 user promise、support tiers、mode selection、update/uninstall 與 provider limitations。
+- [ ] T-012 — 更新 README、繁中 README、personalization docs、devguide 與 scripts inventory，並規劃 repo copied external skills 的移除、mirror 或 fork 搬遷邊界。
