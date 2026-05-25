@@ -461,7 +461,7 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 
 ### Phase 0：Baseline guard
 
-- [ ] T-001 — 驗證 [feat-gal-provider-plugin-packaging.md](feat-gal-provider-plugin-packaging.md) 完成後的 AGY plugin-only baseline 仍然通過，包含 plugin-root MCP、`rules/gal.md`、legacy cleanup 與 `Setup-Machine` reinstall/uninstall。
+- [x] T-001 — 驗證 [feat-gal-provider-plugin-packaging.md](feat-gal-provider-plugin-packaging.md) 完成後的 AGY plugin-only baseline 仍然通過，包含 plugin-root MCP、`rules/gal.md`、legacy cleanup 與 `Setup-Machine` reinstall/uninstall。 *(895a509)*
 
 ### Phase 1：Inventory 與 catalog governance
 
