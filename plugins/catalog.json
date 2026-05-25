@@ -1,0 +1,272 @@
+{
+  "$schema": "https://gal.dev/schemas/catalog-v1.json",
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-25",
+  "plugins": [
+    {
+      "pluginId": "gal-core",
+      "displayName": "GAL Core",
+      "description": "GAL control plane, golem agents, core workflows, essential conventions, and GAL-owned skills (game assets, Godot, Obsidian, GStack, markdown, PDF, webapp testing, MCP builder, skill creator, git commits, result pattern, structured logging, local-first search, json-canvas, opencli-research, defuddle, doc-coauthoring).",
+      "supportTier": "official-gal",
+      "sourceType": "official-gal",
+      "upstream": {
+        "type": "repo",
+        "repo": "https://github.com/monkey1wizard/Golem-Agents-Legion",
+        "releaseTagPolicy": "versioned-release"
+      },
+      "license": "MIT",
+      "checksumPolicy": "release-artifact-sha256",
+      "componentMap": {
+        "skills": true,
+        "agents": true,
+        "commands": true,
+        "mcp": true,
+        "conventions": true,
+        "workflows": true,
+        "templates": true,
+        "docs": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "canonical-package",
+      "defaultProfiles": ["default"],
+      "allowAutoUpdate": true,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "dart-skills",
+      "displayName": "Dart Skills",
+      "description": "Official Dart language skills from dart-lang: unit testing, CLI app building, coverage collection, runtime error fixes, test mocks, checks package migration, package conflict resolution, static analysis, and pattern matching.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/dart-lang/skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "BSD-3-Clause",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["dart"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "flutter-skills",
+      "displayName": "Flutter Skills",
+      "description": "Official Flutter skills from flutter.dev: widget tests, integration tests, widget previews, architecture best practices, responsive layout, layout issue fixes, JSON serialization, declarative routing, localization, and HTTP package usage.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/flutter/skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "BSD-3-Clause",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["flutter"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "dotnet-skills",
+      "displayName": ".NET Skills",
+      "description": "Official .NET skills from dotnet: C# development guidance, MSBuild, NuGet, and .NET conventions.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/dotnet/skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["dotnet"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "anthropic-skills",
+      "displayName": "Anthropic Skills",
+      "description": "Official Anthropic skills from anthropics/skills. Overlap with gal-core must be resolved by local override policy.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/anthropics/skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["claude-ecosystem"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "golang-skills",
+      "displayName": "Go Skills",
+      "description": "Community Go skills from samber/cc-skills-golang. Provider support, license, and drift policy must be verified per lockfile.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/samber/cc-skills-golang",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["go"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "swift-skills",
+      "displayName": "Swift Skills",
+      "description": "Community Swift agent skills from twostraws/swift-agent-skills. Provider support, license, and drift policy must be verified per lockfile.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/twostraws/swift-agent-skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["swift"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "obsidian-skills",
+      "displayName": "Obsidian Skills",
+      "description": "Community Obsidian skills from kepano/obsidian-skills. Overlap with gal-core Obsidian workflows must be resolved by local override policy.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/kepano/obsidian-skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["obsidian"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    },
+    {
+      "pluginId": "rust-skills",
+      "displayName": "Rust Skills",
+      "description": "Community Rust skills from actionbook/rust-skills. Provider support, license, and drift policy must be verified per lockfile.",
+      "supportTier": "curated-upstream",
+      "sourceType": "curated-upstream",
+      "upstream": {
+        "type": "github",
+        "repo": "https://github.com/actionbook/rust-skills",
+        "ref": "main",
+        "path": "skills"
+      },
+      "license": "MIT",
+      "checksumPolicy": "commit-sha",
+      "componentMap": {
+        "skills": true
+      },
+      "supportedProviders": ["claude", "copilot", "codex", "agy"],
+      "installStrategy": "git-clone",
+      "defaultProfiles": ["rust"],
+      "allowAutoUpdate": false,
+      "localOverridePolicy": "source-mode-only"
+    }
+  ],
+  "profiles": {
+    "default": {
+      "description": "Minimum install: gal-core only. All companion plugins are opt-in.",
+      "plugins": ["gal-core"]
+    },
+    "dart": {
+      "description": "Dart development profile",
+      "plugins": ["gal-core", "dart-skills"]
+    },
+    "flutter": {
+      "description": "Flutter development profile",
+      "plugins": ["gal-core", "flutter-skills"]
+    },
+    "dotnet": {
+      "description": ".NET development profile",
+      "plugins": ["gal-core", "dotnet-skills"]
+    },
+    "go": {
+      "description": "Go development profile",
+      "plugins": ["gal-core", "golang-skills"]
+    },
+    "swift": {
+      "description": "Swift development profile",
+      "plugins": ["gal-core", "swift-skills"]
+    },
+    "rust": {
+      "description": "Rust development profile",
+      "plugins": ["gal-core", "rust-skills"]
+    },
+    "obsidian": {
+      "description": "Obsidian knowledge management profile",
+      "plugins": ["gal-core", "obsidian-skills"]
+    },
+    "claude-ecosystem": {
+      "description": "Claude ecosystem skills profile",
+      "plugins": ["gal-core", "anthropic-skills"]
+    },
+    "full": {
+      "description": "All plugins including all curated-upstream companions",
+      "plugins": [
+        "gal-core",
+        "dart-skills",
+        "flutter-skills",
+        "dotnet-skills",
+        "anthropic-skills",
+        "golang-skills",
+        "swift-skills",
+        "obsidian-skills",
+        "rust-skills"
+      ]
+    }
+  }
+}
