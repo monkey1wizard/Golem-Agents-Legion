@@ -8,6 +8,7 @@
       2. `Update-Skills.ps1`
       3. `Update-Commands.ps1`
       4. `Update-Mcp.ps1`
+            5. `Install-GalPlugins.ps1`
 
     Each update script can also run standalone. `mcp.json` plus optional
         `mcp.local.json` remains the MCP source of truth, while Copilot MCP is
@@ -119,7 +120,8 @@ $steps = @(
     [pscustomobject]@{ Name = 'Personalization'; Path = Join-Path $PSScriptRoot 'Update-Personalization.ps1' },
     [pscustomobject]@{ Name = 'Skills'; Path = Join-Path $PSScriptRoot 'Update-Skills.ps1' },
     [pscustomobject]@{ Name = 'Commands'; Path = Join-Path $PSScriptRoot 'Update-Commands.ps1' },
-    [pscustomobject]@{ Name = 'MCP'; Path = Join-Path $PSScriptRoot 'Update-Mcp.ps1' }
+    [pscustomobject]@{ Name = 'MCP'; Path = Join-Path $PSScriptRoot 'Update-Mcp.ps1' },
+    [pscustomobject]@{ Name = 'Install Orchestration'; Path = Join-Path $PSScriptRoot 'Install-GalPlugins.ps1' }
 )
 
 foreach ($step in $steps) {

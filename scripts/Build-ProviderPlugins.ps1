@@ -22,7 +22,14 @@ if (-not (Test-Path $resolverScript)) {
     throw "Catalog resolver not found: $resolverScript"
 }
 
-$resolution = & $resolverScript -CatalogPath $CatalogPath -ConfigPath $ConfigPath -LockfilePath $LockfilePath -PassThru
+$effectiveLockfilePath = if ($DryRun) {
+    Join-Path $env:TEMP ("gal-provider-build-lock-{0}.json" -f [System.Guid]::NewGuid().ToString('N'))
+}
+else {
+    $LockfilePath
+}
+
+$resolution = & $resolverScript -CatalogPath $CatalogPath -ConfigPath $ConfigPath -LockfilePath $effectiveLockfilePath -PassThru
 if (@($resolution.Errors).Count -gt 0) {
     throw "Catalog resolution failed: $($resolution.Errors -join '; ')"
 }
@@ -107,5 +114,8 @@ try {
 finally {
     if ((-not $PassThru) -and (Test-Path $tempResolvedPluginsFile)) {
         Remove-Item -LiteralPath $tempResolvedPluginsFile -Force
+    }
+    if ($DryRun -and (Test-Path $effectiveLockfilePath)) {
+        Remove-Item -LiteralPath $effectiveLockfilePath -Force
     }
 }

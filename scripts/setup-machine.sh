@@ -6,6 +6,7 @@
 #   2. update-skills.sh
 #   3. update-commands.sh
 #   4. update-mcp.sh
+#   5. install-gal-plugins.sh
 #
 # The tracked repo remains the source of truth for agents, skills, commands, and MCP.
 # Copilot skills and agents stay shared, but MCP is written separately for
@@ -110,8 +111,8 @@ if ! $UNINSTALL; then
     shared_args+=(--selected-runtimes "$SELECTED_RUNTIMES_CSV" --primary-runtime "$PRIMARY_RUNTIME")
 fi
 
-step_names=(Personalization Skills Commands MCP)
-step_scripts=(update-personalization.sh update-skills.sh update-commands.sh update-mcp.sh)
+step_names=(Personalization Skills Commands MCP 'Install Orchestration')
+step_scripts=(update-personalization.sh update-skills.sh update-commands.sh update-mcp.sh install-gal-plugins.sh)
 
 for index in "${!step_scripts[@]}"; do
     echo ''
