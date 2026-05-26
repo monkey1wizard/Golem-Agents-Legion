@@ -43,23 +43,29 @@ GAL 提供一條清楚且可管理的跨平台安裝與發現路徑：Windows �
 - **What**: 設計 GitHub Releases 應產出的 artifacts 組合：每平台的單一可執行 binary、package-manager ingestion 所需 metadata，以及封裝相同 binary 的手動 fallback `.zip` / `.tar.gz`；決定 `winget` 與 `homebrew formula` 應消費同一條 bootstrap binary lineage，並建立 channel/version lineage matrix，明確定義 marketplace submission artifact 是否只是 canonical release 的 wrapper。
 - **Verify**: 能列出每個平台的 canonical install command、對應 single-binary release asset、checksum/provenance requirements、對應 marketplace entry、允許的 wrapper 差異、升級來源與 lag/fallback policy。
 
-### Step 3: 定義 marketplace discoverability 與 publication contract
-
-- **Files**: `docs/plans/feat-gal-bootstrap-installer-distribution.md`, `docs/plans/feat-gal-install-mode-plugin-distribution.md`, `README.md`, marketplace docs to be determined
-- **What**: 定義 Claude marketplace、Codex marketplace、Copilot marketplace 等 provider-native marketplace 的 entry strategy、搜尋名稱、顯示 metadata、版本同步、installability classification 與審核/發布節奏，確保使用者能從 marketplace 找到 GAL，且在 provider-native lifecycle 支援時可直接安裝/更新；不支援時則明確導向 GitHub Releases 或 package manager。
-- **Verify**: 文件能清楚回答「使用者在各 marketplace 要搜尋什麼」「entry 對應哪一個 canonical artifact」「是否可直接 install/update」「marketplace 版本與 release 版本如何保持一致，以及 lag 時如何導流」。
-
-### Step 4: 規劃 bootstrap runtime contract
+### Step 3: 規劃 bootstrap runtime contract
 
 - **Files**: `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`, `scripts/gal.ps1`, `scripts/gal.sh`, related install docs
 - **What**: 定義 bootstrap install 後 CLI 入口如何定位 GAL runtime、如何初始化 `~/.gal/`、如何與 install mode/source mode contract 接軌，並避免 package manager 直接寫入 repo-local workflow state。
 - **Verify**: bootstrap contract 可解釋首次安裝、重裝、升級與 machine migration 的行為，不依賴 clone repo 才能正常運作。
 
-### Step 5: 規劃 upgrade, uninstall, 與 fallback UX
+### Step 4: 規劃 upgrade, uninstall, 與 fallback UX
 
 - **Files**: install/uninstall docs to be determined, `README.md`, `docs/devguide.md`
 - **What**: 定義 `winget upgrade`, `brew upgrade`, marketplace entry 更新、手動 archive 更新、rollback 與 uninstall 的預期行為；明確規定預設 uninstall 保留 user-owned config，但移除 package-managed bootstrap payload 與 GAL-managed runtime/generated artifacts；完整 purge/reset 需另有顯式破壞性流程；補上 raw script convenience path 的安全界線與適用情境。同時定義 installer 完成後新版 `README.md` 必須如何指導使用者備份與轉移：哪些 `~/.gal/` 檔案需要帶走、哪些 generated/provider-managed artifacts 不需要備份、在新機器上應先重裝 bootstrap 再還原設定並重建 runtime/projections。
 - **Verify**: 每種安裝與發現路徑都能回答如何升級、如何移除、哪些 `~/.gal/` 內容保留、哪些內容刪除、何時需要 explicit purge，以及如何回到手動 fallback。README 也必須能清楚回答「我要備份哪些檔案」「換機時先還原什麼」「哪些內容會由 installer/setup 自動重建」。
+
+### Step 5: 驗證 Claude marketplace 作為安裝基準
+
+- **Files**: `docs/plans/feat-gal-bootstrap-installer-distribution.md`, `docs/plans/feat-gal-install-mode-plugin-distribution.md`, `README.md`, marketplace docs to be determined
+- **What**: 基於 agy-cli 已確認 gal plugin 依照 data struct 正確寫入，必須先驗證 Claude 作為基準：確保 Claude 能正確安裝 GAL plugin。定義 Claude marketplace 的 entry strategy、版本同步、installability classification，確保在 provider-native lifecycle 中直接安裝無誤。
+- **Verify**: Claude 可正確從 marketplace 執行 GAL plugin 的 install/update，驗證基準無誤。
+
+### Step 6: 擴展至其他 AI Provider Marketplaces (Codex, Copilot)
+
+- **Files**: `docs/plans/feat-gal-bootstrap-installer-distribution.md`, `docs/plans/feat-gal-install-mode-plugin-distribution.md`, `README.md`, marketplace docs to be determined
+- **What**: Claude 基準完成後，定義 Codex、Copilot 等其他 provider-native marketplace 的 entry strategy、搜尋名稱、顯示 metadata、版本同步、installability classification 與審核/發布節奏。若不支援 direct install，明確導向 GitHub Releases 或 package manager。
+- **Verify**: 文件清楚規範各 marketplace 的搜尋、版本對齊、lag 導流與 direct install 規則。
 
 ## Files to Create or Modify
 
@@ -161,18 +167,18 @@ CLEAR。此計畫已具備可實作邊界：它處理 GAL bootstrap payload 的 
 | TP-003 | build | Build or simulate per-platform release artifacts and confirm archive fallback assets wrap the same versioned single binary lineage. | T-003 |
 | TP-004 | validation | Validate `winget` manifest metadata points to the canonical Windows release asset, version, checksum, license, and upgrade source. | T-004 |
 | TP-005 | validation | Validate Homebrew formula metadata points to canonical macOS / Linux release assets, version, checksums, license, and upgrade source. | T-004 |
-| TP-006 | documentation | Verify marketplace publication matrix covers Claude, Codex, and Copilot entry names, submission artifacts, installability classification, update source, and fallback copy. | T-005 |
-| TP-007 | release | Run release-flow dry run and confirm GitHub Releases, `winget`, Homebrew, marketplace wrappers, and fallback copy share one canonical version lineage with downstream lag policy. | T-006 |
-| TP-008 | smoke | Install bootstrap payload on Windows path and confirm `gal` CLI works without a source checkout and initializes or reuses `~/.gal/` correctly. | T-007 |
-| TP-009 | smoke | Install bootstrap payload on macOS / Linux path and confirm `gal` CLI works without a source checkout and initializes or reuses `~/.gal/` correctly. | T-007 |
-| TP-010 | integration | Verify bootstrap entrypoint can select or hand off to install mode / source mode without writing repo-local workflow state or assuming cloned repo paths. | T-007 |
-| TP-011 | integration | Run upgrade checks for package-manager and archive paths and confirm user-owned `~/.gal/` config, lockfile, xmachine binding, local overrides, and secrets are preserved. | T-008 |
-| TP-012 | cleanup | Run uninstall plan and confirm package-managed payload plus GAL-managed runtime/generated artifacts are removed while user-owned config/state/local overrides are retained. | T-009 |
-| TP-013 | cleanup | Run explicit purge/reset dry run and confirm destructive deletion is opt-in, visible, and scoped to documented `~/.gal/` surfaces. | T-009 |
-| TP-014 | documentation | Verify README backup / migration guidance lists what to back up, what is regenerated, and how to rebuild on a new machine. | T-010 |
-| TP-015 | validation | Verify raw PowerShell / shell convenience installers redirect to canonical release artifacts and do not create a second distribution model. | T-011 |
-| TP-016 | documentation | Verify provider marketplace copy does not promise same-day parity or direct install/update where provider-native lifecycle is not verified. | T-005, T-006 |
-| TP-017 | cross-plan | Verify references to the install-mode plugin distribution plan preserve the boundary: bootstrap installs `gal`; install mode manages provider plugins and resolved `~/.gal/` state. | T-001, T-007 |
+| TP-006 | documentation | Verify marketplace publication matrix defines Claude as baseline, followed by Codex and Copilot, covering submission artifacts, eligibility, and fallback copy. | T-009, T-010 |
+| TP-007 | release | Run release-flow dry run and confirm GitHub Releases, `winget`, Homebrew, marketplace wrappers, and fallback copy share one canonical version lineage with downstream lag policy. | T-005 |
+| TP-008 | smoke | Install bootstrap payload on Windows path and confirm `gal` CLI works without a source checkout and initializes or reuses `~/.gal/` correctly. | T-006 |
+| TP-009 | smoke | Install bootstrap payload on macOS / Linux path and confirm `gal` CLI works without a source checkout and initializes or reuses `~/.gal/` correctly. | T-006 |
+| TP-010 | integration | Verify bootstrap entrypoint can select or hand off to install mode / source mode without writing repo-local workflow state or assuming cloned repo paths. | T-006 |
+| TP-011 | integration | Run upgrade checks for package-manager and archive paths and confirm user-owned `~/.gal/` config, lockfile, xmachine binding, local overrides, and secrets are preserved. | T-007 |
+| TP-012 | cleanup | Run uninstall plan and confirm package-managed payload plus GAL-managed runtime/generated artifacts are removed while user-owned config/state/local overrides are retained. | T-008 |
+| TP-013 | cleanup | Run explicit purge/reset dry run and confirm destructive deletion is opt-in, visible, and scoped to documented `~/.gal/` surfaces. | T-008 |
+| TP-014 | documentation | Verify README backup / migration guidance lists what to back up, what is regenerated, and how to rebuild on a new machine. | T-011 |
+| TP-015 | validation | Verify raw PowerShell / shell convenience installers redirect to canonical release artifacts and do not create a second distribution model. | T-012 |
+| TP-016 | documentation | Verify provider marketplace copy does not promise same-day parity or direct install/update where provider-native lifecycle is not verified. | T-009, T-005 |
+| TP-017 | cross-plan | Verify references to the install-mode plugin distribution plan preserve the boundary: bootstrap installs `gal`; install mode manages provider plugins and resolved `~/.gal/` state. | T-001, T-006 |
 
 ## Tasks
 
@@ -180,10 +186,11 @@ CLEAR。此計畫已具備可實作邊界：它處理 GAL bootstrap payload 的 
 - [ ] T-002 — 定義 release artifact matrix，列出 Windows、macOS、Linux canonical binary、`.zip` / `.tar.gz` fallback、checksum、provenance、license 與 package-manager ingestion metadata。
 - [ ] T-003 — 實作或規劃 release artifact build / packaging flow，確保所有手動 archive fallback 封裝同一版本的單一 executable binary。
 - [ ] T-004 — 建立 `winget` manifest 與 Homebrew formula 發布規格，確保兩者只消費 GitHub Releases canonical binary lineage。
-- [ ] T-005 — 建立 Claude、Codex、Copilot marketplace publication matrix，定義 entry metadata、discoverability copy、direct-install eligibility、submission artifact 與 fallback link policy。
-- [ ] T-006 — 定義 release governance 與 downstream drift policy，涵蓋 canonical version source、publish order、lag tolerance、verification commands 與 fallback messaging。
-- [ ] T-007 — 定義 bootstrap runtime contract，包含 `gal` CLI entrypoint、`~/.gal/` initialization / reuse、install mode / source mode handoff、以及無 source checkout 的首次啟動行為。
-- [ ] T-008 — 定義 upgrade behavior，確保 package-manager、marketplace direct-install lane 與 manual archive 更新不覆寫 user-owned `~/.gal/` config/state。
-- [ ] T-009 — 定義 uninstall 與 explicit purge/reset behavior，確保預設 uninstall 保留 user-owned config/local overrides 並移除 package-managed payload 與 GAL-managed runtime/generated artifacts。
-- [ ] T-010 — 更新 README、devguide 與 personalization docs，說明官方安裝路徑、fallback、備份/轉移、channel lag、uninstall boundary 與不保證事項。
-- [ ] T-011 — 定義 raw PowerShell / shell convenience installer policy，確保它只導向 canonical release payload 且不成為唯一或第二套 distribution model。
+- [ ] T-005 — 定義 release governance 與 downstream drift policy，涵蓋 canonical version source、publish order、lag tolerance、verification commands 與 fallback messaging。
+- [ ] T-006 — 定義 bootstrap runtime contract，包含 `gal` CLI entrypoint、`~/.gal/` initialization / reuse、install mode / source mode handoff、以及無 source checkout 的首次啟動行為。
+- [ ] T-007 — 定義 upgrade behavior，確保 package-manager、marketplace direct-install lane 與 manual archive 更新不覆寫 user-owned `~/.gal/` config/state。
+- [ ] T-008 — 定義 uninstall 與 explicit purge/reset behavior，確保預設 uninstall 保留 user-owned config/local overrides 並移除 package-managed payload 與 GAL-managed runtime/generated artifacts。
+- [ ] T-009 — 以 Claude 作為基準，驗證現有 plugin 結構能否被 Claude 正確讀取與安裝，並建立 Claude marketplace 的 discoverability policy。
+- [ ] T-010 — 待 Claude 驗證完成後，建立 Codex、Copilot 等其他 marketplace publication matrix，定義 direct-install eligibility、submission artifact 與 fallback link policy。
+- [ ] T-011 — 更新 README、devguide 與 personalization docs，說明官方安裝路徑、fallback、備份/轉移、channel lag、uninstall boundary 與不保證事項。
+- [ ] T-012 — 定義 raw PowerShell / shell convenience installer policy，確保它只導向 canonical release payload 且不成為唯一或第二套 distribution model。
