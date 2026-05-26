@@ -187,7 +187,7 @@ CLEAR。此計畫已具備可實作邊界：它處理 GAL bootstrap payload 的 
 - [x] T-003 — 實作或規劃 release artifact build / packaging flow，確保所有手動 archive fallback 封裝同一版本的單一 executable binary。
 - [x] T-004 — 建立 `winget` manifest 與 Homebrew formula 發布規格，確保兩者只消費 GitHub Releases canonical binary lineage。
 - [x] T-005 — 定義 release governance 與 downstream drift policy，涵蓋 canonical version source、publish order、lag tolerance、verification commands 與 fallback messaging。
-- [ ] T-006 — 定義 bootstrap runtime contract，包含 `gal` CLI entrypoint、`~/.gal/` initialization / reuse、install mode / source mode handoff、以及無 source checkout 的首次啟動行為。
+- [x] T-006 — 定義 bootstrap runtime contract，包含 `gal` CLI entrypoint、`~/.gal/` initialization / reuse、install mode / source mode handoff、以及無 source checkout 的首次啟動行為。 *(4b6d0f7)*
 - [ ] T-007 — 定義 upgrade behavior，確保 package-manager、marketplace direct-install lane 與 manual archive 更新不覆寫 user-owned `~/.gal/` config/state。
 - [ ] T-008 — 定義 uninstall 與 explicit purge/reset behavior，確保預設 uninstall 保留 user-owned config/local overrides 並移除 package-managed payload 與 GAL-managed runtime/generated artifacts。
 - [ ] T-009 — 以 Claude 作為基準，驗證現有 plugin 結構能否被 Claude 正確讀取與安裝，並建立 Claude marketplace 的 discoverability policy。
