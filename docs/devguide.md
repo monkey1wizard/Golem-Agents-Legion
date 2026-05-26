@@ -222,16 +222,42 @@ After AGY validation, the planned renderer sequence is: Copilot CLI â†’ Codex â†
 GAL explicitly separates how the CLI is installed (Bootstrap Installer) from how provider plugins are managed (Install-Mode Plugin Distribution). This boundary ensures that package managers do not overwrite user data and that GAL plugins can update independently of the CLI payload.
 
 ### 1. Bootstrap Installer Distribution
+
 - **What it is**: How the GAL CLI (`gal` executable) gets onto the user's machine.
 - **Channels**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases `.zip` / `.tar.gz` (manual fallbacks). See [docs/release-matrix.md](release-matrix.md) for the exact artifact lineage.
 - **Ownership**: The package manager owns the **package-managed payload** (the single executable binary). It handles upgrades and removals of the CLI itself, but it must **never** manage or delete `~/.gal/` contents.
 
+### Bootstrap Runtime Contract
+
+After the package-managed `gal` binary is on disk, the first launch contract is:
+
+1. Expose a runnable `gal` CLI from the package-managed install location.
+2. Detect whether `~/.gal/config/config.json` already exists.
+3. If no machine config exists, seed a minimal install-mode config and create the managed runtime roots under `~/.gal/`.
+4. Resolve the default profile into `~/.gal/state/plugins.lock.json`.
+5. Render provider-native projections under `~/.gal/generated/` and any required stable targets under `~/.gal/active/<provider>/`.
+6. Hand off to install mode by default for bootstrap installs; source mode only begins after the user explicitly sets `installMode=source` plus `galRoot` and `devMode`.
+
+The canonical end-user bootstrap contract must work without a cloned repo. Repo-local workflow state such as `.dev/`, `docs/plans/`, or repo-root skill links is never a first-launch requirement for the installed package payload. The repo-owned `Setup-Machine.*` scripts are the development and packaging harness that should mirror the same install-mode-first branching and `~/.gal/` ownership rules, but they are not themselves the final end-user package payload.
+
+### First-Launch Branching Rules
+
+The install-mode/source-mode split happens only after GAL has a machine config to read:
+
+- **Bootstrap install with no existing machine config**: seed `installMode=install`, leave contributor-only repo bindings disabled, and build provider-native projections from `~/.gal/`.
+- **Existing machine config with `installMode=install`**: reuse `~/.gal/` and refresh lockfile plus projections without creating repo-root links.
+- **Existing machine config with `installMode=source`**: reuse the explicit `galRoot` and `devMode` settings, then allow contributor-only source links and local overrides.
+
+This keeps package-managed first launch safe for end users while preserving an explicit contributor path.
+
 ### 2. Install-Mode Plugin Distribution
+
 - **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
 - **Channels**: Provider-native marketplaces, driven by the `plugins/catalog.json` and resolved into `~/.gal/state/plugins.lock.json`.
 - **Ownership**: GAL owns the plugin catalog and resolution. It manages provider-specific installation paths and the `~/.gal/` plugin store.
 
 ### 3. State Ownership Boundaries in `~/.gal/`
+
 When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
 
 - **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.

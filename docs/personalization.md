@@ -41,6 +41,16 @@ To switch modes:
 - In source mode, also set `galRoot` to your local GAL repo path and optionally enable `devMode`.
 - Rerun `Setup-Machine` after switching.
 
+### Bootstrap First Launch
+
+For package-managed installs, first launch is intentionally install-mode-first:
+
+- If `~/.gal/config/config.json` does not exist yet, the bootstrap path seeds `installMode=install`, keeps `devMode=false`, and does not require `galRoot`.
+- That first launch creates or reuses `~/.gal/`, resolves the default profile into `~/.gal/state/plugins.lock.json`, and refreshes provider projections plus any `~/.gal/active/<provider>/` targets needed by install mode.
+- Source mode is an explicit opt-in for contributors. Switch only after you set `installMode=source`, set `galRoot`, and rerun setup.
+
+This means the installed `gal` package path can stay install-mode-first for end users, while the repo-owned `Setup-Machine` scripts remain a contributor and packaging harness that mirrors the same branching rules. Contributors still have a clear path back to repo-root development mode.
+
 ### Distribution Architecture and Ownership Boundaries
 
 GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:

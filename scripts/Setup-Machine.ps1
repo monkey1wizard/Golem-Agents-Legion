@@ -41,6 +41,7 @@ param(
     [switch]$Replace,
     [switch]$DryRun,
     [switch]$Reconfigure,
+    [switch]$BootstrapInstall,
     [string[]]$SelectedRuntimes,
     [string]$PrimaryRuntime
 )
@@ -51,10 +52,15 @@ $ErrorActionPreference = 'Stop'
 
 function Get-ConfiguredInstallMode {
     param(
-        [pscustomobject]$Context
+        [pscustomobject]$Context,
+        [switch]$BootstrapInstall
     )
 
     if (-not (Test-Path $Context.GalConfigFile)) {
+        if ($BootstrapInstall) {
+            return 'install'
+        }
+
         return 'source'
     }
 
@@ -69,8 +75,14 @@ function Get-ConfiguredInstallMode {
     return 'source'
 }
 
+$previousBootstrapEnv = $env:GAL_BOOTSTRAP_INSTALL
+if ($BootstrapInstall) {
+    $env:GAL_BOOTSTRAP_INSTALL = '1'
+}
+
 $context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep
-$installMode = Get-ConfiguredInstallMode -Context $context
+$context | Add-Member -NotePropertyName BootstrapInstall -NotePropertyValue $BootstrapInstall.IsPresent -Force
+$installMode = Get-ConfiguredInstallMode -Context $context -BootstrapInstall:$BootstrapInstall
 
 # --- AGY legacy pre-cleanup ---
 # Remove all GAL-managed AGY legacy surfaces before any concern script runs.
@@ -157,7 +169,24 @@ foreach ($step in $steps) {
 
     Write-Host ''
     Write-Host ('>>> Running {0}' -f $step.Name)
-    & $step.Path @sharedArguments
+
+    $stepArguments = @{}
+    foreach ($entry in $sharedArguments.GetEnumerator()) {
+        $stepArguments[$entry.Key] = $entry.Value
+    }
+
+    if ($step.Name -eq 'Install Orchestration' -and $BootstrapInstall) {
+        $stepArguments['BootstrapInstall'] = $true
+    }
+
+    & $step.Path @stepArguments
+}
+
+if ($null -eq $previousBootstrapEnv) {
+    Remove-Item Env:GAL_BOOTSTRAP_INSTALL -ErrorAction SilentlyContinue
+}
+else {
+    $env:GAL_BOOTSTRAP_INSTALL = $previousBootstrapEnv
 }
 
 Write-Host ''
@@ -176,5 +205,8 @@ else {
     }
     else {
         Write-Host 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'
+        if ($BootstrapInstall) {
+            Write-Host 'Note: Bootstrap install seeded install mode for first launch; switch to source mode later only if you set galRoot and devMode explicitly.'
+        }
     }
 }

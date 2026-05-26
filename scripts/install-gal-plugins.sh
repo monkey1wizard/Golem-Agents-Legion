@@ -14,6 +14,7 @@ UNINSTALL=false
 FORCE=false
 REPLACE=false
 RECONFIGURE=false
+BOOTSTRAP_INSTALL=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -25,6 +26,7 @@ while [[ $# -gt 0 ]]; do
         --primary-runtime=*) PRIMARY_RUNTIME_OVERRIDE="${1#*=}"; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --uninstall) UNINSTALL=true; shift ;;
+        --bootstrap-install) BOOTSTRAP_INSTALL=true; shift ;;
         --replace) REPLACE=true; shift ;;
         --reconfigure) RECONFIGURE=true; shift ;;
         --force) FORCE=true; shift ;;
@@ -72,13 +74,15 @@ resolve_selection_csv() {
 build_default_config_json() {
     local selected_csv="$1"
     local primary_runtime="$2"
-    run_python - "$REPO_ROOT" "$selected_csv" "$primary_runtime" <<'PY'
+    local bootstrap_install="$3"
+    run_python - "$REPO_ROOT" "$selected_csv" "$primary_runtime" "$bootstrap_install" <<'PY'
 import json
 import sys
 
 repo_root = sys.argv[1]
 selected = [item for item in sys.argv[2].split(',') if item]
 primary_runtime = sys.argv[3]
+bootstrap_install = sys.argv[4].lower() == 'true'
 
 def provider_from_runtime(runtime: str) -> str:
     return 'agy' if runtime == 'antigravity' else runtime
@@ -108,14 +112,14 @@ for provider in provider_selections:
 
 config = {
     'schemaVersion': 1,
-    'galRoot': repo_root,
-    'devMode': True,
+    'galRoot': '' if bootstrap_install else repo_root,
+    'devMode': False if bootstrap_install else True,
     'defaultProfile': 'default',
     'profiles': {},
     'enabledPlugins': [],
     'disabledPlugins': [],
     'providerSelections': provider_selections,
-    'installMode': 'source',
+    'installMode': 'install' if bootstrap_install else 'source',
     'preferredProviders': preferred,
     'userSettings': {},
 }
@@ -195,7 +199,7 @@ if [ -f "$CONFIG_PATH" ]; then
     echo "  [OK] Using machine config: $CONFIG_PATH"
 else
     config_preview_path="${TMPDIR:-/tmp}/gal-config-preview-$$.json"
-    build_default_config_json "$resolved_selected_csv" "$resolved_primary_runtime" > "$config_preview_path"
+    build_default_config_json "$resolved_selected_csv" "$resolved_primary_runtime" "$BOOTSTRAP_INSTALL" > "$config_preview_path"
     config_for_resolver="$config_preview_path"
     cleanup_paths+=("$config_preview_path")
     install_mode_preview="$(run_python - "$config_preview_path" <<'PY'
@@ -243,6 +247,9 @@ if [ "$install_mode" = 'source' ]; then
 else
     echo "  [OK] Install mode projections root: $GAL_GENERATED_ROOT"
     echo '  [OK] Install mode disables repo-root links and source-only local overrides.'
+    if $BOOTSTRAP_INSTALL && ! $config_exists; then
+        echo '  [OK] First launch bootstrap path seeded install mode because no machine config existed yet.'
+    fi
     if [ -n "$primary_providers_csv" ]; then
         build_provider_args=(--config-path "$config_for_resolver" --lockfile-path "$resolver_lockfile_path" --providers "$primary_providers_csv")
         $DRY_RUN && build_provider_args+=(--dry-run)

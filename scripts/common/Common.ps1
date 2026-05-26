@@ -212,6 +212,18 @@ function Get-ConfiguredInstallModeFromContext {
     )
 
     if ($null -eq $Context -or -not (Test-Path $Context.GalConfigFile)) {
+        $bootstrapInstall = $false
+        if ($null -ne $Context -and ($Context.PSObject.Properties.Name -contains 'BootstrapInstall')) {
+            $bootstrapInstall = [bool]$Context.BootstrapInstall
+        }
+        elseif ($env:GAL_BOOTSTRAP_INSTALL -in @('1', 'true', 'TRUE', 'True')) {
+            $bootstrapInstall = $true
+        }
+
+        if ($bootstrapInstall) {
+            return 'install'
+        }
+
         return 'source'
     }
 

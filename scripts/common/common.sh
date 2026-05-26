@@ -118,6 +118,13 @@ get_gal_active_provider_target() {
 
 get_configured_install_mode() {
     if [ ! -f "$GAL_CONFIG_FILE" ]; then
+        case "${GAL_BOOTSTRAP_INSTALL:-}" in
+            1|true|TRUE|True)
+                printf 'install\n'
+                return 0
+                ;;
+        esac
+
         printf 'source\n'
         return 0
     fi
@@ -228,6 +235,7 @@ run_python() {
 }
 
 parse_setup_args() {
+    BOOTSTRAP_INSTALL=false
     UNINSTALL=false
     REPLACE=false
     DRY_RUN=false
@@ -238,6 +246,7 @@ parse_setup_args() {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --uninstall) UNINSTALL=true ;;
+            --bootstrap-install) BOOTSTRAP_INSTALL=true ;;
             --replace) REPLACE=true ;;
             --dry-run) DRY_RUN=true ;;
             --reconfigure) RECONFIGURE=true ;;

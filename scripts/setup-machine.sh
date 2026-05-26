@@ -22,8 +22,21 @@ parse_setup_args "$@"
 initialize_setup_session
 ensure_ripgrep
 
+BOOTSTRAP_INSTALL=false
+for arg in "$@"; do
+    if [ "$arg" = '--bootstrap-install' ]; then
+        BOOTSTRAP_INSTALL=true
+        break
+    fi
+done
+
 get_configured_install_mode() {
     if [ ! -f "$GAL_CONFIG_FILE" ]; then
+        if $BOOTSTRAP_INSTALL; then
+            printf 'install\n'
+            return 0
+        fi
+
         printf 'source\n'
         return 0
     fi
@@ -41,6 +54,11 @@ PY
 }
 
 SETUP_INSTALL_MODE="$(get_configured_install_mode)"
+
+previous_bootstrap_env="${GAL_BOOTSTRAP_INSTALL-}"
+if $BOOTSTRAP_INSTALL; then
+    export GAL_BOOTSTRAP_INSTALL=true
+fi
 
 # --- AGY legacy pre-cleanup ---
 # Remove all GAL-managed AGY legacy surfaces before any concern script runs.
@@ -118,8 +136,22 @@ for index in "${!step_scripts[@]}"; do
 
     echo ''
     echo ">>> Running ${step_names[$index]}"
-    "$SCRIPT_DIR/${step_scripts[$index]}" "${shared_args[@]}"
+
+    step_args=("${shared_args[@]}")
+    if [ "${step_names[$index]}" = 'Install Orchestration' ] && $BOOTSTRAP_INSTALL; then
+        step_args+=(--bootstrap-install)
+    fi
+
+    "$SCRIPT_DIR/${step_scripts[$index]}" "${step_args[@]}"
 done
+
+if $BOOTSTRAP_INSTALL; then
+    if [ -n "$previous_bootstrap_env" ]; then
+        export GAL_BOOTSTRAP_INSTALL="$previous_bootstrap_env"
+    else
+        unset GAL_BOOTSTRAP_INSTALL
+    fi
+fi
 
 echo ''
 if $UNINSTALL; then
@@ -134,5 +166,8 @@ else
         echo 'Note: If SKILL.template.md or SKILL.local.md changes, rerun update-commands.sh or setup-machine.sh.'
     else
         echo 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'
+        if $BOOTSTRAP_INSTALL; then
+            echo 'Note: Bootstrap install seeded install mode for first launch; switch to source mode later only if you set galRoot and devMode explicitly.'
+        fi
     fi
 fi

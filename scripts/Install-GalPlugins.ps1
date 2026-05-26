@@ -7,6 +7,7 @@ param(
     [string]$LockfilePath = (Join-Path $env:USERPROFILE '.gal\state\plugins.lock.json'),
     [string[]]$SelectedRuntimes,
     [string]$PrimaryRuntime,
+    [switch]$BootstrapInstall,
     [switch]$DryRun,
     [switch]$Uninstall,
     [switch]$Replace,
@@ -107,7 +108,8 @@ function New-DefaultGalConfig {
     param(
         [string]$RepoRoot,
         [string[]]$SelectedRuntimes,
-        [string]$PrimaryRuntime
+        [string]$PrimaryRuntime,
+        [switch]$BootstrapInstall
     )
 
     $providerSelections = [ordered]@{}
@@ -130,16 +132,20 @@ function New-DefaultGalConfig {
         }
     }
 
+    $installMode = if ($BootstrapInstall) { 'install' } else { 'source' }
+    $galRoot = if ($BootstrapInstall) { '' } else { $RepoRoot }
+    $devMode = if ($BootstrapInstall) { $false } else { $true }
+
     return [ordered]@{
         schemaVersion = 1
-        galRoot = $RepoRoot
-        devMode = $true
+        galRoot = $galRoot
+        devMode = $devMode
         defaultProfile = 'default'
         profiles = [ordered]@{}
         enabledPlugins = @()
         disabledPlugins = @()
         providerSelections = $providerSelections
-        installMode = 'source'
+        installMode = $installMode
         preferredProviders = @($preferredProviders)
         userSettings = [ordered]@{}
     }
@@ -295,7 +301,7 @@ if ($Uninstall) {
 
 $context = $script:SetupContext
 $selection = Get-ResolvedRuntimeSelection -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -Context $context
-$defaultConfig = New-DefaultGalConfig -RepoRoot $RepoRoot -SelectedRuntimes $selection.SelectedRuntimes -PrimaryRuntime $selection.PrimaryRuntime
+$defaultConfig = New-DefaultGalConfig -RepoRoot $RepoRoot -SelectedRuntimes $selection.SelectedRuntimes -PrimaryRuntime $selection.PrimaryRuntime -BootstrapInstall:$BootstrapInstall
 $configExists = Test-Path $ConfigPath
 $rawConfig = if ($configExists) { Read-JsonOrderedMap $ConfigPath } else { [ordered]@{} }
 $effectiveConfig = if ($rawConfig) { Merge-OrderedMap (ConvertTo-OrderedMap $defaultConfig) $rawConfig } else { $defaultConfig }
@@ -372,6 +378,9 @@ if ($installMode -eq 'source') {
 else {
     Write-Host ("  [OK] Install mode projections root: {0}" -f $context.GalGeneratedRoot)
     Write-Host '  [OK] Install mode disables repo-root links and source-only local overrides.'
+    if ($BootstrapInstall -and -not $configExists) {
+        Write-Host '  [OK] First launch bootstrap path seeded install mode because no machine config existed yet.'
+    }
     if ($primaryProviders.Count -gt 0) {
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers $primaryProviders -DryRun:$DryRun -Force:$Force
     }
