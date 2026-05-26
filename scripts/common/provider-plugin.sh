@@ -15,10 +15,35 @@ COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$(cd "$COMMON_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
+get_gal_core_canonical_package_schema() {
+    jq -n '{
+        schemaId: "claude-compatible-gal-core-v1",
+        schemaVersion: 1,
+        packageId: "gal-core",
+        packageKind: "canonical-plugin",
+        canonicalProvider: "claude",
+        compatibleProviders: ["claude", "copilot", "codex", "agy"],
+        componentRoots: {
+            skills: "skills",
+            commands: "commands",
+            agents: "agents",
+            mcp: "provider-managed",
+            lsp: "provider-managed"
+        },
+        nativeInstallProviders: ["claude", "copilot", "codex"],
+        managedShortcutProviders: ["agy"]
+    }'
+}
+
+get_gal_core_copied_companion_skill_patterns() {
+    printf '%s\n' 'dart-*' 'flutter-*'
+}
+
 # Build a provider-neutral plugin package from the GAL repo source contracts.
 # Outputs a JSON object to stdout.
 build_provider_plugin_package() {
     local repo_root="${1:-$REPO_ROOT}"
+    local resolved_plugins_json="${2:-}"
     local generated_at
     generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -27,6 +52,21 @@ build_provider_plugin_package() {
     local agents_json='[]'
     local corpus_sources_json='[]'
     local mcp_spec_json='null'
+    local package_schema_json
+    package_schema_json="$(get_gal_core_canonical_package_schema)"
+    local source_plugins_json='[{"pluginId":"gal-core","supportTier":"official-gal","sourceType":"official-gal"}]'
+    local deferred_companions_json='[]'
+
+    if [[ -n "$resolved_plugins_json" ]]; then
+        source_plugins_json="$(printf '%s' "$resolved_plugins_json" | jq '[.[] | select(.pluginId == "gal-core" or .supportTier == "official-gal") | {pluginId, supportTier, sourceType}]')"
+        deferred_companions_json="$(printf '%s' "$resolved_plugins_json" | jq '[.[] | select(.pluginId != "gal-core" and .supportTier != "official-gal") | {pluginId, supportTier, sourceType}]')"
+        local has_gal_core
+        has_gal_core="$(printf '%s' "$source_plugins_json" | jq 'map(select(.pluginId == "gal-core")) | length')"
+        if [[ "$has_gal_core" -eq 0 ]]; then
+            echo "Canonical package input must include gal-core when resolver output is provided." >&2
+            return 1
+        fi
+    fi
 
     # --- Reusable skills ---
     local skills_dir="$repo_root/skills"
@@ -40,9 +80,20 @@ build_provider_plugin_package() {
         local skill_dir
         for skill_dir in "${skill_dirs[@]}"; do
             local skill_file="$skill_dir/SKILL.md"
+            local name
+            name="$(basename "$skill_dir")"
+            local skip_skill=false
+            while IFS= read -r pattern; do
+                [[ -n "$pattern" ]] || continue
+                if [[ "$name" == $pattern ]]; then
+                    skip_skill=true
+                    break
+                fi
+            done < <(get_gal_core_copied_companion_skill_patterns)
+            if [[ "$skip_skill" == 'true' ]]; then
+                continue
+            fi
             if [ -f "$skill_file" ]; then
-                local name
-                name="$(basename "$skill_dir")"
                 skill_entries+=("$(printf '{"name":%s,"sourcePath":%s}' "$(jq -R . <<< "$name")" "$(jq -R . <<< "$skill_file")")")
             fi
         done
@@ -139,6 +190,9 @@ build_provider_plugin_package() {
         --arg name 'gal' \
         --arg displayName 'Golem Agents Legion' \
         --arg generatedAt "$generated_at" \
+        --argjson packageSchema "$package_schema_json" \
+        --argjson sourcePlugins "$source_plugins_json" \
+        --argjson deferredCompanionPlugins "$deferred_companions_json" \
         --argjson skills "$skills_json" \
         --argjson commandSkills "$commands_json" \
         --argjson mcpSpec "$mcp_spec_json" \
@@ -146,11 +200,14 @@ build_provider_plugin_package() {
         --argjson agents "$agents_json" \
         --argjson capabilities "$capabilities_json" \
         '{
+            packageSchema: $packageSchema,
             metadata: {
                 name: $name,
                 displayName: $displayName,
                 generatedAt: $generatedAt
             },
+            sourcePlugins: $sourcePlugins,
+            deferredCompanionPlugins: $deferredCompanionPlugins,
             skills: $skills,
             commandSkills: $commandSkills,
             mcpSpec: $mcpSpec,
@@ -231,6 +288,28 @@ validate_provider_plugin_package() {
     metadata_name="$(printf '%s' "$package_json" | jq -r '.metadata.name // empty')"
     if [ -z "$metadata_name" ]; then
         errors_json="$(printf '%s' "$errors_json" | jq '. + ["Package metadata.name is required"]')"
+    fi
+
+    local package_id
+    package_id="$(printf '%s' "$package_json" | jq -r '.packageSchema.packageId // empty')"
+    if [ "$package_id" != 'gal-core' ]; then
+        errors_json="$(printf '%s' "$errors_json" | jq '. + ["Package packageSchema.packageId must be set to gal-core"]')"
+    fi
+
+    local has_source_gal_core
+    has_source_gal_core="$(printf '%s' "$package_json" | jq '[.sourcePlugins[]? | select(.pluginId == "gal-core")] | length')"
+    if [ "$has_source_gal_core" -eq 0 ]; then
+        errors_json="$(printf '%s' "$errors_json" | jq '. + ["Package sourcePlugins must include gal-core"]')"
+    fi
+
+    local leaked_companion_skills
+    leaked_companion_skills="$(printf '%s' "$package_json" | jq -r '.skills[]?.name | select(startswith("dart-") or startswith("flutter-"))')"
+    if [ -n "$leaked_companion_skills" ]; then
+        while IFS= read -r skill_name; do
+            [[ -n "$skill_name" ]] || continue
+            local msg="Copied companion skill '$skill_name' leaked into gal-core canonical package"
+            errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
+        done <<< "$leaked_companion_skills"
     fi
 
     # --- T-002: Unsupported component skip validation ---

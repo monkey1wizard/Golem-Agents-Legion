@@ -11,21 +11,110 @@
     secrets, and no runtimeScripts.
 #>
 
+function Get-GalCoreCanonicalPackageSchema {
+    <#
+    .SYNOPSIS
+        Returns the Claude-compatible canonical package schema for gal-core.
+    #>
+
+    return [ordered]@{
+        schemaId = 'claude-compatible-gal-core-v1'
+        schemaVersion = 1
+        packageId = 'gal-core'
+        packageKind = 'canonical-plugin'
+        canonicalProvider = 'claude'
+        compatibleProviders = @('claude', 'copilot', 'codex', 'agy')
+        componentRoots = [ordered]@{
+            skills = 'skills'
+            commands = 'commands'
+            agents = 'agents'
+            mcp = 'provider-managed'
+            lsp = 'provider-managed'
+        }
+        nativeInstallProviders = @('claude', 'copilot', 'codex')
+        managedShortcutProviders = @('agy')
+    }
+}
+
+function Get-GalCoreCopiedCompanionSkillPatterns {
+    <#
+    .SYNOPSIS
+        Returns copied skill prefixes that belong to companion plugins rather than gal-core.
+    #>
+
+    return @('dart-*', 'flutter-*')
+}
+
+function Resolve-CanonicalPackageInput {
+    <#
+    .SYNOPSIS
+        Partitions resolver output into gal-core source input and deferred companion plugins.
+    #>
+    param(
+        [array]$ResolvedPlugins
+    )
+
+    $sourcePlugins = [System.Collections.Generic.List[object]]::new()
+    $deferredCompanionPlugins = [System.Collections.Generic.List[object]]::new()
+
+    if ($ResolvedPlugins -and $ResolvedPlugins.Count -gt 0) {
+        foreach ($plugin in $ResolvedPlugins) {
+            if ($plugin.pluginId -eq 'gal-core' -or $plugin.supportTier -eq 'official-gal') {
+                $sourcePlugins.Add([ordered]@{
+                    pluginId = $plugin.pluginId
+                    supportTier = $plugin.supportTier
+                    sourceType = $plugin.sourceType
+                })
+                continue
+            }
+
+            $deferredCompanionPlugins.Add([ordered]@{
+                pluginId = $plugin.pluginId
+                supportTier = $plugin.supportTier
+                sourceType = $plugin.sourceType
+            })
+        }
+    }
+    else {
+        $sourcePlugins.Add([ordered]@{
+            pluginId = 'gal-core'
+            supportTier = 'official-gal'
+            sourceType = 'official-gal'
+        })
+    }
+
+    if (($sourcePlugins | Where-Object { $_.pluginId -eq 'gal-core' }).Count -eq 0) {
+        throw 'Canonical package input must include gal-core when resolver output is provided.'
+    }
+
+    return [pscustomobject]@{
+        SourcePlugins = @($sourcePlugins)
+        DeferredCompanionPlugins = @($deferredCompanionPlugins)
+    }
+}
+
 function New-ProviderPluginPackage {
     <#
     .SYNOPSIS
         Builds a provider-neutral plugin package from the GAL repo source contracts.
     #>
     param(
-        [string]$RepoRoot
+        [string]$RepoRoot,
+        [array]$ResolvedPlugins
     )
 
+    $packageInput = Resolve-CanonicalPackageInput -ResolvedPlugins $ResolvedPlugins
+    $excludedSkillPatterns = Get-GalCoreCopiedCompanionSkillPatterns
+
     $package = [ordered]@{
+        packageSchema = Get-GalCoreCanonicalPackageSchema
         metadata = [ordered]@{
             name = 'gal'
             displayName = 'Golem Agents Legion'
             generatedAt = (Get-Date -Format 'o')
         }
+        sourcePlugins = @($packageInput.SourcePlugins)
+        deferredCompanionPlugins = @($packageInput.DeferredCompanionPlugins)
         skills = [System.Collections.Generic.List[object]]::new()
         commandSkills = [System.Collections.Generic.List[object]]::new()
         mcpSpec = $null
@@ -40,6 +129,17 @@ function New-ProviderPluginPackage {
     $skillsDir = Join-Path $RepoRoot 'skills'
     if (Test-Path $skillsDir) {
         foreach ($skillDir in Get-ChildItem $skillsDir -Directory | Sort-Object Name) {
+            $isDeferredCompanionSkill = $false
+            foreach ($pattern in $excludedSkillPatterns) {
+                if ($skillDir.Name -like $pattern) {
+                    $isDeferredCompanionSkill = $true
+                    break
+                }
+            }
+            if ($isDeferredCompanionSkill) {
+                continue
+            }
+
             $skillFile = Join-Path $skillDir.FullName 'SKILL.md'
             if (Test-Path $skillFile) {
                 $package.skills.Add([ordered]@{
@@ -232,6 +332,23 @@ function Test-ProviderPluginPackage {
         $errors.Add('Package metadata.name is required')
     }
 
+    if (-not $Package.packageSchema -or $Package.packageSchema.packageId -ne 'gal-core') {
+        $errors.Add('Package packageSchema.packageId must be set to gal-core')
+    }
+
+    if (-not $Package.sourcePlugins -or @($Package.sourcePlugins | Where-Object { $_.pluginId -eq 'gal-core' }).Count -eq 0) {
+        $errors.Add('Package sourcePlugins must include gal-core')
+    }
+
+    $disallowedCompanionPatterns = Get-GalCoreCopiedCompanionSkillPatterns
+    foreach ($skill in $Package.skills) {
+        foreach ($pattern in $disallowedCompanionPatterns) {
+            if ($skill.name -like $pattern) {
+                $errors.Add("Copied companion skill '$($skill.name)' leaked into gal-core canonical package")
+            }
+        }
+    }
+
     # --- T-002: Unsupported component skip validation ---
     $requiredSkippedComponents = @('hooks', 'runtimeScripts')
     foreach ($component in $requiredSkippedComponents) {
@@ -294,7 +411,7 @@ function Test-ProviderPluginPackage {
 
     return [pscustomobject]@{
         Valid = $errors.Count -eq 0
-        Errors = @($errors)
+        Issues = @($errors)
     }
 }
 

@@ -52,8 +52,9 @@ Write-Host "Validating common package..." -ForegroundColor Cyan
 $validation = Test-ProviderPluginPackage -Package $package
 if (-not $validation.Valid) {
     Write-Host "Validation failed:" -ForegroundColor Red
-    foreach ($error in $validation.Errors) {
-        Write-Host "  - $error" -ForegroundColor Red
+    $validationIssues = @($validation.Issues)
+    foreach ($validationMessage in $validationIssues) {
+        Write-Host "  - $validationMessage" -ForegroundColor Red
     }
     throw "Common package validation failed"
 }
