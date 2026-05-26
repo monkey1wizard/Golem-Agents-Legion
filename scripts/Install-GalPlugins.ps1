@@ -322,10 +322,11 @@ if ($installMode -eq 'source') {
     Write-Host ("  [OK] Source mode galRoot: {0}" -f [string]$effectiveConfig['galRoot'])
     Write-Host ("  [OK] Source mode devMode: {0}" -f (ConvertTo-Bool $effectiveConfig['devMode'] $true))
     Write-Host ("  [OK] Local override boundary: explicit machine-local bindings via {0}" -f $context.GalXmachineConfigFile)
-    Write-Host '  [OK] Provider-native install orchestration is deferred in source mode; repo-root links remain the contributor path until T-009.'
+    Write-Host '  [OK] Repo-root links and local overrides stay source-mode-only contributor paths.'
 }
 else {
     Write-Host ("  [OK] Install mode projections root: {0}" -f $context.GalGeneratedRoot)
+    Write-Host '  [OK] Install mode disables repo-root links and source-only local overrides.'
     if ($primaryProviders.Count -gt 0) {
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers $primaryProviders -DryRun:$DryRun -Force:$Force
     }

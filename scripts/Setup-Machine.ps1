@@ -49,7 +49,28 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'common\Common.ps1')
 
+function Get-ConfiguredInstallMode {
+    param(
+        [pscustomobject]$Context
+    )
+
+    if (-not (Test-Path $Context.GalConfigFile)) {
+        return 'source'
+    }
+
+    $config = Read-JsonOrderedMap $Context.GalConfigFile
+    if ($config -and $config.Contains('installMode')) {
+        $mode = [string]$config['installMode']
+        if (-not [string]::IsNullOrWhiteSpace($mode)) {
+            return $mode
+        }
+    }
+
+    return 'source'
+}
+
 $context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep
+$installMode = Get-ConfiguredInstallMode -Context $context
 
 # --- AGY legacy pre-cleanup ---
 # Remove all GAL-managed AGY legacy surfaces before any concern script runs.
@@ -124,7 +145,16 @@ $steps = @(
     [pscustomobject]@{ Name = 'Install Orchestration'; Path = Join-Path $PSScriptRoot 'Install-GalPlugins.ps1' }
 )
 
+$sourceOnlySteps = @('Skills', 'Commands')
+
 foreach ($step in $steps) {
+    if (-not $Uninstall -and $installMode -eq 'install' -and $sourceOnlySteps -contains $step.Name) {
+        Write-Host ''
+        Write-Host ('>>> Skipping {0}' -f $step.Name)
+        Write-Host ('  [SKIP] {0} stay source-mode-only because install mode must not depend on repo-root links or baked {{GAL_ROOT}} paths.' -f $step.Name)
+        continue
+    }
+
     Write-Host ''
     Write-Host ('>>> Running {0}' -f $step.Name)
     & $step.Path @sharedArguments
@@ -141,5 +171,10 @@ elseif ($DryRun) {
 }
 else {
     Write-Host ('Setup complete: runtimes={0}; primary={1}' -f (@($context.SelectedRuntimes) -join ', '), $context.PrimaryRuntime)
-    Write-Host 'Note: If SKILL.template.md or SKILL.local.md changes, rerun Update-Commands.ps1 or Setup-Machine.ps1.'
+    if ($installMode -eq 'source') {
+        Write-Host 'Note: If SKILL.template.md or SKILL.local.md changes, rerun Update-Commands.ps1 or Setup-Machine.ps1.'
+    }
+    else {
+        Write-Host 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'
+    }
 }

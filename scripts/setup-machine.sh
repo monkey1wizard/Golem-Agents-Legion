@@ -22,6 +22,26 @@ parse_setup_args "$@"
 initialize_setup_session
 ensure_ripgrep
 
+get_configured_install_mode() {
+    if [ ! -f "$GAL_CONFIG_FILE" ]; then
+        printf 'source\n'
+        return 0
+    fi
+
+    run_python - "$GAL_CONFIG_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as handle:
+    data = json.load(handle)
+
+mode = str(data.get('installMode') or 'source').strip()
+print(mode or 'source')
+PY
+}
+
+SETUP_INSTALL_MODE="$(get_configured_install_mode)"
+
 # --- AGY legacy pre-cleanup ---
 # Remove all GAL-managed AGY legacy surfaces before any concern script runs.
 # This ensures a clean slate for the plugin-only install path.
@@ -74,32 +94,6 @@ agy_legacy_pre_cleanup() {
 }
 
 agy_legacy_pre_cleanup
-        fi
-    done
-    # Clean GAL-managed entries from global AGY mcp_config.json
-    if [ -f "$ANTIGRAVITY_MCP_FILE" ]; then
-        if command_exists jq; then
-            local gal_keys
-            gal_keys="$(jq -r '.mcpServers // {} | keys[] | select(. == "gal" or startswith("gal-"))' "$ANTIGRAVITY_MCP_FILE" 2>/dev/null || true)"
-            if [ -n "$gal_keys" ]; then
-                if $DRY_RUN; then
-                    echo "  [DRY RUN] Would remove GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE ($gal_keys)"
-                else
-                    local updated
-                    updated="$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-"))) | .mcpServers' <<< "$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-")))' "$ANTIGRAVITY_MCP_FILE")" 2>/dev/null || true)"
-                    # Simpler approach: delete gal- prefixed keys
-                    updated="$(jq 'del(.mcpServers["gal"]) | del(.mcpServers | to_entries[] | select(.key | startswith("gal-"))) | if .mcpServers == {} then del(.mcpServers) else . end' "$ANTIGRAVITY_MCP_FILE")"
-                    if [ -n "$updated" ]; then
-                        printf '%s\n' "$updated" > "$ANTIGRAVITY_MCP_FILE"
-                        echo "  [REMOVED] GAL-managed MCP entries from: $ANTIGRAVITY_MCP_FILE"
-                    fi
-                fi
-            fi
-        else
-            echo "  [WARN] jq not found — cannot clean GAL-managed MCP entries from $ANTIGRAVITY_MCP_FILE"
-        fi
-    fi
-fi
 
 shared_args=()
 $UNINSTALL && shared_args+=(--uninstall)
@@ -115,6 +109,13 @@ step_names=(Personalization Skills Commands MCP 'Install Orchestration')
 step_scripts=(update-personalization.sh update-skills.sh update-commands.sh update-mcp.sh install-gal-plugins.sh)
 
 for index in "${!step_scripts[@]}"; do
+    if [ "$SETUP_INSTALL_MODE" = 'install' ] && ! $UNINSTALL && { [ "${step_names[$index]}" = 'Skills' ] || [ "${step_names[$index]}" = 'Commands' ]; }; then
+        echo ''
+        echo ">>> Skipping ${step_names[$index]}"
+        echo "  [SKIP] ${step_names[$index]} stay source-mode-only because install mode must not depend on repo-root links or baked {{GAL_ROOT}} paths."
+        continue
+    fi
+
     echo ''
     echo ">>> Running ${step_names[$index]}"
     "$SCRIPT_DIR/${step_scripts[$index]}" "${shared_args[@]}"
@@ -129,5 +130,9 @@ elif $DRY_RUN; then
     echo "Primary runtime: $PRIMARY_RUNTIME"
 else
     echo "Setup complete: runtimes=$(format_runtime_csv "$SELECTED_RUNTIMES_CSV"); primary=$PRIMARY_RUNTIME"
-    echo 'Note: If SKILL.template.md or SKILL.local.md changes, rerun update-commands.sh or setup-machine.sh.'
+    if [ "$SETUP_INSTALL_MODE" = 'source' ]; then
+        echo 'Note: If SKILL.template.md or SKILL.local.md changes, rerun update-commands.sh or setup-machine.sh.'
+    else
+        echo 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'
+    fi
 fi

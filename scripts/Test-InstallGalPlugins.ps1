@@ -18,8 +18,21 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Text,
+        [string]$Unexpected,
+        [string]$Message
+    )
+
+    if ($Text.Contains($Unexpected)) {
+        throw "$Message`nDid not expect to find: $Unexpected`nActual output:`n$Text"
+    }
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $scriptUnderTest = Join-Path $repoRoot 'scripts\Install-GalPlugins.ps1'
+$setupScriptUnderTest = Join-Path $repoRoot 'scripts\Setup-Machine.ps1'
 $testHome = Join-Path $env:TEMP ("gal-install-test-{0}" -f [System.Guid]::NewGuid().ToString('N'))
 $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
@@ -79,8 +92,15 @@ try {
 
     $installOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot', 'antigravity', 'codex', 'opencode') -PrimaryRuntime 'copilot' -DryRun 6>&1 | Out-String)
     Assert-Contains $installOutput '[OK] Mode: install' 'Install-mode dry run should report install mode.'
+    Assert-Contains $installOutput '[OK] Install mode disables repo-root links and source-only local overrides.' 'Install-mode dry run should declare repo-root links disabled.'
     Assert-Contains $installOutput '[agy] mode=managed-shortcut renderer=Build-AgyPlugin.ps1 shortcut=' 'Install-mode dry run should surface AGY provider orchestration.'
     Assert-Contains $installOutput '[copilot] mode=native-install renderer=not-yet-implemented shortcut=none' 'Install-mode dry run should surface Copilot provider orchestration.'
+
+    $setupInstallOutput = (& $setupScriptUnderTest -SelectedRuntimes @('copilot', 'antigravity', 'codex', 'opencode') -PrimaryRuntime 'copilot' -DryRun 6>&1 | Out-String)
+    Assert-Contains $setupInstallOutput '>>> Skipping Skills' 'Install-mode setup should skip source-only skills wiring.'
+    Assert-Contains $setupInstallOutput '>>> Skipping Commands' 'Install-mode setup should skip source-only command baking.'
+    Assert-Contains $setupInstallOutput '[OK] Mode: install' 'Install-mode setup should still run install orchestration.'
+    Assert-NotContains $setupInstallOutput '=== GAL_ROOT symlinks ===' 'Install-mode setup should not build repo-root GAL_ROOT symlinks.'
 
     if (Test-Path $pluginsLockPath) {
         throw "Install-mode dry run should not write the real plugins lockfile: $pluginsLockPath"

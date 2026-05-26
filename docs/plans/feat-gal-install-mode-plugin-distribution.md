@@ -477,7 +477,7 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 
 ### Phase 3：Mode selection 與 path decoupling
 
-- [ ] T-008 — 更新 `Setup-Machine.*` 與 install orchestration 支援 install mode、source mode、migration cleanup、bridge lane、`~/.gal/` runtime home 與 dry-run visibility。
+- [x] T-008 — 更新 `Setup-Machine.*` 與 install orchestration 支援 install mode、source mode、migration cleanup、bridge lane、`~/.gal/` runtime home 與 dry-run visibility。 *(fba77d4)*
 - [ ] T-009 — 移除 install mode 對 `{{GAL_ROOT}}`、source checkout absolute path 與 provider repo-root shortcut 的依賴，並實作 source-mode-only local override policy。
 - [ ] T-010 — 實作 plugin-aware MCP 與 xmachine generated projections，包含 machine-local secret materialization、ownership metadata 與 user-owned config preservation。
 

@@ -216,9 +216,10 @@ if [ "$install_mode" = 'source' ]; then
     echo "  [OK] Source mode galRoot: $(printf '%s' "$summary_json" | jq -r '.galRoot')"
     echo "  [OK] Source mode devMode: $(printf '%s' "$summary_json" | jq -r '.devMode')"
     echo "  [OK] Local override boundary: explicit machine-local bindings via $GAL_XMACHINE_CONFIG_FILE"
-    echo '  [OK] Provider-native install orchestration is deferred in source mode; repo-root links remain the contributor path until T-009.'
+    echo '  [OK] Repo-root links and local overrides stay source-mode-only contributor paths.'
 else
     echo "  [OK] Install mode projections root: $GAL_GENERATED_ROOT"
+    echo '  [OK] Install mode disables repo-root links and source-only local overrides.'
     if [ -n "$primary_providers_csv" ]; then
         build_provider_args=(--config-path "$config_for_resolver" --lockfile-path "$resolver_lockfile_path" --providers "$primary_providers_csv")
         $DRY_RUN && build_provider_args+=(--dry-run)
