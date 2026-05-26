@@ -41,12 +41,14 @@ To switch modes:
 - In source mode, also set `galRoot` to your local GAL repo path and optionally enable `devMode`.
 - Rerun `Setup-Machine` after switching.
 
-Current boundary note:
+### Distribution Architecture and Ownership Boundaries
 
-- The install-mode data model and `~/.gal/` ownership contract are active now.
-- The AGY install-mode lifecycle slice is already implemented and validated.
-- Copilot CLI, Codex, and Claude Code native lifecycle remain deferred follow-up work.
-- Bootstrap packaging, `winget`/`homebrew`, release archives, and marketplace discoverability belong to the separate bootstrap-installer plan rather than this personalization surface.
+GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:
+
+- **Bootstrap Installer Distribution**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases handle the installation of the `gal` executable binary. They own the **package-managed payload**.
+- **Install-Mode Plugin Distribution**: GAL owns the plugin catalog (`plugins/catalog.json`) and resolves it into `~/.gal/state/plugins.lock.json` to manage provider-native plugin installations (e.g., Claude, AGY, Copilot).
+- **GAL-Managed Runtime and Generated State**: GAL manages content under `~/.gal/store/` and `~/.gal/generated/`. These are safe to rebuild or reinstall.
+- **User-Owned Config and State**: You own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secrets. Package managers must **never** delete these during uninstalls. A full destructive cleanup requires an explicit purge flow.
 
 ## Companion Plugins and Support Tiers
 

@@ -217,6 +217,27 @@ Current implementation status:
 
 After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
 
+## Distribution Architecture and Ownership Boundaries
+
+GAL explicitly separates how the CLI is installed (Bootstrap Installer) from how provider plugins are managed (Install-Mode Plugin Distribution). This boundary ensures that package managers do not overwrite user data and that GAL plugins can update independently of the CLI payload.
+
+### 1. Bootstrap Installer Distribution
+- **What it is**: How the GAL CLI (`gal` executable) gets onto the user's machine.
+- **Channels**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases `.zip` / `.tar.gz` (manual fallbacks). See [docs/release-matrix.md](release-matrix.md) for the exact artifact lineage.
+- **Ownership**: The package manager owns the **package-managed payload** (the single executable binary). It handles upgrades and removals of the CLI itself, but it must **never** manage or delete `~/.gal/` contents.
+
+### 2. Install-Mode Plugin Distribution
+- **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
+- **Channels**: Provider-native marketplaces, driven by the `plugins/catalog.json` and resolved into `~/.gal/state/plugins.lock.json`.
+- **Ownership**: GAL owns the plugin catalog and resolution. It manages provider-specific installation paths and the `~/.gal/` plugin store.
+
+### 3. State Ownership Boundaries in `~/.gal/`
+When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
+
+- **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
+- **GAL-Managed Runtime and Generated State**: `~/.gal/store/`, `~/.gal/generated/`, and provider-native plugin installations. Owned by GAL. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
+- **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall. Full deletion requires an explicit, destructive purge flow.
+
 ## Install Mode vs Source Mode
 
 GAL uses two distinct operational modes.

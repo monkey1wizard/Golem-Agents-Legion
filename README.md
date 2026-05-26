@@ -373,6 +373,7 @@ Everything related to the local machine environment that does not belong on the 
 | [docs/collaborative-tools/godot.md](docs/collaborative-tools/godot.md) | Godot C# workflow guide |
 | [docs/collaborative-tools/graphworkflow.md](docs/collaborative-tools/graphworkflow.md) | AI-first game asset workflow guide |
 | [docs/research/playwright-mcp-integration.md](docs/research/playwright-mcp-integration.md) | Upstream contract and safety assumptions behind the managed Playwright MCP defaults |
+| [docs/release-matrix.md](docs/release-matrix.md) | Release Artifact Matrix and Package-Manager Ingestion Metadata |
 
 ## References
 
