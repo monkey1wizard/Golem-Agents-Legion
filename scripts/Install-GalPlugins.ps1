@@ -26,7 +26,7 @@ $script:SetupOptions = [pscustomobject]@{
 }
 
 if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
-    $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
+    $script:SetupContext = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime
 }
 
 function Get-ProviderFromRuntime([string]$Runtime) {
@@ -240,11 +240,56 @@ function Get-DisplayValue([string[]]$Items, [string]$Fallback = 'none') {
     return ($Items -join ', ')
 }
 
+function Remove-GalManagedDirectory {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [string]$Label
+    )
+
+    if (-not (Test-Path $Path)) {
+        Write-Host ("  [SKIP] No {0} to remove" -f $Label)
+        return
+    }
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would remove {0}: {1}" -f $Label, $Path)
+        return
+    }
+
+    Remove-Item -LiteralPath $Path -Recurse -Force
+    Write-Host ("  [REMOVED] {0}: {1}" -f $Label, $Path)
+}
+
+function Remove-GalManagedProviderShortcut {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Provider
+    )
+
+    $shortcutPath = Get-GalActiveProviderTarget -Provider $Provider
+    if (-not (Test-Path $shortcutPath)) {
+        Write-Host ("  [SKIP] No GAL-managed {0} shortcut to remove" -f $Provider)
+        return
+    }
+
+    Remove-SafeLink $shortcutPath
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
 if ($Uninstall) {
-    Write-Host '  [SKIP] Mode-aware provider orchestration is not yet part of uninstall; legacy cleanup remains in the existing concern scripts.'
+    $installMode = Get-ConfiguredInstallModeFromContext -Context $script:SetupContext
+    if ($installMode -ne 'install') {
+        Write-Host '  [SKIP] Source-mode uninstall remains owned by the legacy concern scripts.'
+        return
+    }
+
+    Write-Host '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
+    Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
+    Remove-GalManagedProviderShortcut -Provider 'agy'
     return
 }
 

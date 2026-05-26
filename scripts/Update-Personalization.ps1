@@ -15,6 +15,7 @@ $ErrorActionPreference = 'Stop'
 function Invoke-UpdatePersonalization {
     $context = $script:SetupContext
     $skillDirs = Get-ChildItem (Join-Path $context.RepoRoot 'skills') -Directory
+    $installMode = Test-InstallModeFromContext -Context $context
 
     Ensure-SetupDirectories @($context.GalStateRoot, $context.GeminiRoot, $context.AntigravityRoot)
 
@@ -89,7 +90,10 @@ function Invoke-UpdatePersonalization {
 
     Write-Host ''
     Write-Host '=== AGY Plugin (rules/gal.md) ==='
-    if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+    if ($installMode) {
+        Write-Host '  [SKIP] Install mode delegates AGY plugin lifecycle to Install-GalPlugins.ps1.'
+    }
+    elseif ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
         # Remove the installed plugin directory on uninstall or when AGY is not selected
         if (Test-Path $context.AgyPluginInstallTarget) {
             if ($script:SetupOptions.DryRun) {

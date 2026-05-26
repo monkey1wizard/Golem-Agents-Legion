@@ -45,6 +45,10 @@ if (-not (Test-Path $commonHelpersScript)) {
 }
 . $commonHelpersScript
 
+if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
+    $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
+}
+
 $resolvedPlugins = $null
 if (-not [string]::IsNullOrWhiteSpace($ResolvedPluginsFile)) {
     if (-not (Test-Path $ResolvedPluginsFile)) {

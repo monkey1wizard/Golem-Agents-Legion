@@ -45,9 +45,21 @@ Before using GAL, ensure your environment meets the following requirements:
 
    Runtime-specific entry-surface differences live in `scripts/scripts.md` and `docs/devguide.md`.
 
+## Current Installer Status
+
+The current repo documentation still describes the contributor/source-mode path as the primary hands-on setup path: clone the GAL repo, run `Setup-Machine`, and work from a local checkout.
+
+At the same time, GAL's newer install-mode substrate is already partially in place:
+
+- install/source mode state, catalog resolution, `~/.gal/` runtime ownership, and generated projection boundaries are documented and implemented
+- the AGY provider-native lifecycle slice is implemented and validated through `Install-GalPlugins.*` and `Build-ProviderPlugins.*`
+- Copilot CLI, Codex, and Claude Code native install lifecycle remain deferred follow-up work
+
+Bootstrap packaging, official end-user install channels, marketplace discoverability, and release-lineage wording are now owned by the separate bootstrap-installer plan. Until that work lands, treat this README's clone-and-setup flow as the current supported path for humans following the repo directly.
+
 ## Walkthrough: A Feature's Lifecycle with GAL
 
-**Scenario: Adding a JWT Login Feature to Your Project**
+### Scenario: Adding a JWT Login Feature to Your Project
 
 1. **Initialize Project**: Run `/gal init` in your repository to create the baseline state files. Fresh repos may not have local `scripts/` yet, in that case the runtime checkout entrypoint still targets the current repository.
 2. **Brainstorm & Plan**: Run `/planning` and tell the AI, "I want to build a JWT login feature." The AI will discuss and write the spec into `docs/plans/`, then use `/deep-planning` to carefully review the plan document.

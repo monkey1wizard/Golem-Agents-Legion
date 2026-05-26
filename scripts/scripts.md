@@ -15,12 +15,16 @@ Machine setup and adapter sync scripts.
 | `Sync-DevContext.ps1` | Windows | Generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` from `.dev/project.md`; auto-discovers all skills in `skills/` |
 | `sync-dev-context.sh` | macOS | Same for Mac |
 | `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `Update-Personalization.ps1`, `Update-Skills.ps1`, `Update-Commands.ps1`, and `Update-Mcp.ps1` |
+| `Install-GalPlugins.ps1` | Windows | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and dry-run visibility for install/source mode boundaries |
+| `Build-ProviderPlugins.ps1` | Windows | Build provider-specific install-mode artifacts from resolver output; currently AGY is implemented, while Copilot/Codex/Claude remain not-yet-implemented native-install lanes |
 | `Update-Personalization.ps1` | Windows | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
 | `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `update-personalization.sh`, `update-skills.sh`, `update-commands.sh`, and `update-mcp.sh` |
+| `install-gal-plugins.sh` | macOS/Linux | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and dry-run visibility for install/source mode boundaries |
+| `build-provider-plugins.sh` | macOS/Linux | Build provider-specific install-mode artifacts from resolver output; currently AGY is implemented, while Copilot/Codex/Claude remain not-yet-implemented native-install lanes |
 | `update-personalization.sh` | macOS | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `update-skills.sh` | macOS | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
@@ -102,6 +106,15 @@ Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank 
 5. run `Update-Mcp.ps1` or `update-mcp.sh`
 
 Each concern script can also run standalone when you only need one concern refreshed.
+
+## Current Boundary
+
+The current script surface is split across two adjacent concerns:
+
+- install-mode plugin orchestration: `Install-GalPlugins.*`, `Build-ProviderPlugins.*`, resolver output, `~/.gal/` ownership, and provider-specific lifecycle work
+- bootstrap installer and official distribution channels: versioned bootstrap payloads, package managers, release archives, and marketplace/discoverability work
+
+Today only the AGY provider-native lifecycle slice is implemented end to end in the install-mode scripts. Copilot CLI, Codex, and Claude Code remain planned native-install lanes, while bootstrap packaging and official install-channel wording are handled by the separate bootstrap-installer planning track.
 
 ## Setup-Machine Symlinks
 

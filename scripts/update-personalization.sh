@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 invoke_update_personalization() {
     local skill_dirs=()
+    local install_mode
+    install_mode="$(get_configured_install_mode)"
     while IFS= read -r skill_dir; do
         [ -n "$skill_dir" ] || continue
         skill_dirs+=("$skill_dir")
@@ -69,7 +71,9 @@ invoke_update_personalization() {
 
     echo ''
     echo '=== AGY Plugin (rules/gal.md) ==='
-    if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+    if [ "$install_mode" = 'install' ]; then
+        echo '  [SKIP] Install mode delegates AGY plugin lifecycle to install-gal-plugins.sh.'
+    elif $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
         # Remove the installed plugin directory on uninstall or when AGY is not selected
         if [ -e "$AGY_PLUGIN_INSTALL_TARGET" ]; then
             if $DRY_RUN; then

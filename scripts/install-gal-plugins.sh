@@ -154,7 +154,30 @@ echo ''
 echo '=== GAL install orchestration ==='
 
 if $UNINSTALL; then
-    echo '  [SKIP] Mode-aware provider orchestration is not yet part of uninstall; legacy cleanup remains in the existing concern scripts.'
+    install_mode="$(get_configured_install_mode)"
+    if [ "$install_mode" != 'install' ]; then
+        echo '  [SKIP] Source-mode uninstall remains owned by the legacy concern scripts.'
+        exit 0
+    fi
+
+    echo '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
+    if [ -e "$AGY_PLUGIN_INSTALL_TARGET" ]; then
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove AGY plugin install target: $AGY_PLUGIN_INSTALL_TARGET"
+        else
+            rm -rf "$AGY_PLUGIN_INSTALL_TARGET"
+            echo "  [REMOVED] AGY plugin install target: $AGY_PLUGIN_INSTALL_TARGET"
+        fi
+    else
+        echo '  [SKIP] No AGY plugin install target to remove'
+    fi
+
+    agy_shortcut_target="$(get_gal_active_provider_target agy)"
+    if [ -e "$agy_shortcut_target" ]; then
+        safe_unlink "$agy_shortcut_target"
+    else
+        echo '  [SKIP] No GAL-managed agy shortcut to remove'
+    fi
     exit 0
 fi
 

@@ -115,6 +115,7 @@ function New-OpenCodeAgentFileContent([string]$AgentPath) {
 
 function Invoke-UpdateSkills {
     $context = $script:SetupContext
+    $installMode = Test-InstallModeFromContext -Context $context
     Ensure-SetupDirectories @(
         $context.CopilotRoot,
         $context.AgentsTarget,
@@ -194,7 +195,10 @@ function Invoke-UpdateSkills {
 
     Write-Host ''
     Write-Host '=== AGY Plugin (skills + command skills + agents) ==='
-    if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
+    if ($installMode) {
+        Write-Host '  [SKIP] Install mode delegates AGY plugin lifecycle to Install-GalPlugins.ps1.'
+    }
+    elseif ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
         # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
         foreach ($skillDir in $skillDirs) {
             $legacyLink = Join-Path $context.AntigravitySkillsTarget $skillDir.Name

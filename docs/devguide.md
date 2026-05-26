@@ -193,6 +193,7 @@ GAL targets are classified by provider-native install capability, not by a unifo
 | Deferred / unsupported | other runtimes | out of scope | no documented install or skill discovery pathway |
 
 Shortcut policy:
+
 - Claude-compatible canonical package is the single source of truth.
 - Copilot CLI can consume Claude-compatible structure natively and does not need a shortcut.
 - AGY CLI and OpenCode, lacking native `plugin install` CLI, may use `~/.gal/active/<provider>/` as GAL-managed stable targets for capability-level shortcut redirection.
@@ -205,6 +206,12 @@ Shortcut policy:
 AGY is renderer 1, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
 
 Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
+
+Current implementation status:
+
+- AGY is the only provider-native lifecycle slice implemented end to end in install mode today.
+- Copilot CLI, Codex, and Claude Code still remain native-install target lanes in the architecture, but their concrete installer/update/uninstall flows are not implemented yet.
+- Bootstrap packaging, official install channels, and marketplace discoverability do not belong to this install-mode surface; they are handled by the separate bootstrap-installer planning track.
 
 ### Future Renderer Sequence
 
@@ -222,6 +229,7 @@ GAL uses two distinct operational modes.
 | Bridge/degraded lane | OpenCode or runtimes lacking primary install parity | GAL-managed cache/artifact | resolved package subset | only capability-level links; not treated as primary install success |
 
 Key rules:
+
 - `galRoot` and `devMode` are controlled by `~/.gal/config/config.json`.
 - Xmachine routing is controlled by `~/.gal/config/xmachine.json`.
 - `GAL_SKILLS` is no longer part of the config surface; existing values are only migration input.
@@ -243,7 +251,7 @@ Default profile: initial `default` profile installs only `gal-core`. All compani
 
 GAL is a catalog + lockfile orchestrator, not a universal plugin runtime.
 
-```
+```text
 plugins/catalog.json
   → ~/.gal/state/plugins.lock.json
   → resolved plugin set
@@ -387,13 +395,14 @@ Generated file owned by GAL that replaces repo-root `mcp.local.json` in install 
 **Secret boundary**: `context7ApiKey` is materialized directly into `headers.CONTEXT7_API_KEY` — no `${CONTEXT7_API_KEY}` placeholder remains. This file is **secret-bearing machine-local state**. It must never enter a tracked repo, shared lockfile, or team configuration. Mark it in `.gitignore`.
 
 **Resolved values rules**:
+
 - `mcpMemoryFilePath` is resolved to its absolute value.
 - `mcpFilesystemPaths` appears only when filesystem MCP is present in the resolved set; otherwise omitted.
 - No runtime placeholder resolution is required — all values are fully materialized.
 
 ### Schema Precedence Chain
 
-```
+```text
 plugins/catalog.json (repo-tracked, authoritative catalog source)
   ↓ resolved with
 ~/.gal/config/config.json (user-owned, machine-local preferences)

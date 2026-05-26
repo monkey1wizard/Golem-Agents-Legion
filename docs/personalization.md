@@ -36,9 +36,17 @@ GAL supports two operational modes controlled by `~/.gal/config/config.json`:
 - **Source mode** — for GAL contributors. Keep a local clone of the GAL repo, set `galRoot` in `~/.gal/config/config.json` to that path, and enable `devMode`. This gives you live local overrides, direct repo-skill mounting, and the ability to test changes without packaging.
 
 To switch modes:
+
 - Set `installMode` to `install` or `source` in `~/.gal/config/config.json`.
 - In source mode, also set `galRoot` to your local GAL repo path and optionally enable `devMode`.
 - Rerun `Setup-Machine` after switching.
+
+Current boundary note:
+
+- The install-mode data model and `~/.gal/` ownership contract are active now.
+- The AGY install-mode lifecycle slice is already implemented and validated.
+- Copilot CLI, Codex, and Claude Code native lifecycle remain deferred follow-up work.
+- Bootstrap packaging, `winget`/`homebrew`, release archives, and marketplace discoverability belong to the separate bootstrap-installer plan rather than this personalization surface.
 
 ## Companion Plugins and Support Tiers
 
@@ -57,6 +65,7 @@ GAL keeps `gal-core` small: the control plane, golem agents, core workflows, ess
 **Default profile**: the initial `default` profile only installs `gal-core`. All companion plugins are opt-in. Enable them through named profiles (e.g., `dart`, `flutter`, `dotnet`) or explicit plugin selection in `~/.gal/config/config.json`.
 
 **Known companion candidates** (all `curated-upstream`, all opt-in):
+
 - `dart-lang/skills` — Dart
 - `flutter/skills` — Flutter
 - `dotnet/skills` — .NET / C#
@@ -69,6 +78,7 @@ GAL keeps `gal-core` small: the control plane, golem agents, core workflows, ess
 Game asset, Godot, and GStack framework skills remain in `gal-core` (GAL-owned, not external companion) unless confirmed otherwise.
 
 Your plugin selections, profiles, and resolver output live in:
+
 - `~/.gal/config/config.json` — what you want to install
 - `~/.gal/state/plugins.lock.json` — what is actually resolved and locked
 

@@ -36,9 +36,17 @@ GAL 支援兩種由 `~/.gal/config/config.json` 控制的操作模式：
 - **原始碼模式（Source mode）** — 給 GAL 貢獻者。保留 GAL 儲存庫的本機 clone，在 `~/.gal/config/config.json` 中設定 `galRoot` 指向該路徑，並啟用 `devMode`。這讓你可以直接掛載本機 skills、測試變更，無需經過封裝。
 
 切換模式：
+
 - 在 `~/.gal/config/config.json` 中將 `installMode` 設為 `install` 或 `source`。
 - 在 source mode 下，也需設定 `galRoot` 指向本機 GAL repo 路徑，並可選擇啟用 `devMode`。
 - 切換後重新執行 `Setup-Machine`。
+
+目前邊界說明：
+
+- install mode 的資料模型與 `~/.gal/` ownership contract 已經生效。
+- AGY 的 install-mode lifecycle slice 已完成並驗證。
+- Copilot CLI、Codex 與 Claude Code 的 native lifecycle 仍屬後續 deferred follow-up。
+- bootstrap 打包、`winget` / `homebrew`、release archives 與 marketplace discoverability 屬於獨立的 bootstrap-installer plan，不屬於這份 personalization 文件的範圍。
 
 ## 伴隨外掛與支援分層 (Companion Plugins and Support Tiers)
 
@@ -57,6 +65,7 @@ GAL 將 `gal-core` 保持精簡：控制平面、golem agents、核心工作流�
 **預設 profile**：初始 `default` profile 只安裝 `gal-core`。所有伴隨外掛均為 opt-in。透過 named profiles（例如 `dart`、`flutter`、`dotnet`）或 explicit plugin selection 在 `~/.gal/config/config.json` 中啟用。
 
 **已知伴隨候選**（全部 `curated-upstream`，全部 opt-in）：
+
 - `dart-lang/skills` — Dart
 - `flutter/skills` — Flutter
 - `dotnet/skills` — .NET / C#
@@ -69,6 +78,7 @@ GAL 將 `gal-core` 保持精簡：控制平面、golem agents、核心工作流�
 Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有，非外部伴隨），除非後續確認另有 upstream。
 
 你的外掛選擇、profiles 與 resolver 輸出存放於：
+
 - `~/.gal/config/config.json` — 你想安裝什麼
 - `~/.gal/state/plugins.lock.json` — 實際解析並鎖定的版本
 

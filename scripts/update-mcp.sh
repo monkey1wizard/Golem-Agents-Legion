@@ -49,12 +49,13 @@ invoke_update_mcp() {
         fi
     fi
 
-    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$ANTIGRAVITY_MCP_FILE" "$CODEX_CONFIG_FILE" "$OPENCODE_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_ANTIGRAVITY" "$INSTALL_CODEX" "$INSTALL_OPENCODE" "$INSTALL_CLAUDE" "$DRY_RUN" <<'PY'
+    run_python - "$REPO_ROOT" "$MCP_SOURCE_FILE" "$MCP_LOCAL_FILE" "$VSCODE_MCP_FILE" "$COPILOT_CLI_MCP_FILE" "$GEMINI_SETTINGS_FILE" "$ANTIGRAVITY_MCP_FILE" "$CODEX_CONFIG_FILE" "$OPENCODE_CONFIG_FILE" "$INSTALL_COPILOT" "$INSTALL_GEMINI" "$INSTALL_ANTIGRAVITY" "$INSTALL_CODEX" "$INSTALL_OPENCODE" "$INSTALL_CLAUDE" "$DRY_RUN" "$GAL_CONFIG_FILE" "$GAL_XMACHINE_CONFIG_FILE" "$GAL_GENERATED_MCP_FILE" "$GAL_GENERATED_XMACHINE_FILE" <<'PY'
 import json
 import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 repo_root = Path(sys.argv[1])
@@ -73,6 +74,10 @@ install_codex = sys.argv[13].lower() == 'true'
 install_opencode = sys.argv[14].lower() == 'true'
 install_claude = sys.argv[15].lower() == 'true'
 dry_run = sys.argv[16].lower() == 'true'
+gal_config = Path(sys.argv[17])
+gal_xmachine_config = Path(sys.argv[18])
+generated_mcp = Path(sys.argv[19])
+generated_xmachine = Path(sys.argv[20])
 
 BRIDGE_PROFILES = {
     'upstash/context7': {
@@ -214,6 +219,224 @@ def normalize_servers(servers):
     if 'github' in normalized:
         normalized.pop('github-mcp-server', None)
     return normalized
+
+
+def read_machine_config():
+    data = read_json(gal_config)
+    return data if isinstance(data, dict) else {}
+
+
+def build_mcp_values(legacy_values, machine_config):
+    values = dict(legacy_values)
+    machine_mappings = {
+        'OBSIDIAN_VAULT': 'obsidianVault',
+        'OBSIDIAN_VAULT_NAME': 'obsidianVaultName',
+        'OBSIDIAN_GUIDE_PATH': 'obsidianGuidePath',
+        'OBSIDIAN_GUIDE_MODE': 'obsidianGuideMode',
+        'MCP_MEMORY_FILE_PATH': 'mcpMemoryFilePath',
+        'CONTEXT7_API_KEY': 'context7ApiKey',
+        'TEMP_DIR': 'tempDir',
+        'LOCAL_SEARCH_PROJECT': 'localSearchProject',
+    }
+    for env_name, config_key in machine_mappings.items():
+        raw_value = machine_config.get(config_key)
+        if raw_value is not None and str(raw_value).strip():
+            values[env_name] = str(raw_value).strip()
+
+    filesystem_paths = machine_config.get('mcpFilesystemPaths')
+    if isinstance(filesystem_paths, list):
+        joined_paths = ','.join(str(item).strip() for item in filesystem_paths if str(item).strip())
+        if joined_paths:
+            values['MCP_FILESYSTEM_PATHS'] = joined_paths
+    elif filesystem_paths is not None and str(filesystem_paths).strip():
+        values['MCP_FILESYSTEM_PATHS'] = str(filesystem_paths).strip()
+
+    values.setdefault('MCP_MEMORY_FILE_PATH', str(Path.home() / 'mcp-memory.json'))
+    if 'MCP_FILESYSTEM_PATHS' not in values:
+        defaults = [str(repo_root.parent)]
+        obsidian_vault = get_value(values, 'OBSIDIAN_VAULT')
+        if obsidian_vault:
+            defaults.append(obsidian_vault)
+        values['MCP_FILESYSTEM_PATHS'] = ','.join(dict.fromkeys(defaults))
+
+    return values
+
+
+def manifest_contains_filesystem_server(manifest):
+    servers = manifest.get('servers')
+    if not isinstance(servers, dict):
+        return False
+
+    for server_name, server_config in servers.items():
+        if re.search(r'filesystem', str(server_name), re.IGNORECASE):
+            return True
+        if isinstance(server_config, dict):
+            if re.search(r'filesystem', str(server_config.get('command', '')), re.IGNORECASE):
+                return True
+            for argument in server_config.get('args') or []:
+                if re.search(r'filesystem', str(argument), re.IGNORECASE):
+                    return True
+    return False
+
+
+def convert_projection_server(config):
+    projection = {}
+    if 'url' in config:
+        projection['serverUrl'] = str(config['url'])
+    if 'command' in config:
+        projection['command'] = str(config['command'])
+    if 'args' in config:
+        projection['args'] = [str(item) for item in config.get('args') or []]
+    if isinstance(config.get('env'), dict):
+        projection['env'] = config['env']
+    if isinstance(config.get('headers'), dict):
+        projection['headers'] = config['headers']
+    if 'tools' in config:
+        projection['tools'] = config['tools']
+    return projection
+
+
+def build_generated_mcp_projection(manifest, values, runtime_entries):
+    projection_servers = {
+        server_name: convert_projection_server(server_config)
+        for server_name, server_config in manifest['servers'].items()
+    }
+    secret_bearing = any(
+        isinstance(server_config.get('headers'), dict) and 'CONTEXT7_API_KEY' in server_config['headers']
+        for server_config in projection_servers.values()
+    )
+    projection = {
+        'schemaVersion': 1,
+        'generatedAt': datetime.now(timezone.utc).isoformat(),
+        'generatedBy': 'update-mcp.sh',
+        'mcpMemoryFilePath': str(get_value(values, 'MCP_MEMORY_FILE_PATH') or ''),
+        'mcpServers': projection_servers,
+        '_metadata': {
+            'ownership': 'gal-managed',
+            'secretBearing': secret_bearing,
+            'sourceFiles': {
+                'trackedManifest': str(mcp_source),
+                'localOverrideManifest': str(mcp_local),
+                'machineConfig': str(gal_config),
+            },
+            'runtimeEntries': runtime_entries,
+            'preservation': 'Runtime config updates replace only GAL-managed MCP entries and preserve unrelated user-owned entries.',
+        },
+    }
+    if isinstance(manifest.get('inputs'), list):
+        projection['inputs'] = manifest['inputs']
+    if manifest_contains_filesystem_server(manifest):
+        projection['mcpFilesystemPaths'] = split_config_list(get_value(values, 'MCP_FILESYSTEM_PATHS'))
+    return projection
+
+
+def default_xmachine_binding():
+    return {
+        'schemaVersion': 1,
+        'defaultXmachineNode': '',
+        'xmachineNodeAliases': {},
+        'machineProfiles': {},
+        'localPluginPaths': [],
+        'providerPathOverrides': {},
+        'additionalBindings': {},
+    }
+
+
+def read_xmachine_binding():
+    binding = default_xmachine_binding()
+    legacy_config = repo_root / 'xmachine.config.json'
+    if gal_xmachine_config.exists():
+        configured_binding = read_json(gal_xmachine_config)
+        if isinstance(configured_binding, dict):
+            if isinstance(configured_binding.get('nodes'), dict) and 'xmachineNodeAliases' not in configured_binding:
+                configured_binding['xmachineNodeAliases'] = configured_binding['nodes']
+            return deep_merge(binding, configured_binding)
+        return binding
+
+    if legacy_config.exists():
+        legacy_binding = read_json(legacy_config)
+        if isinstance(legacy_binding, dict) and isinstance(legacy_binding.get('nodes'), dict):
+            binding['xmachineNodeAliases'] = legacy_binding['nodes']
+
+    return binding
+
+
+def build_generated_xmachine_projection(binding):
+    projection = {
+        'schemaVersion': 1,
+        'generatedAt': datetime.now(timezone.utc).isoformat(),
+        'generatedBy': 'update-mcp.sh',
+        'defaultXmachineNode': str(binding.get('defaultXmachineNode') or ''),
+        'nodes': binding.get('xmachineNodeAliases', {}),
+        '_metadata': {
+            'ownership': 'gal-managed',
+            'secretBearing': False,
+            'sourceFiles': {
+                'machineBinding': str(gal_xmachine_config),
+                'legacyRepoConfig': str(repo_root / 'xmachine.config.json'),
+            },
+        },
+    }
+    for optional_key in ('machineProfiles', 'localPluginPaths', 'providerPathOverrides', 'additionalBindings'):
+        if optional_key in binding:
+            projection[optional_key] = binding[optional_key]
+    return projection
+
+
+def write_generated_projections(manifest, values, runtime_entries):
+    xmachine_binding = read_xmachine_binding()
+    if dry_run:
+        print(f'  [DRY RUN] Would render managed MCP projection: {generated_mcp}')
+        print(f'  [DRY RUN] Would render managed xmachine projection: {generated_xmachine}')
+        return
+
+    if not gal_xmachine_config.exists():
+        write_json(gal_xmachine_config, xmachine_binding)
+        print(f'  [OK] Created machine xmachine binding file: {gal_xmachine_config}')
+
+    write_json(generated_mcp, build_generated_mcp_projection(manifest, values, runtime_entries))
+    print(f'  [OK] {generated_mcp}')
+
+    write_json(generated_xmachine, build_generated_xmachine_projection(xmachine_binding))
+    print(f'  [OK] {generated_xmachine}')
+
+
+def read_previous_projection():
+    data = read_json(generated_mcp)
+    return data if isinstance(data, dict) else {}
+
+
+def get_projection_runtime_entries(projection, runtime_name):
+    metadata = projection.get('_metadata')
+    if not isinstance(metadata, dict):
+        return {}
+    runtime_entries = metadata.get('runtimeEntries')
+    if not isinstance(runtime_entries, dict):
+        return {}
+    entries = runtime_entries.get(runtime_name)
+    return entries if isinstance(entries, dict) else {}
+
+
+def can_replace_managed_runtime_entry(previous_runtime_entries, key, existing_config, desired_config, runtime_label):
+    if existing_config is None:
+        return True
+    if key in previous_runtime_entries:
+        return True
+    if desired_config is not None and json_like_equal(existing_config, desired_config):
+        return True
+    print(f'  [WARN] Preserving user-owned {runtime_label} MCP entry: {key}')
+    return False
+
+
+def find_copilot_managed_config_for_key(manifest, key):
+    for server_name, server_config in manifest['servers'].items():
+        profile = get_copilot_cli_bridge_profile(server_name)
+        converted = convert_copilot_cli_config(server_config)
+        if profile.get('enabled', True) and profile.get('key') == key:
+            return converted
+        if key in legacy_aliases('copilot-cli', server_name):
+            return converted
+    return None
 
 
 def sync_managed_inputs(data, manifest):
@@ -513,30 +736,30 @@ def resolved_manifest():
         print('  [WARN] MCP manifest does not contain a valid servers object.')
         return None
 
-    values = read_env_file(repo_root / 'config.local.env')
-    values.setdefault('MCP_MEMORY_FILE_PATH', str(Path.home() / 'mcp-memory.json'))
-    if 'MCP_FILESYSTEM_PATHS' not in values:
-        defaults = [str(repo_root.parent)]
-        obsidian_vault = get_value(values, 'OBSIDIAN_VAULT')
-        if obsidian_vault:
-            defaults.append(obsidian_vault)
-        values['MCP_FILESYSTEM_PATHS'] = ','.join(dict.fromkeys(defaults))
+    machine_config = read_machine_config()
+    values = build_mcp_values(read_env_file(repo_root / 'config.local.env'), machine_config)
 
     resolved = {
         'servers': normalize_servers({server_name: resolve_node(server_config, values) for server_name, server_config in servers.items()})
     }
     if 'inputs' in manifest:
         resolved['inputs'] = resolve_inputs(manifest.get('inputs'), values)
-    return resolved
+    return {
+        'runtime_manifest': resolved,
+        'values': values,
+    }
 
 
-def update_vscode(manifest):
+def update_vscode(manifest, previous_projection):
     data = read_json(vscode_mcp)
     servers = data.setdefault('servers', {})
+    previous_runtime_entries = get_projection_runtime_entries(previous_projection, 'vscode')
     changed = False
+    managed_runtime_entries = {}
     for server_name in manifest['servers']:
+        desired_config = manifest['servers'][server_name]
         for alias in legacy_aliases('vscode', server_name):
-            if alias in servers:
+            if alias in servers and can_replace_managed_runtime_entry(previous_runtime_entries, alias, servers[alias], desired_config, 'VS Code'):
                 changed = True
                 prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
                 print(f'  {prefix} VS Code MCP alias: {alias}')
@@ -547,7 +770,10 @@ def update_vscode(manifest):
         if not profile.get('enabled', True):
             continue
         key = profile.get('key', server_name)
-        if key not in servers or not json_like_equal(servers[key], server_config):
+        existing_config = servers.get(key)
+        if not can_replace_managed_runtime_entry(previous_runtime_entries, key, existing_config, server_config, 'VS Code'):
+            continue
+        if key not in servers or not json_like_equal(existing_config, server_config):
             servers[key] = server_config
             changed = True
             prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
@@ -556,15 +782,27 @@ def update_vscode(manifest):
         changed = True
         prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
         print(f'  {prefix} VS Code MCP inputs')
+
+    for server_name, server_config in manifest['servers'].items():
+        profile = get_bridge_profile(server_name, 'vscode')
+        if not profile.get('enabled', True):
+            continue
+        key = profile.get('key', server_name)
+        existing_config = servers.get(key)
+        if can_replace_managed_runtime_entry(previous_runtime_entries, key, existing_config, server_config, 'VS Code') and (existing_config is None or key in previous_runtime_entries):
+            managed_runtime_entries[key] = server_config
     if changed and not dry_run:
         write_json(vscode_mcp, data)
         print(f'  [OK] {vscode_mcp}')
+    return managed_runtime_entries
 
 
-def update_copilot_cli(manifest):
+def update_copilot_cli(manifest, previous_projection):
     data = read_json(copilot_cli_mcp)
     servers = data.setdefault('mcpServers', {})
+    previous_runtime_entries = get_projection_runtime_entries(previous_projection, 'copilot-cli')
     changed = False
+    managed_runtime_entries = {}
     managed_keys = {
         profile['key']
         for profile in (get_copilot_cli_bridge_profile(server_name) for server_name in manifest['servers'])
@@ -582,6 +820,9 @@ def update_copilot_cli(manifest):
 
     for existing_server_name in list(servers.keys()):
         if existing_server_name in managed_keys:
+            desired_config = find_copilot_managed_config_for_key(manifest, existing_server_name)
+            if not can_replace_managed_runtime_entry(previous_runtime_entries, existing_server_name, servers[existing_server_name], desired_config, 'Copilot CLI'):
+                continue
             changed = True
             prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
             print(f'  {prefix} Copilot CLI MCP server: {existing_server_name}')
@@ -595,15 +836,21 @@ def update_copilot_cli(manifest):
 
         target_server_name = profile['key']
         converted = convert_copilot_cli_config(server_config)
-        if target_server_name not in servers or not json_like_equal(servers[target_server_name], converted):
+        existing_config = servers.get(target_server_name)
+        if not can_replace_managed_runtime_entry(previous_runtime_entries, target_server_name, existing_config, converted, 'Copilot CLI'):
+            continue
+        if target_server_name not in servers or not json_like_equal(existing_config, converted):
             changed = True
             prefix = '[DRY RUN] Would set' if dry_run else '[SET]'
             print(f'  {prefix} Copilot CLI MCP server: {target_server_name}')
             if not dry_run:
                 servers[target_server_name] = converted
+        if existing_config is None or target_server_name in previous_runtime_entries:
+            managed_runtime_entries[target_server_name] = converted
     if changed and not dry_run:
         write_json(copilot_cli_mcp, data)
         print(f'  [OK] {copilot_cli_mcp}')
+    return managed_runtime_entries
 
 
 def update_antigravity(manifest):
@@ -789,13 +1036,18 @@ def update_claude(manifest):
 
 import shutil
 
-manifest = resolved_manifest()
-if manifest is None:
+resolved_state = resolved_manifest()
+if resolved_state is None:
     raise SystemExit(0)
 
+previous_projection = read_previous_projection()
+manifest = resolved_state['runtime_manifest']
+values = resolved_state['values']
+runtime_entries = {}
+
 if install_copilot:
-    update_vscode(manifest)
-    update_copilot_cli(manifest)
+    runtime_entries['vscode'] = update_vscode(manifest, previous_projection)
+    runtime_entries['copilot-cli'] = update_copilot_cli(manifest, previous_projection)
 if install_gemini or install_antigravity:
     update_antigravity(manifest)
     cleanup_legacy_gemini_mcp(manifest)
@@ -805,6 +1057,8 @@ if install_opencode:
     update_opencode(manifest)
 if install_claude:
     update_claude(manifest)
+
+write_generated_projections(manifest, values, runtime_entries)
 PY
 }
 

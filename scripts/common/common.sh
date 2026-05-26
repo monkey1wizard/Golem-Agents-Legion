@@ -116,6 +116,28 @@ get_gal_active_provider_target() {
     printf '%s\n' "$HOME/.gal/active/$provider"
 }
 
+get_configured_install_mode() {
+    if [ ! -f "$GAL_CONFIG_FILE" ]; then
+        printf 'source\n'
+        return 0
+    fi
+
+    run_python - "$GAL_CONFIG_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as handle:
+    data = json.load(handle)
+
+mode = str(data.get('installMode') or 'source').strip()
+print(mode or 'source')
+PY
+}
+
+is_install_mode() {
+    [ "$(get_configured_install_mode)" = 'install' ]
+}
+
 join_by() {
     local delimiter="$1"
     shift || true

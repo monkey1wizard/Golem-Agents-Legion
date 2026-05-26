@@ -204,6 +204,8 @@ invoke_update_skills() {
     done
 
     local skill_dirs=()
+    local install_mode
+    install_mode="$(get_configured_install_mode)"
     while IFS= read -r skill_dir; do
         [ -n "$skill_dir" ] || continue
         skill_dirs+=("$skill_dir")
@@ -224,7 +226,9 @@ invoke_update_skills() {
 
     echo ''
     echo '=== AGY Plugin (skills + command skills + agents) ==='
-    if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
+    if [ "$install_mode" = 'install' ]; then
+        echo '  [SKIP] Install mode delegates AGY plugin lifecycle to install-gal-plugins.sh.'
+    elif $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
         # Legacy cleanup: remove old AGY skill symlinks under antigravity-cli/skills/
         for skill_dir in "${skill_dirs[@]}"; do
             skill_name="$(basename "$skill_dir")"

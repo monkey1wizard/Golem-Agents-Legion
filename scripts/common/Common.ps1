@@ -206,6 +206,34 @@ function Get-GalActiveProviderTarget {
     return Join-Path $env:USERPROFILE (".gal\active\{0}" -f $Provider)
 }
 
+function Get-ConfiguredInstallModeFromContext {
+    param(
+        [pscustomobject]$Context
+    )
+
+    if ($null -eq $Context -or -not (Test-Path $Context.GalConfigFile)) {
+        return 'source'
+    }
+
+    $config = Read-JsonOrderedMap $Context.GalConfigFile
+    if ($config -and $config.Contains('installMode')) {
+        $mode = [string]$config['installMode']
+        if (-not [string]::IsNullOrWhiteSpace($mode)) {
+            return $mode
+        }
+    }
+
+    return 'source'
+}
+
+function Test-InstallModeFromContext {
+    param(
+        [pscustomobject]$Context
+    )
+
+    return (Get-ConfiguredInstallModeFromContext -Context $Context) -eq 'install'
+}
+
 function Test-SymlinkOrJunction([string]$Path) {
     if (-not (Test-Path $Path)) { return $false }
     $item = Get-Item $Path -Force

@@ -17,6 +17,39 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
 . (Join-Path $PSScriptRoot 'common' 'Common.ps1')
 
+if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
+    $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
+}
+
+if (-not (Get-Variable -Scope Script -Name SetupOptions -ErrorAction SilentlyContinue)) {
+    $script:SetupOptions = [pscustomobject]@{
+        Uninstall = $false
+        Replace = $false
+        DryRun = $DryRun.IsPresent
+        Reconfigure = $false
+    }
+}
+
+function Set-ProviderShortcutTarget {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Provider,
+        [Parameter(Mandatory)]
+        [string]$TargetPath
+    )
+
+    $shortcutPath = Get-GalActiveProviderTarget -Provider $Provider
+    $shortcutParent = Split-Path $shortcutPath -Parent
+    if (-not (Test-Path $shortcutParent)) {
+        New-Item -ItemType Directory -Path $shortcutParent -Force | Out-Null
+    }
+
+    $linked = New-SafeSymlink -LinkPath $shortcutPath -TargetPath $TargetPath -Type 'Directory'
+    if (-not $linked) {
+        throw "Failed to claim GAL-managed shortcut for provider '$Provider': $shortcutPath"
+    }
+}
+
 $resolverScript = Join-Path $PSScriptRoot 'Resolve-GalCatalog.ps1'
 if (-not (Test-Path $resolverScript)) {
     throw "Catalog resolver not found: $resolverScript"
@@ -98,7 +131,8 @@ try {
     else {
         foreach ($plan in $buildPlan) {
             if ($plan.Provider -eq 'agy') {
-                & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
+                & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
             }
         }
     }

@@ -12,10 +12,49 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'common\Common.ps1')
 
-function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues) {
+function Get-GalMachineConfig {
+    $context = $script:SetupContext
+    if (-not (Test-Path $context.GalConfigFile)) {
+        return [ordered]@{}
+    }
+
+    return Read-JsonOrderedMap $context.GalConfigFile
+}
+
+function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues, [System.Collections.IDictionary]$MachineConfig) {
     $values = [ordered]@{}
     foreach ($key in $LocalEnvValues.Keys) {
         $values[$key] = $LocalEnvValues[$key]
+    }
+
+    if ($MachineConfig) {
+        $machineMappings = [ordered]@{
+            OBSIDIAN_VAULT = 'obsidianVault'
+            OBSIDIAN_VAULT_NAME = 'obsidianVaultName'
+            OBSIDIAN_GUIDE_PATH = 'obsidianGuidePath'
+            OBSIDIAN_GUIDE_MODE = 'obsidianGuideMode'
+            MCP_MEMORY_FILE_PATH = 'mcpMemoryFilePath'
+            CONTEXT7_API_KEY = 'context7ApiKey'
+            TEMP_DIR = 'tempDir'
+            LOCAL_SEARCH_PROJECT = 'localSearchProject'
+        }
+
+        foreach ($mappedName in $machineMappings.Keys) {
+            $configKey = [string]$machineMappings[$mappedName]
+            if ($MachineConfig.Contains($configKey) -and -not [string]::IsNullOrWhiteSpace([string]$MachineConfig[$configKey])) {
+                $values[$mappedName] = [string]$MachineConfig[$configKey]
+            }
+        }
+
+        if ($MachineConfig.Contains('mcpFilesystemPaths')) {
+            $configuredPaths = $MachineConfig['mcpFilesystemPaths']
+            if ($configuredPaths -is [System.Collections.IEnumerable] -and -not ($configuredPaths -is [string])) {
+                $values['MCP_FILESYSTEM_PATHS'] = (@($configuredPaths | ForEach-Object { [string]$_ }) -join ',')
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace([string]$configuredPaths)) {
+                $values['MCP_FILESYSTEM_PATHS'] = [string]$configuredPaths
+            }
+        }
     }
 
     if (-not $values.Contains('MCP_MEMORY_FILE_PATH')) {
@@ -118,6 +157,268 @@ function Normalize-McpServers([System.Collections.IDictionary]$Servers) {
     }
 
     return $normalized
+}
+
+function Test-McpManifestContainsFilesystemServer([System.Collections.IDictionary]$Manifest) {
+    if (-not $Manifest.Contains('servers') -or $Manifest['servers'] -isnot [System.Collections.IDictionary]) {
+        return $false
+    }
+
+    foreach ($serverName in $Manifest['servers'].Keys) {
+        if ([string]$serverName -match 'filesystem') {
+            return $true
+        }
+
+        $serverConfig = $Manifest['servers'][$serverName]
+        if ($serverConfig -is [System.Collections.IDictionary]) {
+            if ($serverConfig.Contains('command') -and [string]$serverConfig['command'] -match 'filesystem') {
+                return $true
+            }
+
+            if ($serverConfig.Contains('args')) {
+                foreach ($argument in @($serverConfig['args'])) {
+                    if ([string]$argument -match 'filesystem') {
+                        return $true
+                    }
+                }
+            }
+        }
+    }
+
+    return $false
+}
+
+function ConvertTo-McpProjectionServer([System.Collections.IDictionary]$ServerConfig) {
+    $projection = [ordered]@{}
+
+    if ($ServerConfig.Contains('url')) {
+        $projection['serverUrl'] = [string]$ServerConfig['url']
+    }
+    if ($ServerConfig.Contains('command')) {
+        $projection['command'] = [string]$ServerConfig['command']
+    }
+    if ($ServerConfig.Contains('args')) {
+        $projection['args'] = @($ServerConfig['args'] | ForEach-Object { [string]$_ })
+    }
+    if ($ServerConfig.Contains('env') -and $ServerConfig['env'] -is [System.Collections.IDictionary]) {
+        $projection['env'] = ConvertTo-OrderedMap $ServerConfig['env']
+    }
+    if ($ServerConfig.Contains('headers') -and $ServerConfig['headers'] -is [System.Collections.IDictionary]) {
+        $projection['headers'] = ConvertTo-OrderedMap $ServerConfig['headers']
+    }
+    if ($ServerConfig.Contains('tools')) {
+        $projection['tools'] = ConvertTo-OrderedMap $ServerConfig['tools']
+    }
+
+    return $projection
+}
+
+function New-ManagedMcpProjection([System.Collections.IDictionary]$ResolvedManifest, [System.Collections.IDictionary]$McpValues, [System.Collections.IDictionary]$RuntimeEntries) {
+    $context = $script:SetupContext
+    $projectionServers = [ordered]@{}
+    foreach ($serverName in $ResolvedManifest['servers'].Keys) {
+        $resolvedServer = $ResolvedManifest['servers'][$serverName]
+        $projectionServers[$serverName] = ConvertTo-McpProjectionServer $resolvedServer
+    }
+
+    $projection = [ordered]@{
+        schemaVersion = 1
+        generatedAt = (Get-Date).ToString('o')
+        generatedBy = 'Update-Mcp.ps1'
+        mcpMemoryFilePath = [string](Get-ConfiguredValue $McpValues 'MCP_MEMORY_FILE_PATH')
+        mcpServers = $projectionServers
+        _metadata = [ordered]@{
+            ownership = 'gal-managed'
+            secretBearing = ($projectionServers.Values | Where-Object {
+                $_ -is [System.Collections.IDictionary] -and
+                $_.Contains('headers') -and
+                $_['headers'] -is [System.Collections.IDictionary] -and
+                $_['headers'].Contains('CONTEXT7_API_KEY')
+            } | Measure-Object).Count -gt 0
+            sourceFiles = [ordered]@{
+                trackedManifest = $context.McpSourceFile
+                localOverrideManifest = $context.McpLocalFile
+                machineConfig = $context.GalConfigFile
+            }
+            runtimeEntries = (ConvertTo-OrderedMap $RuntimeEntries)
+            preservation = 'Runtime config updates replace only GAL-managed MCP entries and preserve unrelated user-owned entries.'
+        }
+    }
+
+    if ($ResolvedManifest.Contains('inputs')) {
+        $projection['inputs'] = ConvertTo-OrderedMap $ResolvedManifest['inputs']
+    }
+
+    if (Test-McpManifestContainsFilesystemServer $ResolvedManifest) {
+        $projection['mcpFilesystemPaths'] = @(Split-ConfigList (Get-ConfiguredValue $McpValues 'MCP_FILESYSTEM_PATHS'))
+    }
+
+    return $projection
+}
+
+function New-DefaultXmachineBinding {
+    return [ordered]@{
+        schemaVersion = 1
+        defaultXmachineNode = ''
+        xmachineNodeAliases = [ordered]@{}
+        machineProfiles = [ordered]@{}
+        localPluginPaths = @()
+        providerPathOverrides = [ordered]@{}
+        additionalBindings = [ordered]@{}
+    }
+}
+
+function Get-ResolvedXmachineBinding {
+    $context = $script:SetupContext
+    $binding = New-DefaultXmachineBinding
+    $legacyConfigPath = Join-Path $context.RepoRoot 'xmachine.config.json'
+
+    if (Test-Path $context.GalXmachineConfigFile) {
+        $configuredBinding = Read-JsonOrderedMap $context.GalXmachineConfigFile
+        if ($null -eq $configuredBinding) {
+            return $null
+        }
+
+        if ($configuredBinding.Contains('nodes') -and -not $configuredBinding.Contains('xmachineNodeAliases')) {
+            $configuredBinding['xmachineNodeAliases'] = ConvertTo-OrderedMap $configuredBinding['nodes']
+        }
+
+        return Merge-OrderedMap $binding $configuredBinding
+    }
+
+    if (Test-Path $legacyConfigPath) {
+        $legacyBinding = Read-JsonOrderedMap $legacyConfigPath
+        if ($null -eq $legacyBinding) {
+            return $null
+        }
+
+        if ($legacyBinding.Contains('nodes')) {
+            $binding['xmachineNodeAliases'] = ConvertTo-OrderedMap $legacyBinding['nodes']
+        }
+    }
+
+    return $binding
+}
+
+function New-ManagedXmachineProjection([System.Collections.IDictionary]$XmachineBinding) {
+    $context = $script:SetupContext
+    $projection = [ordered]@{
+        schemaVersion = 1
+        generatedAt = (Get-Date).ToString('o')
+        generatedBy = 'Update-Mcp.ps1'
+        defaultXmachineNode = [string]$XmachineBinding['defaultXmachineNode']
+        nodes = if ($XmachineBinding.Contains('xmachineNodeAliases')) { ConvertTo-OrderedMap $XmachineBinding['xmachineNodeAliases'] } else { [ordered]@{} }
+        _metadata = [ordered]@{
+            ownership = 'gal-managed'
+            secretBearing = $false
+            sourceFiles = [ordered]@{
+                machineBinding = $context.GalXmachineConfigFile
+                legacyRepoConfig = (Join-Path $context.RepoRoot 'xmachine.config.json')
+            }
+        }
+    }
+
+    foreach ($optionalKey in @('machineProfiles', 'localPluginPaths', 'providerPathOverrides', 'additionalBindings')) {
+        if ($XmachineBinding.Contains($optionalKey)) {
+            $projection[$optionalKey] = ConvertTo-OrderedMap $XmachineBinding[$optionalKey]
+        }
+    }
+
+    return $projection
+}
+
+function Get-PreviousManagedProjection {
+    $context = $script:SetupContext
+    if (-not (Test-Path $context.GalGeneratedMcpFile)) {
+        return [ordered]@{}
+    }
+
+    return Read-JsonOrderedMap $context.GalGeneratedMcpFile
+}
+
+function Get-ProjectionRuntimeEntries([System.Collections.IDictionary]$Projection, [string]$RuntimeName) {
+    if (
+        $Projection -and
+        $Projection.Contains('_metadata') -and
+        $Projection['_metadata'] -is [System.Collections.IDictionary] -and
+        $Projection['_metadata'].Contains('runtimeEntries') -and
+        $Projection['_metadata']['runtimeEntries'] -is [System.Collections.IDictionary] -and
+        $Projection['_metadata']['runtimeEntries'].Contains($RuntimeName) -and
+        $Projection['_metadata']['runtimeEntries'][$RuntimeName] -is [System.Collections.IDictionary]
+    ) {
+        return $Projection['_metadata']['runtimeEntries'][$RuntimeName]
+    }
+
+    return [ordered]@{}
+}
+
+function Test-CanReplaceManagedRuntimeEntry {
+    param(
+        [System.Collections.IDictionary]$PreviousRuntimeEntries,
+        [string]$Key,
+        [object]$ExistingConfig,
+        [object]$DesiredConfig,
+        [string]$RuntimeLabel
+    )
+
+    if ($null -eq $ExistingConfig) {
+        return $true
+    }
+
+    if ($PreviousRuntimeEntries -and $PreviousRuntimeEntries.Contains($Key)) {
+        return $true
+    }
+
+    if ($null -ne $DesiredConfig -and (Test-JsonLikeEqual $ExistingConfig $DesiredConfig)) {
+        return $true
+    }
+
+    Write-Host "  [WARN] Preserving user-owned $RuntimeLabel MCP entry: $Key" -ForegroundColor Yellow
+    return $false
+}
+
+function Find-CopilotCliManagedConfigForKey([System.Collections.IDictionary]$ManagedManifest, [string]$Key) {
+    foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $bridgeConfig = Get-CopilotCliBridgeProfile -ServerName $serverName
+        $converted = ConvertTo-CopilotCliMcpConfig $ManagedManifest['servers'][$serverName]
+        if ($bridgeConfig['Enabled'] -and [string]$bridgeConfig['Key'] -eq $Key) {
+            return $converted
+        }
+
+        foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'copilot-cli' -ServerName $serverName)) {
+            if ($legacyAlias -eq $Key) {
+                return $converted
+            }
+        }
+    }
+
+    return $null
+}
+
+function Write-GeneratedProjectionFiles([System.Collections.IDictionary]$ResolvedManifest, [System.Collections.IDictionary]$McpValues, [System.Collections.IDictionary]$RuntimeEntries) {
+    $context = $script:SetupContext
+
+    $xmachineBinding = Get-ResolvedXmachineBinding
+    if ($null -eq $xmachineBinding) {
+        return
+    }
+
+    if ($script:SetupOptions.DryRun) {
+        Write-Host "  [DRY RUN] Would render managed MCP projection: $($context.GalGeneratedMcpFile)"
+        Write-Host "  [DRY RUN] Would render managed xmachine projection: $($context.GalGeneratedXmachineFile)"
+        return
+    }
+
+    if (-not (Test-Path $context.GalXmachineConfigFile)) {
+        Write-JsonOrderedMap $context.GalXmachineConfigFile $xmachineBinding
+        Write-Host "  [OK] Created machine xmachine binding file: $($context.GalXmachineConfigFile)"
+    }
+
+    Write-JsonOrderedMap $context.GalGeneratedMcpFile (New-ManagedMcpProjection -ResolvedManifest $ResolvedManifest -McpValues $McpValues -RuntimeEntries $RuntimeEntries)
+    Write-Host "  [OK] $($context.GalGeneratedMcpFile)"
+
+    Write-JsonOrderedMap $context.GalGeneratedXmachineFile (New-ManagedXmachineProjection -XmachineBinding $xmachineBinding)
+    Write-Host "  [OK] $($context.GalGeneratedXmachineFile)"
 }
 
 function Test-JsonLikeEqual([object]$Left, [object]$Right) {
@@ -275,6 +576,62 @@ function Get-CopilotCliBridgeProfile([string]$ServerName) {
             }
             return [ordered]@{ Enabled = $true; Key = $normalized.ToLowerInvariant() }
         }
+    }
+}
+
+function Get-ClaudeBridgeProfile([string]$ServerName) {
+    switch ($ServerName) {
+        'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
+        'github-mcp-server' { return [ordered]@{ Enabled = $false; Key = $null } }
+        'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
+        'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
+        'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
+        'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
+        'upstash/context7' { return [ordered]@{ Enabled = $true; Key = 'context7' } }
+        'blender' { return [ordered]@{ Enabled = $true; Key = 'blender' } }
+        'freecad' { return [ordered]@{ Enabled = $true; Key = 'freecad' } }
+        default {
+            $normalized = $ServerName -replace '^[^A-Za-z0-9]+', '' -replace '[^A-Za-z0-9_-]+', '-'
+            if ([string]::IsNullOrWhiteSpace($normalized)) {
+                $normalized = 'server'
+            }
+            return [ordered]@{ Enabled = $true; Key = $normalized.ToLowerInvariant() }
+        }
+    }
+}
+
+function ConvertTo-PowerShellSingleQuotedLiteral([string]$Value) {
+    if ($null -eq $Value) {
+        return "''"
+    }
+
+    return "'" + $Value.Replace("'", "''") + "'"
+}
+
+function ConvertTo-ClaudeWrappedStdioCommand([string]$Command, [string[]]$Arguments, [System.Collections.IDictionary]$Environment) {
+    if ($null -eq $Environment -or $Environment.Count -eq 0) {
+        return [ordered]@{
+            Command = $Command
+            Args = @($Arguments)
+        }
+    }
+
+    $scriptLines = New-Object System.Collections.Generic.List[string]
+    foreach ($envName in $Environment.Keys) {
+        $scriptLines.Add(('`$env:{0} = {1}' -f $envName, (ConvertTo-PowerShellSingleQuotedLiteral ([string]$Environment[$envName]))))
+    }
+
+    $commandSegments = New-Object System.Collections.Generic.List[string]
+    $commandSegments.Add('&')
+    $commandSegments.Add((ConvertTo-PowerShellSingleQuotedLiteral $Command))
+    foreach ($argument in @($Arguments)) {
+        $commandSegments.Add((ConvertTo-PowerShellSingleQuotedLiteral ([string]$argument)))
+    }
+    $scriptLines.Add(($commandSegments -join ' '))
+
+    return [ordered]@{
+        Command = 'powershell'
+        Args = @('-NoProfile', '-Command', ($scriptLines -join '; '))
     }
 }
 
@@ -573,27 +930,35 @@ function Get-ResolvedManagedMcpManifest {
         return $null
     }
 
-    $mcpVariables = Get-McpVariableMap (Read-KeyValueEnvFile (Join-Path $context.RepoRoot 'config.local.env'))
+    $machineConfig = Get-GalMachineConfig
+    if ($null -eq $machineConfig) { return $null }
+
+    $mcpVariables = Get-McpVariableMap (Read-KeyValueEnvFile (Join-Path $context.RepoRoot 'config.local.env')) $machineConfig
     $resolvedServers = [ordered]@{}
     foreach ($serverName in $manifest['servers'].Keys) {
         $resolvedServers[$serverName] = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables
     }
 
-    $resolvedManifest = [ordered]@{
+    $runtimeManifest = [ordered]@{
         servers = (Normalize-McpServers $resolvedServers)
     }
 
     if ($manifest.Contains('inputs')) {
-        $resolvedManifest['inputs'] = Resolve-McpInputs $manifest['inputs'] $mcpVariables
+        $runtimeManifest['inputs'] = Resolve-McpInputs $manifest['inputs'] $mcpVariables
     }
 
-    return $resolvedManifest
+    return [ordered]@{
+        RuntimeManifest = $runtimeManifest
+        McpValues = $mcpVariables
+    }
 }
 
-function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest, [System.Collections.IDictionary]$PreviousProjection) {
     $context = $script:SetupContext
     $vscodeMcp = Read-JsonOrderedMap $context.VscodeMcpFile
     if ($null -eq $vscodeMcp) { return }
+    $previousRuntimeEntries = Get-ProjectionRuntimeEntries -Projection $PreviousProjection -RuntimeName 'vscode'
+    $managedRuntimeEntries = [ordered]@{}
 
     if (-not $vscodeMcp.Contains('servers') -or $vscodeMcp['servers'] -isnot [System.Collections.IDictionary]) {
         $vscodeMcp['servers'] = [ordered]@{}
@@ -601,8 +966,12 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
 
     $changed = $false
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $resolvedConfig = $ManagedManifest['servers'][$serverName]
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'vscode' -ServerName $serverName)) {
-            if ($vscodeMcp['servers'].Contains($legacyAlias)) {
+            if (
+                $vscodeMcp['servers'].Contains($legacyAlias) -and
+                (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key $legacyAlias -ExistingConfig $vscodeMcp['servers'][$legacyAlias] -DesiredConfig $resolvedConfig -RuntimeLabel 'VS Code')
+            ) {
                 $vscodeMcp['servers'].Remove($legacyAlias)
                 $changed = $true
                 if ($script:SetupOptions.DryRun) {
@@ -616,7 +985,12 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
     }
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
         $resolvedConfig = $ManagedManifest['servers'][$serverName]
-        if (-not $vscodeMcp['servers'].Contains($serverName) -or -not (Test-JsonLikeEqual $vscodeMcp['servers'][$serverName] $resolvedConfig)) {
+        $existingConfig = if ($vscodeMcp['servers'].Contains($serverName)) { $vscodeMcp['servers'][$serverName] } else { $null }
+        if (-not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key $serverName -ExistingConfig $existingConfig -DesiredConfig $resolvedConfig -RuntimeLabel 'VS Code')) {
+            continue
+        }
+
+        if (-not $vscodeMcp['servers'].Contains($serverName) -or -not (Test-JsonLikeEqual $existingConfig $resolvedConfig)) {
             $vscodeMcp['servers'][$serverName] = $resolvedConfig
             $changed = $true
             if ($script:SetupOptions.DryRun) {
@@ -625,6 +999,10 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
             else {
                 Write-Host "  [SET] VS Code MCP server: $serverName"
             }
+        }
+
+        if ($null -eq $existingConfig -or $previousRuntimeEntries.Contains($serverName)) {
+            $managedRuntimeEntries[$serverName] = ConvertTo-OrderedMap $resolvedConfig
         }
     }
 
@@ -642,12 +1020,16 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
         Write-JsonOrderedMap $context.VscodeMcpFile $vscodeMcp
         Write-Host "  [OK] $($context.VscodeMcpFile)"
     }
+
+    return $managedRuntimeEntries
 }
 
-function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedManifest, [System.Collections.IDictionary]$PreviousProjection) {
     $context = $script:SetupContext
     $copilotCliMcp = Read-JsonOrderedMap $context.CopilotCliMcpFile
     if ($null -eq $copilotCliMcp) { return }
+    $previousRuntimeEntries = Get-ProjectionRuntimeEntries -Projection $PreviousProjection -RuntimeName 'copilot-cli'
+    $managedRuntimeEntries = [ordered]@{}
 
     if (-not $copilotCliMcp.Contains('mcpServers') -or $copilotCliMcp['mcpServers'] -isnot [System.Collections.IDictionary]) {
         $copilotCliMcp['mcpServers'] = [ordered]@{}
@@ -675,6 +1057,11 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     $changed = $false
     foreach ($existingServerName in @($copilotCliMcp['mcpServers'].Keys)) {
         if ($managedKeys.Contains([string]$existingServerName)) {
+            $desiredConfig = Find-CopilotCliManagedConfigForKey -ManagedManifest $ManagedManifest -Key ([string]$existingServerName)
+            if (-not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key ([string]$existingServerName) -ExistingConfig $copilotCliMcp['mcpServers'][$existingServerName] -DesiredConfig $desiredConfig -RuntimeLabel 'Copilot CLI')) {
+                continue
+            }
+
             $copilotCliMcp['mcpServers'].Remove($existingServerName)
             $changed = $true
             if ($script:SetupOptions.DryRun) {
@@ -694,7 +1081,12 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
 
         $targetServerName = [string]$bridgeConfig['Key']
         $converted = ConvertTo-CopilotCliMcpConfig $ManagedManifest['servers'][$serverName]
-        if (-not $copilotCliMcp['mcpServers'].Contains($targetServerName) -or -not (Test-JsonLikeEqual $copilotCliMcp['mcpServers'][$targetServerName] $converted)) {
+        $existingConfig = if ($copilotCliMcp['mcpServers'].Contains($targetServerName)) { $copilotCliMcp['mcpServers'][$targetServerName] } else { $null }
+        if (-not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key $targetServerName -ExistingConfig $existingConfig -DesiredConfig $converted -RuntimeLabel 'Copilot CLI')) {
+            continue
+        }
+
+        if (-not $copilotCliMcp['mcpServers'].Contains($targetServerName) -or -not (Test-JsonLikeEqual $existingConfig $converted)) {
             $copilotCliMcp['mcpServers'][$targetServerName] = $converted
             $changed = $true
             if ($script:SetupOptions.DryRun) {
@@ -704,12 +1096,18 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
                 Write-Host "  [SET] Copilot CLI MCP server: $targetServerName"
             }
         }
+
+        if ($null -eq $existingConfig -or $previousRuntimeEntries.Contains($targetServerName)) {
+            $managedRuntimeEntries[$targetServerName] = ConvertTo-OrderedMap $converted
+        }
     }
 
     if ($changed -and -not $script:SetupOptions.DryRun) {
         Write-JsonOrderedMap $context.CopilotCliMcpFile $copilotCliMcp
         Write-Host "  [OK] $($context.CopilotCliMcpFile)"
     }
+
+    return $managedRuntimeEntries
 }
 
 function Update-AgyMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
@@ -945,6 +1343,22 @@ function Invoke-ClaudeMcpCommand([string[]]$Arguments) {
     return $LASTEXITCODE
 }
 
+function Test-ClaudeMcpServerRegistered([string]$ServerName) {
+    $output = & claude mcp list 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+
+    $escapedName = [regex]::Escape($ServerName)
+    foreach ($line in @($output)) {
+        if ([string]$line -match ('^{0}:' -f $escapedName)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Update-ClaudeMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
     if (-not (Test-CommandAvailable 'claude')) {
         Write-Host '  [WARN] Claude CLI not found; skipping Claude MCP installation.' -ForegroundColor Yellow
@@ -952,53 +1366,57 @@ function Update-ClaudeMcpConfig([System.Collections.IDictionary]$ManagedManifest
     }
 
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
+        $bridgeConfig = Get-ClaudeBridgeProfile -ServerName $serverName
+        if (-not $bridgeConfig['Enabled']) {
+            continue
+        }
+
+        $bridgeKey = [string]$bridgeConfig['Key']
         $resolvedConfig = $ManagedManifest['servers'][$serverName]
         if ($script:SetupOptions.DryRun) {
-            Write-Host "  [DRY RUN] Would upsert Claude MCP server: $serverName"
+            Write-Host "  [DRY RUN] Would upsert Claude MCP server: $bridgeKey"
             continue
         }
 
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'claude' -ServerName $serverName)) {
             Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $legacyAlias) | Out-Null
         }
+        if (-not [string]::Equals($bridgeKey, $serverName, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $serverName) | Out-Null
+        }
+        Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $bridgeKey) | Out-Null
         Invoke-ClaudeMcpCommand -Arguments @('mcp', 'remove', $serverName) | Out-Null
 
         $exitCode = 0
         if ($resolvedConfig.Contains('type') -and [string]$resolvedConfig['type'] -eq 'http') {
-            $arguments = @('mcp', 'add', '--scope', 'user', '--transport', 'http')
+            $arguments = @('mcp', 'add', '--scope', 'user', '--transport', 'http', $bridgeKey, [string]$resolvedConfig['url'])
             if ($resolvedConfig.Contains('headers') -and $resolvedConfig['headers'] -is [System.Collections.IDictionary]) {
                 foreach ($headerName in $resolvedConfig['headers'].Keys) {
-                    $arguments += @('-H', ('{0}: {1}' -f $headerName, $resolvedConfig['headers'][$headerName]))
+                    $arguments += @('--header', ('{0}: {1}' -f $headerName, $resolvedConfig['headers'][$headerName]))
                 }
             }
             if ($resolvedConfig.Contains('tools')) {
-                Write-Host "  [WARN] Claude CLI does not expose a tools filter flag; installing $serverName without tools scoping." -ForegroundColor Yellow
+                Write-Host "  [WARN] Claude CLI does not expose a tools filter flag; installing $bridgeKey without tools scoping." -ForegroundColor Yellow
             }
 
-            $arguments += @($serverName, [string]$resolvedConfig['url'])
             $exitCode = Invoke-ClaudeMcpCommand -Arguments $arguments
         }
         else {
-            $arguments = @('mcp', 'add', '--scope', 'user', '--transport', 'stdio')
-            if ($resolvedConfig.Contains('env') -and $resolvedConfig['env'] -is [System.Collections.IDictionary]) {
-                foreach ($envName in $resolvedConfig['env'].Keys) {
-                    $arguments += @('-e', ('{0}={1}' -f $envName, $resolvedConfig['env'][$envName]))
-                }
-            }
-
-            $commandAndArgs = @([string]$resolvedConfig['command'])
+            $commandAndArgs = @()
             if ($resolvedConfig.Contains('args')) {
                 $commandAndArgs += @($resolvedConfig['args'] | ForEach-Object { [string]$_ })
             }
-            $arguments += @($serverName, '--') + $commandAndArgs
+
+            $wrappedCommand = ConvertTo-ClaudeWrappedStdioCommand -Command ([string]$resolvedConfig['command']) -Arguments $commandAndArgs -Environment $(if ($resolvedConfig.Contains('env') -and $resolvedConfig['env'] -is [System.Collections.IDictionary]) { $resolvedConfig['env'] } else { $null })
+            $arguments = @('mcp', 'add', '--scope', 'user', $bridgeKey, '--', [string]$wrappedCommand['Command']) + @($wrappedCommand['Args'] | ForEach-Object { [string]$_ })
             $exitCode = Invoke-ClaudeMcpCommand -Arguments $arguments
         }
 
-        if ($exitCode -eq 0) {
-            Write-Host "  [SET] Claude MCP server: $serverName"
+        if ($exitCode -eq 0 -or (Test-ClaudeMcpServerRegistered -ServerName $bridgeKey)) {
+            Write-Host "  [SET] Claude MCP server: $bridgeKey"
         }
         else {
-            Write-Host "  [WARN] Failed to configure Claude MCP server: $serverName" -ForegroundColor Yellow
+            Write-Host "  [WARN] Failed to configure Claude MCP server: $bridgeKey" -ForegroundColor Yellow
         }
     }
 }
@@ -1039,12 +1457,17 @@ function Invoke-UpdateMcp {
         if ($context.InstallClaude) { Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope' }
     }
 
-    $manifest = Get-ResolvedManagedMcpManifest
-    if ($null -eq $manifest) { return }
+    $previousProjection = Get-PreviousManagedProjection
+    $resolvedState = Get-ResolvedManagedMcpManifest
+    if ($null -eq $resolvedState) { return }
+
+    $manifest = $resolvedState['RuntimeManifest']
+    $mcpValues = $resolvedState['McpValues']
+    $runtimeEntries = [ordered]@{}
 
     if ($context.InstallCopilot) {
-        Update-VscodeMcpConfig -ManagedManifest $manifest
-        Update-CopilotCliMcpConfig -ManagedManifest $manifest
+        $runtimeEntries['vscode'] = Update-VscodeMcpConfig -ManagedManifest $manifest -PreviousProjection $previousProjection
+        $runtimeEntries['copilot-cli'] = Update-CopilotCliMcpConfig -ManagedManifest $manifest -PreviousProjection $previousProjection
     }
     if ($context.InstallGemini -or $context.InstallAntigravity) {
         Update-AgyMcpConfig -ManagedManifest $manifest
@@ -1053,6 +1476,8 @@ function Invoke-UpdateMcp {
     if ($context.InstallCodex) { Update-CodexMcpConfig -ManagedManifest $manifest }
     if ($context.InstallOpenCode) { Update-OpenCodeMcpConfig -ManagedManifest $manifest }
     if ($context.InstallClaude) { Update-ClaudeMcpConfig -ManagedManifest $manifest }
+
+    Write-GeneratedProjectionFiles -ResolvedManifest $manifest -McpValues $mcpValues -RuntimeEntries $runtimeEntries
 }
 
 Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime | Out-Null

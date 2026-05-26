@@ -78,7 +78,14 @@ fi
 
 for local_provider in "${requested_providers[@]}"; do
     case "$local_provider" in
-        agy) "$SCRIPT_DIR/build-agy-plugin.sh" "${agy_args[@]}" ;;
+        agy)
+            "$SCRIPT_DIR/build-agy-plugin.sh" "${agy_args[@]}" --install
+            mkdir -p "$(dirname "$(get_gal_active_provider_target agy)")"
+            if ! safe_link "$(get_gal_active_provider_target agy)" "$AGY_PLUGIN_INSTALL_TARGET"; then
+                echo "Failed to claim GAL-managed shortcut for provider 'agy': $(get_gal_active_provider_target agy)" >&2
+                exit 1
+            fi
+            ;;
         copilot|codex|claude|'') ;;
         *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
     esac

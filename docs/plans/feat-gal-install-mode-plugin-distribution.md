@@ -452,8 +452,8 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 | TP-012 | integration | Render MCP projection and confirm `mcpMemoryFilePath` is resolved, `mcpFilesystemPaths` appears only when filesystem MCP is present, and materialized Context7 auth headers appear only in machine-local generated MCP state. | T-004, T-010 |
 | TP-013 | integration | Verify plugin-aware MCP update preserves user-owned global MCP settings and removes only GAL-managed legacy items during migration cleanup. | T-010, T-011 |
 | TP-014 | smoke | Re-run AGY plugin-only baseline for plugin-root MCP, `rules/gal.md`, legacy cleanup, reinstall, and uninstall before enabling new install-mode behavior. | T-001, T-011 |
-| TP-015 | smoke | Validate Copilot native install dry run uses only documented components and lifecycle surfaces, and does not require plugin-local `bin` or generic script execution. | T-007, T-011 |
-| TP-016 | smoke | Validate Codex and Claude dry runs produce mapped native install artifacts or marketplace-compatible package plans without repo-root shortcuts. | T-007, T-011 |
+| TP-015 | smoke | Validate Copilot native install dry run uses only documented components and lifecycle surfaces, and does not require plugin-local `bin` or generic script execution. | Deferred follow-up: provider expansion after T-011 AGY slice |
+| TP-016 | smoke | Validate Codex and Claude dry runs produce mapped native install artifacts or marketplace-compatible package plans without repo-root shortcuts. | Deferred follow-up: provider expansion after T-011 AGY slice |
 | TP-017 | cleanup | Run uninstall plan and confirm only GAL-managed plugins, cache, staged artifacts, generated projections, and explicitly managed legacy links are removed; user-owned provider config remains untouched. | T-008, T-011 |
 | TP-018 | manual | Verify OpenCode and Gemini documentation labels them bridge / migration lanes and does not imply primary provider-native install parity. | T-002, T-012 |
 
@@ -478,13 +478,18 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 ### Phase 3：Mode selection 與 path decoupling
 
 - [x] T-008 — 更新 `Setup-Machine.*` 與 install orchestration 支援 install mode、source mode、migration cleanup、bridge lane、`~/.gal/` runtime home 與 dry-run visibility。 *(fba77d4)*
-- [ ] T-009 — 移除 install mode 對 `{{GAL_ROOT}}`、source checkout absolute path 與 provider repo-root shortcut 的依賴，並實作 source-mode-only local override policy。
-- [ ] T-010 — 實作 plugin-aware MCP 與 xmachine generated projections，包含 machine-local secret materialization、ownership metadata 與 user-owned config preservation。
+- [x] T-009 — 移除 install mode 對 `{{GAL_ROOT}}`、source checkout absolute path 與 provider repo-root shortcut 的依賴，並實作 source-mode-only local override policy。 *(3f82f0d)*
+- [x] T-010 — 實作 plugin-aware MCP 與 xmachine generated projections，包含 machine-local secret materialization、ownership metadata 與 user-owned config preservation。 *(validated in working tree; commit pending)*
 
 ### Phase 4：Provider-native lifecycle
 
-- [ ] T-011 — 實作 provider-native installer、updater、uninstall 與 smoke flows，先維持 AGY baseline，再循序擴展 Copilot CLI、Codex、Claude Code。
+- [x] T-011 — 實作 provider-native installer、updater、uninstall 與 smoke flows 的 AGY slice；Copilot CLI、Codex、Claude Code 擴展另列後續 follow-up。 *(validated in working tree; commit pending)*
 
 ### Phase 5：Migration 與 docs
 
-- [ ] T-012 — 更新 README、繁中 README、personalization docs、devguide 與 scripts inventory，並規劃 repo copied external skills 的移除、mirror 或 fork 搬遷邊界。
+- [x] T-012 — 收斂本計畫的文件邊界：確認 `docs/devguide.md` 已承接 install/source mode、support tier、bridge/migration lane、`~/.gal/` ownership 與 `~/.gal/active/<provider>/` shortcut contract；同時將 README / bootstrap/discoverability / installer-era distribution 文案與 broader canonical install guidance 明確移交至 `feat-gal-bootstrap-installer-distribution`。repo copied external skills 的移除、mirror 或 fork 搬遷邊界保留為後續 docs/distribution follow-up。 *(plan closeout handoff; commit pending)*
+
+## Deferred Follow-up
+
+- 擴展 provider-native lifecycle 與 smoke coverage 至 Copilot CLI、Codex、Claude Code；Claude-first canonical/native lifecycle 為優先，並與後續 bootstrap-installer 節奏對齊。
+- README、README.zh-Hant、provider marketplace discoverability、official install channel 與 bootstrap distribution wording 由 `feat-gal-bootstrap-installer-distribution` 接手，不再阻塞本計畫關閉。

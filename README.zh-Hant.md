@@ -45,6 +45,18 @@ GAL 採用基於檔案的記憶模型（file-owned memory model）。儲存庫�
 
    各 runtime 的入口差異請看 `scripts/scripts.md` 與 `docs/devguide.md`。
 
+## 目前安裝器狀態
+
+目前這個 repo 的說明文件，實際上仍以 contributor/source mode 路徑作為主要可操作流程：先 clone GAL repo，再執行 `Setup-Machine`，並從本機 checkout 工作。
+
+但同時，GAL 較新的 install mode 基礎已經有一部分落地：
+
+- install/source mode 狀態、catalog resolver、`~/.gal/` runtime ownership 與 generated projection 邊界已經有文件與實作
+- AGY 的 provider-native lifecycle slice 已透過 `Install-GalPlugins.*` 與 `Build-ProviderPlugins.*` 完成並驗證
+- Copilot CLI、Codex 與 Claude Code 的 native install lifecycle 仍屬 deferred follow-up
+
+bootstrap 打包、官方終端使用者安裝通道、marketplace discoverability 與 release lineage 文案，現在改由獨立的 bootstrap-installer plan 負責。在那份工作完成前，請把本 README 中的 clone + setup 流程視為目前直接跟隨 repo 使用時的支援路徑。
+
 ## 範例：用 GAL 跑完一個功能的生命週期
 
 **情境：如何在專案中新增一個 JWT 登入功能？**
