@@ -472,8 +472,8 @@ CLEAR。此計畫已具備可實作邊界：以 catalog + lockfile 作為核心�
 
 ### Phase 2：Resolver 與 package boundary
 
-- [ ] T-006 — 定義 Claude-compatible canonical package schema，並將現有 provider-neutral package model 收斂為 `gal-core` package builder input。
-- [ ] T-007 — 更新 provider renderers 接收 resolver output、保留 external upstream identity，並只對需要的 lane 產生 `~/.gal/active/<provider>/` managed shortcut mapping。
+- [x] T-006 — 定義 Claude-compatible canonical package schema，並將現有 provider-neutral package model 收斂為 `gal-core` package builder input。 *(fdcaac9)*
+- [x] T-007 — 更新 provider renderers 接收 resolver output、保留 external upstream identity，並只對需要的 lane 產生 `~/.gal/active/<provider>/` managed shortcut mapping。 *(bb58bb5)*
 
 ### Phase 3：Mode selection 與 path decoupling
 
