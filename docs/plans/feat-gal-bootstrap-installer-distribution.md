@@ -182,11 +182,11 @@ CLEAR。此計畫已具備可實作邊界：它處理 GAL bootstrap payload 的 
 
 ## Tasks
 
-- [ ] T-001 — 更新 distribution architecture 與 ownership boundary 文件，明確切分 bootstrap installer、install-mode plugin distribution、package-managed payload、GAL-managed runtime/generated state 與 user-owned config/state。
-- [ ] T-002 — 定義 release artifact matrix，列出 Windows、macOS、Linux canonical binary、`.zip` / `.tar.gz` fallback、checksum、provenance、license 與 package-manager ingestion metadata。
-- [ ] T-003 — 實作或規劃 release artifact build / packaging flow，確保所有手動 archive fallback 封裝同一版本的單一 executable binary。
-- [ ] T-004 — 建立 `winget` manifest 與 Homebrew formula 發布規格，確保兩者只消費 GitHub Releases canonical binary lineage。
-- [ ] T-005 — 定義 release governance 與 downstream drift policy，涵蓋 canonical version source、publish order、lag tolerance、verification commands 與 fallback messaging。
+- [x] T-001 — 更新 distribution architecture 與 ownership boundary 文件，明確切分 bootstrap installer、install-mode plugin distribution、package-managed payload、GAL-managed runtime/generated state 與 user-owned config/state。
+- [x] T-002 — 定義 release artifact matrix，列出 Windows、macOS、Linux canonical binary、`.zip` / `.tar.gz` fallback、checksum、provenance、license 與 package-manager ingestion metadata。
+- [x] T-003 — 實作或規劃 release artifact build / packaging flow，確保所有手動 archive fallback 封裝同一版本的單一 executable binary。
+- [x] T-004 — 建立 `winget` manifest 與 Homebrew formula 發布規格，確保兩者只消費 GitHub Releases canonical binary lineage。
+- [x] T-005 — 定義 release governance 與 downstream drift policy，涵蓋 canonical version source、publish order、lag tolerance、verification commands 與 fallback messaging。
 - [ ] T-006 — 定義 bootstrap runtime contract，包含 `gal` CLI entrypoint、`~/.gal/` initialization / reuse、install mode / source mode handoff、以及無 source checkout 的首次啟動行為。
 - [ ] T-007 — 定義 upgrade behavior，確保 package-manager、marketplace direct-install lane 與 manual archive 更新不覆寫 user-owned `~/.gal/` config/state。
 - [ ] T-008 — 定義 uninstall 與 explicit purge/reset behavior，確保預設 uninstall 保留 user-owned config/local overrides 並移除 package-managed payload 與 GAL-managed runtime/generated artifacts。
