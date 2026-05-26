@@ -77,7 +77,6 @@
   },
   "agent": {
     "build": {
-      "steps": 80,
       "permission": {
         "bash": {
           "*": "ask",
@@ -125,14 +124,8 @@
         }
       }
     },
-    "plan": {
-      "steps": 16
-    },
-    "general": {
-      "steps": 15
-    },
-    "explore": {
-      "steps": 8
-    }
+    "plan": {},
+    "general": {},
+    "explore": {}
   }
 }

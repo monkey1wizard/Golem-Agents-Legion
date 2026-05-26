@@ -1,7 +1,7 @@
 # Research: Pipeline Multi-Invocation Overhead
 
 Date: 2026-05-25
-Updated: 2026-05-25 — P0 and P0b implemented; document updated to reflect current state
+Updated: 2026-05-25 — P0 and P0b implemented; steps removed entirely from opencode.json; document updated to reflect final state
 
 ## Question
 
@@ -157,45 +157,49 @@ For a plan with 5 tasks under the original configuration:
 
 The overhead from redundant context loading and per-task convergence alone accounted for approximately 30-40% of total step consumption.
 
-### After P0+P0b (build steps = 80, auto-disable tranche at ≥ 60)
+### After P0+P0b (steps removed, auto-disable tranche when undefined)
 
 For a plan with 5 tasks under the current configuration:
 
 | Metric | Value |
 | --- | --- |
-| Minimum invocations of `/gal pipeline` | 2-3 (2-3 tasks per invocation) |
-| Typical invocations (with 1-2 retries) | 3-4 |
-| Steps consumed per invocation | 60-80 |
+| Minimum invocations of `/gal pipeline` | **1** (all tasks in one invocation) |
+| Typical invocations (with 1-2 retries) | **1-2** (retries may exhaust context, requiring resume) |
+| Steps consumed per invocation | Unlimited (model runs until it stops) |
 | Steps spent on redundant context loading | 6-12 per task (unchanged — P1 would address this) |
 | Steps spent on per-task state convergence | 4-6 per task (unchanged — P2 would address this) |
-| Total steps for 5 tasks | 140-200 (across 2-3 invocations) |
+| Total steps for 5 tasks | 140-200 (across 1-2 invocations) |
 
-The total step count is unchanged (same work is done), but the number of manual invocations drops from 5+ to 2-3 because the pipeline no longer stops after every task.
+The total step count is unchanged (same work is done), but the number of manual invocations drops from 5+ to 1 because the pipeline no longer stops after every task.
 
 ## Optimization Proposals
 
-### P0: Increase Agent Step Budgets ✅ IMPLEMENTED
+### P0: Remove Agent Step Budgets ✅ IMPLEMENTED
 
-**Change**: In `opencode.json`, increase agent `steps` values across all agent types.
+**Change**: In `opencode.json`, remove all `steps` values from all agent types.
 
 **Implemented values** (2026-05-25):
 
 | Agent | Before | After | Rationale |
 | --- | --- | --- | --- |
-| `build` | 40 | 80 | Pipeline multi-task execution; 40 steps barely completes one task cycle |
-| `plan` | 8 | 16 | `/deep-planning` requires 9-12 steps (architect review + file reads); 8 was insufficient |
-| `general` | 10 | 15 | `/gal wrap-up` requires 6-8 steps; 10 had no retry headroom |
-| `explore` | 6 | 8 | Minor buffer for slightly deeper searches |
+| `build` | 40 → 80 → **removed** | undefined | No step limit; agent runs until model stops or user interrupts, matching Claude/Codex behavior |
+| `plan` | 8 → 16 → **removed** | undefined | No step limit; `/deep-planning` can complete without artificial cutoff |
+| `general` | 10 → 15 → **removed** | undefined | No step limit; `/gal wrap-up` and other commands have full headroom |
+| `explore` | 6 → 8 → **removed** | undefined | No step limit; exploration is unconstrained |
 
-**Effect**: `build` at 80 steps allows 2-3 tasks per pipeline invocation. `plan` at 16 steps allows a full `/deep-planning` pass without step exhaustion. `general` at 15 steps gives wrap-up and status commands retry headroom.
+**Effect**: All agents now behave identically to Claude Code and Codex — they continue executing until the model chooses to stop or the user interrupts. The pipeline no longer needs single-task tranche mode as a safety mechanism because there is no step budget to exhaust.
 
-**Risk**: Low. This only widens the runtime budget; it does not change pipeline logic. The pipeline still respects all safety stops. If a cutoff occurs mid-phase, the interrupted-phase handoff mechanism handles resume correctly.
+**Risk**: Low. The pipeline's own safety stops (retry ceilings, security escalation, working hours, convergence gates) remain intact and are the primary control mechanism. The only new risk is that a runaway agent could consume more tokens than expected, but this is the same risk profile as Claude Code and Codex.
 
 **Limitation**: This is a machine-local configuration change, not a portable contract change. Each repo's `opencode.json` must be adjusted independently.
 
-### P0b: Auto-Disable Single-Task Tranche When Step Budget Is Sufficient ✅ IMPLEMENTED
+### P0b: Auto-Disable Single-Task Tranche When Steps Are Unlimited or Sufficient ✅ IMPLEMENTED
 
-**Change**: In `commands/gal-pipeline/SKILL.md` lines 85-86, change the Runtime Step-Budget Preflight logic from "OpenCode always defaults to single-task tranche mode" to "auto-disable single-task tranche mode when step budget ≥ 60."
+**Change**: In `commands/gal-pipeline/SKILL.md` lines 85-86, change the Runtime Step-Budget Preflight logic to handle three cases:
+
+1. `steps` is **not set** (undefined) → do NOT enter single-task tranche mode (multi-task execution)
+2. `steps` is set and **≥ 60** → do NOT enter single-task tranche mode (multi-task execution)
+3. `steps` is set and **< 60** → enter single-task tranche mode (safety fallback for low-budget configs)
 
 **Before** (original contract text):
 
@@ -203,15 +207,13 @@ The total step count is unchanged (same work is done), but the number of manual 
 
 **After** (implemented contract text):
 
-> If the active OpenCode agent's `steps` value is **60 or higher**, do NOT enter single-task tranche mode — proceed with multi-task execution the same way non-OpenCode runtimes do. If `steps` is below 60, enter single-task tranche mode by default. The user may still explicitly request single-task tranche mode regardless of step budget.
+> If the active OpenCode agent's `steps` value is **not set** (undefined), do NOT enter single-task tranche mode — proceed with multi-task execution the same way non-OpenCode runtimes do. If `steps` is set and is **60 or higher**, also proceed with multi-task execution. If `steps` is set and below 60, enter single-task tranche mode by default.
 
-**Why this matters**: P0 alone (increasing step budget) was insufficient because the original contract required the user to **explicitly ask** for multi-task execution even when the budget was high enough. This created an AND condition: sufficient steps + explicit user request. Without P0b, the user would still need to manually request multi-task on every invocation despite having 80 steps available.
+**Why this matters**: P0 alone (removing step limits) was insufficient because the original contract required the pipeline to check for a numeric step budget. With `steps` removed, the preflight logic needed to recognize "undefined" as equivalent to "unlimited" and skip single-task tranche mode accordingly.
 
-**Threshold rationale**: 60 steps is the minimum that can safely complete one full task cycle (28-43 steps) with headroom for interrupted-phase recovery. Below 60, single-task tranche mode remains the safe default.
+**Effect**: OpenCode with no `steps` limit now behaves identically to Claude and ChatGPT-5.4 runtimes — the pipeline runs multiple tasks in a single invocation without requiring manual re-invocation.
 
-**Effect**: OpenCode with `build` steps ≥ 60 now behaves identically to Claude and ChatGPT-5.4 runtimes — the pipeline runs multiple tasks in a single invocation without requiring manual re-invocation.
-
-**Risk**: Low. The interrupted-phase handoff mechanism (SKILL.md:186-213) already handles runtime cutoffs gracefully. If steps exhaust mid-task, the next invocation resumes from the interrupted phase.
+**Risk**: Low. The interrupted-phase handoff mechanism (SKILL.md:186-213) still handles runtime cutoffs gracefully if they occur for other reasons (context window exhaustion, provider turn limits, etc.).
 
 ### P1: Merge Dispatches Under Same-Runtime Fallback
 
@@ -342,42 +344,38 @@ In Step 2g (Mark Task Complete And Converge State):
 ```json
 "agent": {
   "build": {
-    "steps": 80
+    "permission": { "bash": { ... } }
   },
-  "plan": {
-    "steps": 16
-  },
-  "general": {
-    "steps": 15
-  },
-  "explore": {
-    "steps": 8
-  }
+  "plan": {},
+  "general": {},
+  "explore": {}
 }
 ```
 
-### Rationale for each change
+All `steps` fields have been removed. Agents now run until the model chooses to stop or the user interrupts, matching Claude Code and Codex behavior.
 
-| Agent | Before | After | Why |
-| --- | --- | --- | --- |
-| `build` | 40 | 80 | Pipeline: single task consumes 28-43 steps; 40 was barely enough for one task, 80 allows 2-3 |
-| `plan` | 8 | 16 | `/deep-planning` requires 9-12 steps (mandatory architect review + file reads); 8 was insufficient |
-| `general` | 10 | 15 | `/gal wrap-up` requires 6-8 steps; 10 had no retry headroom |
-| `explore` | 6 | 8 | Minor buffer for slightly deeper searches |
+### Rationale for removal
 
-### Step consumption by command
+| Agent | Original | Why removed |
+| --- | --- | --- |
+| `build` | 40 | Pipeline: single task consumes 28-43 steps; 40 was barely enough for one task. Removing the limit allows the pipeline to run all tasks in one invocation. |
+| `plan` | 8 | `/deep-planning` requires 9-12 steps; 8 was insufficient. Removing the limit allows full planning passes. |
+| `general` | 10 | `/gal wrap-up` requires 6-8 steps; 10 had no retry headroom. Removing the limit gives full headroom. |
+| `explore` | 6 | Minor buffer for slightly deeper searches. Removing the limit allows unconstrained exploration. |
+
+### Step consumption by command (for reference)
 
 | Command | Agent | Min Steps | Old Budget | New Budget | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `/gal pipeline` | `build` | 28-43/task | 40 ❌ | 80 ✅ | Multi-task now feasible |
-| `/planning` | `plan` | 5-6 | 8 ✅ | 16 ✅ | Comfortable |
-| `/deep-planning` | `plan` | 9-12 | 8 ❌ | 16 ✅ | Now fits with headroom |
-| `/refining-plan` | `plan` | 5 | 8 ✅ | 16 ✅ | Comfortable |
-| `/plan-to-prompt` | `plan` | 6-7 | 8 ⚠️ | 16 ✅ | Was tight, now comfortable |
-| `/gal status` | `general` | 3-4 | 10 ✅ | 15 ✅ | Comfortable |
-| `/gal whats-next` | `general` | 3-4 | 10 ✅ | 15 ✅ | Comfortable |
-| `/gal wrap-up` | `general` | 6-8 | 10 ⚠️ | 15 ✅ | Was tight, now comfortable |
-| `/gal init` | `general` | 1-2 | 10 ✅ | 15 ✅ | Comfortable |
+| `/gal pipeline` | `build` | 28-43/task | 40 ❌ | unlimited ✅ | Multi-task now feasible |
+| `/planning` | `plan` | 5-6 | 8 ✅ | unlimited ✅ | Unconstrained |
+| `/deep-planning` | `plan` | 9-12 | 8 ❌ | unlimited ✅ | Unconstrained |
+| `/refining-plan` | `plan` | 5 | 8 ✅ | unlimited ✅ | Unconstrained |
+| `/plan-to-prompt` | `plan` | 6-7 | 8 ⚠️ | unlimited ✅ | Unconstrained |
+| `/gal status` | `general` | 3-4 | 10 ✅ | unlimited ✅ | Unconstrained |
+| `/gal whats-next` | `general` | 3-4 | 10 ✅ | unlimited ✅ | Unconstrained |
+| `/gal wrap-up` | `general` | 6-8 | 10 ⚠️ | unlimited ✅ | Unconstrained |
+| `/gal init` | `general` | 1-2 | 10 ✅ | unlimited ✅ | Unconstrained |
 
 ## Appendix B: Pipeline Phase Dispatch Flow
 
@@ -427,7 +425,7 @@ The dispatch flow for a single task under `/gal pipeline`:
       Total: 35-51 steps (exceeds 40-step budget in worst case)
 ```
 
-### After P0+P0b (build steps = 80, auto-disable tranche at ≥ 60)
+### After P0+P0b (steps removed, auto-disable tranche when undefined)
 
 ```text
 /gal pipeline
@@ -450,9 +448,14 @@ The dispatch flow for a single task under `/gal pipeline`:
   │   ├─ State convergence (7-8 steps)
   │   └─ Subtotal: 33-48 steps
   │
-  └─ ... (continues until steps exhaust or all tasks complete)
-      Total for 2 tasks: 68-99 steps (fits within 80-step budget for typical tasks)
-      If steps exhaust mid-task: interrupted-phase handoff resumes on next invocation
+  ├─ Task 3: (continues automatically — no STOP)
+  │   └─ ... (same pattern)
+  │
+  ├─ ... (continues until all tasks complete or model chooses to stop)
+  │
+  └─ Post-loop verifier + final gate
+      Total: unlimited — pipeline runs all tasks in one invocation
+      If context window exhausts or provider cutoff occurs: interrupted-phase handoff resumes on next invocation
 ```
 
 ## Appendix C: Proposed Optimized Flow (P1 + P2 Combined)
@@ -493,10 +496,10 @@ This appendix describes the future state if P1 (merge dispatches) and P2 (batch 
 
 Estimated savings for a 5-task plan in a single invocation:
 
-| Metric | Before P0+P0b | After P0+P0b | After P1+P2 (future) |
+| Metric | Before P0+P0b | After P0+P0b (current) | After P1+P2 (future) |
 | --- | --- | --- | --- |
 | Context loading steps | 60-90 (3 reads × 5 tasks) | 60-90 (unchanged) | 4-6 (1 read) |
 | State convergence steps | 35-40 (7-8 × 5 tasks) | 35-40 (unchanged) | 6 (1 batch) |
 | Total steps | 175-255 | 175-255 | 80-120 |
-| Manual invocations | 5+ | 1-2 | 1 |
-| Tasks per invocation | 1 | 2-3 | 4-5 |
+| Manual invocations | 5+ | 1 | 1 |
+| Tasks per invocation | 1 | 4-5 | 4-5 |
