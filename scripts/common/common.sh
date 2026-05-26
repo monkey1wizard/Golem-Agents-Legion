@@ -98,6 +98,11 @@ INSTALL_SHARED_SKILLS=false
 INSTALL_GOOGLE_WORKSPACE_SKILLS=false
 NEEDS_BAKED_COMMAND_SKILLS=false
 
+get_gal_active_provider_target() {
+    local provider="$1"
+    printf '%s\n' "$HOME/.gal/active/$provider"
+}
+
 join_by() {
     local delimiter="$1"
     shift || true

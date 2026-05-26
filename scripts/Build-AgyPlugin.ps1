@@ -25,6 +25,7 @@
 [CmdletBinding()]
 param(
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')),
+    [string]$ResolvedPluginsFile,
     [switch]$Install,
     [switch]$Force
 )
@@ -44,9 +45,18 @@ if (-not (Test-Path $commonHelpersScript)) {
 }
 . $commonHelpersScript
 
+$resolvedPlugins = $null
+if (-not [string]::IsNullOrWhiteSpace($ResolvedPluginsFile)) {
+    if (-not (Test-Path $ResolvedPluginsFile)) {
+        throw "Resolved plugins file not found: $ResolvedPluginsFile"
+    }
+
+    $resolvedPlugins = Get-Content -LiteralPath $ResolvedPluginsFile -Raw | ConvertFrom-Json
+}
+
 # --- Build and validate common package ---
 Write-Host "Building provider-neutral package..." -ForegroundColor Cyan
-$package = New-ProviderPluginPackage -RepoRoot $RepoRoot
+$package = New-ProviderPluginPackage -RepoRoot $RepoRoot -ResolvedPlugins $resolvedPlugins
 
 Write-Host "Validating common package..." -ForegroundColor Cyan
 $validation = Test-ProviderPluginPackage -Package $package
@@ -78,6 +88,13 @@ $pluginJson = [ordered]@{
     version = '1.0.0'
     generatedAt = $package.metadata.generatedAt
     description = 'Golem Agents Legion plugin for AGY CLI'
+    canonicalPackage = [ordered]@{
+        packageId = $package.packageSchema.packageId
+        schemaId = $package.packageSchema.schemaId
+        canonicalProvider = $package.packageSchema.canonicalProvider
+        sourcePlugins = $package.sourcePlugins
+    }
+    deferredCompanionPlugins = $package.deferredCompanionPlugins
     skills = [System.Collections.Generic.List[object]]::new()
     agents = [System.Collections.Generic.List[object]]::new()
     hasMcp = ($null -ne $package.mcpSpec)
@@ -257,3 +274,4 @@ Write-Host "Skills: $($package.skills.Count + $package.commandSkills.Count)" -Fo
 Write-Host "Agents: $($package.agents.Count)" -ForegroundColor White
 Write-Host "MCP: $(if ($package.mcpSpec) { 'yes' } else { 'no' })" -ForegroundColor White
 Write-Host "Instructions: $($package.instructionCorpus.sources.Count) sources" -ForegroundColor White
+Write-Host "Deferred companions: $($package.deferredCompanionPlugins.Count)" -ForegroundColor White

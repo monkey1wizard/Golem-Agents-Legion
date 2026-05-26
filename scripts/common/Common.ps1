@@ -184,6 +184,15 @@ function Initialize-SetupSession {
     return $script:SetupContext
 }
 
+function Get-GalActiveProviderTarget {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Provider
+    )
+
+    return Join-Path $env:USERPROFILE (".gal\active\{0}" -f $Provider)
+}
+
 function Test-SymlinkOrJunction([string]$Path) {
     if (-not (Test-Path $Path)) { return $false }
     $item = Get-Item $Path -Force

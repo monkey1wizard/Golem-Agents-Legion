@@ -26,10 +26,21 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # --- Parse args ---
 INSTALL=false
 FORCE=false
+RESOLVED_PLUGINS_FILE=''
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --install) INSTALL=true ; shift ;;
         --force) FORCE=true ; shift ;;
+        --resolved-plugins-file)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Missing value for --resolved-plugins-file" >&2
+                exit 1
+            fi
+            RESOLVED_PLUGINS_FILE="$1"
+            shift
+            ;;
+        --resolved-plugins-file=*) RESOLVED_PLUGINS_FILE="${1#*=}" ; shift ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
@@ -44,7 +55,15 @@ source "$COMMON_SCRIPT"
 
 # --- Build and validate common package ---
 echo "Building provider-neutral package..."
-package_json="$(build_provider_plugin_package "$REPO_ROOT")"
+resolved_plugins_json=''
+if [[ -n "$RESOLVED_PLUGINS_FILE" ]]; then
+    if [[ ! -f "$RESOLVED_PLUGINS_FILE" ]]; then
+        echo "Resolved plugins file not found: $RESOLVED_PLUGINS_FILE" >&2
+        exit 1
+    fi
+    resolved_plugins_json="$(cat "$RESOLVED_PLUGINS_FILE")"
+fi
+package_json="$(build_provider_plugin_package "$REPO_ROOT" "$resolved_plugins_json")"
 
 echo "Validating common package..."
 validation_json="$(printf '%s' "$package_json" | validate_provider_plugin_package)"
@@ -101,6 +120,8 @@ fi
 
 generated_at="$(printf '%s' "$package_json" | jq -r '.metadata.generatedAt')"
 skipped_json="$(printf '%s' "$package_json" | jq '.skippedComponents')"
+canonical_package_json="$(printf '%s' "$package_json" | jq '{packageId: .packageSchema.packageId, schemaId: .packageSchema.schemaId, canonicalProvider: .packageSchema.canonicalProvider, sourcePlugins: .sourcePlugins}')"
+deferred_companions_json="$(printf '%s' "$package_json" | jq '.deferredCompanionPlugins')"
 
 jq -n \
     --arg name 'gal' \
@@ -108,6 +129,8 @@ jq -n \
     --arg version '1.0.0' \
     --arg generatedAt "$generated_at" \
     --arg description 'Golem Agents Legion plugin for AGY CLI' \
+    --argjson canonicalPackage "$canonical_package_json" \
+    --argjson deferredCompanionPlugins "$deferred_companions_json" \
     --argjson skills "$skills_json" \
     --argjson agents "$agents_json" \
     --argjson hasMcp "$has_mcp" \
@@ -119,6 +142,8 @@ jq -n \
         version: $version,
         generatedAt: $generatedAt,
         description: $description,
+        canonicalPackage: $canonicalPackage,
+        deferredCompanionPlugins: $deferredCompanionPlugins,
         skills: $skills,
         agents: $agents,
         hasMcp: $hasMcp,
@@ -272,3 +297,4 @@ echo "Skills: $((skill_count + cmd_skill_count))"
 echo "Agents: $agent_count"
 echo "MCP: $has_mcp_summary"
 echo "Instructions: $corpus_count sources"
+echo "Deferred companions: $(printf '%s' "$package_json" | jq '.deferredCompanionPlugins | length')"
