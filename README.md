@@ -55,6 +55,12 @@ At the same time, GAL's newer install-mode substrate is already partially in pla
 - the AGY provider-native lifecycle slice is implemented and validated through `Install-GalPlugins.*` and `Build-ProviderPlugins.*`
 - Copilot CLI, Codex, and Claude Code native install lifecycle remain deferred follow-up work
 
+The upgrade boundary is already narrowed even before official package-manager distribution lands:
+
+- upgrading the bootstrap payload is allowed to replace the `gal` binary and refresh GAL-managed lockfile or generated projections
+- upgrades must preserve `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret sources
+- package-manager delivery, provider-native direct-update lanes, and manual archive refresh must all follow that same ownership rule instead of resetting machine intent
+
 Bootstrap packaging, official end-user install channels, marketplace discoverability, and release-lineage wording are now owned by the separate bootstrap-installer plan. Until that work lands, treat this README's clone-and-setup flow as the current supported path for humans following the repo directly.
 
 ## Walkthrough: A Feature's Lifecycle with GAL

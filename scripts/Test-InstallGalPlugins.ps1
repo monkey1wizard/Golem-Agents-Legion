@@ -109,9 +109,35 @@ try {
         }
         installMode = 'install'
         preferredProviders = @('copilot', 'agy')
-        userSettings = [ordered]@{}
+        userSettings = [ordered]@{
+            upgradeSentinel = 'preserve-me'
+        }
     }
     $installConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
+
+    $xmachineConfigPath = Join-Path $testHome '.gal\config\xmachine.json'
+    $xmachineConfig = [ordered]@{
+        schemaVersion = 1
+        defaultNode = 'test-node'
+    }
+    $xmachineConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $xmachineConfigPath -Encoding utf8
+
+    $existingLockfileRoot = Split-Path -Parent $pluginsLockPath
+    New-Item -ItemType Directory -Path $existingLockfileRoot -Force | Out-Null
+    $existingLockfile = [ordered]@{
+        schemaVersion = 1
+        plugins = @(
+            [ordered]@{
+                name = 'gal-core'
+                version = 'v-test'
+            }
+        )
+    }
+    $existingLockfile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $pluginsLockPath -Encoding utf8
+
+    $machineConfigBeforeUpgrade = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
+    $xmachineConfigBeforeUpgrade = Get-Content -LiteralPath $xmachineConfigPath -Raw -Encoding utf8
+    $lockfileBeforeUpgrade = Get-Content -LiteralPath $pluginsLockPath -Raw -Encoding utf8
 
     $installOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot', 'antigravity', 'codex', 'opencode') -PrimaryRuntime 'copilot' -DryRun 6>&1 | Out-String)
     Assert-Contains $installOutput '[OK] Mode: install' 'Install-mode dry run should report install mode.'
@@ -126,8 +152,23 @@ try {
     Assert-Contains $setupInstallOutput 'Install mode delegates AGY plugin lifecycle to Install-GalPlugins.ps1.' 'Install-mode setup should not install AGY through legacy concern scripts.'
     Assert-NotContains $setupInstallOutput '=== GAL_ROOT symlinks ===' 'Install-mode setup should not build repo-root GAL_ROOT symlinks.'
 
+    $machineConfigAfterUpgrade = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
+    if ($machineConfigAfterUpgrade -ne $machineConfigBeforeUpgrade) {
+        throw "Install-mode dry run should preserve existing machine config during upgrade-style refreshes."
+    }
+
+    $xmachineConfigAfterUpgrade = Get-Content -LiteralPath $xmachineConfigPath -Raw -Encoding utf8
+    if ($xmachineConfigAfterUpgrade -ne $xmachineConfigBeforeUpgrade) {
+        throw "Install-mode dry run should preserve xmachine bindings during upgrade-style refreshes."
+    }
+
+    $lockfileAfterUpgrade = Get-Content -LiteralPath $pluginsLockPath -Raw -Encoding utf8
+    if ($lockfileAfterUpgrade -ne $lockfileBeforeUpgrade) {
+        throw "Install-mode dry run should preserve the existing lockfile during upgrade-style refreshes."
+    }
+
     if (Test-Path $pluginsLockPath) {
-        throw "Install-mode dry run should not write the real plugins lockfile: $pluginsLockPath"
+        Assert-Contains $lockfileAfterUpgrade 'gal-core' 'Install-mode dry run should leave the existing lockfile content intact.'
     }
 
     $activeRoot = Join-Path $testHome '.gal\active'

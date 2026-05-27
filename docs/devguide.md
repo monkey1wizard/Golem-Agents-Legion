@@ -250,6 +250,17 @@ The install-mode/source-mode split happens only after GAL has a machine config t
 
 This keeps package-managed first launch safe for end users while preserving an explicit contributor path.
 
+### Upgrade Contract
+
+Bootstrap upgrades must rerun the same install-mode-first contract without widening ownership.
+
+- **`winget upgrade` / `brew upgrade`**: replace only the package-managed `gal` binary, then let the refreshed CLI re-enter the bootstrap runtime contract. The refresh may regenerate `~/.gal/generated/`, refresh provider projections, and update `~/.gal/state/plugins.lock.json` when the resolved profile changes, but it must not overwrite `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, or secret sources.
+- **Provider-native direct-install or direct-update lanes**: if a marketplace lane is later verified to support canonical install and update, that lane still behaves like a bootstrap payload upgrade rather than a runtime reset. It may replace the packaged GAL payload and re-run GAL-managed projection refresh, but it must preserve user-owned config and keep install mode versus source mode unchanged unless the user edits machine config explicitly.
+- **Manual archive refresh**: replacing the extracted `gal` binary from a GitHub Releases `.zip` or `.tar.gz` is allowed only as a payload swap. Users may rerun the bootstrap entrypoint afterward to refresh lockfile and generated projections, but manual archive updates must not delete or reset existing `~/.gal/config/*`, xmachine bindings, local overrides, or secrets.
+- **Schema or runtime migrations**: when an upgrade needs to evolve GAL-managed runtime state, migrations must be additive or explicitly reversible. They may rewrite GAL-owned generated or cached state, but they must not silently migrate user-owned config into a new location or clear values that the user would need to reconstruct manually.
+
+The decisive rule is simple: upgrades may refresh the payload, the lockfile, and GAL-managed generated state, but they must preserve the user's machine intent.
+
 ### 2. Install-Mode Plugin Distribution
 
 - **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
@@ -263,6 +274,8 @@ When a package manager uninstalls or upgrades the GAL CLI, it must respect these
 - **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
 - **GAL-Managed Runtime and Generated State**: `~/.gal/store/`, `~/.gal/generated/`, and provider-native plugin installations. Owned by GAL. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
 - **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall. Full deletion requires an explicit, destructive purge flow.
+
+During upgrade, treat `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret-bearing sources as read-preserve surfaces. The installer may read them to determine install mode, provider selection, or migration steps, but it must not replace them with defaults merely because a newer bootstrap payload was installed.
 
 ## Install Mode vs Source Mode
 

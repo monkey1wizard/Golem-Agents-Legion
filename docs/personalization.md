@@ -51,6 +51,16 @@ For package-managed installs, first launch is intentionally install-mode-first:
 
 This means the installed `gal` package path can stay install-mode-first for end users, while the repo-owned `Setup-Machine` scripts remain a contributor and packaging harness that mirrors the same branching rules. Contributors still have a clear path back to repo-root development mode.
 
+### Upgrade Boundaries
+
+When GAL is refreshed through a future package-manager upgrade, a provider-native direct-update lane, or a manual archive replacement, the machine-local rule stays the same:
+
+- the payload may be replaced and GAL-managed generated state may be refreshed
+- `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret sources remain user-owned and must be preserved
+- an upgrade must not silently switch `installMode`, clear `galRoot`, or turn `devMode` on or off unless you edit the config yourself
+
+In other words, upgrades may refresh GAL-managed runtime outputs, but they must preserve your machine intent.
+
 ### Distribution Architecture and Ownership Boundaries
 
 GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:
