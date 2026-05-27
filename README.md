@@ -72,11 +72,14 @@ GAL's intended end-user distribution contract is now defined, even though the co
 | `winget` | official Windows managed install and upgrade lane for the `gal` bootstrap payload | planned contract; not yet shipped end to end |
 | `homebrew` | official macOS and Linux managed install and upgrade lane for the `gal` bootstrap payload | planned contract; not yet shipped end to end |
 | GitHub Releases `.zip` / `.tar.gz` | official manual fallback wrapping the same versioned single-binary payload | planned contract; not yet shipped end to end |
+| raw PowerShell or shell convenience wrappers | optional bootstrap helpers that must redirect to the canonical release lineage instead of becoming a second install model | policy only; not a primary install channel |
 | Claude, Codex, Copilot marketplaces | official discoverability surfaces by default; may later become direct-install lanes only after provider-native lifecycle verification | documented policy only; direct-install lifecycle still deferred |
 
 The version source of truth is always GitHub Releases. Package-manager manifests and marketplace entries must point back to the same canonical release lineage instead of creating provider-only or channel-only version streams.
 
 Once the planned package-manager and release-archive lanes are shipped, GitHub Releases becomes the official fallback whenever a downstream package-manager lane or marketplace entry lags behind the newest canonical release because of review or publishing latency. Until then, the supported hands-on path in this repo remains the clone-and-setup flow described above.
+
+Raw PowerShell or shell convenience installers, if exposed later, are wrappers over that same canonical release lineage only. They are not a separate supported distribution model, and they must not replace the official package-manager or release-archive channels.
 
 ### Backup and migration
 

@@ -248,3 +248,33 @@ Codex or Copilot may only be reclassified from discoverability-only to direct-in
 2. The rendered artifact can be installed through the documented provider-native lifecycle against the canonical package lineage.
 3. Update and uninstall behavior are verified to preserve the same ownership boundaries already defined for bootstrap delivery.
 4. Release and marketplace metadata prove the same GitHub Release tag is visible through GitHub Releases and the provider marketplace entry.
+
+## 8. Raw PowerShell and Shell Convenience Installer Policy
+
+Raw PowerShell or shell installers such as `irm ... | iex` and `curl ... | sh` are convenience entrypoints only. They are not canonical install channels, they do not define an independent package shape, and they must not become the only supported way to get GAL onto a machine.
+
+### Policy rules
+
+1. The canonical version source remains GitHub Releases. A raw installer must resolve or point to the exact canonical release tag and per-platform asset defined by the release matrix instead of downloading an ad hoc payload from a branch, repo checkout, or alternate host.
+2. A raw installer may fetch or redirect only to the exact GitHub Releases fallback archive or binary for the current platform, and it must not wrap a second payload layout or install extra unmanaged runtime content.
+3. A raw installer must describe itself as a convenience or bootstrap fallback, not as the primary or canonical distribution model.
+4. A raw installer must preserve the same ownership boundaries as every other bootstrap lane: install or replace the bootstrap payload only, then allow GAL to manage `~/.gal/` according to the documented runtime contract.
+5. A raw installer must not bypass release governance by pulling unpublished assets, mutable branch heads, or provider-specific payload variants.
+
+### User-facing copy rules
+
+Every raw installer entrypoint must make these constraints clear:
+
+- it is a convenience wrapper over the canonical release lineage
+- `winget`, `homebrew`, and GitHub Releases remain the official install channels; the raw wrapper only redirects to the canonical GitHub Releases payload
+- it may lag or be redirected as release policy changes
+- it does not redefine uninstall, purge, or migration behavior
+
+### Acceptance gate
+
+Do not present a raw PowerShell or shell command as an official install surface until all of these are true:
+
+1. The command resolves only to canonical GitHub Release metadata and the exact GitHub Releases payload for the current platform.
+2. The fetched or delegated payload matches the documented per-platform single-binary lineage.
+3. The command does not create a second update, uninstall, or support policy.
+4. README and release docs describe it as a convenience fallback rather than a primary distribution lane.
