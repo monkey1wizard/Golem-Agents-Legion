@@ -206,3 +206,45 @@ Claude may be reclassified from discoverability-only to direct-install only afte
 2. The rendered artifact can be installed through the documented Claude provider-native lifecycle against the canonical package lineage.
 3. Update and uninstall behavior are verified to preserve the same ownership boundaries already defined for bootstrap delivery.
 4. Release and marketplace metadata prove the same GitHub Release tag is visible through both GitHub Releases and the Claude marketplace entry.
+
+## 7. Codex and Copilot Marketplace Publication Matrix
+
+After the Claude baseline is established, downstream provider marketplaces must still map back to the same canonical package lineage and GitHub Release tag. Codex and Copilot entries are allowed to use provider-specific wrappers or submission metadata, but they must not introduce provider-only package shapes, provider-only version streams, or direct-install claims ahead of lifecycle verification.
+
+Current publication matrix:
+
+| Provider | Current classification | Direct-install eligibility | Submission artifact rule | Fallback-link policy |
+| --- | --- | --- | --- | --- |
+| Codex | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
+| Copilot | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
+
+### Codex publication contract
+
+The Codex marketplace entry must use these rules:
+
+1. Marketplace display name: `GAL`.
+2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
+3. Version source: show the exact GitHub Release tag; do not create a Codex-only version stream.
+4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
+5. Submission artifact rule: the Codex wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
+6. Lag policy: if Codex review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+### Copilot publication contract
+
+The Copilot marketplace entry must use these rules:
+
+1. Marketplace display name: `GAL`.
+2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
+3. Version source: show the exact GitHub Release tag; do not create a Copilot-only version stream.
+4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
+5. Submission artifact rule: the Copilot wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
+6. Lag policy: if Copilot review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+### Promotion gate for Codex and Copilot direct install
+
+Codex or Copilot may only be reclassified from discoverability-only to direct-install after all of these are true:
+
+1. A provider-specific renderer exists in `Build-ProviderPlugins.ps1` instead of `not-yet-implemented`.
+2. The rendered artifact can be installed through the documented provider-native lifecycle against the canonical package lineage.
+3. Update and uninstall behavior are verified to preserve the same ownership boundaries already defined for bootstrap delivery.
+4. Release and marketplace metadata prove the same GitHub Release tag is visible through GitHub Releases and the provider marketplace entry.
