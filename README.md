@@ -63,6 +63,39 @@ The upgrade boundary is already narrowed even before official package-manager di
 
 Bootstrap packaging, official end-user install channels, marketplace discoverability, and release-lineage wording are now owned by the separate bootstrap-installer plan. Until that work lands, treat this README's clone-and-setup flow as the current supported path for humans following the repo directly.
 
+## Install, Fallbacks, and Migration
+
+GAL's intended end-user distribution contract is now defined, even though the contributor checkout path above remains the currently implemented hands-on setup flow in this repo.
+
+| Surface | Role | Current status |
+| --- | --- | --- |
+| `winget` | official Windows managed install and upgrade lane for the `gal` bootstrap payload | planned contract; not yet shipped end to end |
+| `homebrew` | official macOS and Linux managed install and upgrade lane for the `gal` bootstrap payload | planned contract; not yet shipped end to end |
+| GitHub Releases `.zip` / `.tar.gz` | official manual fallback wrapping the same versioned single-binary payload | planned contract; not yet shipped end to end |
+| Claude, Codex, Copilot marketplaces | official discoverability surfaces by default; may later become direct-install lanes only after provider-native lifecycle verification | documented policy only; direct-install lifecycle still deferred |
+
+The version source of truth is always GitHub Releases. Package-manager manifests and marketplace entries must point back to the same canonical release lineage instead of creating provider-only or channel-only version streams.
+
+Once the planned package-manager and release-archive lanes are shipped, GitHub Releases becomes the official fallback whenever a downstream package-manager lane or marketplace entry lags behind the newest canonical release because of review or publishing latency. Until then, the supported hands-on path in this repo remains the clone-and-setup flow described above.
+
+### Backup and migration
+
+When moving machines or rebuilding GAL, back up only the machine intent you cannot regenerate automatically:
+
+- `~/.gal/config/config.json`
+- `~/.gal/config/xmachine.json`
+- `~/.gal/state/plugins.lock.json`
+- explicit local overrides and secret sources referenced by your local setup
+
+You do not need to back up the package-managed `gal` payload, provider plugin install trees, or `~/.gal/generated/` projections. Reinstall the bootstrap payload first, restore the files above, then let GAL regenerate the managed runtime surfaces.
+
+### Uninstall boundaries and non-guarantees
+
+- Package-manager uninstall removes only the packaged `gal` payload. A separate GAL-managed uninstall lane removes rebuildable runtime outputs such as provider install targets and generated projections. Neither lane may delete `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, or secret sources.
+- A full machine reset is a separate explicit purge flow, not part of normal uninstall.
+- GAL does not promise same-day parity across GitHub Releases, `winget`, `homebrew`, and provider marketplaces.
+- GAL does not currently claim provider-native direct install for Claude, Codex, or Copilot. Those marketplaces remain discoverability-first until renderer and lifecycle verification land.
+
 ## Walkthrough: A Feature's Lifecycle with GAL
 
 ### Scenario: Adding a JWT Login Feature to Your Project

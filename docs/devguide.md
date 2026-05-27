@@ -55,6 +55,24 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 The shared preflight model lives in [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
 
+## Bootstrap Distribution Documentation Ownership
+
+When you change bootstrap installer behavior or release policy, keep the document roles separate:
+
+- `README.md` explains the user-facing install paths, manual fallback, backup and migration guidance, uninstall boundaries, lag expectations, and non-guarantees.
+- `docs/release-matrix.md` owns the detailed canonical release lineage, marketplace matrix, submission rules, lag windows, and fallback copy.
+- `docs/personalization.md` owns the machine-local restore boundary: what the user carries forward, what GAL regenerates, and how install mode versus source mode affect migration.
+
+Do not duplicate the full release matrix in this guide. Point maintainers to the owning docs, then keep this file focused on layer boundaries and the rules that must not drift.
+
+Bootstrap-distribution guardrails:
+
+- GitHub Releases is the canonical version source.
+- `winget`, `homebrew`, and provider marketplace entries must all map back to that same release lineage.
+- Package-manager uninstall and GAL-managed uninstall must preserve user-owned machine intent.
+- Provider marketplaces are discoverability-first unless a provider-native renderer and lifecycle have been verified end to end.
+- Lag between downstream channels is expected; the user-facing fallback remains GitHub Releases.
+
 ## Runtime Topology For Setup Work
 
 This section absorbs the setup topology that maintainers need when changing `Setup-Machine`, the `Update-*` scripts, command installation, or MCP wiring.

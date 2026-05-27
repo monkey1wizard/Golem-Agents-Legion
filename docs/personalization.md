@@ -71,6 +71,21 @@ Default uninstall is not a reset button.
 
 If you want a true reset, use the explicit purge/reset lane such as `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`. Default uninstall must never silently delete the preserved surfaces above.
 
+### Backup And Migration
+
+When you move GAL to a new machine, preserve the machine-local intent rather than the rebuildable payload:
+
+- back up `~/.gal/config/config.json`
+- back up `~/.gal/config/xmachine.json`
+- back up `~/.gal/state/plugins.lock.json`
+- back up explicit local overrides and any secret sources your local setup depends on
+
+You do not need to carry forward package-managed `gal` binaries, provider plugin install trees, `~/.gal/store/plugins`, or `~/.gal/generated/` projections. Reinstall GAL first, restore the backed-up machine-intent files, then rerun setup or bootstrap refresh so GAL can rebuild the managed runtime outputs.
+
+### Channel Lag And Non-Guarantees
+
+Machine-local settings do not change GAL's release-channel contract. Follow `README.md` and `docs/release-matrix.md` for the user-facing lag, fallback, and non-guarantee policy. The machine-local implication is narrower: preserve your machine-intent files so you can reinstall or refresh the managed payload later without losing local state.
+
 ### Distribution Architecture and Ownership Boundaries
 
 GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:
