@@ -164,3 +164,45 @@ Run these checks for every release:
 Every downstream channel that may lag must carry this guidance verbatim or with only minor style edits:
 
 > If this channel is behind the latest canonical GAL release because of review or publish latency, install the newest version directly from GitHub Releases.
+
+## 6. Claude Marketplace Baseline
+
+Provider marketplaces are downstream wrappers over the canonical GitHub Release lineage. They are official discoverability surfaces by default, and they may only be promoted to direct-install lanes after the provider-native lifecycle is verified against the same canonical package lineage.
+
+### Claude baseline policy
+
+Claude Code is the canonical marketplace baseline because GAL's provider-neutral package schema is already defined as Claude-compatible.
+
+Current verification state:
+
+- the canonical package schema uses `canonicalProvider = "claude"`
+- the plugin catalog already marks `gal-core` as a `canonical-package` for `claude`, `copilot`, `codex`, and `agy`
+- the concrete Claude native-install renderer is still not implemented in `Build-ProviderPlugins.ps1`
+
+That means Claude is the baseline for package structure and marketplace metadata, but not yet a verified direct-install lane. Until the renderer, install flow, update flow, and uninstall flow are implemented and validated, the Claude marketplace entry remains discoverability-first.
+
+T-009 only establishes the Claude baseline. Codex and Copilot marketplace matrices stay deferred to T-010 after the Claude baseline is closed.
+
+| Provider | Baseline role | Current classification | Entry metadata requirement | Install action | Fallback copy |
+| --- | --- | --- | --- | --- | --- |
+| Claude Code | canonical schema baseline | discoverability-only until native-install renderer and lifecycle checks pass | Must identify GAL as the canonical plugin package baseline, expose the current GitHub Release version, and state whether direct install is verified | Until verified, direct users to GitHub Releases, `winget`, or Homebrew instead of claiming direct install | Must carry the standard lag fallback message and point to GitHub Releases as canonical source |
+
+### Claude submission contract
+
+The Claude marketplace entry must use these rules:
+
+1. Marketplace display name: `GAL`.
+2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
+3. Version source: show the exact GitHub Release tag; do not create a Claude-only version stream.
+4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
+5. Submission artifact rule: the marketplace wrapper must describe or point to the same Claude-compatible canonical package lineage that downstream renderers will consume; it must not describe a second package shape.
+6. Lag policy: if Claude review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+### Promotion gate for Claude direct install
+
+Claude may be reclassified from discoverability-only to direct-install only after all of these are true:
+
+1. A Claude renderer exists in `Build-ProviderPlugins.ps1` instead of `not-yet-implemented`.
+2. The rendered artifact can be installed through the documented Claude provider-native lifecycle against the canonical package lineage.
+3. Update and uninstall behavior are verified to preserve the same ownership boundaries already defined for bootstrap delivery.
+4. Release and marketplace metadata prove the same GitHub Release tag is visible through both GitHub Releases and the Claude marketplace entry.
