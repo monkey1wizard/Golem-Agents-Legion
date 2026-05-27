@@ -3,6 +3,7 @@
 #
 # Thin wrapper around the concern-based setup-machine.sh --uninstall flow.
 # User-owned runtime settings and MCP config files are preserved during uninstall.
+# Use --purge --confirm-purge only for an explicit destructive reset of preserved machine-local state.
 
 set -euo pipefail
 

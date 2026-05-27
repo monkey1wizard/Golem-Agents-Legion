@@ -61,6 +61,16 @@ When GAL is refreshed through a future package-manager upgrade, a provider-nativ
 
 In other words, upgrades may refresh GAL-managed runtime outputs, but they must preserve your machine intent.
 
+### Uninstall And Purge Boundaries
+
+Default uninstall is not a reset button.
+
+- package-manager uninstall removes the packaged `gal` binary only
+- GAL-managed uninstall removes rebuildable GAL-owned runtime outputs such as provider-native plugin installs owned by GAL, `~/.gal/store/plugins`, and generated projections under `~/.gal/generated/`
+- `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources remain user-owned and must be preserved
+
+If you want a true reset, use the explicit purge/reset lane such as `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`. Default uninstall must never silently delete the preserved surfaces above.
+
 ### Distribution Architecture and Ownership Boundaries
 
 GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:
@@ -68,7 +78,7 @@ GAL explicitly separates how the CLI is installed from how the provider plugins 
 - **Bootstrap Installer Distribution**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases handle the installation of the `gal` executable binary. They own the **package-managed payload**.
 - **Install-Mode Plugin Distribution**: GAL owns the plugin catalog (`plugins/catalog.json`) and resolves it into `~/.gal/state/plugins.lock.json` to manage provider-native plugin installations (e.g., Claude, AGY, Copilot).
 - **GAL-Managed Runtime and Generated State**: GAL manages content under `~/.gal/store/` and `~/.gal/generated/`. These are safe to rebuild or reinstall.
-- **User-Owned Config and State**: You own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secrets. Package managers must **never** delete these during uninstalls. A full destructive cleanup requires an explicit purge flow.
+- **User-Owned Config and State**: You own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secrets. Package managers must **never** delete these during uninstalls. A full destructive cleanup requires an explicit purge flow.
 
 ## Companion Plugins and Support Tiers
 

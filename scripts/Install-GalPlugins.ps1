@@ -10,6 +10,8 @@ param(
     [switch]$BootstrapInstall,
     [switch]$DryRun,
     [switch]$Uninstall,
+    [switch]$Purge,
+    [switch]$ConfirmPurge,
     [switch]$Replace,
     [switch]$Reconfigure,
     [switch]$Force
@@ -275,7 +277,8 @@ function Remove-GalManagedProviderShortcut {
     )
 
     $shortcutPath = Get-GalActiveProviderTarget -Provider $Provider
-    if (-not (Test-Path $shortcutPath)) {
+    $shortcutItem = Get-Item -LiteralPath $shortcutPath -Force -ErrorAction SilentlyContinue
+    if ($null -eq $shortcutItem) {
         Write-Host ("  [SKIP] No GAL-managed {0} shortcut to remove" -f $Provider)
         return
     }
@@ -283,19 +286,75 @@ function Remove-GalManagedProviderShortcut {
     Remove-SafeLink $shortcutPath
 }
 
+function Test-InstallUninstallOwnership {
+    param(
+        [pscustomobject]$Context
+    )
+
+    $managedTargets = @(
+        $Context.InstallStateFile,
+        $Context.AgyPluginInstallTarget,
+        $Context.GalStorePluginsRoot,
+        $Context.GalGeneratedMcpRoot,
+        $Context.GalGeneratedXmachineRoot,
+        $Context.GalGeneratedProvidersRoot,
+        (Get-GalActiveProviderTarget -Provider 'agy')
+    )
+
+    foreach ($managedTarget in $managedTargets) {
+        if (Test-Path -LiteralPath $managedTarget) {
+            return $true
+        }
+
+        if ($null -ne (Get-Item -LiteralPath $managedTarget -Force -ErrorAction SilentlyContinue)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
 if ($Uninstall) {
-    $installMode = Get-ConfiguredInstallModeFromContext -Context $script:SetupContext
-    if ($installMode -ne 'install') {
+    $installMode = 'source'
+    try {
+        $installMode = Get-ConfiguredInstallModeFromContext -Context $script:SetupContext
+    }
+    catch {
+        Write-Host '  [WARN] Could not read machine config during uninstall; falling back to managed-state detection.' -ForegroundColor Yellow
+    }
+
+    $ownsManagedUninstall = Test-InstallUninstallOwnership -Context $script:SetupContext
+    if ($installMode -ne 'install' -and -not $ownsManagedUninstall -and -not $Purge) {
         Write-Host '  [SKIP] Source-mode uninstall remains owned by the legacy concern scripts.'
         return
     }
 
+    if ($installMode -ne 'install' -and $ownsManagedUninstall) {
+        Write-Host '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
+    }
+
     Write-Host '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
-    Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
     Remove-GalManagedProviderShortcut -Provider 'agy'
+    Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
+    Remove-GalManagedDirectory -Path $script:SetupContext.GalStorePluginsRoot -Label 'GAL-managed plugin store'
+    Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedMcpRoot -Label 'GAL-managed MCP projections'
+    Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedXmachineRoot -Label 'GAL-managed xmachine projections'
+    Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedProvidersRoot -Label 'GAL-managed provider projections'
+
+    if ($Purge) {
+        if (-not $DryRun -and -not $ConfirmPurge) {
+            throw 'Explicit purge requires -ConfirmPurge unless you are running with -DryRun.'
+        }
+
+        Write-Host '  [OK] Explicit purge requested; removing preserved machine-local state.'
+        Remove-GalManagedDirectory -Path $script:SetupContext.GalConfigRoot -Label 'GAL config root'
+        Remove-GalManagedDirectory -Path $script:SetupContext.GalStateDirectory -Label 'GAL state directory'
+        Remove-GalManagedDirectory -Path $script:SetupContext.InstallStateFile -Label 'GAL install-state file'
+    }
+
     return
 }
 

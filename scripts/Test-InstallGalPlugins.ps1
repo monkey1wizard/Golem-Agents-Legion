@@ -179,9 +179,60 @@ try {
     $agyShortcut = Join-Path $activeRoot 'agy'
     New-Item -ItemType SymbolicLink -Path $agyShortcut -Target $agyInstallTarget | Out-Null
 
+    $managedPluginStore = Join-Path $testHome '.gal\store\plugins'
+    $managedMcpRoot = Join-Path $testHome '.gal\generated\mcp'
+    $managedXmachineRoot = Join-Path $testHome '.gal\generated\xmachine'
+    $managedProvidersRoot = Join-Path $testHome '.gal\generated\providers'
+    New-Item -ItemType Directory -Path $managedPluginStore -Force | Out-Null
+    New-Item -ItemType Directory -Path $managedMcpRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $managedXmachineRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $managedProvidersRoot -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $managedPluginStore 'managed.txt') -Value 'gal-managed' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $managedMcpRoot 'managed.json') -Value '{}' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $managedXmachineRoot 'managed.json') -Value '{}' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $managedProvidersRoot 'managed.json') -Value '{}' -Encoding utf8
+
+    $machineConfigBeforeUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
+    $xmachineConfigBeforeUninstall = Get-Content -LiteralPath $xmachineConfigPath -Raw -Encoding utf8
+    $lockfileBeforeUninstall = Get-Content -LiteralPath $pluginsLockPath -Raw -Encoding utf8
+
     $uninstallOutput = (& $uninstallScriptUnderTest -DryRun 6>&1 | Out-String)
     Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY provider-native cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove AGY plugin install target:' 'Install-mode uninstall should preview AGY plugin removal.'
+    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed plugin store:' 'Install-mode uninstall should preview GAL-managed plugin store removal.'
+    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed MCP projections:' 'Install-mode uninstall should preview GAL-managed MCP projection removal.'
+    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed xmachine projections:' 'Install-mode uninstall should preview GAL-managed xmachine projection removal.'
+    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed provider projections:' 'Install-mode uninstall should preview GAL-managed provider projection removal.'
+
+    $machineConfigAfterUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
+    if ($machineConfigAfterUninstall -ne $machineConfigBeforeUninstall) {
+        throw "Install-mode uninstall dry run should preserve existing machine config."
+    }
+
+    $xmachineConfigAfterUninstall = Get-Content -LiteralPath $xmachineConfigPath -Raw -Encoding utf8
+    if ($xmachineConfigAfterUninstall -ne $xmachineConfigBeforeUninstall) {
+        throw "Install-mode uninstall dry run should preserve xmachine bindings."
+    }
+
+    $lockfileAfterUninstall = Get-Content -LiteralPath $pluginsLockPath -Raw -Encoding utf8
+    if ($lockfileAfterUninstall -ne $lockfileBeforeUninstall) {
+        throw "Install-mode uninstall dry run should preserve the existing lockfile."
+    }
+
+    $purgeOutput = (& $uninstallScriptUnderTest -DryRun -Purge 6>&1 | Out-String)
+    Assert-Contains $purgeOutput '[OK] Explicit purge requested; removing preserved machine-local state.' 'Explicit purge should be opt-in and visible.'
+    Assert-Contains $purgeOutput '[DRY RUN] Would remove GAL config root:' 'Explicit purge should preview config-root deletion.'
+    Assert-Contains $purgeOutput '[DRY RUN] Would remove GAL state directory:' 'Explicit purge should preview state-directory deletion.'
+    Assert-Contains $purgeOutput '[DRY RUN] Would remove GAL install-state file:' 'Explicit purge should preview install-state deletion.'
+    Assert-Throws -Expected 'Explicit purge requires -ConfirmPurge' -Message 'Destructive purge should require an explicit confirmation switch.' -Action {
+        & $uninstallScriptUnderTest -Purge 6>&1 | Out-Null
+    }
+
+    Remove-Item -LiteralPath $machineConfigPath -Force
+    $fallbackUninstallOutput = (& $scriptUnderTest -RepoRoot $repoRoot -LockfilePath $pluginsLockPath -DryRun -Uninstall 6>&1 | Out-String)
+    Assert-Contains $fallbackUninstallOutput '[OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.' 'Missing machine config should still allow managed uninstall cleanup.'
+    Assert-NotContains $fallbackUninstallOutput '[SKIP] Source-mode uninstall remains owned by the legacy concern scripts.' 'Missing machine config should not route uninstall back through the source-mode skip path.'
+    Set-Content -LiteralPath $machineConfigPath -Value $machineConfigBeforeUninstall -Encoding utf8
 
     & $providerBuildScriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -Providers @('agy') -Force 6>&1 | Out-Null
     if (-not (Test-Path $agyInstallTarget)) {
@@ -196,6 +247,54 @@ try {
     Assert-Throws -Expected 'Failed to claim GAL-managed shortcut for provider' -Message 'AGY provider build should fail when the managed shortcut path is occupied by a non-link item.' -Action {
         & $providerBuildScriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -Providers @('agy') -Force 6>&1 | Out-Null
     }
+
+    Remove-Item -LiteralPath $agyShortcut -Recurse -Force
+    & $providerBuildScriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -Providers @('agy') -Force 6>&1 | Out-Null
+
+    & $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -Uninstall 6>&1 | Out-Null
+    if (Test-Path $agyShortcut) {
+        throw "Install-mode uninstall should remove the GAL-managed AGY shortcut."
+    }
+    if (Test-Path $agyInstallTarget) {
+        throw "Install-mode uninstall should remove the AGY provider install target."
+    }
+    if (Test-Path $managedPluginStore) {
+        throw "Install-mode uninstall should remove the GAL-managed plugin store."
+    }
+    if (Test-Path $managedMcpRoot) {
+        throw "Install-mode uninstall should remove GAL-managed MCP projections."
+    }
+    if (Test-Path $managedXmachineRoot) {
+        throw "Install-mode uninstall should remove GAL-managed xmachine projections."
+    }
+    if (Test-Path $managedProvidersRoot) {
+        throw "Install-mode uninstall should remove GAL-managed provider projections."
+    }
+    if (-not (Test-Path $machineConfigPath)) {
+        throw "Install-mode uninstall should preserve machine config by default."
+    }
+    if (-not (Test-Path $xmachineConfigPath)) {
+        throw "Install-mode uninstall should preserve xmachine bindings by default."
+    }
+    if (-not (Test-Path $pluginsLockPath)) {
+        throw "Install-mode uninstall should preserve the lockfile by default."
+    }
+
+    New-Item -ItemType Directory -Path $activeRoot -Force | Out-Null
+    $brokenAgyTarget = Join-Path $testHome '.gemini\antigravity-cli\plugins\missing-gal'
+    New-Item -ItemType SymbolicLink -Path $agyShortcut -Target $brokenAgyTarget | Out-Null
+    & $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -Uninstall 6>&1 | Out-Null
+    if ($null -ne (Get-Item -LiteralPath $agyShortcut -Force -ErrorAction SilentlyContinue)) {
+        throw "Install-mode uninstall should remove broken GAL-managed AGY shortcuts."
+    }
+
+    New-Item -ItemType Directory -Path $activeRoot -Force | Out-Null
+    New-Item -ItemType SymbolicLink -Path $agyShortcut -Target $brokenAgyTarget | Out-Null
+    Remove-Item -LiteralPath $machineConfigPath -Force
+    Remove-Item -LiteralPath $installStatePath -Force
+    $brokenLinkFallbackOutput = (& $scriptUnderTest -RepoRoot $repoRoot -LockfilePath $pluginsLockPath -DryRun -Uninstall 6>&1 | Out-String)
+    Assert-Contains $brokenLinkFallbackOutput '[OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.' 'Broken GAL-managed shortcuts should still count as install-owned uninstall evidence.'
+    Assert-NotContains $brokenLinkFallbackOutput '[SKIP] Source-mode uninstall remains owned by the legacy concern scripts.' 'Broken GAL-managed shortcuts should not be ignored by the uninstall ownership probe.'
 
     Write-Host 'PASS: Install orchestration dry-run behavior verified.'
 }

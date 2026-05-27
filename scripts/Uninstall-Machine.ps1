@@ -22,15 +22,28 @@
 
         User-owned runtime settings and MCP config files are preserved during uninstall.
 
+        Use `-Purge` only for an explicit destructive reset of preserved machine-local
+        state under `~/.gal/`.
+
 .PARAMETER DryRun
     Show what would be removed without making changes.
+
+.PARAMETER Purge
+    Also remove preserved machine-local state under `~/.gal/`.
+
+.PARAMETER ConfirmPurge
+    Required together with `-Purge` for destructive execution. Not needed with `-DryRun`.
 
 .EXAMPLE
     .\scripts\Uninstall-Machine.ps1
     .\scripts\Uninstall-Machine.ps1 -DryRun
+    .\scripts\Uninstall-Machine.ps1 -Purge -DryRun
+    .\scripts\Uninstall-Machine.ps1 -Purge -ConfirmPurge
 #>
 param(
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Purge,
+    [switch]$ConfirmPurge
 )
 
 & "$PSScriptRoot\Setup-Machine.ps1" -Uninstall @PSBoundParameters

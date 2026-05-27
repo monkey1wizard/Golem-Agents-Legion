@@ -119,6 +119,16 @@ $REPLACE && shared_args+=(--replace)
 $DRY_RUN && shared_args+=(--dry-run)
 $RECONFIGURE && shared_args+=(--reconfigure)
 
+if $PURGE && ! $UNINSTALL; then
+    echo '--purge is only supported together with --uninstall.' >&2
+    exit 1
+fi
+
+if $CONFIRM_PURGE && ! $PURGE; then
+    echo '--confirm-purge is only supported together with --purge.' >&2
+    exit 1
+fi
+
 if ! $UNINSTALL; then
     shared_args+=(--selected-runtimes "$SELECTED_RUNTIMES_CSV" --primary-runtime "$PRIMARY_RUNTIME")
 fi
@@ -140,6 +150,12 @@ for index in "${!step_scripts[@]}"; do
     step_args=("${shared_args[@]}")
     if [ "${step_names[$index]}" = 'Install Orchestration' ] && $BOOTSTRAP_INSTALL; then
         step_args+=(--bootstrap-install)
+    fi
+    if [ "${step_names[$index]}" = 'Install Orchestration' ] && $PURGE; then
+        step_args+=(--purge)
+    fi
+    if [ "${step_names[$index]}" = 'Install Orchestration' ] && $CONFIRM_PURGE; then
+        step_args+=(--confirm-purge)
     fi
 
     "$SCRIPT_DIR/${step_scripts[$index]}" "${step_args[@]}"

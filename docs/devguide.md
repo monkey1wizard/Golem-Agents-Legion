@@ -261,6 +261,24 @@ Bootstrap upgrades must rerun the same install-mode-first contract without widen
 
 The decisive rule is simple: upgrades may refresh the payload, the lockfile, and GAL-managed generated state, but they must preserve the user's machine intent.
 
+### Uninstall Contract
+
+Default uninstall must stay narrower than a machine reset.
+
+- **Package-manager uninstall**: removes only the package-managed `gal` payload. It must not delete `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, or secret-bearing sources.
+- **GAL-managed uninstall**: removes GAL-owned runtime outputs that can be rebuilt, including provider-native plugin install targets that GAL owns, `~/.gal/store/plugins`, and generated projections under `~/.gal/generated/mcp`, `~/.gal/generated/xmachine`, and `~/.gal/generated/providers`.
+- **Preserved surfaces**: uninstall keeps the user's machine intent intact. That includes install/source mode choice, `galRoot`, `devMode`, xmachine bindings, lockfile state, explicit local overrides, and secret sources.
+- **No implicit second runtime**: uninstall must not leave behind a second GAL-managed runtime tree that the next install would treat as authoritative. Rebuildable GAL-owned runtime outputs are removed; preserved user-owned config remains as input for the next install.
+
+### Purge And Reset Boundary
+
+Purge or reset is a separate destructive lane, not part of default uninstall.
+
+- The explicit purge entrypoint is `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`, and it must remain opt-in, visible, and dry-runnable before destructive execution.
+- Purge/reset may remove preserved machine-local intent such as `config.json`, `xmachine.json`, lockfile state, local overrides, install-state metadata, and secret-bearing generated surfaces, but only after an explicit destructive confirmation step.
+- Neither package-manager uninstall nor default GAL-managed uninstall may simulate purge/reset by deleting preserved surfaces automatically.
+- The practical rule is simple: uninstall removes what GAL can safely rebuild; purge/reset removes what the user would otherwise need to carry forward.
+
 ### 2. Install-Mode Plugin Distribution
 
 - **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
@@ -272,8 +290,8 @@ The decisive rule is simple: upgrades may refresh the payload, the lockfile, and
 When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
 
 - **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
-- **GAL-Managed Runtime and Generated State**: `~/.gal/store/`, `~/.gal/generated/`, and provider-native plugin installations. Owned by GAL. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
-- **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall. Full deletion requires an explicit, destructive purge flow.
+- **GAL-Managed Runtime and Generated State**: `~/.gal/store/plugins`, `~/.gal/generated/mcp`, `~/.gal/generated/xmachine`, `~/.gal/generated/providers`, and provider-native plugin installations that GAL explicitly owns. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
+- **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall or default GAL-managed uninstall. Full deletion requires an explicit, destructive purge flow.
 
 During upgrade, treat `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret-bearing sources as read-preserve surfaces. The installer may read them to determine install mode, provider selection, or migration steps, but it must not replace them with defaults merely because a newer bootstrap payload was installed.
 

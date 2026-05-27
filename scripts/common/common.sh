@@ -95,6 +95,8 @@ COMMAND_ALIAS_NAMES=()
 COMMAND_SKILL_NAMES=()
 
 UNINSTALL=false
+PURGE=false
+CONFIRM_PURGE=false
 REPLACE=false
 DRY_RUN=false
 RECONFIGURE=false
@@ -237,6 +239,8 @@ run_python() {
 parse_setup_args() {
     BOOTSTRAP_INSTALL=false
     UNINSTALL=false
+    PURGE=false
+    CONFIRM_PURGE=false
     REPLACE=false
     DRY_RUN=false
     RECONFIGURE=false
@@ -246,6 +250,8 @@ parse_setup_args() {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --uninstall) UNINSTALL=true ;;
+            --purge) PURGE=true ;;
+            --confirm-purge) CONFIRM_PURGE=true ;;
             --bootstrap-install) BOOTSTRAP_INSTALL=true ;;
             --replace) REPLACE=true ;;
             --dry-run) DRY_RUN=true ;;

@@ -11,6 +11,8 @@ SELECTED_RUNTIMES_CSV=""
 PRIMARY_RUNTIME_OVERRIDE=""
 DRY_RUN=false
 UNINSTALL=false
+PURGE=false
+CONFIRM_PURGE=false
 FORCE=false
 REPLACE=false
 RECONFIGURE=false
@@ -26,6 +28,8 @@ while [[ $# -gt 0 ]]; do
         --primary-runtime=*) PRIMARY_RUNTIME_OVERRIDE="${1#*=}"; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --uninstall) UNINSTALL=true; shift ;;
+        --purge) PURGE=true; shift ;;
+        --confirm-purge) CONFIRM_PURGE=true; shift ;;
         --bootstrap-install) BOOTSTRAP_INSTALL=true; shift ;;
         --replace) REPLACE=true; shift ;;
         --reconfigure) RECONFIGURE=true; shift ;;
@@ -158,13 +162,44 @@ echo ''
 echo '=== GAL install orchestration ==='
 
 if $UNINSTALL; then
-    install_mode="$(get_configured_install_mode)"
-    if [ "$install_mode" != 'install' ]; then
+    install_mode='source'
+    if ! install_mode="$(get_configured_install_mode 2>/dev/null)"; then
+        echo '  [WARN] Could not read machine config during uninstall; falling back to managed-state detection.'
+        install_mode='source'
+    fi
+
+    owns_managed_uninstall=false
+    for managed_target in \
+        "$INSTALL_STATE_FILE" \
+        "$AGY_PLUGIN_INSTALL_TARGET" \
+        "$GAL_STORE_PLUGINS_ROOT" \
+        "$GAL_GENERATED_MCP_ROOT" \
+        "$GAL_GENERATED_XMACHINE_ROOT" \
+        "$GAL_GENERATED_PROVIDERS_ROOT" \
+        "$(get_gal_active_provider_target agy)"; do
+        if [ -L "$managed_target" ] || [ -e "$managed_target" ]; then
+            owns_managed_uninstall=true
+            break
+        fi
+    done
+
+    if [ "$install_mode" != 'install' ] && ! $owns_managed_uninstall && ! $PURGE; then
         echo '  [SKIP] Source-mode uninstall remains owned by the legacy concern scripts.'
         exit 0
     fi
 
+    if [ "$install_mode" != 'install' ] && $owns_managed_uninstall; then
+        echo '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
+    fi
+
     echo '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
+    agy_shortcut_target="$(get_gal_active_provider_target agy)"
+    if [ -L "$agy_shortcut_target" ] || [ -e "$agy_shortcut_target" ]; then
+        safe_unlink "$agy_shortcut_target"
+    else
+        echo '  [SKIP] No GAL-managed agy shortcut to remove'
+    fi
+
     if [ -e "$AGY_PLUGIN_INSTALL_TARGET" ]; then
         if $DRY_RUN; then
             echo "  [DRY RUN] Would remove AGY plugin install target: $AGY_PLUGIN_INSTALL_TARGET"
@@ -176,11 +211,38 @@ if $UNINSTALL; then
         echo '  [SKIP] No AGY plugin install target to remove'
     fi
 
-    agy_shortcut_target="$(get_gal_active_provider_target agy)"
-    if [ -e "$agy_shortcut_target" ]; then
-        safe_unlink "$agy_shortcut_target"
-    else
-        echo '  [SKIP] No GAL-managed agy shortcut to remove'
+    remove_managed_dir() {
+        local path="$1"
+        local label="$2"
+        if [ ! -e "$path" ]; then
+            echo "  [SKIP] No $label to remove"
+            return
+        fi
+
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove $label: $path"
+            return
+        fi
+
+        rm -rf "$path"
+        echo "  [REMOVED] $label: $path"
+    }
+
+    remove_managed_dir "$GAL_STORE_PLUGINS_ROOT" 'GAL-managed plugin store'
+    remove_managed_dir "$GAL_GENERATED_MCP_ROOT" 'GAL-managed MCP projections'
+    remove_managed_dir "$GAL_GENERATED_XMACHINE_ROOT" 'GAL-managed xmachine projections'
+    remove_managed_dir "$GAL_GENERATED_PROVIDERS_ROOT" 'GAL-managed provider projections'
+
+    if $PURGE; then
+        if ! $DRY_RUN && ! $CONFIRM_PURGE; then
+            echo 'Explicit purge requires --confirm-purge unless you are running with --dry-run.' >&2
+            exit 1
+        fi
+
+        echo '  [OK] Explicit purge requested; removing preserved machine-local state.'
+        remove_managed_dir "$GAL_CONFIG_ROOT" 'GAL config root'
+        remove_managed_dir "$GAL_STATE_DIRECTORY" 'GAL state directory'
+        remove_managed_dir "$INSTALL_STATE_FILE" 'GAL install-state file'
     fi
     exit 0
 fi

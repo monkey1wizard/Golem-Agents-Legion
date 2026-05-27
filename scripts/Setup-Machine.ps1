@@ -24,6 +24,12 @@
 .PARAMETER DryRun
     Show what would happen without making changes.
 
+.PARAMETER Purge
+    Only valid with `-Uninstall`. Also removes preserved machine-local state under `~/.gal/`.
+
+.PARAMETER ConfirmPurge
+    Required together with `-Purge` for destructive execution. Not needed with `-DryRun`.
+
 .PARAMETER Reconfigure
     Prompt again for selected runtimes and primary runtime before invoking the
     update scripts.
@@ -34,10 +40,14 @@
     .\scripts\Setup-Machine.ps1 -DryRun
     .\scripts\Setup-Machine.ps1 -Reconfigure
     .\scripts\Setup-Machine.ps1 -Uninstall
+    .\scripts\Setup-Machine.ps1 -Uninstall -Purge -DryRun
+    .\scripts\Setup-Machine.ps1 -Uninstall -Purge -ConfirmPurge
 #>
 #Requires -Version 5.1
 param(
     [switch]$Uninstall,
+    [switch]$Purge,
+    [switch]$ConfirmPurge,
     [switch]$Replace,
     [switch]$DryRun,
     [switch]$Reconfigure,
@@ -159,6 +169,14 @@ $steps = @(
 
 $sourceOnlySteps = @('Skills', 'Commands')
 
+if ($Purge -and -not $Uninstall) {
+    throw 'Purge is only supported together with -Uninstall.'
+}
+
+if ($ConfirmPurge -and -not $Purge) {
+    throw 'ConfirmPurge is only supported together with -Purge.'
+}
+
 foreach ($step in $steps) {
     if (-not $Uninstall -and $installMode -eq 'install' -and $sourceOnlySteps -contains $step.Name) {
         Write-Host ''
@@ -177,6 +195,14 @@ foreach ($step in $steps) {
 
     if ($step.Name -eq 'Install Orchestration' -and $BootstrapInstall) {
         $stepArguments['BootstrapInstall'] = $true
+    }
+
+    if ($step.Name -eq 'Install Orchestration' -and $Purge) {
+        $stepArguments['Purge'] = $true
+    }
+
+    if ($step.Name -eq 'Install Orchestration' -and $ConfirmPurge) {
+        $stepArguments['ConfirmPurge'] = $true
     }
 
     & $step.Path @stepArguments
