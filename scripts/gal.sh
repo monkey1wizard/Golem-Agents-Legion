@@ -69,6 +69,8 @@ if [[ $# -gt 0 ]]; then
   shift
 fi
 
+source "$script_root/common/common.sh"
+
 # --- Dispatch helpers ---
 
 write_dispatch() {
@@ -82,7 +84,8 @@ write_dispatch() {
 }
 
 read_xmachine_node_aliases() {
-  local config_path="$repo_root/xmachine.config.json"
+  local config_path
+  config_path="$(resolve_xmachine_config_path "$repo_root")"
   [[ -f "$config_path" ]] || return 0
 
   jq -r '.nodes | keys[]?' "$config_path"
@@ -448,7 +451,7 @@ case "$command" in
         available_nodes="$(printf '%s, ' "${XMACHINE_AVAILABLE_NODES[@]}")"
         available_nodes="${available_nodes%, }"
       fi
-      write_dispatch COMMAND error ACTION "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $available_nodes"
+      write_dispatch COMMAND error ACTION "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from ~/.gal/config/xmachine.json (legacy repo-root fallback supported). Available aliases: $available_nodes"
       exit 0
     fi
 

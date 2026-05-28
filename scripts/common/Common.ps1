@@ -142,6 +142,51 @@ function New-SetupContext {
     }
 }
 
+function Get-GalUserHome {
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        return $env:USERPROFILE
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($env:HOME)) {
+        return $env:HOME
+    }
+
+    return [Environment]::GetFolderPath('UserProfile')
+}
+
+function Resolve-XmachineConfigRecord {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [switch]$WarnOnLegacyFallback
+    )
+
+    $canonicalPath = Join-Path (Get-GalUserHome) '.gal\config\xmachine.json'
+    $legacyPath = Join-Path $RepoRoot 'xmachine.config.json'
+
+    if (Test-Path $canonicalPath) {
+        return [pscustomobject]@{
+            Path = $canonicalPath
+            UsedLegacyFallback = $false
+        }
+    }
+
+    if (Test-Path $legacyPath) {
+        if ($WarnOnLegacyFallback) {
+            Write-Host "  [WARN] Using legacy repository-root xmachine config: $legacyPath" -ForegroundColor Yellow
+        }
+
+        return [pscustomobject]@{
+            Path = $legacyPath
+            UsedLegacyFallback = $true
+        }
+    }
+
+    return [pscustomobject]@{
+        Path = $canonicalPath
+        UsedLegacyFallback = $false
+    }
+}
+
 function Get-ClaudeLifecycleStatePath {
     param(
         [pscustomobject]$Context

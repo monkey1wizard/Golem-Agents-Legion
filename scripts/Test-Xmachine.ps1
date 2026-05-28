@@ -11,7 +11,7 @@
 
 .PARAMETER WorkNode
     User-facing xmachine work-node alias. The alias must exist in
-    `xmachine.config.json` at the repository root.
+    `~/.gal/config/xmachine.json`, with warned repository-root fallback during migration.
 
 .PARAMETER WorkRepoPath
     Repo checkout path on the work node. If omitted, the script tries to reuse
@@ -39,6 +39,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'common\Common.ps1')
 
 function Get-RepoRoot {
     $scriptDir = $PSScriptRoot
@@ -57,7 +58,7 @@ function Get-RepoName {
 function Get-XmachineConfigPath {
     param([Parameter(Mandatory)][string]$RepoRoot)
 
-    return Join-Path $RepoRoot "xmachine.config.json"
+    return (Resolve-XmachineConfigRecord -RepoRoot $RepoRoot -WarnOnLegacyFallback).Path
 }
 
 function Read-XmachineConfig {
@@ -65,12 +66,12 @@ function Read-XmachineConfig {
 
     $configPath = Get-XmachineConfigPath -RepoRoot $RepoRoot
     if (-not (Test-Path $configPath)) {
-        throw "Missing xmachine config '$configPath'. Copy xmachine.config.example.json to xmachine.config.json before running xmachine smoke tests."
+        throw "Missing xmachine config '$configPath'. Create ~/.gal/config/xmachine.json or keep the repository-root fallback only temporarily during migration."
     }
 
     $raw = Get-Content $configPath -Raw
     if ([string]::IsNullOrWhiteSpace($raw)) {
-        throw "Xmachine config '$configPath' is empty. Copy xmachine.config.example.json to xmachine.config.json and define at least one node."
+        throw "Xmachine config '$configPath' is empty. Define at least one node in ~/.gal/config/xmachine.json or the temporary repository-root fallback."
     }
 
     try {
@@ -754,7 +755,7 @@ try {
     }
 
     $sshConfig = ConvertFrom-SshConfigOutput -Lines @($sshConfigOutput | ForEach-Object { $_.ToString() })
-    Write-Stage -Stage "ssh-config" -Detail ("resolved work node '{0}' to SSH target '{1}' via xmachine.config.json/.ssh config" -f $WorkNode, $resolvedWorkNodeTarget) -Status OK
+    Write-Stage -Stage "ssh-config" -Detail ("resolved work node '{0}' to SSH target '{1}' via xmachine config/.ssh config" -f $WorkNode, $resolvedWorkNodeTarget) -Status OK
 
     Write-Stage -Stage "ssh-batch" -Detail "checking passwordless BatchMode SSH"
     $sshBatch = Invoke-SshCommand -NodeId $resolvedWorkNodeTarget -RemoteCommand "echo XMACHINE_SSH_OK"

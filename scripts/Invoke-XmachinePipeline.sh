@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common/common.sh"
+
 WORK_NODE=""
 PLAN_PATH=""
 WORK_REPO_PATH=""
@@ -34,9 +37,7 @@ for tool in git jq ssh scp perl; do
 done
 
 get_repo_root() {
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cd "$script_dir/.." && pwd
+    cd "$SCRIPT_DIR/.." && pwd
 }
 
 get_repo_context_root() {
@@ -220,7 +221,7 @@ if [[ -z "$resolved_plan_path" || ! -f "$resolved_plan_path" ]]; then
     exit 1
 fi
 
-config_path="$repo_root/xmachine.config.json"
+config_path="$(resolve_xmachine_config_path "$repo_root" warn)"
 if [[ ! -f "$config_path" ]]; then
     echo "Missing xmachine config '$config_path'." >&2
     exit 1

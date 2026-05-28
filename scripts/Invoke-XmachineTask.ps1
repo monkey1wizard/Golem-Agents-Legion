@@ -3,7 +3,8 @@
     Dispatch a task spec to a configured xmachine work node from a Windows control node.
 
 .DESCRIPTION
-    Resolves a work-node alias from xmachine.config.json, detects the remote platform,
+    Resolves a work-node alias from the canonical ~/.gal/config/xmachine.json path,
+    with warned repository-root fallback during migration, detects the remote platform,
     dispatches the task through the existing per-lane xmachine scripts, and optionally
     retrieves the standard runtime artifacts into a local output directory.
 #>
@@ -32,6 +33,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'common\Common.ps1')
 
 function Get-RepoRoot {
     if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
@@ -62,7 +64,7 @@ function Get-RepoContextRoot {
 function Get-XmachineConfigPath {
     param([Parameter(Mandatory)][string]$RepoRoot)
 
-    return Join-Path $RepoRoot "xmachine.config.json"
+    return (Resolve-XmachineConfigRecord -RepoRoot $RepoRoot -WarnOnLegacyFallback).Path
 }
 
 function Read-XmachineConfig {

@@ -306,7 +306,7 @@ Verdict: CLEAR
 - [x] T-001 — 更新 PowerShell/Bash 共用根路徑與 provider artifact helper，讓 `dist` 與 local config primary path 全部轉向 `~/.gal`。
 - [x] T-002 — 遷移 `config.local.env`、`model-roles.local.md`、`mcp.local.json` 的讀寫與 filter primary path 至 `~/.gal/config`，並保留明確的 legacy fallback。
 - [x] T-003 — 將 `GAL_SKILLS` 視為一次性 migration input，把既有 skills 收編到 `.gal` 的 plugin 管理面後從最終設定中移除。
-- [ ] T-004 — 將 xmachine canonical path 統一為 `~/.gal/config/xmachine.json`，並讓 wrappers / tests 共用同一 fallback 警告邏輯。
+- [x] T-004 — 將 xmachine canonical path 統一為 `~/.gal/config/xmachine.json`，並讓 wrappers / tests 共用同一 fallback 警告邏輯。
 - [ ] T-005 — 將 source-mode `GAL_ROOT` 橋接連結改為經過 `~/.gal/source`，避免 provider 直接依賴 repo-root link。
 - [ ] T-006 — 將 provider build/install/release output 遷移至 `~/.gal/dist`，並維持 AGY/Claude 的 symlink projection 與 Copilot/Codex `not-implemented` 邊界。
 - [ ] T-007 — 更新 PowerShell/Bash 測試以使用暫存 home 隔離，並補足 `.gal/dist`、shortcut target、`not-implemented` 斷言。

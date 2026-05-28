@@ -46,7 +46,8 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG_PATH="$REPO_ROOT/xmachine.config.json"
+source "$SCRIPT_DIR/common/common.sh"
+CONFIG_PATH="$(resolve_xmachine_config_path "$REPO_ROOT" warn)"
 
 if [[ ! -f "$CONFIG_PATH" ]]; then
     echo "Missing xmachine config '$CONFIG_PATH'." >&2

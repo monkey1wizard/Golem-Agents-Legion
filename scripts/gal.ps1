@@ -214,6 +214,7 @@ function Get-StateContext {
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
 $xmachineDocPath = Join-Path $repoRoot "docs\collaborative-tools\xmachine.md"
+. (Join-Path $scriptRoot 'common\Common.ps1')
 
 # --- Dispatch helpers ---
 
@@ -228,7 +229,7 @@ function Write-Dispatch([hashtable]$Fields) {
 }
 
 function Read-XmachineNodeAliases {
-    $configPath = Join-Path $repoRoot "xmachine.config.json"
+    $configPath = (Resolve-XmachineConfigRecord -RepoRoot $repoRoot).Path
     if (-not (Test-Path $configPath)) {
         return @()
     }
@@ -507,7 +508,7 @@ switch ($Command) {
             $availableNodes = if ($xmachineContext.AvailableNodes.Count -gt 0) { $xmachineContext.AvailableNodes -join ', ' } else { '<none configured>' }
             Write-Dispatch @{
                 COMMAND = 'error'
-                ACTION = "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from xmachine.config.json. Available aliases: $availableNodes"
+                ACTION = "xmachine execution requires both the literal keyword 'xmachine' and a valid work-node alias from ~/.gal/config/xmachine.json (legacy repo-root fallback supported). Available aliases: $availableNodes"
             }
             break
         }

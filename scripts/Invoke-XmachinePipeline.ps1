@@ -14,6 +14,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'common\Common.ps1')
 
 function Get-RepoContextRoot {
     $current = (Get-Location).Path
@@ -145,7 +146,7 @@ function Get-RepoRoot {
 function Get-XmachineConfigPath {
     param([Parameter(Mandatory)][string]$RepoRoot)
 
-    return Join-Path $RepoRoot "xmachine.config.json"
+    return (Resolve-XmachineConfigRecord -RepoRoot $RepoRoot -WarnOnLegacyFallback).Path
 }
 
 function Read-XmachineConfig {
