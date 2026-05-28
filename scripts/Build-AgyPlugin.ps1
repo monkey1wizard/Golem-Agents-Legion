@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Builds the provider-neutral common package, validates it, and renders
-    AGY-specific artifacts to dist/provider-plugins/agy/gal/.
+    AGY-specific artifacts to ~/.gal/dist/provider-plugins/agy/gal/.
 
     Outputs:
     - plugin.json          (manifest with stable name: gal)

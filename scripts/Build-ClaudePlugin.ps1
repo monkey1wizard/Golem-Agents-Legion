@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Builds the provider-neutral common package, validates it, and renders
-    Claude-specific artifacts to dist/provider-plugins/claude/gal/.
+    Claude-specific artifacts to ~/.gal/dist/provider-plugins/claude/gal/.
 
     Outputs:
     - .claude-plugin/plugin.json  (Claude plugin manifest)

@@ -308,7 +308,7 @@ Verdict: CLEAR
 - [x] T-003 — 將 `GAL_SKILLS` 視為一次性 migration input，把既有 skills 收編到 `.gal` 的 plugin 管理面後從最終設定中移除。
 - [x] T-004 — 將 xmachine canonical path 統一為 `~/.gal/config/xmachine.json`，並讓 wrappers / tests 共用同一 fallback 警告邏輯。
 - [x] T-005 — 將 source-mode `GAL_ROOT` 橋接連結改為經過 `~/.gal/source`，避免 provider 直接依賴 repo-root link。
-- [ ] T-006 — 將 provider build/install/release output 遷移至 `~/.gal/dist`，並維持 AGY/Claude 的 symlink projection 與 Copilot/Codex `not-implemented` 邊界。
+- [x] T-006 — 將 provider build/install/release output 遷移至 `~/.gal/dist`，並維持 AGY/Claude 的 symlink projection 與 Copilot/Codex `not-implemented` 邊界。
 - [ ] T-007 — 更新 PowerShell/Bash 測試以使用暫存 home 隔離，並補足 `.gal/dist`、shortcut target、`not-implemented` 斷言。
 - [ ] T-008 — 更新受影響的來源文件與操作說明；必要時走既有同步流程重產 generated adapters，但不手改 generated 檔。
 - [ ] T-009 — 在 cleanup 前完成 repo-root 個人設定與 `.gal` 對應內容的最終比對，包含 `GAL_SKILLS` 收編完成與移除確認。

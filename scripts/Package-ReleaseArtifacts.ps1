@@ -32,7 +32,7 @@ param (
     [string]$TargetArch,
 
     [Parameter(Mandatory=$false)]
-    [string]$OutputDir = ".\dist\release"
+    [string]$OutputDir = (Join-Path $env:USERPROFILE '.gal\dist\release')
 )
 
 $ErrorActionPreference = "Stop"

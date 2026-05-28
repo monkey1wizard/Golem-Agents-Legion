@@ -14,7 +14,7 @@ SOURCE_BINARY=""
 VERSION=""
 TARGET_PLATFORM=""
 TARGET_ARCH=""
-OUTPUT_DIR="./dist/release"
+OUTPUT_DIR="$HOME/.gal/dist/release"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
