@@ -335,22 +335,33 @@ invoke_update_skills() {
 
     echo ''
     echo '=== GAL_ROOT symlinks ==='
+    local should_keep_gal_source_link=false
+    if ! $UNINSTALL && { $INSTALL_COPILOT || $INSTALL_GEMINI || $INSTALL_ANTIGRAVITY; }; then
+        should_keep_gal_source_link=true
+    fi
+
+    if $should_keep_gal_source_link; then
+        safe_link "$GAL_SOURCE_ROOT" "$REPO_ROOT"
+    else
+        safe_unlink "$GAL_SOURCE_ROOT"
+    fi
+
     if $UNINSTALL || ! $INSTALL_COPILOT; then
         safe_unlink "$GAL_ROOT_COPILOT"
     else
-        safe_link "$GAL_ROOT_COPILOT" "$REPO_ROOT"
+        safe_link "$GAL_ROOT_COPILOT" "$GAL_SOURCE_ROOT"
     fi
 
     if $UNINSTALL || ! $INSTALL_GEMINI; then
         safe_unlink "$GAL_ROOT_GEMINI"
     else
-        safe_link "$GAL_ROOT_GEMINI" "$REPO_ROOT"
+        safe_link "$GAL_ROOT_GEMINI" "$GAL_SOURCE_ROOT"
     fi
 
     if $UNINSTALL || ! $INSTALL_ANTIGRAVITY; then
         safe_unlink "$GAL_ROOT_ANTIGRAVITY"
     else
-        safe_link "$GAL_ROOT_ANTIGRAVITY" "$REPO_ROOT"
+        safe_link "$GAL_ROOT_ANTIGRAVITY" "$GAL_SOURCE_ROOT"
     fi
 }
 

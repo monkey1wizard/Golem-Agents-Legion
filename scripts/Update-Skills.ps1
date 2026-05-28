@@ -302,25 +302,33 @@ function Invoke-UpdateSkills {
 
     Write-Host ''
     Write-Host '=== GAL_ROOT symlinks ==='
+    $shouldKeepGalSourceLink = -not $script:SetupOptions.Uninstall -and ($context.InstallCopilot -or $context.InstallGemini -or $context.InstallAntigravity)
+    if ($shouldKeepGalSourceLink) {
+        New-SafeSymlink $context.GalSourceRoot $context.RepoRoot 'Directory' | Out-Null
+    }
+    else {
+        Remove-SafeLink $context.GalSourceRoot
+    }
+
     if ($script:SetupOptions.Uninstall -or -not $context.InstallCopilot) {
         Remove-SafeLink $context.GalRootCopilot
     }
     else {
-        New-SafeSymlink $context.GalRootCopilot $context.RepoRoot 'Directory' | Out-Null
+        New-SafeSymlink $context.GalRootCopilot $context.GalSourceRoot 'Directory' | Out-Null
     }
 
     if ($script:SetupOptions.Uninstall -or -not $context.InstallGemini) {
         Remove-SafeLink $context.GalRootGemini
     }
     else {
-        New-SafeSymlink $context.GalRootGemini $context.RepoRoot 'Directory' | Out-Null
+        New-SafeSymlink $context.GalRootGemini $context.GalSourceRoot 'Directory' | Out-Null
     }
 
     if ($script:SetupOptions.Uninstall -or -not $context.InstallAntigravity) {
         Remove-SafeLink $context.GalRootAntigravity
     }
     else {
-        New-SafeSymlink $context.GalRootAntigravity $context.RepoRoot 'Directory' | Out-Null
+        New-SafeSymlink $context.GalRootAntigravity $context.GalSourceRoot 'Directory' | Out-Null
     }
 }
 
