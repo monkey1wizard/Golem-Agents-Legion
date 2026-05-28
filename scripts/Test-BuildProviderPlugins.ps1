@@ -23,31 +23,45 @@ function Assert-True {
 }
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$configPath = Join-Path $env:TEMP 'gal-test-provider-build-full.json'
-$lockfilePath = Join-Path $env:TEMP 'gal-test-provider-build-full.lock.json'
 $releaseMatrixPath = Join-Path $repoRoot 'docs\release-matrix.md'
 
-(@{ defaultProfile = 'full' } | ConvertTo-Json) | Set-Content -Path $configPath -Encoding UTF8
+$testHome = Join-Path $env:TEMP ("gal-test-provider-build-{0}" -f [System.Guid]::NewGuid().ToString('N'))
+$originalUserProfile = $env:USERPROFILE
+$originalHome = $env:HOME
 
-$plan = & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -DryRun -PassThru
+New-Item -ItemType Directory -Path $testHome | Out-Null
 
-$agyPlan = $plan.BuildPlan | Where-Object Provider -eq 'agy' | Select-Object -First 1
-$copilotPlan = $plan.BuildPlan | Where-Object Provider -eq 'copilot' | Select-Object -First 1
-$codexPlan = $plan.BuildPlan | Where-Object Provider -eq 'codex' | Select-Object -First 1
-$claudePlan = $plan.BuildPlan | Where-Object Provider -eq 'claude' | Select-Object -First 1
+try {
+    $env:USERPROFILE = $testHome
+    $env:HOME = $testHome
 
-$claudeArtifactRoot = Join-Path $repoRoot 'dist/provider-plugins/claude/gal'
-$claudeManifestPath = Join-Path $claudeArtifactRoot '.claude-plugin/plugin.json'
-$claudeMcpPath = Join-Path $claudeArtifactRoot '.mcp.json'
-$claudeSkillPath = Join-Path $claudeArtifactRoot 'skills/defuddle/SKILL.md'
-$claudeCommandPath = Join-Path $claudeArtifactRoot 'commands/gal.md'
-$claudeAgentPath = Join-Path $claudeArtifactRoot 'agents/golem-reviewer.md'
+    $configPath = Join-Path $testHome '.gal\config\config.json'
+    $lockfilePath = Join-Path $testHome '.gal\state\plugins.lock.json'
+    New-Item -ItemType Directory -Path (Split-Path $configPath -Parent) -Force | Out-Null
+    New-Item -ItemType Directory -Path (Split-Path $lockfilePath -Parent) -Force | Out-Null
 
-. (Join-Path $PSScriptRoot 'common\ProviderPlugin.ps1')
-$canonicalSchema = Get-GalCoreCanonicalPackageSchema
-$canonicalPackage = New-ProviderPluginPackage -RepoRoot $repoRoot -ResolvedPlugins $null
-$canonicalValidation = Test-ProviderPluginPackage -Package $canonicalPackage
-$releaseMatrix = Get-Content -LiteralPath $releaseMatrixPath -Raw
+    (@{ defaultProfile = 'full' } | ConvertTo-Json) | Set-Content -Path $configPath -Encoding UTF8
+
+    $plan = & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -DryRun -PassThru
+
+    $agyPlan = $plan.BuildPlan | Where-Object Provider -eq 'agy' | Select-Object -First 1
+    $copilotPlan = $plan.BuildPlan | Where-Object Provider -eq 'copilot' | Select-Object -First 1
+    $codexPlan = $plan.BuildPlan | Where-Object Provider -eq 'codex' | Select-Object -First 1
+    $claudePlan = $plan.BuildPlan | Where-Object Provider -eq 'claude' | Select-Object -First 1
+
+    $agyArtifactRoot = Join-Path $testHome '.gal\dist\provider-plugins\agy\gal'
+    $claudeArtifactRoot = Join-Path $testHome '.gal\dist\provider-plugins\claude\gal'
+    $claudeManifestPath = Join-Path $claudeArtifactRoot '.claude-plugin/plugin.json'
+    $claudeMcpPath = Join-Path $claudeArtifactRoot '.mcp.json'
+    $claudeSkillPath = Join-Path $claudeArtifactRoot 'skills/defuddle/SKILL.md'
+    $claudeCommandPath = Join-Path $claudeArtifactRoot 'commands/gal.md'
+    $claudeAgentPath = Join-Path $claudeArtifactRoot 'agents/golem-reviewer.md'
+
+    . (Join-Path $PSScriptRoot 'common\ProviderPlugin.ps1')
+    $canonicalSchema = Get-GalCoreCanonicalPackageSchema
+    $canonicalPackage = New-ProviderPluginPackage -RepoRoot $repoRoot -ResolvedPlugins $null
+    $canonicalValidation = Test-ProviderPluginPackage -Package $canonicalPackage
+    $releaseMatrix = Get-Content -LiteralPath $releaseMatrixPath -Raw
 
 Assert-True -Condition ($agyPlan.Mode -eq 'managed-shortcut') -Label 'TP-010: AGY build plan uses managed shortcut mode'
 Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Label 'TP-010: AGY shortcut target points to ~/.gal/active/agy'
@@ -59,7 +73,7 @@ Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-006: Cod
 Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-016: Codex direct install is not yet claimed before renderer verification'
 Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-006: Claude remains the baseline native-install lane'
 Assert-True -Condition ($claudePlan.Renderer -eq 'Build-ClaudePlugin.ps1') -Label 'TP-004: Claude build plan uses the real Claude renderer'
-Assert-True -Condition ($claudePlan.ArtifactRoot -eq $claudeArtifactRoot) -Label 'TP-004: Claude build plan reports the Claude artifact root'
+    Assert-True -Condition ($claudePlan.ArtifactRoot -eq $claudeArtifactRoot) -Label 'TP-004: Claude build plan reports the Claude artifact root'
 Assert-True -Condition ($claudePlan.InstallTarget -eq 'provider-managed via claude plugin install --scope <scope>') -Label 'TP-004: Claude build plan documents provider-managed install targeting'
 Assert-True -Condition ($claudePlan.LifecycleStatus -eq 'artifact-rendered-install-deferred') -Label 'TP-004: Claude build plan distinguishes rendered artifact from direct-install verification'
 Assert-True -Condition ($canonicalSchema.canonicalProvider -eq 'claude') -Label 'TP-006: Claude is the canonical package schema baseline'
@@ -77,28 +91,36 @@ Assert-True -Condition ($releaseMatrix.Contains('do not create a Codex-only vers
 Assert-True -Condition ($releaseMatrix.Contains('do not create a Copilot-only version stream.') -and $releaseMatrix.Contains('the Copilot wrapper must describe the same canonical package lineage')) -Label 'TP-006: Copilot submission artifact policy stays aligned to the canonical package lineage'
 Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.') -and $releaseMatrix.Contains('if Copilot review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.')) -Label 'TP-016: Codex and Copilot fallback-link policy stays explicit when downstream publication lags'
 
-$resolvedJsonPath = $plan.ResolvedPluginsFile
-try {
-    & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
-    $pluginJson = Get-Content -LiteralPath (Join-Path $repoRoot 'dist/provider-plugins/agy/gal/plugin.json') -Raw | ConvertFrom-Json
+    $resolvedJsonPath = $plan.ResolvedPluginsFile
+    try {
+        & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+        $pluginJson = Get-Content -LiteralPath (Join-Path $agyArtifactRoot 'plugin.json') -Raw | ConvertFrom-Json
 
-    Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-009: AGY manifest preserves canonical package identity'
-    Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-009: AGY manifest preserves deferred companion identity'
+        Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-009: AGY manifest preserves canonical package identity'
+        Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-009: AGY manifest preserves deferred companion identity'
 
-    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
-    $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
+        & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+        $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 
-    Assert-True -Condition (Test-Path $claudeManifestPath) -Label 'TP-001: Claude artifact contains .claude-plugin/plugin.json'
-    Assert-True -Condition (Test-Path $claudeSkillPath) -Label 'TP-003: Claude artifact contains skill payloads'
-    Assert-True -Condition (Test-Path $claudeCommandPath) -Label 'TP-003: Claude artifact contains command markdown'
-    Assert-True -Condition (Test-Path $claudeAgentPath) -Label 'TP-003: Claude artifact contains agent markdown'
-    Assert-True -Condition (Test-Path $claudeMcpPath) -Label 'TP-003: Claude artifact contains plugin-root MCP config'
-    Assert-True -Condition ($claudeManifest.name -eq 'gal') -Label 'TP-002: Claude manifest preserves plugin identity'
-    Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
+        Assert-True -Condition (Test-Path $claudeManifestPath) -Label 'TP-001: Claude artifact contains .claude-plugin/plugin.json'
+        Assert-True -Condition (Test-Path $claudeSkillPath) -Label 'TP-003: Claude artifact contains skill payloads'
+        Assert-True -Condition (Test-Path $claudeCommandPath) -Label 'TP-003: Claude artifact contains command markdown'
+        Assert-True -Condition (Test-Path $claudeAgentPath) -Label 'TP-003: Claude artifact contains agent markdown'
+        Assert-True -Condition (Test-Path $claudeMcpPath) -Label 'TP-003: Claude artifact contains plugin-root MCP config'
+        Assert-True -Condition ($claudeManifest.name -eq 'gal') -Label 'TP-002: Claude manifest preserves plugin identity'
+        Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
+    }
+    finally {
+        if (Test-Path $resolvedJsonPath) {
+            Remove-Item -LiteralPath $resolvedJsonPath -Force
+        }
+    }
 }
 finally {
-    if (Test-Path $resolvedJsonPath) {
-        Remove-Item -LiteralPath $resolvedJsonPath -Force
+    $env:USERPROFILE = $originalUserProfile
+    $env:HOME = $originalHome
+    if (Test-Path $testHome) {
+        Remove-Item -LiteralPath $testHome -Recurse -Force
     }
 }
 

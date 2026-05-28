@@ -11,6 +11,11 @@
     secrets, and no runtimeScripts.
 #>
 
+$commonHelpersScript = Join-Path $PSScriptRoot 'Common.ps1'
+if (Test-Path $commonHelpersScript) {
+    . $commonHelpersScript
+}
+
 function Get-GalCoreCanonicalPackageSchema {
     <#
     .SYNOPSIS
