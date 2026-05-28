@@ -311,5 +311,5 @@ Verdict: CLEAR
 - [x] T-006 — 將 provider build/install/release output 遷移至 `~/.gal/dist`，並維持 AGY/Claude 的 symlink projection 與 Copilot/Codex `not-implemented` 邊界。
 - [x] T-007 — 更新 PowerShell/Bash 測試以使用暫存 home 隔離，並補足 `.gal/dist`、shortcut target、`not-implemented` 斷言。
 - [x] T-008 — 更新受影響的來源文件與操作說明；必要時走既有同步流程重產 generated adapters，但不手改 generated 檔。
-- [ ] T-009 — 在 cleanup 前完成 repo-root 個人設定與 `.gal` 對應內容的最終比對，包含 `GAL_SKILLS` 收編完成與移除確認。
-- [ ] T-010 — 僅在文件與資料比對 gate 通過後，清理 repo-root 被忽略的本機設定檔案與 `dist/`。
+- [x] T-009 — 在 cleanup 前完成 repo-root 個人設定與 `.gal` 對應內容的最終比對，包含 `GAL_SKILLS` 收編完成與移除確認。
+- [x] T-010 — 僅在文件與資料比對 gate 通過後，清理 repo-root 被忽略的本機設定檔案與 `dist/`。
