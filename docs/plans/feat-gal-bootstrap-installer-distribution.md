@@ -193,4 +193,4 @@ CLEAR。此計畫已具備可實作邊界：它處理 GAL bootstrap payload 的 
 - [x] T-009 — 以 Claude 作為基準，驗證現有 plugin 結構能否被 Claude 正確讀取與安裝，並建立 Claude marketplace 的 discoverability policy。 *(9afed87)*
 - [x] T-010 — 待 Claude 驗證完成後，建立 Codex、Copilot 等其他 marketplace publication matrix，定義 direct-install eligibility、submission artifact 與 fallback link policy。 *(d889071)*
 - [x] T-011 — 更新 README、devguide 與 personalization docs，說明官方安裝路徑、fallback、備份/轉移、channel lag、uninstall boundary 與不保證事項。 *(77b256d)*
-- [x] T-012 — 定義 raw PowerShell / shell convenience installer policy，確保它只導向 canonical release payload 且不成為唯一或第二套 distribution model。
+- [x] T-012 — 定義 raw PowerShell / shell convenience installer policy，確保它只導向 canonical release payload 且不成為唯一或第二套 distribution model。 *(60e3113)*
