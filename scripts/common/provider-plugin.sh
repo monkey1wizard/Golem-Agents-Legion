@@ -136,7 +136,7 @@ build_provider_plugin_package() {
 
     # --- MCP spec ---
     local mcp_file="$repo_root/mcp.json"
-    local mcp_local_file="$repo_root/mcp.local.json"
+    local mcp_local_file="$GAL_CONFIG_ROOT/mcp.local.json"
     if [ -f "$mcp_file" ]; then
         local has_local=false
         [ -f "$mcp_local_file" ] && has_local=true
@@ -402,7 +402,7 @@ validate_provider_plugin_package() {
 # Returns the generated artifact root for the AGY renderer.
 get_agy_plugin_artifact_root() {
     local repo_root="${1:-$REPO_ROOT}"
-    printf '%s\n' "$repo_root/dist/provider-plugins/agy/gal"
+    printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/agy/gal"
 }
 
 # Returns the AGY plugin install target path.
@@ -413,7 +413,7 @@ get_agy_plugin_install_target() {
 # Returns the generated artifact root for the Claude renderer.
 get_claude_plugin_artifact_root() {
     local repo_root="${1:-$REPO_ROOT}"
-    printf '%s\n' "$repo_root/dist/provider-plugins/claude/gal"
+    printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/claude/gal"
 }
 
 # Returns the Claude plugin component layout relative to the plugin root.

@@ -168,7 +168,7 @@ function New-ProviderPluginPackage {
 
     # --- MCP spec (canonical only; local overrides flagged but not resolved) ---
     $mcpFile = Join-Path $RepoRoot 'mcp.json'
-    $mcpLocalFile = Join-Path $RepoRoot 'mcp.local.json'
+    $mcpLocalFile = Join-Path $env:USERPROFILE '.gal\config\mcp.local.json'
     if (Test-Path $mcpFile) {
         $package.mcpSpec = [ordered]@{
             canonicalSource = $mcpFile
@@ -420,7 +420,7 @@ function Get-AgyPluginArtifactRoot {
         Returns the generated artifact root for the AGY renderer.
     #>
     param([string]$RepoRoot)
-    return Join-Path $RepoRoot 'dist/provider-plugins/agy/gal'
+    return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\agy\gal'
 }
 
 function Get-AgyPluginInstallTarget {
@@ -437,7 +437,7 @@ function Get-ClaudePluginArtifactRoot {
         Returns the generated artifact root for the Claude renderer.
     #>
     param([string]$RepoRoot)
-    return Join-Path $RepoRoot 'dist/provider-plugins/claude/gal'
+    return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\claude\gal'
 }
 
 function Get-ClaudePluginComponentRelativePaths {
