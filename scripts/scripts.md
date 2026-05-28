@@ -6,9 +6,9 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
-| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific plugin artifacts to `dist/provider-plugins/agy/gal/` |
+| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific plugin artifacts to `~/.gal/dist/provider-plugins/agy/gal/` |
 | `build-agy-plugin.sh` | macOS/Linux | Same for Mac/Linux |
-| `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `config.local.env` |
+| `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `~/.gal/config/config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then inspect any existing graphify artifacts without generating new ones |
 | `init-repo.sh` | macOS | Same for Mac |
@@ -20,7 +20,7 @@ Machine setup and adapter sync scripts.
 | `Update-Personalization.ps1` | Windows | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
-| `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
+| `Update-Mcp.ps1` | Windows | Resolve `mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `update-personalization.sh`, `update-skills.sh`, `update-commands.sh`, and `update-mcp.sh` |
 | `install-gal-plugins.sh` | macOS/Linux | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
@@ -28,7 +28,7 @@ Machine setup and adapter sync scripts.
 | `update-personalization.sh` | macOS | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `update-skills.sh` | macOS | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
-| `update-mcp.sh` | macOS | Resolve `mcp.json` + `mcp.local.json` + `config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
+| `update-mcp.sh` | macOS | Resolve `mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
 | `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove GAL-managed machine artifacts while preserving user-owned config, lockfile, xmachine bindings, local overrides, and secrets by default; `-Purge -ConfirmPurge` makes destructive reset explicit |
 | `uninstall-machine.sh` | macOS | Same for Mac, using `--purge --confirm-purge` for explicit destructive reset |
@@ -130,7 +130,7 @@ The setup script creates these symlinks:
 | `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
 | `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
 | `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
-| `<repo root>` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | — | — |
+| `~/.gal/source/` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | — | — |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
@@ -144,7 +144,7 @@ For legacy Gemini CLI compatibility, Setup-Machine writes GAL-managed `~/.gemini
 
 Generates the legacy compatibility file `~/.gemini/gal-context.md` with sorted non-command `@file` skill imports. All import paths reference the current repo's `.agents/skills/` workspace directory.
 
-`Update-Mcp.ps1` and `update-mcp.sh` merge the tracked GAL MCP source from `mcp.json` plus optional local overrides from `mcp.local.json` into:
+`Update-Mcp.ps1` and `update-mcp.sh` merge the tracked GAL MCP source from `mcp.json` plus optional local overrides from `~/.gal/config/mcp.local.json` into:
 
 - VS Code `mcp.json`
 - Copilot CLI `~/.copilot/mcp-config.json`
@@ -158,11 +158,11 @@ The merged manifest owns `servers` and can also carry optional top-level `inputs
 
 The merge strategy is manifest-owned for GAL-managed server names: existing provider-owned entries with unrelated names are preserved, while tracked GAL server entries are overwritten in place on rerun so config updates propagate correctly. When a local override declares `servers.github`, GAL treats that local key as the active GitHub MCP entry and cleans up the older `github-mcp-server` name during bridge sync so the PAT-backed remote server replaces the tracked OAuth entry instead of duplicating it.
 
-For Playwright MCP, keep the tracked `mcp.json` entry limited to safe core startup and place headed mode, storage-state paths, output directories, optional capability flags, persistent profile paths, extension/CDP wiring, and similar machine-local behavior in `mcp.local.json` plus `config.local.env`.
+For Playwright MCP, keep the tracked `mcp.json` entry limited to safe core startup and place headed mode, storage-state paths, output directories, optional capability flags, persistent profile paths, extension/CDP wiring, and similar machine-local behavior in `~/.gal/config/mcp.local.json` plus `~/.gal/config/config.local.env`.
 
 Rerun guidance:
 
-- `Update-Mcp.ps1` / `update-mcp.sh`: refresh runtime MCP config after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`.
+- `Update-Mcp.ps1` / `update-mcp.sh`: refresh runtime MCP config after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`.
 - `Sync-DevContext.ps1` / `sync-dev-context.sh`: regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` after changing their source-of-truth inputs.
 - `Setup-Machine.ps1` / `setup-machine.sh`: rerun the full concern stack when you want one top-level refresh.
 
@@ -174,7 +174,7 @@ Rerun guidance:
 
 1. Builds a provider-neutral common package using `New-ProviderPluginPackage` / `build_provider_plugin_package`
 2. Validates the common package using `Test-ProviderPluginPackage` / `validate_provider_plugin_package`
-3. Renders AGY-specific artifacts to `dist/provider-plugins/agy/gal/`:
+3. Renders AGY-specific artifacts to `~/.gal/dist/provider-plugins/agy/gal/`:
    - `plugin.json` — manifest with stable `name: gal`, skill/agent indexes, capability flags
    - `skills/` — reusable skills and command skills (as AGY skills)
    - `agents/` — agent definitions
@@ -192,7 +192,7 @@ Rerun guidance:
 ### Usage
 
 ```powershell
-# Render to dist/provider-plugins/agy/gal/
+# Render to ~/.gal/dist/provider-plugins/agy/gal/
 .\scripts\Build-AgyPlugin.ps1
 
 # Force overwrite existing artifacts
@@ -203,7 +203,7 @@ Rerun guidance:
 ```
 
 ```bash
-# Render to dist/provider-plugins/agy/gal/
+# Render to ~/.gal/dist/provider-plugins/agy/gal/
 ./scripts/build-agy-plugin.sh
 
 # Force overwrite existing artifacts

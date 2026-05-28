@@ -96,16 +96,16 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
-| Claude Code | `dist/provider-plugins/claude/gal/` artifact for build output; provider-native plugin lifecycle manages enabled scopes, cache, and data | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root |
+| Claude Code | `~/.gal/dist/provider-plugins/claude/gal/` artifact for build output; provider-native plugin lifecycle manages enabled scopes, cache, and data | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root |
 
 ### Layer 1.5 Install Topology
 
 | Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | `dist/provider-plugins/claude/gal/agents/` |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `dist/provider-plugins/claude/gal/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `dist/provider-plugins/claude/gal/commands/<command>.md` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | `dist/provider-plugins/claude/gal/` (plugin tree) |
+| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | `~/.gal/dist/provider-plugins/claude/gal/agents/` |
+| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/dist/provider-plugins/claude/gal/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/dist/provider-plugins/claude/gal/commands/<command>.md` |
+| `~/.gal/source/` | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | `~/.gal/dist/provider-plugins/claude/gal/` (plugin tree) |
 
 ### Generated Runtime Files
 
@@ -113,8 +113,8 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | --- | --- |
 | `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
-| `dist/provider-plugins/claude/gal/.claude-plugin/plugin.json` | Claude plugin manifest for validation, install, and plugin manager metadata |
-| `dist/provider-plugins/claude/gal/.mcp.json` | Claude plugin MCP configuration containing only portable GAL-managed entries |
+| `~/.gal/dist/provider-plugins/claude/gal/.claude-plugin/plugin.json` | Claude plugin manifest for validation, install, and plugin manager metadata |
+| `~/.gal/dist/provider-plugins/claude/gal/.mcp.json` | Claude plugin MCP configuration containing only portable GAL-managed entries |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
 
 ### Archived Gemini CLI Surfaces
@@ -149,17 +149,17 @@ The MCP manifest is a separate install concern from skills.
 | File | Scope | Role |
 | --- | --- | --- |
 | `mcp.json` | tracked | single GAL MCP source of truth |
-| `mcp.local.json` | local only | machine-specific overrides and enablement |
-| `config.local.env` | local only | secrets and local values referenced by the manifest |
-| `xmachine.config.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
+| `~/.gal/config/mcp.local.json` | local only | machine-specific overrides and enablement |
+| `~/.gal/config/config.local.env` | local only | secrets and local values referenced by the manifest |
+| `~/.gal/config/xmachine.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
 
 The merged MCP manifest is centered on `servers` and may also include optional top-level `inputs` when a runtime supports prompt-backed values such as a PAT entry.
 
 For Playwright MCP specifically:
 
 - Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
-- Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `mcp.local.json`.
-- Put secret-like paths or environment-backed local values referenced by those overrides in `config.local.env`.
+- Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `~/.gal/config/mcp.local.json`.
+- Put secret-like paths or environment-backed local values referenced by those overrides in `~/.gal/config/config.local.env`.
 - Do not track browser artifacts, storage-state files, persistent profile directories, or secret files in the repo.
 
 `Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
@@ -191,7 +191,7 @@ The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provide
 | `metadata` | repo name, display name, version diagnostics, generation timestamp | conceptually yes |
 | `skills` | `skills/<name>/SKILL.md` | yes |
 | `commandSkills` | `commands/*/SKILL.md` | yes, as skill bundles |
-| `mcpSpec` | `mcp.json` plus `mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
+| `mcpSpec` | `mcp.json` plus `~/.gal/config/mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
 | `instructionCorpus` | `.dev/project.md`, required conventions, workflows, `model-roles.md`, generated indexes | content yes, path no |
 | `agents` | `agent/*.agent.md` | optional; projected to three of four providers |
 
@@ -222,7 +222,7 @@ Shortcut policy:
 
 ### AGY Renderer (Implementation Status)
 
-AGY is renderer 1, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
+AGY is renderer 1, not the architecture. `Build-AgyPlugin` renders the common package into `~/.gal/dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
 
 Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
 
@@ -468,7 +468,7 @@ Machine-local binding file for xmachine routing. Not a team-shared configuration
 
 ### `~/.gal/generated/mcp/managed.json` — GAL-Produced MCP Projection
 
-Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `mcp.json` + `mcp.local.json` boundary info with machine-local values resolved.
+Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `mcp.json` + `~/.gal/config/mcp.local.json` boundary info with machine-local values resolved.
 
 | Field | Required | Type | Notes |
 | --- | --- | --- | --- |
@@ -544,7 +544,7 @@ plugins/catalog.json (repo-tracked, authoritative catalog source)
 
 ### Refreshing MCP vs. Regenerating Adapters
 
-- Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`. This refreshes runtime MCP config only.
+- Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`. This refreshes runtime MCP config only.
 - Run `Sync-DevContext.ps1` or `sync-dev-context.sh` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
 - Run `Setup-Machine.ps1` or `setup-machine.sh` when you need the full concern stack refreshed in one pass.
 
@@ -582,7 +582,7 @@ After changing install or setup logic, verify at least these points:
 | human-readable feature plan | `docs/plans/<plan-slug>.md` |
 | machine-readable execution work file | `.dev/plans/<plan-slug>.prompt.md` |
 | temporary session continuity | `### Handoff Notes` plus `.dev/state.md` |
-| machine-local xmachine node config | `xmachine.config.json` |
+| machine-local xmachine node config | `~/.gal/config/xmachine.json` |
 
 If a completed plan contains knowledge that should survive, extract it back into a durable source file instead of leaving the plan as hidden long-term documentation.
 

@@ -112,12 +112,12 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 
 ### 1. 模型路由 (Model routing)
 
-- 複製 `../model-roles.example.md` 為 `../model-roles.local.md`。
-- 只能在 `model-roles.local.md` 中更改提供者（provider）和模型對應。
+- 將 `model-roles.example.md` 複製到 `~/.gal/config/model-roles.local.md`。
+- 只能在 `~/.gal/config/model-roles.local.md` 中更改提供者（provider）和模型對應。
 
 ### 2. 本機機密與路徑 (Local secrets and paths)
 
-- 將機密、絕對路徑和機器專用的值放入 `../config.local.env`。
+- 將機密、絕對路徑和機器專用的值放入 `~/.gal/config/config.local.env`。
 - 不要將本機的值寫入被 Git 追蹤的文件、命令範本或原始程式碼檔中。
 
 ### 2a. 命令技能的本機覆寫 (Command skill local overlays)
@@ -154,7 +154,7 @@ Obsidian 支援是機器本機且可選的。GAL 將儲存庫擁有的狀態與�
 
 ### 2c. 工作時間 (Working Hours)
 
-預設情況下，工作時間限制是停用的。如果你希望 GAL 尊重你個人的工作日邊界，請在 `config.local.env` 中進行設定：
+預設情況下，工作時間限制是停用的。如果你希望 GAL 尊重你個人的工作日邊界，請在 `~/.gal/config/config.local.env` 中進行設定：
 
 - `WORKING_HOURS_ENABLED=false` 保持所有工作時間邏輯關閉。
 - `WORKDAY_START` 和 `WORKDAY_END` 描述你偏好的工作時段。
@@ -165,14 +165,14 @@ Obsidian 支援是機器本機且可選的。GAL 將儲存庫擁有的狀態與�
 
 ### 2d. xmachine 節點設定 (xmachine node config)
 
-xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
+xmachine 節點定義是機器本機的，位於 `~/.gal/config/xmachine.json`。
 
-- 複製 `../xmachine.config.example.json` 為 `../xmachine.config.json`。
+- 將 `xmachine.config.example.json` 複製到 `~/.gal/config/xmachine.json`。
 - 在頂層的 `nodes` 物件下定義每個工作節點。
 - 將節點別名作為鍵值（key），並設定至少 `target` 和 `repoPath`。
 - 當遠端 GAL runtime checkout 與目標 repo checkout 路徑不同時，加入 `runtimeRepoPath`。
 - 當同一個工作節點承載多個目標 repo，且你希望 GAL 依目前本地 repo 名稱自動解析遠端路徑時，加入 `repoMappings`。
-- 將 SSH 目標與儲存庫路徑保存在 `xmachine.config.json` 之中，而不是 `config.local.env`。
+- 將 SSH 目標與儲存庫路徑保存在 `~/.gal/config/xmachine.json` 之中，而不是 `~/.gal/config/config.local.env`。
 
 範例：
 
@@ -196,16 +196,16 @@ xmachine 節點定義是機器本機的，位於 `../xmachine.config.json`。
 
 在這個範例裡，GAL 可以持續使用同一個 `mac-mini` 節點別名，同時把 `Golem-Agents-Legion` 與 `local-ai-tools` 路由到不同的遠端 checkout。
 
-`scripts/Test-Xmachine.ps1` 會直接讀取 `xmachine.config.json`，所以編輯這個檔案不需重新執行 setup。
+`scripts/Test-Xmachine.ps1` 會直接讀取 `~/.gal/config/xmachine.json`，repo-root 檔案只保留為有警告的遷移 fallback，因此編輯 canonical 檔案不需重新執行 setup。
 
 ### 3. MCP 覆寫 (MCP overrides)
 
 - 將追蹤的 GAL 原始設定保存在 `../mcp.json` 中。
-- 將機器特有的 MCP 差異放入 `../mcp.local.json`。
+- 將機器特有的 MCP 差異放入 `~/.gal/config/mcp.local.json`。
 
-專案特有或資料庫特有的 MCP server，通常應該放在 `../mcp.local.json`，而不是放進被追蹤的 `mcp.json`。對 Postgres 尤其如此，因為一台機器常常會同時處理多個 repo，而同一個 repo 也可能連到多個資料庫。
+專案特有或資料庫特有的 MCP server，通常應該放在 `~/.gal/config/mcp.local.json`，而不是放進被追蹤的 `mcp.json`。對 Postgres 尤其如此，因為一台機器常常會同時處理多個 repo，而同一個 repo 也可能連到多個資料庫。
 
-對 Playwright MCP 也是同樣原則：被追蹤的 `../mcp.json` 應只保留保守、與機器無關的預設；有頭模式、viewport 或 device 模擬、storage-state 路徑、輸出目錄、選用 capability flags、persistent profile 路徑、extension 或 CDP 連線等 local-only 瀏覽器行為，都應放在 `../mcp.local.json`。
+對 Playwright MCP 也是同樣原則：被追蹤的 `mcp.json` 應只保留保守、與機器無關的預設；有頭模式、viewport 或 device 模擬、storage-state 路徑、輸出目錄、選用 capability flags、persistent profile 路徑、extension 或 CDP 連線等 local-only 瀏覽器行為，都應放在 `~/.gal/config/mcp.local.json`。
 
 Playwright 的 local-only override 範例：
 
@@ -230,7 +230,7 @@ Playwright 的 local-only override 範例：
 
 這個 override 會取代 `playwright` 的整個 `args` 清單，因此你仍然需要把想保留的安全預設一併寫回去，例如 `--isolated` 與 `--headless`。`command` 與 `type` 仍會透過既有的 deep-merge 行為沿用被追蹤條目中的值。
 
-這些 env var 應放在 `config.local.env`，而被引用的檔案或目錄應放在 repo 追蹤範圍之外。不要把 storage-state、persistent browser profile、browser output artifacts 或任何類似秘密的本地檔案提交進 repo。
+這些 env var 應放在 `~/.gal/config/config.local.env`，而被引用的檔案或目錄應放在 repo 追蹤範圍之外。不要把 storage-state、persistent browser profile、browser output artifacts 或任何類似秘密的本地檔案提交進 repo。
 
 同一台機器上有兩個 Postgres 資料庫時，可參考：
 
@@ -257,9 +257,9 @@ Playwright 的 local-only override 範例：
 }
 ```
 
-接著在 `config.local.env` 中加入對應變數，名稱可自行決定。`Update-Mcp.ps1` 與 `update-mcp.sh` 本來就會合併所有 local server 名稱，並從 `config.local.env` 解析任意 `${ENV_VAR}` placeholder。
+接著在 `~/.gal/config/config.local.env` 中加入對應變數，名稱可自行決定。`Update-Mcp.ps1` 與 `update-mcp.sh` 本來就會合併所有 local server 名稱，並從 `~/.gal/config/config.local.env` 解析任意 `${ENV_VAR}` placeholder。
 
-如果你的 MCP host 支援 prompt-backed `inputs`，`mcp.local.json` 也可以放 top-level `inputs`。這適合像 GitHub remote MCP 這種要用 PAT、但不想把 token 寫回被追蹤檔的情境。例如你可以在 local override 中宣告 `servers.github` 與 `inputs.github_mcp_pat`；GAL 在同步時會保留這個 `inputs` 區塊，並把舊的 `github-mcp-server` 受管名稱清掉，避免同時出現 OAuth 與 PAT 兩個 GitHub 入口。
+如果你的 MCP host 支援 prompt-backed `inputs`，`~/.gal/config/mcp.local.json` 也可以放 top-level `inputs`。這適合像 GitHub remote MCP 這種要用 PAT、但不想把 token 寫回被追蹤檔的情境。例如你可以在 local override 中宣告 `servers.github` 與 `inputs.github_mcp_pat`；GAL 在同步時會保留這個 `inputs` 區塊，並把舊的 `github-mcp-server` 受管名稱清掉，避免同時出現 OAuth 與 PAT 兩個 GitHub 入口。
 
 ### 4. 執行環境擁有的設定 (Runtime-owned config)
 
@@ -272,15 +272,15 @@ Playwright 的 local-only override 範例：
 | Codex CLI | `[mcp_servers.*]` 下的 `config.toml` |
 | Claude Code | 透過 `claude mcp` 管理的 user-scope MCP 條目 |
 
-GAL 現在將 `mcp.json` 加上 `mcp.local.json` 視為 MCP 的唯一來源。重新執行 `Update-Mcp.ps1` 或 `update-mcp.sh` 時，只會覆寫受支援 runtime 內由 GAL 管理的 server 名稱，並保留其他由使用者定義的無關條目。對 AGY 而言，GAL 管理的 MCP 會寫入外掛程式根目錄的 `mcp_config.json`（`~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`）；全域的 `~/.gemini/antigravity-cli/mcp_config.json` 僅在清理舊的 GAL 管理條目時才會被觸及。即使 Gemini 的舊指令和內容相容層仍保留，且會移除先前寫進 `settings.json` 的 GAL 管理 Gemini MCP 條目。
+GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯一來源。重新執行 `Update-Mcp.ps1` 或 `update-mcp.sh` 時，只會覆寫受支援 runtime 內由 GAL 管理的 server 名稱，並保留其他由使用者定義的無關條目。對 AGY 而言，GAL 管理的 MCP 會寫入外掛程式根目錄的 `mcp_config.json`（`~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`）；全域的 `~/.gemini/antigravity-cli/mcp_config.json` 僅在清理舊的 GAL 管理條目時才會被觸及。即使 Gemini 的舊指令和內容相容層仍保留，且會移除先前寫進 `settings.json` 的 GAL 管理 Gemini MCP 條目。
 
 ## 何時該重新執行 Setup (When To Rerun Setup)
 
 當下列任何項目發生變更時，請重新執行 setup：
 
-- `config.local.env`
+- `~/.gal/config/config.local.env`
 - `mcp.json`
-- `mcp.local.json`
+- `~/.gal/config/mcp.local.json`
 - 任何 `commands/*/SKILL.local.md`
 - `~/.gal/install-state.json`
 - Obsidian 路由路徑或 Guide 模式
@@ -288,18 +288,18 @@ GAL 現在將 `mcp.json` 加上 `mcp.local.json` 視為 MCP 的唯一來源。�
 - 模型路由或 runtime 安裝位置
 - GAL 指令或 skill 安裝
 
-`xmachine.config.json` 會由 xmachine 腳本直接讀取，不需要重新執行 setup。
+`~/.gal/config/xmachine.json` 會由 xmachine 腳本直接讀取，不需要重新執行 setup。
 
 如果只有單一關注點發生變更，請使用較狹窄範圍的腳本：
 
-- 編輯 runtime 橋接器、`config.local.env` 或模型角色 local 檔案後，執行 `scripts/Update-Personalization.ps1`
+- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/model-roles.local.md` 後，執行 `scripts/Update-Personalization.ps1`
 - 更改 `agent/` 或 `skills/` 後，執行 `scripts/Update-Skills.ps1`
 - 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/Update-Commands.ps1`
-- 更改 `mcp.json`、`mcp.local.json` 或 `config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
-- 編輯 runtime 橋接器、`config.local.env` 或模型角色 local 檔案後，執行 `scripts/update-personalization.sh`
+- 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
+- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/model-roles.local.md` 後，執行 `scripts/update-personalization.sh`
 - 更改 `agent/` 或 `skills/` 後，執行 `scripts/update-skills.sh`
 - 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
-- 更改 `mcp.json`、`mcp.local.json` 或 `config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
+- 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
 
 如果你變更了會餵給 repo-local 產生 adapter 的 source-of-truth 內容，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料，請另外重新執行 `scripts/Sync-DevContext.ps1` 或 `scripts/sync-dev-context.sh`。`Update-Mcp` 不會重新產生這些 adapter 檔案。
 
@@ -341,7 +341,7 @@ GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin p
 
 ### AGY 作為渲染器 1 (AGY as Renderer 1)
 
-AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 將共同套件渲染至 `dist/provider-plugins/agy/gal/`，並安裝至 `~/.gemini/antigravity-cli/plugins/gal/`。AGY 外掛程式承載：
+AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 將共同套件渲染至 `~/.gal/dist/provider-plugins/agy/gal/`，並安裝至 `~/.gemini/antigravity-cli/plugins/gal/`。AGY 外掛程式承載：
 
 - `plugin.json` — 含穩定 `name: gal` 的清單
 - `skills/` — 可重用技能與指令技能

@@ -248,7 +248,7 @@ These rules are configured in `model-roles.local.md`.
 
 ### Working Hours
 
-Working Hours is now an **opt-in** local machine setting. Agents only perform reminders and work stoppage according to configured work hours, After Hours, Wrap-up Time, and Hard Stop when the user enables it in `config.local.env`.
+Working Hours is now an **opt-in** local machine setting. Agents only perform reminders and work stoppage according to configured work hours, After Hours, Wrap-up Time, and Hard Stop when the user enables it in `~/.gal/config/config.local.env`.
 
 - **Working Hours off**: All agents work normally
 - **After Hours**: After the work period ends, work can still continue before Wrap-up Time
@@ -256,14 +256,14 @@ Working Hours is now an **opt-in** local machine setting. Agents only perform re
 - **Hard Stop**: All agents stop working, including `notewriter`
 - **Override**: Users can say `override working hours`, valid for a single time
 
-You can change `WORKING_HOURS_ENABLED`, `WORKDAY_START`, `WORKDAY_END`, `WRAP_UP_TIME`, and `HARD_STOP_TIME` in `config.local.env` to set the activation time. For details, see [docs/personalization.md](docs/personalization.md).
+You can change `WORKING_HOURS_ENABLED`, `WORKDAY_START`, `WORKDAY_END`, `WRAP_UP_TIME`, and `HARD_STOP_TIME` in `~/.gal/config/config.local.env` to set the activation time. For details, see [docs/personalization.md](docs/personalization.md).
 
 ## Storage Boundaries
 
 GAL divides persistent data into two boundaries:
 
 - **Repo shared state**: `.dev/`, `docs/plans/`, `docs/research/`. These files are managed by Git and are suitable for work results that need to be tracked, reviewed, and collaborated on together with the Repo.
-- **User private note repository**: Obsidian Vault. Its location is configured by `OBSIDIAN_VAULT` and `OBSIDIAN_VAULT_NAME` in `config.local.env`, and detailed paths can be specified via `OBSIDIAN_PRIVATE_RESEARCH_DIR`, `OBSIDIAN_DIARY_DIR`, and `OBSIDIAN_ARCHIVE_DIR`.
+- **User private note repository**: Obsidian Vault. Its location is configured by `OBSIDIAN_VAULT` and `OBSIDIAN_VAULT_NAME` in `~/.gal/config/config.local.env`, and detailed paths can be specified via `OBSIDIAN_PRIVATE_RESEARCH_DIR`, `OBSIDIAN_DIARY_DIR`, and `OBSIDIAN_ARCHIVE_DIR`.
 
 For the GAL source repo itself, keep a narrower boundary inside `.dev/`: only `.dev/project.md` should be committed. Treat `.dev/state.md`, `.dev/plans/`, and other `.dev/*` workflow scratch files as local-only contributor state.
 

@@ -205,7 +205,7 @@ Pipeline 流程中，GAL 強制以不同模型進行審查與測試：
 
 ### Working Hours
 
-Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `config.local.env` 啟用後，agent 才會依照設定的工作時段、After Hours、Wrap-up Time 與 Hard Stop 執行提醒與停工。
+Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `~/.gal/config/config.local.env` 啟用後，agent 才會依照設定的工作時段、After Hours、Wrap-up Time 與 Hard Stop 執行提醒與停工。
 
 - **Working Hours off**：所有 agent 正常工作
 - **After Hours**：超過工作時段後，到 Wrap-up Time 前仍可工作
@@ -213,14 +213,14 @@ Working Hours 改為 **預設關閉** 的本機設定。只有當使用者在 `c
 - **Hard Stop**：所有 agent 停止工作，包括 `notewriter`
 - **Override**：使用者可說 `override working hours`，單次有效
 
-可至 `config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設定工作時段，詳情請見 [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md)。
+可至 `~/.gal/config/config.local.env` 裡面變更 `WORKING_HOURS_ENABLED`、`WORKDAY_START`、`WORKDAY_END`、`WRAP_UP_TIME`、`HARD_STOP_TIME`以設定工作時段，詳情請見 [docs/personalization.zh-Hant.md](docs/personalization.zh-Hant.md)。
 
 ## 儲存邊界
 
 GAL 將持久化資料分為兩個儲存邊界：
 
 - **儲存庫共享狀態**：`.dev/`、`docs/plans/`、`docs/research/`。這些檔案受 Git 管理，適合需要和儲存庫一起追蹤、審查與協作的工作成果。
-- **使用者私人筆記庫**：Obsidian Vault。其位置由 `config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
+- **使用者私人筆記庫**：Obsidian Vault。其位置由 `~/.gal/config/config.local.env` 的 `OBSIDIAN_VAULT` 與 `OBSIDIAN_VAULT_NAME` 設定，並可再透過 `OBSIDIAN_PRIVATE_RESEARCH_DIR`、`OBSIDIAN_DIARY_DIR`、`OBSIDIAN_ARCHIVE_DIR` 指定細部路徑。
 
 若是 GAL 這個 source repo 本身，`.dev/` 內部要再細分：只有 `.dev/project.md` 應進 Git。`.dev/state.md`、`.dev/plans/` 與其他 `.dev/*` 工作流暫存檔都應視為 contributor 本機狀態。
 

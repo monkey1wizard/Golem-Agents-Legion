@@ -2,7 +2,7 @@
 
 xmachine is an optional execution tool for GAL that offloads scoped tasks from a primary control node to an SSH-accessible work node. It operates without modifying GAL's control plane, repo-owned state model, or patch-first convergence rules.
 
-The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a node alias defined under the top-level `nodes` object in `xmachine.config.json` in the GAL runtime checkout, not necessarily in the target project being worked on. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
+The `-WorkNode` parameter accepts an xmachine work-node ID. This ID must be a node alias defined under the top-level `nodes` object in `~/.gal/config/xmachine.json`, not necessarily in the target project being worked on. xmachine resolves this alias into an explicit SSH target (e.g., `user@host`) and uses the local SSH client for specific connection settings, such as account, host, port, and key configurations. Readiness is machine-local rather than repo-local: GAL records verified nodes in `~/.gal/xmachine-nodes.json` so other repositories can reuse them. A node is marked as `tooling-ready` after passing SSH, repository, tool, and work-node smoke tests. It becomes fully `readied` only after passing the separate GAL pipeline smoke gate.
 
 ## Capabilities
 
@@ -91,7 +91,7 @@ If task dispatch fails with "Permission denied" or continues to prompt for a pas
 
 ## Node Configuration
 
-Define work nodes in the GAL runtime checkout's `xmachine.config.json` to provide stable, memorable IDs for your work nodes.
+Define work nodes in `~/.gal/config/xmachine.json` to provide stable, memorable IDs for your work nodes.
 
 - The top-level `nodes` object is keyed by work-node alias.
 - Each node must define a `target` value.
@@ -146,7 +146,7 @@ Project checkout path resolves in this order:
 
 1. Explicit `-WorkRepoPath`
 2. `repoMappings.<current-repo>.repoPath` on the selected node
-3. `repoPath` on the selected node in `xmachine.config.json`
+3. `repoPath` on the selected node in `~/.gal/config/xmachine.json`
 4. The existing machine-local cache in `~/.gal/xmachine-nodes.json`
 
 Runtime checkout path resolves in this order:
@@ -271,7 +271,7 @@ Verify and cache a work node from a Windows control node:
     -Wait
 ```
 
-If the selected node defines `repoPath` in `xmachine.config.json`, `-WorkRepoPath` can be omitted.
+If the selected node defines `repoPath` in `~/.gal/config/xmachine.json`, `-WorkRepoPath` can be omitted.
 
 ### Control Node Generic Dispatch
 
@@ -284,7 +284,7 @@ Dispatch a task spec to a configured work node alias from a Windows control node
   -Wait
 ```
 
-This wrapper resolves the node alias through the GAL runtime checkout's `xmachine.config.json`, detects the remote platform, dispatches through the appropriate xmachine lane, and retrieves `status.json`, `summary.md`, `runtime.log`, and `result.patch` into a local `gal-results\<TaskId>` directory when `-Wait` is specified.
+This wrapper resolves the node alias through `~/.gal/config/xmachine.json`, detects the remote platform, dispatches through the appropriate xmachine lane, and retrieves `status.json`, `summary.md`, `runtime.log`, and `result.patch` into a local `gal-results\<TaskId>` directory when `-Wait` is specified.
 
 ### Windows Work Node
 

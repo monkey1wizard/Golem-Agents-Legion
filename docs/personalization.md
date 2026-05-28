@@ -159,12 +159,12 @@ Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when mi
 
 ### 1. Model routing
 
-- Copy `../model-roles.example.md` to `../model-roles.local.md`.
-- Change provider and model mappings only in `model-roles.local.md`.
+- Copy `model-roles.example.md` into `~/.gal/config/model-roles.local.md`.
+- Change provider and model mappings only in `~/.gal/config/model-roles.local.md`.
 
 ### 2. Local secrets and paths
 
-- Put secrets, absolute paths, and machine-specific values in `../config.local.env`.
+- Put secrets, absolute paths, and machine-specific values in `~/.gal/config/config.local.env`.
 - Do not write local values into tracked docs, command templates, or source files.
 
 ### 2a. Command skill local overlays
@@ -201,7 +201,7 @@ Recommended defaults:
 
 ### 2c. Working Hours
 
-Working-hours enforcement is disabled by default. If you want GAL to respect your own workday boundary, configure it in `config.local.env`:
+Working-hours enforcement is disabled by default. If you want GAL to respect your own workday boundary, configure it in `~/.gal/config/config.local.env`:
 
 - `WORKING_HOURS_ENABLED=false` keeps all working-hours logic off.
 - `WORKDAY_START` and `WORKDAY_END` describe your preferred work window.
@@ -212,14 +212,14 @@ These values are machine-local preferences, not tracked repo policy.
 
 ### 2d. xmachine node config
 
-xmachine node definitions are machine-local and live in `../xmachine.config.json`.
+xmachine node definitions are machine-local and live in `~/.gal/config/xmachine.json`.
 
-- Copy `../xmachine.config.example.json` to `../xmachine.config.json`.
+- Copy `xmachine.config.example.json` into `~/.gal/config/xmachine.json`.
 - Define each work node under the top-level `nodes` object.
 - Use the node alias as the key and set at least `target` and `repoPath`.
 - Add `runtimeRepoPath` when the remote GAL runtime checkout lives in a different path from the target repo checkout.
 - Add `repoMappings` when one work node hosts multiple target repositories and you want GAL to resolve the remote repo automatically from the current local repo name.
-- Keep SSH targets and repo paths in `xmachine.config.json`, not in `config.local.env`.
+- Keep SSH targets and repo paths in `~/.gal/config/xmachine.json`, not in `~/.gal/config/config.local.env`.
 
 Example:
 
@@ -243,16 +243,16 @@ Example:
 
 In this example, GAL can keep using the same `mac-mini` node alias while routing `Golem-Agents-Legion` and `local-ai-tools` to different remote checkouts.
 
-`scripts/Test-Xmachine.ps1` reads `xmachine.config.json` directly, so editing this file does not require rerunning setup.
+`scripts/Test-Xmachine.ps1` reads `~/.gal/config/xmachine.json` directly, with repo-root fallback kept only as a warned migration path, so editing the canonical file does not require rerunning setup.
 
 ### 3. MCP overrides
 
 - Keep the tracked GAL source in `../mcp.json`.
-- Put machine-specific MCP differences in `../mcp.local.json`.
+- Put machine-specific MCP differences in `~/.gal/config/mcp.local.json`.
 
-Project-specific or database-specific MCP servers should usually live in `../mcp.local.json`, not the tracked `mcp.json`. This matters for Postgres because one machine may work across many repos, and one repo may talk to multiple databases.
+Project-specific or database-specific MCP servers should usually live in `~/.gal/config/mcp.local.json`, not the tracked `mcp.json`. This matters for Postgres because one machine may work across many repos, and one repo may talk to multiple databases.
 
-For Playwright MCP, keep the tracked `../mcp.json` entry conservative and machine-agnostic. Put local-only browser behavior in `../mcp.local.json`: headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP connections, and other stateful browser settings.
+For Playwright MCP, keep the tracked `mcp.json` entry conservative and machine-agnostic. Put local-only browser behavior in `~/.gal/config/mcp.local.json`: headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP connections, and other stateful browser settings.
 
 Example local-only Playwright override:
 
@@ -277,7 +277,7 @@ Example local-only Playwright override:
 
 This override replaces the full `args` list for `playwright`, so keep the inherited safe defaults you still want, such as `--isolated` and `--headless`. `command` and `type` continue to come from the tracked entry through the normal deep-merge behavior.
 
-Keep those env vars in `config.local.env`, and keep the referenced files/directories outside tracked repo paths. Do not commit storage-state files, persistent browser profiles, browser output artifacts, or any secret-like local files.
+Keep those env vars in `~/.gal/config/config.local.env`, and keep the referenced files/directories outside tracked repo paths. Do not commit storage-state files, persistent browser profiles, browser output artifacts, or any secret-like local files.
 
 Example for two Postgres databases on one machine:
 
@@ -304,7 +304,7 @@ Example for two Postgres databases on one machine:
 }
 ```
 
-Then add matching variables to `config.local.env` with any names you want. `Update-Mcp.ps1` and `update-mcp.sh` already merge all local server names and resolve arbitrary `${ENV_VAR}` placeholders from `config.local.env`.
+Then add matching variables to `~/.gal/config/config.local.env` with any names you want. `Update-Mcp.ps1` and `update-mcp.sh` already merge all local server names and resolve arbitrary `${ENV_VAR}` placeholders from `~/.gal/config/config.local.env`.
 
 ### 4. Runtime-owned config
 
@@ -317,15 +317,15 @@ The installed runtime configs remain user-owned even when GAL refreshes GAL-mana
 | Codex CLI | `config.toml` under `[mcp_servers.*]` |
 | Claude Code | user-scope MCP entries managed through `claude mcp` |
 
-GAL now treats `mcp.json` plus `mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. For AGY, GAL-managed MCP lands in the plugin-root `mcp_config.json` at `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries. Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
+GAL now treats `mcp.json` plus `~/.gal/config/mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. For AGY, GAL-managed MCP lands in the plugin-root `mcp_config.json` at `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries. Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
 
 ## When To Rerun Setup
 
 Run setup again when any of these change:
 
-- `config.local.env`
+- `~/.gal/config/config.local.env`
 - `mcp.json`
-- `mcp.local.json`
+- `~/.gal/config/mcp.local.json`
 - any `commands/*/SKILL.local.md`
 - `~/.gal/install-state.json`
 - Obsidian routing paths or Guide mode
@@ -333,18 +333,18 @@ Run setup again when any of these change:
 - model routing or runtime install locations
 - GAL command or skill installation
 
-`xmachine.config.json` is read directly by the xmachine scripts and does not require a setup rerun.
+`~/.gal/config/xmachine.json` is read directly by the xmachine scripts and does not require a setup rerun.
 
 Use the narrower concern script when only one concern changed:
 
-- `scripts/Update-Personalization.ps1` after editing runtime bridges, `config.local.env`, or model-role local files
+- `scripts/Update-Personalization.ps1` after editing runtime bridges, `~/.gal/config/config.local.env`, or `~/.gal/config/model-roles.local.md`
 - `scripts/Update-Skills.ps1` after changing `agent/` or `skills/`
 - `scripts/Update-Commands.ps1` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
-- `scripts/Update-Mcp.ps1` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`
-- `scripts/update-personalization.sh` after editing runtime bridges, `config.local.env`, or model-role local files
+- `scripts/Update-Mcp.ps1` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`
+- `scripts/update-personalization.sh` after editing runtime bridges, `~/.gal/config/config.local.env`, or `~/.gal/config/model-roles.local.md`
 - `scripts/update-skills.sh` after changing `agent/` or `skills/`
 - `scripts/update-commands.sh` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
-- `scripts/update-mcp.sh` after changing `mcp.json`, `mcp.local.json`, or MCP-related values in `config.local.env`
+- `scripts/update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`
 
 If you changed source-of-truth content that feeds repo-local generated adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`, rerun `scripts/Sync-DevContext.ps1` or `scripts/sync-dev-context.sh`. `Update-Mcp` does not regenerate those adapter files.
 
@@ -386,7 +386,7 @@ The common package model carries metadata, reusable skills, command skills (as s
 
 ### AGY as Renderer 1
 
-AGY is the first renderer, not the architecture. `Build-AgyPlugin` renders the common package into `dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries:
+AGY is the first renderer, not the architecture. `Build-AgyPlugin` renders the common package into `~/.gal/dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries:
 
 - `plugin.json` — manifest with stable `name: gal`
 - `skills/` — reusable skills and command skills
