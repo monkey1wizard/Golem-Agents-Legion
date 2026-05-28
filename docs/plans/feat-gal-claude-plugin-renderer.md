@@ -134,7 +134,7 @@ The install flow must make that plugin available through Claude's plugin lifecyc
 ## Approval
 
 - Human approval: pending
-- Architect review: pending
+- Architect review: clear after 2026-05-28 revision
 - Additional domain review: Claude plugin lifecycle validation required
 
 ## Review Results
@@ -152,7 +152,15 @@ Verdict: conditional clear after revision.
 
 ### Engineering Review
 
-Pending.
+CLEAR. The plan now has a valid execution boundary for implementation. T-001 through T-007 are independently testable, the renderer contract is scoped to a real Claude plugin root rather than legacy projection paths, and the revised task surface includes the shared runtime-detection and POSIX migration paths that would otherwise leave the old Claude architecture partially active.
+
+Key constraints for execution:
+
+- Treat `.claude-plugin/plugin.json` as the only file inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` must stay at the plugin root.
+- Keep plugin artifact rendering separate from Claude CLI user-scope install or MCP bridge behavior; CLI lifecycle commands are validation/install lanes, not the artifact schema.
+- Do not mark Claude direct install as complete until build output, `claude plugin validate`, install/update/uninstall behavior, and legacy cleanup checks all pass.
+
+<!-- ENG_REVIEW: CLEAR -->
 
 ### Design Review
 
@@ -175,10 +183,10 @@ Not requested.
 
 ## Tasks
 
-- [ ] T-001 — Define the Claude plugin output contract and path helpers for artifact root, install target, manifest, skills, commands, agents, and MCP.
-- [ ] T-002 — Implement `Build-ClaudePlugin.ps1` and `build-claude-plugin.sh` using the canonical provider package model.
-- [ ] T-003 — Wire Claude into `Build-ProviderPlugins.ps1` and `build-provider-plugins.sh`, replacing `not-yet-implemented` with the real renderer.
-- [ ] T-004 — Implement Claude plugin install/update/uninstall behavior in `Install-GalPlugins.ps1` and `install-gal-plugins.sh`, with explicit validation of local Claude CLI support.
-- [ ] T-005 — Delete legacy Claude `~/.claude/skills` and `~/.claude/commands` projection code paths, shared install-state detection, and uninstall assumptions so Claude uses the plugin architecture only across PowerShell and POSIX flows.
-- [ ] T-006 — Add focused tests for Claude artifact shape, build plan wiring, lifecycle validation, and cleanup behavior.
-- [ ] T-007 — Update docs and release matrix to reflect the verified Claude plugin implementation status without overclaiming marketplace direct install.
+- [x] T-001 — Define the Claude plugin output contract and path helpers for artifact root, install target, manifest, skills, commands, agents, and MCP.
+- [x] T-002 — Implement `Build-ClaudePlugin.ps1` and `build-claude-plugin.sh` using the canonical provider package model.
+- [x] T-003 — Wire Claude into `Build-ProviderPlugins.ps1` and `build-provider-plugins.sh`, replacing `not-yet-implemented` with the real renderer.
+- [x] T-004 — Implement Claude plugin install/update/uninstall behavior in `Install-GalPlugins.ps1` and `install-gal-plugins.sh`, with explicit validation of local Claude CLI support.
+- [x] T-005 — Delete legacy Claude `~/.claude/skills` and `~/.claude/commands` projection code paths, shared install-state detection, and uninstall assumptions so Claude uses the plugin architecture only across PowerShell and POSIX flows.
+- [x] T-006 — Add focused tests for Claude artifact shape, build plan wiring, lifecycle validation, and cleanup behavior.
+- [x] T-007 — Update docs and release matrix to reflect the verified Claude plugin implementation status without overclaiming marketplace direct install.

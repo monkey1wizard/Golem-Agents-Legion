@@ -70,7 +70,7 @@ Bootstrap-distribution guardrails:
 - GitHub Releases is the canonical version source.
 - `winget`, `homebrew`, and provider marketplace entries must all map back to that same release lineage.
 - Package-manager uninstall and GAL-managed uninstall must preserve user-owned machine intent.
-- Provider marketplaces are discoverability-first unless a provider-native renderer and lifecycle have been verified end to end.
+- Provider marketplaces remain discoverability-first until provider-native direct install, update, and uninstall are verified end to end; renderer-only or validation-only progress is not enough.
 - Lag between downstream channels is expected; the user-facing fallback remains GitHub Releases.
 
 ## Runtime Topology For Setup Work
@@ -96,16 +96,16 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
-| Claude Code | `~/.claude/skills/`, `~/.claude/commands/`, and user-scope `claude mcp` config | generated command markdown plus repo-local `CLAUDE.md` | MCP install is managed through the Claude CLI |
+| Claude Code | `dist/provider-plugins/claude/gal/` artifact for build output; provider-native plugin lifecycle manages enabled scopes, cache, and data | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root |
 
 ### Layer 1.5 Install Topology
 
 | Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | not installed |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.claude/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.claude/commands/<command>.md` |
-| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | not required |
+| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | `dist/provider-plugins/claude/gal/agents/` |
+| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `dist/provider-plugins/claude/gal/skills/` |
+| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `dist/provider-plugins/claude/gal/commands/<command>.md` |
+| repo root | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | `dist/provider-plugins/claude/gal/` (plugin tree) |
 
 ### Generated Runtime Files
 
@@ -113,7 +113,8 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | --- | --- |
 | `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
 | `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
-| `~/.claude/commands/*.md` | Claude-native command surface generated from the baked command skill |
+| `dist/provider-plugins/claude/gal/.claude-plugin/plugin.json` | Claude plugin manifest for validation, install, and plugin manager metadata |
+| `dist/provider-plugins/claude/gal/.mcp.json` | Claude plugin MCP configuration containing only portable GAL-managed entries |
 | `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
 
 ### Archived Gemini CLI Surfaces
@@ -202,7 +203,7 @@ GAL targets are classified by provider-native install capability, not by a unifo
 
 | Lane | Platform | Role | Success criteria |
 | --- | --- | --- | --- |
-| Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / installer target | `claude plugin install`, scope, update, uninstall via provider-native lifecycle |
+| Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / capability-sensitive lifecycle target | strict artifact validation plus session-load smoke are implemented; direct install, update, and uninstall remain contingent on documented provider-native CLI support |
 | Primary install target (near-parity) | Copilot CLI | Claude-compatible structure; `agents/`, `skills/`, `hooks.json`, `.mcp.json`, `lsp.json` share the same directory conventions as Claude | `/plugin install`, marketplace, GitHub/Git URL/local path; directory layout already aligns with Claude, no shortcut needed |
 | Primary install target | Codex | Claude baseline mapped renderer / marketplace target | `codex plugin install`, documented marketplace / cache install path, some components readable natively |
 | Primary install target (shortcut) | AGY CLI / Antigravity CLI | Claude baseline mapped renderer + catalog-aware install target | provider-native plugin staging / install, or capability shortcut pointing to `~/.gal/active/agy/`; no repo-root shortcut dependency |
@@ -227,13 +228,14 @@ Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directo
 
 Current implementation status:
 
-- AGY is the only provider-native lifecycle slice implemented end to end in install mode today.
-- Copilot CLI, Codex, and Claude Code still remain native-install target lanes in the architecture, but their concrete installer/update/uninstall flows are not implemented yet.
+- AGY is still the only provider-native lifecycle slice verified end to end in install mode today.
+- Claude Code now has a real renderer, strict `claude plugin validate` support when the local CLI exposes it, lifecycle-state tracking, legacy projection cleanup, and session-load smoke support. Provider-native direct install, update, and uninstall are still not verified because the local CLI does not currently document local artifact install/update/uninstall.
+- Copilot CLI and Codex remain native-install target lanes in the architecture, but their concrete installer/update/uninstall flows are not implemented yet.
 - Bootstrap packaging, official install channels, and marketplace discoverability do not belong to this install-mode surface; they are handled by the separate bootstrap-installer planning track.
 
 ### Future Renderer Sequence
 
-After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
+After AGY and Claude renderer validation, the remaining planned renderer sequence is: Copilot CLI → Codex. Claude still has open lifecycle-verification work, but its renderer is no longer pending. No future renderer should copy the AGY layout.
 
 ## Distribution Architecture and Ownership Boundaries
 

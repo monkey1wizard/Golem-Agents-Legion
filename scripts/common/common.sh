@@ -68,10 +68,6 @@ OPENCODE_AGENTS_TARGET="$OPENCODE_ROOT/agents"
 OPENCODE_COMMANDS_TARGET="$OPENCODE_ROOT/commands"
 OPENCODE_CONFIG_FILE="$OPENCODE_ROOT/opencode.json"
 
-CLAUDE_ROOT="$HOME/.claude"
-CLAUDE_SKILLS_TARGET="$CLAUDE_ROOT/skills"
-CLAUDE_COMMANDS_TARGET="$CLAUDE_ROOT/commands"
-
 MCP_SOURCE_FILE="$REPO_ROOT/mcp.json"
 MCP_LOCAL_FILE="$REPO_ROOT/mcp.local.json"
 
@@ -88,8 +84,36 @@ RUNTIME_DESCRIPTIONS=(
     "legacy native command files plus GAL context/settings compatibility bridge"
     "installed GAL command skills, shared skills, Codex MCP bridge"
     "OpenCode agents, commands, reusable skill discovery, OpenCode MCP bridge"
-    "Claude skills, native command files, repo-local CLAUDE.md adapter"
+    "Claude plugin lifecycle state, optional Claude CLI MCP bridge, repo-local CLAUDE.md adapter"
 )
+get_claude_lifecycle_state_path() {
+    printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/claude/managed.json"
+}
+
+has_claude_lifecycle_state() {
+    local state_path
+    state_path="$(get_claude_lifecycle_state_path)"
+    [ -f "$state_path" ] || return 1
+
+    if ! resolve_python_command; then
+        return 0
+    fi
+
+    run_python - "$state_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding='utf-8') as handle:
+    data = json.load(handle)
+
+provider = str(data.get('provider') or '').strip()
+if provider and provider != 'claude':
+    raise SystemExit(1)
+
+raise SystemExit(0)
+PY
+}
+
 
 COMMAND_ALIAS_NAMES=()
 COMMAND_SKILL_NAMES=()
@@ -620,7 +644,7 @@ detect_installed_runtimes() {
         detected+=(opencode)
     fi
 
-    if has_gal_repo_link_in_dir "$CLAUDE_SKILLS_TARGET" || has_gal_managed_file_in_dir "$CLAUDE_COMMANDS_TARGET" '*.md'; then
+    if has_claude_lifecycle_state; then
         detected+=(claude)
     fi
 

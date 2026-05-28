@@ -20,6 +20,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'common' 'Common.ps1')
+. (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
 
 $script:SetupOptions = [pscustomobject]@{
     Uninstall = $Uninstall.IsPresent
@@ -314,6 +315,196 @@ function Test-InstallUninstallOwnership {
     return $false
 }
 
+function Get-ClaudeLifecycleStatePath {
+    param(
+        [pscustomobject]$Context
+    )
+
+    return Join-Path $Context.GalGeneratedProvidersRoot 'claude\managed.json'
+}
+
+function Get-ClaudeCliLifecycleSupport {
+    $support = [ordered]@{
+        cliAvailable = $false
+        validateSupported = $false
+        localArtifactInstallSupported = $false
+        installScopeSupported = $false
+        installMode = 'artifact-only'
+        installHelpSummary = $null
+    }
+
+    if (-not (Test-CommandAvailable 'claude')) {
+        return [pscustomobject]$support
+    }
+
+    $support.cliAvailable = $true
+
+    $validateHelp = (& claude plugin validate --help 2>&1 | Out-String)
+    if ($LASTEXITCODE -eq 0 -and $validateHelp -match 'Validate a plugin') {
+        $support.validateSupported = $true
+    }
+
+    $installHelp = (& claude plugin install --help 2>&1 | Out-String)
+    if ($LASTEXITCODE -eq 0) {
+        $support.installHelpSummary = ($installHelp -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 3) -join ' '
+        if ($installHelp -match 'Installation scope: user, project, or local') {
+            $support.installScopeSupported = $true
+        }
+        if ($installHelp -match '<path>' -or $installHelp -match 'local path') {
+            $support.localArtifactInstallSupported = $true
+        }
+    }
+
+    $support.installMode = if ($support.localArtifactInstallSupported) {
+        'provider-native-install'
+    }
+    elseif ($support.cliAvailable) {
+        'session-load-only'
+    }
+    else {
+        'artifact-only'
+    }
+
+    return [pscustomobject]$support
+}
+
+function Write-ClaudeLifecycleState {
+    param(
+        [pscustomobject]$Context,
+        [System.Collections.IDictionary]$State
+    )
+
+    $statePath = Get-ClaudeLifecycleStatePath -Context $Context
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would write Claude lifecycle state: {0}" -f $statePath)
+        return
+    }
+
+    Write-JsonOrderedMap $statePath $State
+    Write-Host ("  [OK] Wrote Claude lifecycle state: {0}" -f $statePath)
+}
+
+function Sync-ClaudePluginProjection {
+    param(
+        [string]$ArtifactRoot,
+        [pscustomobject]$Context
+    )
+
+    Ensure-SetupDirectories @($Context.ClaudePluginsRoot)
+
+    if (-not (Test-Path $ArtifactRoot)) {
+        throw "Claude artifact root not found for projection: $ArtifactRoot"
+    }
+
+    if (-not (New-SafeSymlink $Context.ClaudePluginInstallTarget $ArtifactRoot 'Directory')) {
+        throw "Failed to project Claude plugin into $($Context.ClaudePluginInstallTarget)"
+    }
+
+    return $Context.ClaudePluginInstallTarget
+}
+
+function Invoke-ClaudePluginLifecycle {
+    param(
+        [string]$RepoRoot,
+        [pscustomobject]$Context
+    )
+
+    if (-not $Context.InstallClaude) {
+        return
+    }
+
+    Write-Host '  [OK] Evaluating Claude plugin lifecycle.'
+    $artifactRoot = Get-ClaudePluginArtifactRoot -RepoRoot $RepoRoot
+    $manifestPath = Get-ClaudePluginManifestPath -PluginRoot $artifactRoot
+    $contract = Get-ClaudePluginInstallContract
+    $support = Get-ClaudeCliLifecycleSupport
+
+    $state = [ordered]@{
+        schemaVersion = 1
+        provider = 'claude'
+        artifactRoot = $artifactRoot
+        manifestPath = $manifestPath
+        generatedAt = (Get-Date -Format 'o')
+        cli = [ordered]@{
+            available = [bool]$support.cliAvailable
+            validateSupported = [bool]$support.validateSupported
+            localArtifactInstallSupported = [bool]$support.localArtifactInstallSupported
+            installScopeSupported = [bool]$support.installScopeSupported
+            installHelpSummary = $support.installHelpSummary
+        }
+        validation = [ordered]@{
+            command = $contract.validationCommand
+            strictPassed = $false
+        }
+        lifecycle = [ordered]@{
+            mode = [string]$support.installMode
+            stagedPluginRoot = $null
+            sessionLoadCommand = ("claude --plugin-dir `"{0}`"" -f $artifactRoot)
+            installCommandTemplate = 'claude plugin install <plugin> --scope <scope>'
+            updateCommandTemplate = 'claude plugin update <plugin> --scope <scope>'
+            uninstallCommandTemplate = 'claude plugin uninstall <plugin> --scope <scope>'
+        }
+        notes = @(
+            'Artifact validation is supported when the local Claude CLI exposes `claude plugin validate <path>`.',
+            'The current local Claude CLI install help is marketplace-oriented; local artifact install is treated as unsupported unless the CLI documents a path-based install mode.',
+            'When local artifact install is unavailable, the supported smoke path is session loading via `claude --plugin-dir <artifact-root>`.'
+        )
+    }
+
+    if (-not (Test-Path $artifactRoot)) {
+        throw "Claude artifact root not found: $artifactRoot"
+    }
+
+    if (-not (Test-Path $manifestPath)) {
+        throw "Claude manifest not found: $manifestPath"
+    }
+
+    if (-not $support.cliAvailable) {
+        Write-Host '  [WARN] Claude CLI not found on PATH; artifact is built but lifecycle validation is unavailable.' -ForegroundColor Yellow
+        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+        Write-ClaudeLifecycleState -Context $Context -State $state
+        return
+    }
+
+    if (-not $support.validateSupported) {
+        Write-Host '  [WARN] Claude CLI is present but `claude plugin validate` is unavailable; recording artifact-only lifecycle status.' -ForegroundColor Yellow
+        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+        Write-ClaudeLifecycleState -Context $Context -State $state
+        return
+    }
+
+    if ($DryRun) {
+        $state['lifecycle']['stagedPluginRoot'] = $Context.ClaudePluginInstallTarget
+        Write-Host ("  [DRY RUN] Would project Claude plugin into: {0}" -f $Context.ClaudePluginInstallTarget)
+        Write-Host ("  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict `"{0}`"" -f $artifactRoot)
+        if (-not $support.localArtifactInstallSupported) {
+            Write-Host ("  [DRY RUN] Claude local artifact install is not available; session smoke remains: claude --plugin-dir `"{0}`"" -f $artifactRoot)
+        }
+        Write-ClaudeLifecycleState -Context $Context -State $state
+        return
+    }
+
+    $validationOutput = (& claude plugin validate --strict $artifactRoot 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Claude plugin validation failed for $artifactRoot`n$validationOutput"
+    }
+
+    $state['validation']['strictPassed'] = $true
+    Write-Host '  [OK] Claude plugin validation passed.'
+    $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+    Write-Host ("  [OK] Projected Claude plugin root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
+
+    if ($support.localArtifactInstallSupported) {
+        Write-Host '  [OK] Claude CLI reports local artifact install support.'
+    }
+    else {
+        Write-Host '  [OK] Claude CLI supports validation but not documented local artifact install; recording session-load fallback.'
+        Write-Host ("  [OK] Session smoke command: claude --plugin-dir `"{0}`"" -f $artifactRoot)
+    }
+
+    Write-ClaudeLifecycleState -Context $Context -State $state
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
@@ -336,9 +527,10 @@ if ($Uninstall) {
         Write-Host '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     }
 
-    Write-Host '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
+    Write-Host '  [OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.'
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
+    Remove-SafeLink $script:SetupContext.ClaudePluginInstallTarget
     Remove-GalManagedDirectory -Path $script:SetupContext.GalStorePluginsRoot -Label 'GAL-managed plugin store'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedMcpRoot -Label 'GAL-managed MCP projections'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedXmachineRoot -Label 'GAL-managed xmachine projections'
@@ -433,6 +625,12 @@ if ($installMode -eq 'source') {
     Write-Host ("  [OK] Source mode devMode: {0}" -f (ConvertTo-Bool $effectiveConfig['devMode'] $true))
     Write-Host ("  [OK] Local override boundary: explicit machine-local bindings via {0}" -f $context.GalXmachineConfigFile)
     Write-Host '  [OK] Repo-root links and local overrides stay source-mode-only contributor paths.'
+
+    if ($primaryProviders -contains 'claude') {
+        Write-Host '  [OK] Source mode still projects Claude through the plugin-shaped surface.'
+        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers @('claude') -DryRun:$DryRun -Force:$Force
+        Invoke-ClaudePluginLifecycle -RepoRoot $RepoRoot -Context $context
+    }
 }
 else {
     Write-Host ("  [OK] Install mode projections root: {0}" -f $context.GalGeneratedRoot)
@@ -442,6 +640,9 @@ else {
     }
     if ($primaryProviders.Count -gt 0) {
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers $primaryProviders -DryRun:$DryRun -Force:$Force
+        if ($primaryProviders -contains 'claude') {
+            Invoke-ClaudePluginLifecycle -RepoRoot $RepoRoot -Context $context
+        }
     }
     else {
         Write-Host '  [SKIP] No primary providers selected for provider-native install orchestration.'

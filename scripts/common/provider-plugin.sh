@@ -409,3 +409,52 @@ get_agy_plugin_artifact_root() {
 get_agy_plugin_install_target() {
     printf '%s\n' "$HOME/.gemini/antigravity-cli/plugins/gal"
 }
+
+# Returns the generated artifact root for the Claude renderer.
+get_claude_plugin_artifact_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    printf '%s\n' "$repo_root/dist/provider-plugins/claude/gal"
+}
+
+# Returns the Claude plugin component layout relative to the plugin root.
+get_claude_plugin_component_relative_paths() {
+    jq -n '{
+        manifest: ".claude-plugin/plugin.json",
+        skills: "skills",
+        commands: "commands",
+        agents: "agents",
+        mcp: ".mcp.json"
+    }'
+}
+
+# Returns the manifest path for a rendered Claude plugin artifact.
+get_claude_plugin_manifest_path() {
+    local plugin_root="$1"
+    printf '%s\n' "$plugin_root/.claude-plugin/plugin.json"
+}
+
+# Returns the documented Claude plugin install and validation contract.
+get_claude_plugin_install_contract() {
+    jq -n '{
+        developmentLoadCommand: "claude --plugin-dir <plugin-root>",
+        validationCommand: "claude plugin validate <plugin-root> --strict",
+        lifecycleCommands: [
+            "claude plugin install <plugin> --scope <scope>",
+            "claude plugin update <plugin> --scope <scope>",
+            "claude plugin uninstall <plugin> --scope <scope>"
+        ],
+        settingsScopes: {
+            user: "~/.claude/settings.json",
+            project: ".claude/settings.json",
+            local: ".claude/settings.local.json",
+            managed: "managed settings"
+        },
+        cacheRoot: "~/.claude/plugins/cache",
+        dataRoot: "~/.claude/plugins/data",
+        notes: [
+            "Only .claude-plugin/plugin.json belongs inside .claude-plugin; all other plugin components stay at plugin root.",
+            "Plugin artifact rendering and user-scope Claude CLI lifecycle operations are distinct concerns.",
+            "Plugin data is persistent across updates and is deleted when the last install scope is removed unless --keep-data is used."
+        ]
+    }'
+}

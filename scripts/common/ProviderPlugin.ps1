@@ -273,12 +273,11 @@ function Test-ProviderPluginPackage {
     foreach ($path in $providerSpecificPaths) {
         if ($path -eq 'runtimeScripts') {
             # Count occurrences: should appear exactly once inside skippedComponents
-            $matches = [regex]::Matches($jsonText, [regex]::Escape('"runtimeScripts"'))
-            $inSkipped = $false
-            foreach ($m in $matches) {
-                $before = $jsonText.Substring(0, $m.Index)
+            $pathTokens = [regex]::Matches($jsonText, [regex]::Escape('"runtimeScripts"'))
+            foreach ($token in $pathTokens) {
+                $before = $jsonText.Substring(0, $token.Index)
                 if ($before -match '"skippedComponents"') {
-                    $inSkipped = $true
+                    continue
                 }
                 else {
                     $errors.Add("Provider-specific path '$path' leaked into provider-neutral package model")
@@ -362,9 +361,9 @@ function Test-ProviderPluginPackage {
     $jsonText = $Package | ConvertTo-Json -Depth 20
     $stubIndicators = @('"hooks"', '"runtimeScripts"')
     foreach ($indicator in $stubIndicators) {
-        $matches = [regex]::Matches($jsonText, [regex]::Escape($indicator))
-        foreach ($m in $matches) {
-            $before = $jsonText.Substring(0, $m.Index)
+        $stubTokens = [regex]::Matches($jsonText, [regex]::Escape($indicator))
+        foreach ($token in $stubTokens) {
+            $before = $jsonText.Substring(0, $token.Index)
             # If this occurrence is not inside skippedComponents, it's a stub
             if (-not ($before -match '"skippedComponents"')) {
                 $errors.Add("Unsupported component stub detected: $indicator appears outside skippedComponents")
@@ -430,4 +429,69 @@ function Get-AgyPluginInstallTarget {
         Returns the AGY plugin install target path.
     #>
     return Join-Path $env:USERPROFILE '.gemini/antigravity-cli/plugins/gal'
+}
+
+function Get-ClaudePluginArtifactRoot {
+    <#
+    .SYNOPSIS
+        Returns the generated artifact root for the Claude renderer.
+    #>
+    param([string]$RepoRoot)
+    return Join-Path $RepoRoot 'dist/provider-plugins/claude/gal'
+}
+
+function Get-ClaudePluginComponentRelativePaths {
+    <#
+    .SYNOPSIS
+        Returns the Claude plugin component layout relative to the plugin root.
+    #>
+
+    return [ordered]@{
+        manifest = '.claude-plugin/plugin.json'
+        skills = 'skills'
+        commands = 'commands'
+        agents = 'agents'
+        mcp = '.mcp.json'
+    }
+}
+
+function Get-ClaudePluginManifestPath {
+    <#
+    .SYNOPSIS
+        Returns the manifest path for a rendered Claude plugin artifact.
+    #>
+    param([string]$PluginRoot)
+
+    $componentPaths = Get-ClaudePluginComponentRelativePaths
+    return Join-Path $PluginRoot $componentPaths.manifest
+}
+
+function Get-ClaudePluginInstallContract {
+    <#
+    .SYNOPSIS
+        Returns the documented Claude plugin install and validation contract.
+    #>
+
+    return [ordered]@{
+        developmentLoadCommand = 'claude --plugin-dir <plugin-root>'
+        validationCommand = 'claude plugin validate <plugin-root> --strict'
+        lifecycleCommands = @(
+            'claude plugin install <plugin> --scope <scope>'
+            'claude plugin update <plugin> --scope <scope>'
+            'claude plugin uninstall <plugin> --scope <scope>'
+        )
+        settingsScopes = [ordered]@{
+            user = '~/.claude/settings.json'
+            project = '.claude/settings.json'
+            local = '.claude/settings.local.json'
+            managed = 'managed settings'
+        }
+        cacheRoot = Join-Path $env:USERPROFILE '.claude/plugins/cache'
+        dataRoot = Join-Path $env:USERPROFILE '.claude/plugins/data'
+        notes = @(
+            'Only .claude-plugin/plugin.json belongs inside .claude-plugin; all other plugin components stay at plugin root.',
+            'Plugin artifact rendering and user-scope Claude CLI lifecycle operations are distinct concerns.',
+            'Plugin data is persistent across updates and is deleted when the last install scope is removed unless --keep-data is used.'
+        )
+    }
 }

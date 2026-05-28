@@ -161,7 +161,6 @@ invoke_update_commands() {
         "$GEMINI_COMMANDS_TARGET" \
         "$ANTIGRAVITY_SKILLS_TARGET" \
         "$OPENCODE_COMMANDS_TARGET" \
-        "$CLAUDE_COMMANDS_TARGET" \
         "$SHARED_SKILLS_TARGET"
 
     echo ''
@@ -289,35 +288,22 @@ invoke_update_commands() {
     fi
 
     echo ''
-    echo '=== Claude custom commands ==='
+    echo '=== Claude legacy command cleanup ==='
+    local claude_commands_target="$HOME/.claude/commands"
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
-        command_file="$CLAUDE_COMMANDS_TARGET/$command_skill_name.md"
-        if $UNINSTALL || ! $INSTALL_CLAUDE; then
-            [ -f "$command_file" ] || continue
-            if ! is_gal_managed_file "$command_file"; then
-                echo "  [SKIP] User-owned Claude command preserved: $command_file"
-                continue
-            fi
-            if $DRY_RUN; then
-                echo "  [DRY RUN] Would remove: $command_file"
-            else
-                rm "$command_file"
-                echo "  [REMOVED] $command_file"
-            fi
+        command_file="$claude_commands_target/$command_skill_name.md"
+        [ -f "$command_file" ] || continue
+        if ! is_gal_managed_file "$command_file"; then
+            echo "  [SKIP] User-owned Claude command preserved: $command_file"
+            continue
+        fi
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove: $command_file"
         else
-            skill_path="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
-            if $DRY_RUN; then
-                echo "  [DRY RUN] Would write: $command_file"
-            else
-                command_content="$(new_claude_command_file_content "$skill_path" "$command_skill_name")"
-                printf '%s\n' "$command_content" > "$command_file"
-                echo "  [OK] $command_file"
-            fi
+            rm "$command_file"
+            echo "  [REMOVED] $command_file"
         fi
     done
-    if ! $UNINSTALL && $INSTALL_CLAUDE; then
-        echo '  [NOTE] Restart Claude Code or reload its command surface to pick up updated GAL commands.'
-    fi
 
     echo ''
     echo '=== OpenCode custom commands ==='
@@ -391,7 +377,7 @@ invoke_update_commands() {
         fi
     done
 
-    for existing_file in "$CLAUDE_COMMANDS_TARGET"/*.md; do
+    for existing_file in "$claude_commands_target"/*.md; do
         [ -e "$existing_file" ] || continue
         keep_file=false
         if contains_value "$(basename "$existing_file" .md)" "${COMMAND_SKILL_NAMES[@]}"; then

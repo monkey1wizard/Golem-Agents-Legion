@@ -19,19 +19,19 @@ The machine setup surface is now split by concern on both Windows and macOS/Linu
 - `scripts/Setup-Machine.ps1` runs the full sequence
 - `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
 - `scripts/Update-Skills.ps1` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), and legacy Gemini / Claude native command files
+- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), remaining Gemini native command files, and Claude legacy cleanup state
 - `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 - `scripts/setup-machine.sh` runs the full sequence
 - `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
 - `scripts/update-skills.sh` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), and legacy Gemini / Claude native command files
+- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), remaining Gemini native command files, and Claude legacy cleanup state
 - `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 
 ## Install Mode vs Source Mode
 
 GAL supports two operational modes controlled by `~/.gal/config/config.json`:
 
-- **Install mode** — for end users who just want to use GAL. You don't need to clone the repo. Install via `winget` (Windows) or `homebrew` (macOS/Linux), and GAL manages its own `~/.gal/` runtime home. All provider-native plugin installs, updates, and uninstalls work without a source checkout. This is the eventual default once Claude, AGY, and Copilot smoke guards all pass.
+- **Install mode** — for end users who just want to use GAL. You don't need to clone the repo. Install via `winget` (Windows) or `homebrew` (macOS/Linux), and GAL manages its own `~/.gal/` runtime home. AGY already supports the full provider-native lifecycle without a source checkout. Claude now supports plugin artifact rendering, strict validation when the local CLI exposes it, lifecycle-state tracking, and session-load smoke without a source checkout, but direct provider-native install is still capability-dependent and not yet a verified default lane. Broader install-mode defaults remain gated on the remaining provider smoke guards.
 
 - **Source mode** — for GAL contributors. Keep a local clone of the GAL repo, set `galRoot` in `~/.gal/config/config.json` to that path, and enable `devMode`. This gives you live local overrides, direct repo-skill mounting, and the ability to test changes without packaging.
 
@@ -173,7 +173,7 @@ Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when mi
 If you want a machine-local customization for a specific command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`.
 
 - `SKILL.local.md` is gitignored and treated as user-owned machine-local input.
-- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating the legacy Gemini and Claude command files.
+- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating the baked command outputs that still feed Gemini compatibility and Claude plugin packaging inputs.
 - Do not edit `commands/<command>/SKILL.md` directly. It remains a generated file and will be replaced on the next setup run.
 - Keep `SKILL.local.md` to additional instruction content only. Do not add a second frontmatter block.
 
@@ -403,7 +403,7 @@ Gemini CLI is not a fifth renderer. It is an AGY migration/compatibility lane. E
 
 ### Future Renderer Sequence
 
-After AGY validation, the planned renderer sequence is: Copilot CLI → Codex → Claude Code. Each will reuse the common base with its own layout and install lifecycle. No future renderer should copy the AGY layout.
+After AGY and Claude renderer validation, the remaining planned renderer sequence is: Copilot CLI → Codex. Claude still has open direct-install lifecycle verification, but the renderer itself is no longer pending. No future renderer should copy the AGY layout.
 
 ## Responsibility Boundary
 

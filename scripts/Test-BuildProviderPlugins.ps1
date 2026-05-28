@@ -36,6 +36,13 @@ $copilotPlan = $plan.BuildPlan | Where-Object Provider -eq 'copilot' | Select-Ob
 $codexPlan = $plan.BuildPlan | Where-Object Provider -eq 'codex' | Select-Object -First 1
 $claudePlan = $plan.BuildPlan | Where-Object Provider -eq 'claude' | Select-Object -First 1
 
+$claudeArtifactRoot = Join-Path $repoRoot 'dist/provider-plugins/claude/gal'
+$claudeManifestPath = Join-Path $claudeArtifactRoot '.claude-plugin/plugin.json'
+$claudeMcpPath = Join-Path $claudeArtifactRoot '.mcp.json'
+$claudeSkillPath = Join-Path $claudeArtifactRoot 'skills/defuddle/SKILL.md'
+$claudeCommandPath = Join-Path $claudeArtifactRoot 'commands/gal.md'
+$claudeAgentPath = Join-Path $claudeArtifactRoot 'agents/golem-reviewer.md'
+
 . (Join-Path $PSScriptRoot 'common\ProviderPlugin.ps1')
 $canonicalSchema = Get-GalCoreCanonicalPackageSchema
 $canonicalPackage = New-ProviderPluginPackage -RepoRoot $repoRoot -ResolvedPlugins $null
@@ -51,7 +58,10 @@ Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-006: Co
 Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-006: Codex does not get a managed shortcut target'
 Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-016: Codex direct install is not yet claimed before renderer verification'
 Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-006: Claude remains the baseline native-install lane'
-Assert-True -Condition ($claudePlan.Renderer -eq 'not-yet-implemented') -Label 'TP-016: Claude direct install is not yet claimed before renderer verification'
+Assert-True -Condition ($claudePlan.Renderer -eq 'Build-ClaudePlugin.ps1') -Label 'TP-004: Claude build plan uses the real Claude renderer'
+Assert-True -Condition ($claudePlan.ArtifactRoot -eq $claudeArtifactRoot) -Label 'TP-004: Claude build plan reports the Claude artifact root'
+Assert-True -Condition ($claudePlan.InstallTarget -eq 'provider-managed via claude plugin install --scope <scope>') -Label 'TP-004: Claude build plan documents provider-managed install targeting'
+Assert-True -Condition ($claudePlan.LifecycleStatus -eq 'artifact-rendered-install-deferred') -Label 'TP-004: Claude build plan distinguishes rendered artifact from direct-install verification'
 Assert-True -Condition ($canonicalSchema.canonicalProvider -eq 'claude') -Label 'TP-006: Claude is the canonical package schema baseline'
 Assert-True -Condition ($canonicalSchema.compatibleProviders -contains 'copilot') -Label 'TP-006: Copilot stays in the canonical compatibility set'
 Assert-True -Condition ($canonicalSchema.compatibleProviders -contains 'codex') -Label 'TP-006: Codex stays in the canonical compatibility set'
@@ -74,6 +84,17 @@ try {
 
     Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-009: AGY manifest preserves canonical package identity'
     Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-009: AGY manifest preserves deferred companion identity'
+
+    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+    $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
+
+    Assert-True -Condition (Test-Path $claudeManifestPath) -Label 'TP-001: Claude artifact contains .claude-plugin/plugin.json'
+    Assert-True -Condition (Test-Path $claudeSkillPath) -Label 'TP-003: Claude artifact contains skill payloads'
+    Assert-True -Condition (Test-Path $claudeCommandPath) -Label 'TP-003: Claude artifact contains command markdown'
+    Assert-True -Condition (Test-Path $claudeAgentPath) -Label 'TP-003: Claude artifact contains agent markdown'
+    Assert-True -Condition (Test-Path $claudeMcpPath) -Label 'TP-003: Claude artifact contains plugin-root MCP config'
+    Assert-True -Condition ($claudeManifest.name -eq 'gal') -Label 'TP-002: Claude manifest preserves plugin identity'
+    Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
 }
 finally {
     if (Test-Path $resolvedJsonPath) {

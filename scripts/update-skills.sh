@@ -151,8 +151,7 @@ invoke_update_skills() {
         "$CODEX_SKILLS_TARGET" \
         "$OPENCODE_ROOT" \
         "$OPENCODE_AGENTS_TARGET" \
-        "$CLAUDE_ROOT" \
-        "$CLAUDE_SKILLS_TARGET"
+        "$GAL_GENERATED_PROVIDERS_ROOT"
 
     local agent_files=()
     while IFS= read -r agent_file; do
@@ -326,15 +325,12 @@ invoke_update_skills() {
     done
 
     echo ''
-    echo "=== Claude Skills (${#skill_dirs[@]} reusable directories) ==="
+    echo "=== Claude legacy skills cleanup (${#skill_dirs[@]} reusable directories) ==="
+    local claude_skills_target="$HOME/.claude/skills"
     for skill_dir in "${skill_dirs[@]}"; do
         skill_name="$(basename "$skill_dir")"
-        link_path="$CLAUDE_SKILLS_TARGET/$skill_name"
-        if $UNINSTALL || ! $INSTALL_CLAUDE; then
-            safe_unlink "$link_path"
-        else
-            safe_link "$link_path" "$skill_dir"
-        fi
+        link_path="$claude_skills_target/$skill_name"
+        safe_unlink "$link_path"
     done
 
     echo ''

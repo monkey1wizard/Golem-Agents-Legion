@@ -98,15 +98,15 @@ function New-SetupContext {
         OpenCodeCommandsTarget = Join-Path $openCodeRoot 'commands'
         OpenCodeConfigFile = Join-Path $openCodeRoot 'opencode.json'
 
+        ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
+        ClaudePluginsRoot = Join-Path $env:USERPROFILE '.claude\plugins'
+        ClaudePluginInstallTarget = Join-Path $env:USERPROFILE '.claude\plugins\gal'
+
         AntigravityRoot = $antigravityRoot
         AntigravitySkillsTarget = Join-Path $antigravityRoot 'skills'
         AntigravityMcpFile = Join-Path $antigravityRoot 'mcp_config.json'
         AgyPluginArtifactRoot = Join-Path $repoRoot 'dist/provider-plugins/agy/gal'
         AgyPluginInstallTarget = Join-Path $env:USERPROFILE '.gemini/antigravity-cli/plugins/gal'
-
-        ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
-        ClaudeSkillsTarget = Join-Path $env:USERPROFILE '.claude\skills'
-        ClaudeCommandsTarget = Join-Path $env:USERPROFILE '.claude\commands'
 
         McpSourceFile = Join-Path $repoRoot 'mcp.json'
         McpLocalFile = Join-Path $repoRoot 'mcp.local.json'
@@ -124,9 +124,39 @@ function New-SetupContext {
             [pscustomobject]@{ Key = 'gemini'; Label = 'Gemini CLI'; Description = 'legacy native command files plus GAL context/settings compatibility bridge' },
             [pscustomobject]@{ Key = 'codex'; Label = 'Codex CLI'; Description = 'installed GAL command skills, shared skills, Codex MCP bridge' },
             [pscustomobject]@{ Key = 'opencode'; Label = 'OpenCode'; Description = 'OpenCode agents, commands, reusable skill discovery, OpenCode MCP bridge' },
-            [pscustomobject]@{ Key = 'claude'; Label = 'Claude Code'; Description = 'Claude skills, native command files, repo-local CLAUDE.md adapter' }
+            [pscustomobject]@{ Key = 'claude'; Label = 'Claude Code'; Description = 'Claude plugin lifecycle state, optional Claude CLI MCP bridge, repo-local CLAUDE.md adapter' }
         )
     }
+}
+
+function Get-ClaudeLifecycleStatePath {
+    param(
+        [pscustomobject]$Context
+    )
+
+    return Join-Path $Context.GalGeneratedProvidersRoot 'claude\managed.json'
+}
+
+function Test-ClaudeLifecycleState {
+    param(
+        [pscustomobject]$Context
+    )
+
+    $statePath = Get-ClaudeLifecycleStatePath -Context $Context
+    if (-not (Test-Path $statePath)) {
+        return $false
+    }
+
+    $state = Read-JsonOrderedMap $statePath
+    if ($state -isnot [System.Collections.IDictionary]) {
+        return $false
+    }
+
+    if ($state.Contains('provider') -and [string]$state['provider'] -ne 'claude') {
+        return $false
+    }
+
+    return $true
 }
 
 function Initialize-SetupSession {
@@ -741,9 +771,7 @@ function Get-DetectedRuntimeSelection {
         (Get-ChildItem $context.OpenCodeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalManagedFile $_.FullName } | Select-Object -First 1)
     if ($openCodeInstalled) { $detected.Add('opencode') }
 
-    $claudeInstalled =
-        (Get-ChildItem $context.ClaudeSkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1) -or
-        (Get-ChildItem $context.ClaudeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalManagedFile $_.FullName } | Select-Object -First 1)
+    $claudeInstalled = Test-ClaudeLifecycleState -Context $context
     if ($claudeInstalled) { $detected.Add('claude') }
 
     return @($detected)

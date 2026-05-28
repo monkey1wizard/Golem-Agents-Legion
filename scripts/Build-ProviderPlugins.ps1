@@ -78,6 +78,7 @@ foreach ($provider in $Providers) {
                 ArtifactRoot = Get-AgyPluginArtifactRoot -RepoRoot $RepoRoot
                 InstallTarget = Get-AgyPluginInstallTarget
                 ShortcutTarget = Get-GalActiveProviderTarget -Provider 'agy'
+                LifecycleStatus = 'implemented'
             })
         }
         'copilot' {
@@ -88,6 +89,7 @@ foreach ($provider in $Providers) {
                 ArtifactRoot = $null
                 InstallTarget = $null
                 ShortcutTarget = $null
+                LifecycleStatus = 'not-implemented'
             })
         }
         'codex' {
@@ -98,16 +100,18 @@ foreach ($provider in $Providers) {
                 ArtifactRoot = $null
                 InstallTarget = $null
                 ShortcutTarget = $null
+                LifecycleStatus = 'not-implemented'
             })
         }
         'claude' {
             $buildPlan.Add([pscustomobject]@{
                 Provider = 'claude'
                 Mode = 'native-install'
-                Renderer = 'not-yet-implemented'
-                ArtifactRoot = $null
-                InstallTarget = $null
+                Renderer = 'Build-ClaudePlugin.ps1'
+                ArtifactRoot = Get-ClaudePluginArtifactRoot -RepoRoot $RepoRoot
+                InstallTarget = 'provider-managed via claude plugin install --scope <scope>'
                 ShortcutTarget = $null
+                LifecycleStatus = 'artifact-rendered-install-deferred'
             })
         }
         default {
@@ -133,6 +137,11 @@ try {
             if ($plan.Provider -eq 'agy') {
                 & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
                 Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
+                continue
+            }
+
+            if ($plan.Provider -eq 'claude') {
+                & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
             }
         }
     }

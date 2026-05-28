@@ -6,7 +6,7 @@ Status: abandoned on 2026-05-28.
 
 This plan is closed and must not be used as an implementation source of truth. It incorrectly treated Claude marketplace/discoverability and legacy Claude projections as sufficient progress toward provider-native Claude plugin install validation. That invalidated the T-009/T-010 closeout path and makes the later task completion state unreliable for future execution.
 
-Replacement work is tracked in `docs/plans/feat-gal-claude-plugin-renderer.md`, which explicitly scopes the missing Claude Code plugin renderer and plugin lifecycle validation.
+Replacement work is tracked in `docs/plans/feat-gal-claude-plugin-renderer.md`, which explicitly scopes the missing Claude Code plugin renderer and plugin lifecycle validation. That replacement plan is now the only current source of truth for Claude status: the renderer, strict validation lane, lifecycle-state tracking, and legacy cleanup are implemented, while provider-native direct install remains unverified.
 
 Historical content below is retained for audit only.
 

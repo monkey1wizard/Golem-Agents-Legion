@@ -130,8 +130,7 @@ function Invoke-UpdateSkills {
         $context.CodexSkillsTarget,
         $context.OpenCodeRoot,
         $context.OpenCodeAgentsTarget,
-        $context.ClaudeRoot,
-        $context.ClaudeSkillsTarget
+        $context.GalGeneratedProvidersRoot
     )
 
     $agentSourceDir = Join-Path $context.RepoRoot 'agent'
@@ -287,14 +286,17 @@ function Invoke-UpdateSkills {
     }
 
     Write-Host ''
-    Write-Host ("=== Claude Skills ({0} reusable directories) ===" -f $skillDirs.Count)
+    Write-Host ("=== Claude legacy skills cleanup ({0} reusable directories) ===" -f $skillDirs.Count)
+    $claudeSkillsTarget = Join-Path $env:USERPROFILE '.claude\skills'
     foreach ($skillDir in $skillDirs) {
-        $linkPath = Join-Path $context.ClaudeSkillsTarget $skillDir.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallClaude) {
-            Remove-SafeLink $linkPath
+        $linkPath = Join-Path $claudeSkillsTarget $skillDir.Name
+        if (-not (Test-GalRepoLink $linkPath)) { continue }
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $linkPath"
         }
         else {
-            New-SafeSymlink $linkPath $skillDir.FullName 'Directory' | Out-Null
+            Remove-Item $linkPath -Recurse -Force
+            Write-Host "  [REMOVED] $linkPath"
         }
     }
 

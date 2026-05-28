@@ -60,10 +60,10 @@ if [[ "$DRY_RUN" == 'true' ]]; then
     local_provider=''
     for local_provider in "${requested_providers[@]}"; do
         case "$local_provider" in
-            agy) echo "[agy] mode=managed-shortcut renderer=build-agy-plugin.sh shortcut=$(get_gal_active_provider_target agy)" ;;
-            copilot) echo "[copilot] mode=native-install renderer=not-yet-implemented shortcut=none" ;;
-            codex) echo "[codex] mode=native-install renderer=not-yet-implemented shortcut=none" ;;
-            claude) echo "[claude] mode=native-install renderer=not-yet-implemented shortcut=none" ;;
+            agy) echo "[agy] mode=managed-shortcut renderer=build-agy-plugin.sh shortcut=$(get_gal_active_provider_target agy) lifecycle=implemented" ;;
+            copilot) echo "[copilot] mode=native-install renderer=not-yet-implemented shortcut=none lifecycle=not-implemented" ;;
+            codex) echo "[codex] mode=native-install renderer=not-yet-implemented shortcut=none lifecycle=not-implemented" ;;
+            claude) echo "[claude] mode=native-install renderer=build-claude-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
             '') ;;
             *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
         esac
@@ -86,7 +86,14 @@ for local_provider in "${requested_providers[@]}"; do
                 exit 1
             fi
             ;;
-        copilot|codex|claude|'') ;;
+        claude)
+            claude_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
+            if [[ "$FORCE" == 'true' ]]; then
+                claude_args+=(--force)
+            fi
+            "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}" --install
+            ;;
+        copilot|codex|'') ;;
         *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
     esac
 done

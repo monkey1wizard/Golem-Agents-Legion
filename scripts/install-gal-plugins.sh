@@ -4,6 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/common/common.sh"
+. "$SCRIPT_DIR/common/provider-plugin.sh"
 
 CONFIG_PATH="$GAL_CONFIG_FILE"
 LOCKFILE_PATH="$GAL_PLUGINS_LOCK_FILE"
@@ -161,6 +162,146 @@ PY
 echo ''
 echo '=== GAL install orchestration ==='
 
+get_claude_lifecycle_state_path() {
+    printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/claude/managed.json"
+}
+
+write_claude_lifecycle_state() {
+    local state_json="$1"
+    local state_path
+    state_path="$(get_claude_lifecycle_state_path)"
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would write Claude lifecycle state: $state_path"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$state_path")"
+    printf '%s\n' "$state_json" > "$state_path"
+    echo "  [OK] Wrote Claude lifecycle state: $state_path"
+}
+
+invoke_claude_plugin_lifecycle() {
+    if ! $INSTALL_CLAUDE; then
+        return 0
+    fi
+
+    echo '  [OK] Evaluating Claude plugin lifecycle.'
+    local artifact_root manifest_path session_load_command
+    artifact_root="$(get_claude_plugin_artifact_root "$REPO_ROOT")"
+    manifest_path="$(get_claude_plugin_manifest_path "$artifact_root")"
+    session_load_command="claude --plugin-dir \"$artifact_root\""
+
+    if [[ ! -d "$artifact_root" ]]; then
+        echo "Claude artifact root not found: $artifact_root" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$manifest_path" ]]; then
+        echo "Claude manifest not found: $manifest_path" >&2
+        exit 1
+    fi
+
+    local cli_available=false
+    local validate_supported=false
+    local local_artifact_install_supported=false
+    local install_scope_supported=false
+    local install_help_summary=''
+
+    if command_exists claude; then
+        cli_available=true
+        local validate_help
+        validate_help="$(claude plugin validate --help 2>&1 || true)"
+        if printf '%s' "$validate_help" | grep -q 'Validate a plugin'; then
+            validate_supported=true
+        fi
+
+        local install_help
+        install_help="$(claude plugin install --help 2>&1 || true)"
+        install_help_summary="$(printf '%s' "$install_help" | awk 'NF {print}' | head -n 3 | paste -sd ' ' -)"
+        if printf '%s' "$install_help" | grep -q 'Installation scope: user, project, or local'; then
+            install_scope_supported=true
+        fi
+        if printf '%s' "$install_help" | grep -Eq '<path>|local path'; then
+            local_artifact_install_supported=true
+        fi
+    fi
+
+    local lifecycle_mode='artifact-only'
+    if $local_artifact_install_supported; then
+        lifecycle_mode='provider-native-install'
+    elif $cli_available; then
+        lifecycle_mode='session-load-only'
+    fi
+
+    local strict_passed=false
+    if ! $cli_available; then
+        echo '  [WARN] Claude CLI not found on PATH; artifact is built but lifecycle validation is unavailable.'
+    elif ! $validate_supported; then
+        echo '  [WARN] Claude CLI is present but `claude plugin validate` is unavailable; recording artifact-only lifecycle status.'
+    else
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict \"$artifact_root\""
+        else
+            claude plugin validate --strict "$artifact_root"
+            strict_passed=true
+            echo '  [OK] Claude plugin validation passed.'
+        fi
+
+        if ! $local_artifact_install_supported; then
+            echo "  [OK] Session smoke command: $session_load_command"
+        fi
+    fi
+
+    local state_json
+    state_json="$(jq -n \
+        --arg artifactRoot "$artifact_root" \
+        --arg manifestPath "$manifest_path" \
+        --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg installHelpSummary "$install_help_summary" \
+        --arg sessionLoadCommand "$session_load_command" \
+        --arg installTemplate 'claude plugin install <plugin> --scope <scope>' \
+        --arg updateTemplate 'claude plugin update <plugin> --scope <scope>' \
+        --arg uninstallTemplate 'claude plugin uninstall <plugin> --scope <scope>' \
+        --arg mode "$lifecycle_mode" \
+        --argjson cliAvailable "$cli_available" \
+        --argjson validateSupported "$validate_supported" \
+        --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson installScopeSupported "$install_scope_supported" \
+        --argjson strictPassed "$strict_passed" \
+        '{
+            schemaVersion: 1,
+            provider: "claude",
+            artifactRoot: $artifactRoot,
+            manifestPath: $manifestPath,
+            generatedAt: $generatedAt,
+            cli: {
+                available: $cliAvailable,
+                validateSupported: $validateSupported,
+                localArtifactInstallSupported: $localArtifactInstallSupported,
+                installScopeSupported: $installScopeSupported,
+                installHelpSummary: $installHelpSummary
+            },
+            validation: {
+                command: "claude plugin validate <artifact> --strict",
+                strictPassed: $strictPassed
+            },
+            lifecycle: {
+                mode: $mode,
+                sessionLoadCommand: $sessionLoadCommand,
+                installCommandTemplate: $installTemplate,
+                updateCommandTemplate: $updateTemplate,
+                uninstallCommandTemplate: $uninstallTemplate
+            },
+            notes: [
+                "Artifact validation is supported when the local Claude CLI exposes claude plugin validate <path>.",
+                "The current local Claude CLI install help is marketplace-oriented; local artifact install stays unsupported unless the CLI documents a path-based install mode.",
+                "When local artifact install is unavailable, the supported smoke path is session loading via claude --plugin-dir <artifact-root>."
+            ]
+        }')"
+
+    write_claude_lifecycle_state "$state_json"
+}
+
 if $UNINSTALL; then
     install_mode='source'
     if ! install_mode="$(get_configured_install_mode 2>/dev/null)"; then
@@ -192,7 +333,7 @@ if $UNINSTALL; then
         echo '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     fi
 
-    echo '  [OK] Install-mode uninstall owns AGY provider-native cleanup.'
+    echo '  [OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.'
     agy_shortcut_target="$(get_gal_active_provider_target agy)"
     if [ -L "$agy_shortcut_target" ] || [ -e "$agy_shortcut_target" ]; then
         safe_unlink "$agy_shortcut_target"
@@ -317,6 +458,9 @@ else
         $DRY_RUN && build_provider_args+=(--dry-run)
         $FORCE && build_provider_args+=(--force)
         "$SCRIPT_DIR/build-provider-plugins.sh" "${build_provider_args[@]}"
+        if printf '%s' ",$primary_providers_csv," | grep -q ',claude,'; then
+            invoke_claude_plugin_lifecycle
+        fi
     else
         echo '  [SKIP] No primary providers selected for provider-native install orchestration.'
     fi

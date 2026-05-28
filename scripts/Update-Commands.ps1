@@ -153,7 +153,6 @@ function Invoke-UpdateCommands {
         $context.GeminiCommandsTarget,
         $context.AntigravitySkillsTarget,
         $context.OpenCodeCommandsTarget,
-        $context.ClaudeCommandsTarget,
         $context.SharedSkillsTarget
     )
 
@@ -276,32 +275,21 @@ function Invoke-UpdateCommands {
     }
 
     Write-Host ''
-    Write-Host '=== Claude custom commands ==='
+    Write-Host '=== Claude legacy command cleanup ==='
+    $claudeCommandsTarget = Join-Path $env:USERPROFILE '.claude\commands'
     foreach ($commandSkill in $context.CommandSkillDirs) {
-        $commandFile = Join-Path $context.ClaudeCommandsTarget ("{0}.md" -f $commandSkill.Name)
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallClaude) {
-            if (-not (Test-Path $commandFile)) { continue }
-            if (-not (Test-GalManagedFile $commandFile)) {
-                Write-Host "  [SKIP] User-owned Claude command preserved: $commandFile"
-                continue
-            }
-            if ($script:SetupOptions.DryRun) {
-                Write-Host "  [DRY RUN] Would remove: $commandFile"
-            }
-            else {
-                Remove-Item $commandFile -Force
-                Write-Host "  [REMOVED] $commandFile"
-            }
+        $commandFile = Join-Path $claudeCommandsTarget ("{0}.md" -f $commandSkill.Name)
+        if (-not (Test-Path $commandFile)) { continue }
+        if (-not (Test-GalManagedFile $commandFile)) {
+            Write-Host "  [SKIP] User-owned Claude command preserved: $commandFile"
+            continue
+        }
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove: $commandFile"
         }
         else {
-            $commandContent = New-ClaudeCommandFileContent -SkillPath (Join-Path $commandSkill.Source 'SKILL.md') -CommandName $commandSkill.Name
-            if ($script:SetupOptions.DryRun) {
-                Write-Host "  [DRY RUN] Would write: $commandFile"
-            }
-            else {
-                [System.IO.File]::WriteAllText($commandFile, $commandContent, $context.Utf8NoBom)
-                Write-Host "  [OK] $commandFile"
-            }
+            Remove-Item $commandFile -Force
+            Write-Host "  [REMOVED] $commandFile"
         }
     }
 
@@ -365,7 +353,7 @@ function Invoke-UpdateCommands {
         }
     }
 
-    foreach ($commandFile in (Get-ChildItem $context.ClaudeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object {
+    foreach ($commandFile in (Get-ChildItem $claudeCommandsTarget -Filter '*.md' -File -ErrorAction SilentlyContinue | Where-Object {
         $_.BaseName -notin $context.ActiveCommandSkillNames -and (Test-GalManagedFile $_.FullName)
     })) {
         if ($script:SetupOptions.DryRun) {
