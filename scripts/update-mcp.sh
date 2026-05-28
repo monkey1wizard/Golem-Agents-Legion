@@ -339,6 +339,95 @@ def default_xmachine_binding():
     }
 
 
+def resolved_local_env_file():
+    primary_env = gal_config / 'config.local.env'
+    legacy_env = repo_root / 'config.local.env'
+    if primary_env.exists():
+        return primary_env
+    if legacy_env.exists():
+        return legacy_env
+    return primary_env
+
+
+def remove_env_key(path: Path, key: str) -> bool:
+    if not path.exists():
+        return False
+
+    pattern = re.compile(rf'^\s*{re.escape(key)}\s*=')
+    lines = path.read_text(encoding='utf-8').splitlines()
+    filtered = [line for line in lines if not pattern.match(line)]
+    removed = len(filtered) != len(lines)
+    if not removed:
+        return False
+
+    if dry_run:
+        print(f'  [DRY RUN] Would remove {key} from: {path}')
+        return True
+
+    path.write_text('\n'.join(filtered) + '\n', encoding='utf-8')
+    return True
+
+
+def import_legacy_gal_skills(binding):
+    env_file = resolved_local_env_file()
+    env_values = read_env_file(env_file)
+    legacy_value = env_values.get('GAL_SKILLS')
+    if not legacy_value:
+        return binding
+
+    legacy_roots = split_config_list(legacy_value)
+    if not legacy_roots:
+        if remove_env_key(env_file, 'GAL_SKILLS'):
+            if not dry_run:
+                print(f'  [CLEANUP] Removed empty GAL_SKILLS from: {env_file}')
+        return binding
+
+    legacy_plugin_root = gal_store_plugins_root / 'legacy-gal-skills'
+    legacy_skills_root = legacy_plugin_root / 'skills'
+    copied_any = False
+    can_remove_legacy_key = True
+    local_plugin_paths = [str(path) for path in binding.get('localPluginPaths', []) if str(path).strip()]
+
+    for legacy_root_text in legacy_roots:
+        legacy_root = Path(legacy_root_text).expanduser()
+        if not legacy_root.exists():
+            print(f'  [WARN] GAL_SKILLS path not found; preserving GAL_SKILLS for manual follow-up: {legacy_root}')
+            can_remove_legacy_key = False
+            continue
+
+        skill_dirs = [entry for entry in sorted(legacy_root.iterdir()) if entry.is_dir()]
+        if not skill_dirs:
+            print(f'  [WARN] GAL_SKILLS path contains no skill directories; preserving GAL_SKILLS for manual follow-up: {legacy_root}')
+            can_remove_legacy_key = False
+            continue
+
+        for skill_dir in skill_dirs:
+            skill_file = skill_dir / 'SKILL.md'
+            if not skill_file.exists():
+                continue
+
+            destination_file = legacy_skills_root / skill_dir.name / 'SKILL.md'
+            if dry_run:
+                print(f'  [DRY RUN] Would import legacy GAL_SKILLS skill: {skill_dir} -> {destination_file}')
+            else:
+                destination_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(skill_file, destination_file)
+                print(f'  [MIGRATE] Imported legacy GAL_SKILLS skill: {skill_dir.name}')
+
+            copied_any = True
+
+    if copied_any and str(legacy_plugin_root) not in local_plugin_paths:
+        local_plugin_paths.append(str(legacy_plugin_root))
+
+    binding['localPluginPaths'] = local_plugin_paths
+
+    if can_remove_legacy_key and remove_env_key(env_file, 'GAL_SKILLS'):
+        if not dry_run:
+            print(f'  [CLEANUP] Removed GAL_SKILLS from: {env_file}')
+
+    return binding
+
+
 def read_xmachine_binding():
     binding = default_xmachine_binding()
     legacy_config = repo_root / 'xmachine.config.json'
@@ -347,15 +436,15 @@ def read_xmachine_binding():
         if isinstance(configured_binding, dict):
             if isinstance(configured_binding.get('nodes'), dict) and 'xmachineNodeAliases' not in configured_binding:
                 configured_binding['xmachineNodeAliases'] = configured_binding['nodes']
-            return deep_merge(binding, configured_binding)
-        return binding
+            return import_legacy_gal_skills(deep_merge(binding, configured_binding))
+        return import_legacy_gal_skills(binding)
 
     if legacy_config.exists():
         legacy_binding = read_json(legacy_config)
         if isinstance(legacy_binding, dict) and isinstance(legacy_binding.get('nodes'), dict):
             binding['xmachineNodeAliases'] = legacy_binding['nodes']
 
-    return binding
+    return import_legacy_gal_skills(binding)
 
 
 def build_generated_xmachine_projection(binding):

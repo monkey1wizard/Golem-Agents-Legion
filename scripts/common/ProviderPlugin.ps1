@@ -45,6 +45,45 @@ function Get-GalCoreCopiedCompanionSkillPatterns {
     return @('dart-*', 'flutter-*')
 }
 
+function Get-LocalOverrideSkillEntries {
+    param([string]$GalXmachineConfigFile)
+
+    if (-not (Test-Path $GalXmachineConfigFile)) {
+        return @()
+    }
+
+    $binding = Read-JsonOrderedMap $GalXmachineConfigFile
+    if ($null -eq $binding -or -not $binding.Contains('localPluginPaths')) {
+        return @()
+    }
+
+    $entries = [System.Collections.Generic.List[object]]::new()
+    foreach ($pluginPath in @($binding['localPluginPaths'])) {
+        if ([string]::IsNullOrWhiteSpace([string]$pluginPath)) {
+            continue
+        }
+
+        $skillsRoot = Join-Path ([string]$pluginPath) 'skills'
+        if (-not (Test-Path $skillsRoot)) {
+            continue
+        }
+
+        foreach ($skillDir in Get-ChildItem $skillsRoot -Directory | Sort-Object Name) {
+            $skillFile = Join-Path $skillDir.FullName 'SKILL.md'
+            if (-not (Test-Path $skillFile)) {
+                continue
+            }
+
+            $entries.Add([ordered]@{
+                name = $skillDir.Name
+                sourcePath = $skillFile
+            })
+        }
+    }
+
+    return @($entries)
+}
+
 function Resolve-CanonicalPackageInput {
     <#
     .SYNOPSIS
@@ -127,6 +166,7 @@ function New-ProviderPluginPackage {
 
     # --- Reusable skills ---
     $skillsDir = Join-Path $RepoRoot 'skills'
+    $knownSkillNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     if (Test-Path $skillsDir) {
         foreach ($skillDir in Get-ChildItem $skillsDir -Directory | Sort-Object Name) {
             $isDeferredCompanionSkill = $false
@@ -142,12 +182,22 @@ function New-ProviderPluginPackage {
 
             $skillFile = Join-Path $skillDir.FullName 'SKILL.md'
             if (Test-Path $skillFile) {
+                [void]$knownSkillNames.Add($skillDir.Name)
                 $package.skills.Add([ordered]@{
                     name = $skillDir.Name
                     sourcePath = $skillFile
                 })
             }
         }
+    }
+
+    foreach ($skill in (Get-LocalOverrideSkillEntries -GalXmachineConfigFile (Join-Path $env:USERPROFILE '.gal\config\xmachine.json'))) {
+        if ($knownSkillNames.Contains([string]$skill['name'])) {
+            continue
+        }
+
+        [void]$knownSkillNames.Add([string]$skill['name'])
+        $package.skills.Add($skill)
     }
 
     # --- Command skills (rendered as skills in the common model) ---

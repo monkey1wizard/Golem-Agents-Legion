@@ -262,6 +262,142 @@ function New-DefaultXmachineBinding {
     }
 }
 
+function Get-ResolvedLocalEnvFilePath {
+    $context = $script:SetupContext
+    $primaryEnvFile = Join-Path $context.GalConfigRoot 'config.local.env'
+    $legacyEnvFile = Join-Path $context.RepoRoot 'config.local.env'
+
+    if (Test-Path $primaryEnvFile) {
+        return $primaryEnvFile
+    }
+
+    if (Test-Path $legacyEnvFile) {
+        return $legacyEnvFile
+    }
+
+    return $primaryEnvFile
+}
+
+function Remove-EnvKeyFromFile {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    if (-not (Test-Path $Path)) {
+        return $false
+    }
+
+    $pattern = '^(\s*){0}\s*=' -f [regex]::Escape($Key)
+    $lines = Get-Content $Path -Encoding UTF8
+    $filteredLines = [System.Collections.Generic.List[string]]::new()
+    $removed = $false
+
+    foreach ($line in $lines) {
+        if ($line -match $pattern) {
+            $removed = $true
+            continue
+        }
+
+        $filteredLines.Add($line)
+    }
+
+    if (-not $removed) {
+        return $false
+    }
+
+    if ($script:SetupOptions.DryRun) {
+        Write-Host "  [DRY RUN] Would remove $Key from: $Path"
+        return $true
+    }
+
+    [System.IO.File]::WriteAllLines($Path, $filteredLines, $script:SetupContext.Utf8NoBom)
+    return $true
+}
+
+function Import-LegacyGalSkillsIntoXmachineBinding {
+    param([System.Collections.IDictionary]$XmachineBinding)
+
+    $context = $script:SetupContext
+    $envFile = Get-ResolvedLocalEnvFilePath
+    $envValues = Read-KeyValueEnvFile $envFile
+    if (-not $envValues.Contains('GAL_SKILLS')) {
+        return $XmachineBinding
+    }
+
+    $legacyRoots = @(Split-ConfigList ([string]$envValues['GAL_SKILLS']))
+    if ($legacyRoots.Count -eq 0) {
+        if (Remove-EnvKeyFromFile -Path $envFile -Key 'GAL_SKILLS') {
+            if (-not $script:SetupOptions.DryRun) {
+                Write-Host "  [CLEANUP] Removed empty GAL_SKILLS from: $envFile"
+            }
+        }
+
+        return $XmachineBinding
+    }
+
+    $legacyPluginRoot = Join-Path $context.GalStorePluginsRoot 'legacy-gal-skills'
+    $legacySkillsRoot = Join-Path $legacyPluginRoot 'skills'
+    $copiedAny = $false
+    $canRemoveLegacyKey = $true
+    $localPluginPaths = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($path in @($XmachineBinding['localPluginPaths'])) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$path) -and -not $localPluginPaths.Contains([string]$path)) {
+            $localPluginPaths.Add([string]$path)
+        }
+    }
+
+    foreach ($legacyRoot in $legacyRoots) {
+        if (-not (Test-Path $legacyRoot)) {
+            Write-Host "  [WARN] GAL_SKILLS path not found; preserving GAL_SKILLS for manual follow-up: $legacyRoot" -ForegroundColor Yellow
+            $canRemoveLegacyKey = $false
+            continue
+        }
+
+        $skillDirs = @(Get-ChildItem $legacyRoot -Directory | Sort-Object Name)
+        if ($skillDirs.Count -eq 0) {
+            Write-Host "  [WARN] GAL_SKILLS path contains no skill directories; preserving GAL_SKILLS for manual follow-up: $legacyRoot" -ForegroundColor Yellow
+            $canRemoveLegacyKey = $false
+            continue
+        }
+
+        foreach ($skillDir in $skillDirs) {
+            $skillFile = Join-Path $skillDir.FullName 'SKILL.md'
+            if (-not (Test-Path $skillFile)) {
+                continue
+            }
+
+            $destinationDir = Join-Path $legacySkillsRoot $skillDir.Name
+            $destinationFile = Join-Path $destinationDir 'SKILL.md'
+            if ($script:SetupOptions.DryRun) {
+                Write-Host "  [DRY RUN] Would import legacy GAL_SKILLS skill: $($skillDir.FullName) -> $destinationFile"
+            }
+            else {
+                New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
+                Copy-Item $skillFile $destinationFile -Force
+                Write-Host "  [MIGRATE] Imported legacy GAL_SKILLS skill: $($skillDir.Name)"
+            }
+
+            $copiedAny = $true
+        }
+    }
+
+    if ($copiedAny -and -not $localPluginPaths.Contains($legacyPluginRoot)) {
+        $localPluginPaths.Add($legacyPluginRoot)
+    }
+
+    $XmachineBinding['localPluginPaths'] = @($localPluginPaths)
+
+    if ($canRemoveLegacyKey -and (Remove-EnvKeyFromFile -Path $envFile -Key 'GAL_SKILLS')) {
+        if (-not $script:SetupOptions.DryRun) {
+            Write-Host "  [CLEANUP] Removed GAL_SKILLS from: $envFile"
+        }
+    }
+
+    return $XmachineBinding
+}
+
 function Get-ResolvedXmachineBinding {
     $context = $script:SetupContext
     $binding = New-DefaultXmachineBinding
@@ -277,7 +413,7 @@ function Get-ResolvedXmachineBinding {
             $configuredBinding['xmachineNodeAliases'] = ConvertTo-OrderedMap $configuredBinding['nodes']
         }
 
-        return Merge-OrderedMap $binding $configuredBinding
+        return Import-LegacyGalSkillsIntoXmachineBinding -XmachineBinding (Merge-OrderedMap $binding $configuredBinding)
     }
 
     if (Test-Path $legacyConfigPath) {
@@ -291,7 +427,7 @@ function Get-ResolvedXmachineBinding {
         }
     }
 
-    return $binding
+    return Import-LegacyGalSkillsIntoXmachineBinding -XmachineBinding $binding
 }
 
 function New-ManagedXmachineProjection([System.Collections.IDictionary]$XmachineBinding) {

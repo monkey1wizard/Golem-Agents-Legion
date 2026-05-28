@@ -39,6 +39,25 @@ get_gal_core_copied_companion_skill_patterns() {
     printf '%s\n' 'dart-*' 'flutter-*'
 }
 
+get_local_override_skill_entries() {
+    local xmachine_config="$GAL_XMACHINE_CONFIG_FILE"
+    [ -f "$xmachine_config" ] || return 0
+
+    local plugin_path skills_root skill_dir skill_name skill_file
+    while IFS= read -r plugin_path; do
+        [ -n "$plugin_path" ] || continue
+        skills_root="$plugin_path/skills"
+        [ -d "$skills_root" ] || continue
+
+        while IFS= read -r -d '' skill_dir; do
+            skill_name="$(basename "$skill_dir")"
+            skill_file="$skill_dir/SKILL.md"
+            [ -f "$skill_file" ] || continue
+            printf '{"name":%s,"sourcePath":%s}\n' "$(jq -R . <<< "$skill_name")" "$(jq -R . <<< "$skill_file")"
+        done < <(find "$skills_root" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+    done < <(jq -r '.localPluginPaths[]? // empty' "$xmachine_config")
+}
+
 # Build a provider-neutral plugin package from the GAL repo source contracts.
 # Outputs a JSON object to stdout.
 build_provider_plugin_package() {
@@ -70,6 +89,7 @@ build_provider_plugin_package() {
 
     # --- Reusable skills ---
     local skills_dir="$repo_root/skills"
+    local seen_skill_names=()
     if [ -d "$skills_dir" ]; then
         local skill_dirs=()
         while IFS= read -r -d '' dir; do
@@ -94,6 +114,7 @@ build_provider_plugin_package() {
                 continue
             fi
             if [ -f "$skill_file" ]; then
+                seen_skill_names+=("$name")
                 skill_entries+=("$(printf '{"name":%s,"sourcePath":%s}' "$(jq -R . <<< "$name")" "$(jq -R . <<< "$skill_file")")")
             fi
         done
@@ -101,6 +122,22 @@ build_provider_plugin_package() {
         if [ "${#skill_entries[@]}" -gt 0 ]; then
             skills_json="$(printf '%s\n' "${skill_entries[@]}" | jq -s .)"
         fi
+    fi
+
+    local override_entries=()
+    while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+        local override_name
+        override_name="$(printf '%s' "$entry" | jq -r '.name')"
+        if printf '%s\n' "${seen_skill_names[@]}" | grep -Fxq "$override_name"; then
+            continue
+        fi
+        seen_skill_names+=("$override_name")
+        override_entries+=("$entry")
+    done < <(get_local_override_skill_entries)
+
+    if [ "${#override_entries[@]}" -gt 0 ]; then
+        skills_json="$(printf '%s\n%s\n' "$skills_json" "$(printf '%s\n' "${override_entries[@]}" | jq -s .)" | jq -s '.[0] + .[1]')"
     fi
 
     # --- Command skills ---
