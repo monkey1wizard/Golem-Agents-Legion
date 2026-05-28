@@ -88,7 +88,7 @@ read_xmachine_node_aliases() {
   config_path="$(resolve_xmachine_config_path "$repo_root")"
   [[ -f "$config_path" ]] || return 0
 
-  jq -r '.nodes | keys[]?' "$config_path"
+  jq -r '(.xmachineNodeAliases // .nodes // {}) | keys[]?' "$config_path"
 }
 
 get_xmachine_dispatch_context() {

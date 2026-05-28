@@ -241,11 +241,23 @@ function Read-XmachineNodeAliases {
         throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
     }
 
-    if ($null -eq $config -or -not $config.PSObject.Properties.Name.Contains('nodes')) {
+    if ($null -eq $config) {
         return @()
     }
 
-    $nodes = $config.nodes
+    $aliasProperty = if ($config.PSObject.Properties.Name.Contains('xmachineNodeAliases')) {
+        'xmachineNodeAliases'
+    } elseif ($config.PSObject.Properties.Name.Contains('nodes')) {
+        'nodes'
+    } else {
+        $null
+    }
+
+    if ($null -eq $aliasProperty) {
+        return @()
+    }
+
+    $nodes = $config.$aliasProperty
     if ($null -eq $nodes) {
         return @()
     }
