@@ -1,5 +1,15 @@
 # 計畫：GAL Bootstrap Installer 與跨平台發布
 
+## Closure Notice
+
+Status: abandoned on 2026-05-28.
+
+This plan is closed and must not be used as an implementation source of truth. It incorrectly treated Claude marketplace/discoverability and legacy Claude projections as sufficient progress toward provider-native Claude plugin install validation. That invalidated the T-009/T-010 closeout path and makes the later task completion state unreliable for future execution.
+
+Replacement work is tracked in `docs/plans/feat-gal-claude-plugin-renderer.md`, which explicitly scopes the missing Claude Code plugin renderer and plugin lifecycle validation.
+
+Historical content below is retained for audit only.
+
 ## Goal
 
 GAL 提供一條清楚且可管理的跨平台安裝與發現路徑：Windows 使用者可透過 `winget` 安裝，macOS 與 Linux 使用者可透過 `homebrew` 安裝；GitHub Releases 同時提供版本化 `zip` / `tar.gz` 作為手動 fallback，且其中封裝的仍是相同版本的單一可執行 binary。除此之外，一般使用者也應能在 Claude marketplace、Codex marketplace、Copilot marketplace 等 provider-native marketplace 中搜尋並找到 GAL，並在 provider-native lifecycle 支援時直接完成安裝或更新；若該 marketplace 只支援 discoverability，entry 也必須清楚導向 `winget`、`homebrew` 或 GitHub Releases。package manager 只負責 bootstrap payload 的安裝、升級與移除，GAL 自身仍擁有 `~/.gal/` runtime home、generated projections 與 machine-local state 的生命週期。
@@ -123,7 +133,7 @@ GAL 提供一條清楚且可管理的跨平台安裝與發現路徑：Windows �
 <!-- Resolved: - [x] OQ-NNN — description *(raised by: command, resolved by: engineering-review-lane)* -->
 ## Approval
 
-- Human approval: pending
+- Human approval: abandoned/closed by user on 2026-05-28
 - Architect review: clear for `/refining-plan` after deep-planning revisions on 2026-05-25
 - Additional domain review: business review completed; design not requested
 
