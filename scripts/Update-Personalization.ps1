@@ -212,31 +212,46 @@ function Invoke-UpdatePersonalization {
     Write-Host '=== Personalization ==='
 
     $exampleEnv = Join-Path $context.RepoRoot 'config.example.env'
-    $localEnv = Join-Path $context.RepoRoot 'config.local.env'
+    $primaryLocalEnv = Join-Path $context.GalConfigRoot 'config.local.env'
+    $legacyLocalEnv = Join-Path $context.RepoRoot 'config.local.env'
+    $localEnv = $primaryLocalEnv
+    New-Item -ItemType Directory -Path $context.GalConfigRoot -Force | Out-Null
+    if (-not (Test-Path $localEnv) -and (Test-Path $legacyLocalEnv)) {
+        $localEnv = $legacyLocalEnv
+        Write-Host "  [LEGACY] Using existing legacy config.local.env at $localEnv" -ForegroundColor Yellow
+    }
+
     if (-not (Test-Path $localEnv)) {
         if (Test-Path $exampleEnv) {
             Copy-Item $exampleEnv $localEnv
-            Write-Host '  [OK] Created config.local.env from config.example.env'
-            Write-Host '  [ACTION REQUIRED] Edit config.local.env with your paths' -ForegroundColor Yellow
+            Write-Host "  [OK] Created $localEnv from config.example.env"
+            Write-Host "  [ACTION REQUIRED] Edit $localEnv with your paths" -ForegroundColor Yellow
         }
         else {
             Write-Host '  [WARN] config.example.env not found — skipping' -ForegroundColor Yellow
         }
     }
     else {
-        Write-Host '  [SKIP] config.local.env already exists'
+        Write-Host "  [SKIP] $localEnv already exists"
     }
 
     $exampleRoles = Join-Path $context.RepoRoot 'model-roles.example.md'
-    $localRoles = Join-Path $context.RepoRoot 'model-roles.local.md'
+    $primaryLocalRoles = Join-Path $context.GalConfigRoot 'model-roles.local.md'
+    $legacyLocalRoles = Join-Path $context.RepoRoot 'model-roles.local.md'
+    $localRoles = $primaryLocalRoles
+    if (-not (Test-Path $localRoles) -and (Test-Path $legacyLocalRoles)) {
+        $localRoles = $legacyLocalRoles
+        Write-Host "  [LEGACY] Using existing legacy model-roles.local.md at $localRoles" -ForegroundColor Yellow
+    }
+
     if (-not (Test-Path $localRoles)) {
         if (Test-Path $exampleRoles) {
             Copy-Item $exampleRoles $localRoles
-            Write-Host '  [OK] Created model-roles.local.md from model-roles.example.md'
+            Write-Host "  [OK] Created $localRoles from model-roles.example.md"
         }
     }
     else {
-        Write-Host '  [SKIP] model-roles.local.md already exists'
+        Write-Host "  [SKIP] $localRoles already exists"
     }
 
     Push-Location $context.RepoRoot
@@ -271,7 +286,7 @@ function Invoke-UpdatePersonalization {
                 }
             }
             else {
-                Write-Host '  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md'
+                Write-Host "  [INFO] $localEnv has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md" 
             }
         }
     }

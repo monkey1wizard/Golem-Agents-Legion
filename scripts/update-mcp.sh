@@ -790,7 +790,12 @@ def resolved_manifest():
         return None
 
     machine_config = read_machine_config()
-    values = build_mcp_values(read_env_file(repo_root / 'config.local.env'), machine_config)
+    env_file = gal_config / 'config.local.env'
+    legacy_env_file = repo_root / 'config.local.env'
+    if not env_file.exists() and legacy_env_file.exists():
+        env_file = legacy_env_file
+
+    values = build_mcp_values(read_env_file(env_file), machine_config)
 
     resolved = {
         'servers': normalize_servers({server_name: resolve_node(server_config, values) for server_name, server_config in servers.items()})

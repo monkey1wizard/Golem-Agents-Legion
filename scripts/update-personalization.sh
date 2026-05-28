@@ -189,28 +189,43 @@ PY
     echo '=== Personalization ==='
 
     local example_env="$REPO_ROOT/config.example.env"
-    local local_env="$REPO_ROOT/config.local.env"
+    local primary_local_env="$GAL_CONFIG_ROOT/config.local.env"
+    local legacy_local_env="$REPO_ROOT/config.local.env"
+    local local_env="$primary_local_env"
+    mkdir -p "$GAL_CONFIG_ROOT"
+    if [ ! -f "$local_env" ] && [ -f "$legacy_local_env" ]; then
+        local_env="$legacy_local_env"
+        echo "  [LEGACY] Using existing legacy config.local.env at $local_env"
+    fi
+
     if [ ! -f "$local_env" ]; then
         if [ -f "$example_env" ]; then
             cp "$example_env" "$local_env"
-            echo '  [OK] Created config.local.env from config.example.env'
-            echo '  [ACTION REQUIRED] Edit config.local.env with your paths'
+            echo "  [OK] Created $local_env from config.example.env"
+            echo "  [ACTION REQUIRED] Edit $local_env with your paths"
         else
             echo '  [WARN] config.example.env not found — skipping'
         fi
     else
-        echo '  [SKIP] config.local.env already exists'
+        echo "  [SKIP] $local_env already exists"
     fi
 
     local example_roles="$REPO_ROOT/model-roles.example.md"
-    local local_roles="$REPO_ROOT/model-roles.local.md"
+    local primary_local_roles="$GAL_CONFIG_ROOT/model-roles.local.md"
+    local legacy_local_roles="$REPO_ROOT/model-roles.local.md"
+    local local_roles="$primary_local_roles"
+    if [ ! -f "$local_roles" ] && [ -f "$legacy_local_roles" ]; then
+        local_roles="$legacy_local_roles"
+        echo "  [LEGACY] Using existing legacy model-roles.local.md at $local_roles"
+    fi
+
     if [ ! -f "$local_roles" ]; then
         if [ -f "$example_roles" ]; then
             cp "$example_roles" "$local_roles"
-            echo '  [OK] Created model-roles.local.md from model-roles.example.md'
+            echo "  [OK] Created $local_roles from model-roles.example.md"
         fi
     else
-        echo '  [SKIP] model-roles.local.md already exists'
+        echo "  [SKIP] $local_roles already exists"
     fi
 
     pushd "$REPO_ROOT" >/dev/null
@@ -241,7 +256,7 @@ PY
                 echo '  [INFO] Filtered files are not tracked yet — skipping git checkout'
             fi
         else
-            echo '  [INFO] config.local.env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md'
+            echo "  [INFO] $local_env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md"
         fi
     fi
     popd >/dev/null

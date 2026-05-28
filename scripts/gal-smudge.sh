@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # gal-smudge.sh — Git smudge filter: replaces <PLACEHOLDER> with real paths
 # Called by git on checkout/merge. Reads stdin, writes stdout.
-# Requires config.local.env in repo root.
+# Uses ~/.gal/config/config.local.env as the primary source, with an explicit
+# repo-root legacy fallback for transitional setups.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG="$REPO_ROOT/config.local.env"
+PRIMARY_CONFIG="$HOME/.gal/config/config.local.env"
+LEGACY_CONFIG="$REPO_ROOT/config.local.env"
+CONFIG="$PRIMARY_CONFIG"
+
+if [ ! -f "$CONFIG" ] && [ -f "$LEGACY_CONFIG" ]; then
+    CONFIG="$LEGACY_CONFIG"
+fi
 
 # No config → passthrough (placeholder stays as-is for new users)
 if [ ! -f "$CONFIG" ]; then

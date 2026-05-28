@@ -206,7 +206,10 @@ if [[ -n "$mcp_spec" && -f "$mcp_spec" ]]; then
 
     # Merge local overrides if present
     if [[ "$has_local_overrides" == 'true' ]]; then
-        mcp_local_file="$(dirname "$mcp_spec")/mcp.local.json"
+        mcp_local_file="$GAL_CONFIG_ROOT/mcp.local.json"
+        if [[ ! -f "$mcp_local_file" ]]; then
+            mcp_local_file="$(dirname "$mcp_spec")/mcp.local.json"
+        fi
         if [[ -f "$mcp_local_file" ]]; then
             mcp_manifest="$(printf '%s\n%s' "$mcp_manifest" "$(cat "$mcp_local_file")" | jq -s 'def deep_merge(a;b):
               reduce (b | keys) as $k (.;

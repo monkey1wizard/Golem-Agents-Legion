@@ -991,7 +991,13 @@ function Get-ResolvedManagedMcpManifest {
     $machineConfig = Get-GalMachineConfig
     if ($null -eq $machineConfig) { return $null }
 
-    $mcpVariables = Get-McpVariableMap (Read-KeyValueEnvFile (Join-Path $context.RepoRoot 'config.local.env')) $machineConfig
+    $envFile = Join-Path $context.GalConfigRoot 'config.local.env'
+    $legacyEnvFile = Join-Path $context.RepoRoot 'config.local.env'
+    if (-not (Test-Path $envFile) -and (Test-Path $legacyEnvFile)) {
+        $envFile = $legacyEnvFile
+    }
+
+    $mcpVariables = Get-McpVariableMap (Read-KeyValueEnvFile $envFile) $machineConfig
     $resolvedServers = [ordered]@{}
     foreach ($serverName in $manifest['servers'].Keys) {
         $resolvedServers[$serverName] = Resolve-McpConfig $manifest['servers'][$serverName] $mcpVariables

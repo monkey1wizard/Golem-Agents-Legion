@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # gal-clean.sh — Git clean filter: replaces real paths with <PLACEHOLDER>
 # Called by git on add/diff. Reads stdin, writes stdout.
-# Requires config.local.env in repo root.
+# Uses ~/.gal/config/config.local.env as the primary source, with an explicit
+# repo-root legacy fallback for transitional setups.
 #
 # SECURITY: This is the critical path — if this fails, personal paths leak.
 # The filter is registered with required=true so git will abort on failure.
@@ -10,15 +11,41 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG="$REPO_ROOT/config.local.env"
+PRIMARY_CONFIG="$HOME/.gal/config/config.local.env"
+LEGACY_CONFIG="$REPO_ROOT/config.local.env"
+CONFIG="$PRIMARY_CONFIG"
 
-# No config → abort. Clean without config means we'd commit real paths.
-# If smudge ran (working copy has real paths) and clean can't reverse,
-# that's a data leak. Fail hard.
+if [ ! -f "$CONFIG" ] && [ -f "$LEGACY_CONFIG" ]; then
+    CONFIG="$LEGACY_CONFIG"
+fi
+
+raw="$(cat; echo x)"
+raw="${raw%x}"
+
+if [[ "$raw" == *$'\n' ]]; then
+    has_trailing_nl=true
+    content="${raw%$'\n'}"
+else
+    has_trailing_nl=false
+    content="$raw"
+fi
+
 if [ ! -f "$CONFIG" ]; then
-    echo "gal-clean: ERROR — config.local.env not found. Cannot safely clean." >&2
-    echo "Run Setup-Machine to create config.local.env from config.example.env." >&2
-    exit 1
+    suspicious_path_regex='([A-Za-z]:[\\/]|/Users/|/home/|/Volumes/|\\\\)'
+    suspicious_secret_regex='(API_KEY|TOKEN|SECRET|PASSWORD)[[:space:]]*[:=][[:space:]]*[^<[:space:]]+'
+
+    if printf '%s' "$content" | grep -Eq "$suspicious_path_regex|$suspicious_secret_regex"; then
+        echo "gal-clean: ERROR — no config source found at $PRIMARY_CONFIG or legacy fallback $LEGACY_CONFIG." >&2
+        echo "gal-clean: Refusing to clean content that appears to contain machine-local paths or secret-like values." >&2
+        exit 1
+    fi
+
+    echo "gal-clean: WARN — no config source found; passing through placeholder-only content unchanged." >&2
+    printf '%s' "$content"
+    if $has_trailing_nl; then
+        echo
+    fi
+    exit 0
 fi
 
 # Read config into parallel arrays, longest value first for safe replacement
@@ -65,18 +92,6 @@ for ((i = 0; i < count; i++)); do
         fi
     done
 done
-
-# Read entire file content and track trailing newline
-raw="$(cat; echo x)"
-raw="${raw%x}"
-# Detect trailing newline
-if [[ "$raw" == *$'\n' ]]; then
-    has_trailing_nl=true
-    content="${raw%$'\n'}"
-else
-    has_trailing_nl=false
-    content="$raw"
-fi
 
 # Replace real values with placeholders (reverse of smudge)
 for ((i = 0; i < count; i++)); do
