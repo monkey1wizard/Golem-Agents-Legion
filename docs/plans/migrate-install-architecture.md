@@ -12,6 +12,7 @@
 - [ ] 尚未實作轉譯器（renderer）的供應商（Copilot、Codex）不得在本次變更中假裝已完成原生安裝（native install）；建置計畫（build plan）必須維持 `not-implemented` 並通過測試確認。
 - [ ] Repository 根目錄不得包含任何個人化設定檔（如 `*.local.*`、`xmachine.config.json`）。
 - [ ] 個人化設定檔必須被讀取與寫入至 `~/.gal/config`；舊版（legacy）檔名可保留於該目錄中作為相容層。
+- [ ] 個人化後的 runtime instruction projections（包含個人化 `AGENTS.md`）必須產生於 `~/.gal/generated` 或 provider-visible `.gal` 投射路徑，不得寫入 GAL source repository root。
 - [ ] `GAL_SKILLS` 不得成為新的正式設定面（config surface）。它只能作為一次性的 migration input：用來把既有 skills 依 plugin 架構收編到 `.gal` 管理面，完成後必須自 `config.local.env` 移除。
 - [ ] xmachine 的標準本機設定（canonical machine-local config）必須改為 `~/.gal/config/xmachine.json`，儲存庫根目錄下的 `xmachine.config.json` 僅能作為過渡備用方案（fallback）。
 
@@ -19,7 +20,7 @@
 
 - `~/.gal/config/`：使用者管理的本機輸入檔案（machine-local input）。包含 `config.json`、過渡期的 `config.local.env`、`model-roles.local.md`、`mcp.local.json`，以及標準的 `xmachine.json`。
 - `~/.gal/store/plugins/` 與 `~/.gal/state/plugins.lock.json`：plugin 架構的 canonical 管理面。若既有 `GAL_SKILLS` 指向舊的 skills 目錄，應以 migration/import 的方式把可保留的 skills 收編到此管理面或其對應的 local plugin override，而不是在 `config.json` 或 `config.local.env` 中長期保留 `GAL_SKILLS` 路徑。
-- `~/.gal/generated/`：GAL 產生的本機投射（machine-local projection），例如 MCP 與 xmachine 管理的投射。這不是使用者手寫的設定。
+- `~/.gal/generated/`：GAL 產生的本機投射（machine-local projection），例如 MCP、xmachine 管理的投射，以及個人化後的 runtime instruction projections（包含個人化 `AGENTS.md`）。這不是使用者手寫的設定，也不得寫回 GAL source repository root。
 - `~/.gal/dist/`：轉譯器（renderer）與發布打包（release packaging）的輸出根目錄。供應商外掛產出物（provider plugin artifact）應落在 `~/.gal/dist/provider-plugins/<provider>/gal`。
 - `~/.gal/source/`：源始碼模式相容性連結（source-mode compatibility link），指向目前的 GAL 儲存庫檢出路徑（repo checkout）。Copilot/Gemini/Antigravity 的舊版 `GAL_ROOT` 連結若仍需存在，應指向此 `.gal` 中介，而不是直接指向儲存庫根目錄。
 - `~/.gal/active/<provider>`：供執行期（runtime）與測試使用的穩定捷徑路徑名稱。消費者不應依賴 store/dist 內部的版本路徑。

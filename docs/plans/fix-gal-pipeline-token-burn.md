@@ -37,9 +37,10 @@ The four generated adapters are near-identical clones. Only the first ~10 lines 
 - [ ] Pipeline-bound golem agents must stop re-reading generated adapters during normal phase execution unless the task is explicitly about adapter content.
 - [ ] Same-runtime fallback must not silently collapse spec-driven testing and review independence by default just to save tokens.
 - [ ] Any same-runtime bundling optimization must be explicit, documented as degraded verification independence, and must still produce separate durable write-back for test and review.
-- [ ] Three-surface durable state convergence across `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` must remain the baseline contract unless a new explicit pending-state model is introduced.
+- [ ] Three-surface durable state convergence across `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` must be complete before any git commit that records task progress or completion; in-flight task-local edits may be staged internally, but no committed state may contain cross-surface disagreement.
 - [ ] Dispatch and agent changes must favor compact injected context and on-demand reads over repeated full cold-start loading.
 - [ ] Generated adapter content should be compressed at the generator layer using selective language-scoped embedding rather than full-body duplication or pointer indirection.
+- [ ] Personalized runtime instruction projections, including personalized `AGENTS.md`, must live under `~/.gal/generated` or the provider-visible `.gal` projection path, not in the GAL source repository root.
 - [ ] Changes must preserve cross-runtime alignment across Copilot, Antigravity CLI, Codex CLI, Claude Code, and the OpenCode bridge lane.
 - [ ] Generated adapters remain derived outputs only; any fix must be authored in source files and sync scripts, not by hand-editing generated adapter files.
 - [ ] The implementation must produce measurable before-and-after evidence against the numeric targets above.
@@ -102,8 +103,9 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 ### Step 5 (P3): Selective language-scoped adapter embedding at generator layer
 
 - **Files**: `scripts/Sync-DevContext.ps1`, `scripts/sync-dev-context.sh`
-- **What**: Generate adapters by reading the `Tech Stack` section of `.dev/project.md` to determine which language conventions to embed. Only embed conventions for languages the project actually uses, plus the two cross-language conventions.
+- **What**: Generate adapters by reading the `Tech Stack` section of `.dev/project.md` to determine which language conventions to embed. Only embed conventions for languages the project actually uses, plus the two cross-language conventions. Keep `AGENTS.md` as the canonical shared instruction carrier, but keep provider-specific adapters because providers may auto-read `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` and GAL cannot reliably disable that behavior.
 - **Constraint**: Do not replace convention bodies with pointers or indexes — adapters must remain self-contained. The saving comes from selective inclusion, not indirection.
+- **Constraint**: Personalized runtime instruction projections, including personalized `AGENTS.md`, must be generated under `~/.gal/generated` or provider-visible `.gal` projection paths, not written into the GAL source repository root.
 - **Constraint**: This touches protected paths and changes every runtime surface; it requires explicit review and must preserve one trailing newline plus current generated-file semantics.
 - **Expected saving**: Per-adapter size reduction proportional to excluded languages; adapters remain self-contained and valid.
 - **Verify**: Regenerated adapters contain only the project's actual language conventions. Cross-runtime behavior is verified for all four adapter targets after regeneration.
@@ -120,12 +122,12 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ---
 
-### Step 7 (Later): Revisit batch state convergence last
+### Step 7 (Later): Enforce commit-boundary state convergence
 
 - **Files**: `commands/gal-pipeline/SKILL.template.md`, `commands/gal-pipeline/SKILL.md`, `.dev/state.md` semantics if needed
-- **What**: Only after prior reductions land, evaluate whether convergence can move to an explicit `Convergence Pending` model for invocation-end or N-task batching.
-- **Constraint**: `status` and `whats-next` semantics must be updated before batching is allowed.
-- **Verify**: Pending convergence is represented explicitly and remains resumable, not mistaken for success or drift.
+- **What**: Update the pipeline contract so any git commit that records task progress or task completion happens only after `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` agree on the relevant task state. Convergence may be delayed only inside an uncommitted in-flight task.
+- **Constraint**: Do not introduce an implicit `Convergence Pending` state that can be committed. If a future explicit pending-state model is proposed, `status`, `whats-next`, and commit gates must be updated before it can ship.
+- **Verify**: Before any pipeline commit, the three durable state surfaces are re-read and checked for agreement; no commit records source plan, execution prompt, and `.dev/state.md` drift.
 
 ---
 
@@ -147,7 +149,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - `scripts/Sync-DevContext.ps1` — selective language-scoped adapter embedding after first-wave fixes are validated.
 - `scripts/sync-dev-context.sh` — Bash-side mirror.
 - `conventions/token-budget.md` — add a reusable lesson on language-scoped convention loading only if confirmed as shared methodology rather than repo-local tuning.
-- `.dev/state.md` — only if a `Convergence Pending` model is introduced.
+- `.dev/state.md` — only if commit-boundary convergence semantics require session-continuity wording changes.
 
 ### Generated validation outputs (do not edit directly)
 
@@ -166,6 +168,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - [ ] Compare single-task 3-phase total context load before and after. Confirm ≤80 KB target is met.
 - [ ] Compare 5-task pipeline total redundant context before and after. Confirm ≤200 KB target is met.
 - [ ] Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
+- [ ] Confirm no pipeline git commit is created while source plan, execution prompt, and `.dev/state.md` disagree about the current task state.
 
 ## Risks
 
@@ -174,7 +177,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - If language detection in the dispatcher is inaccurate, the wrong conventions may be injected. The detection logic must be conservative: when ambiguous, include rather than exclude.
 - If same-runtime bundling becomes the default, tester independence weakens and false confidence increases. Bundling must stay opt-in if it ships at all.
 - If selective adapter embedding is done carelessly, cross-runtime behavior may diverge. The generator-layer change must be reviewed and validated through regenerated outputs.
-- If convergence batching is introduced without status semantics, `status` and `whats-next` may misread pending work as drift or completion.
+- If convergence is delayed past a git commit boundary, the repository history can record inconsistent durable state. The pipeline must converge and re-read all three state surfaces before any commit that records task progress or completion.
 - This plan touches protected paths under `commands/`, `conventions/`, `workflows/`, `templates/`, and sync scripts, so implementation should stay under reviewed planning rather than opportunistic edits.
 
 ## References
@@ -184,13 +187,14 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - Token discipline contract: [conventions/token-budget.md](../../conventions/token-budget.md)
 - Current pipeline contract: [commands/gal-pipeline/SKILL.md](../../commands/gal-pipeline/SKILL.md)
 - OpenCode bridge config: [opencode.json](../../opencode.json)
+- OpenCode CLI stats reference: [opencode.ai/docs/cli](https://opencode.ai/docs/cli/)
 - Architect analysis: [pipeline_token_burn_analysis.md](../../.gemini/antigravity/brain/aa206f41-de3a-42d3-bf73-3d50cefee377/pipeline_token_burn_analysis.md)
 
 ## Open Questions
 
-- [ ] OQ-001 — Is there a safe compact adapter format that all current runtimes can consume without losing cold-start behavior? (Relevant to Step 5 selective embedding.)
-- [ ] OQ-002 — Can state convergence be made incremental without introducing a new pending-state concept, or is explicit pending state required? (Relevant to Step 7.)
-- [ ] OQ-003 — Does OpenCode expose reliable token telemetry that can be used in a future iteration to replace heuristic task-boundary estimation?
+- [x] OQ-001 — Is there a safe compact adapter format that all current runtimes can consume without losing cold-start behavior? Resolved by human decision: `AGENTS.md` remains the canonical shared instruction carrier, but provider-specific adapters such as `CLAUDE.md`, `GEMINI.md`, and `.github/copilot-instructions.md` must remain because providers may auto-read them and GAL cannot reliably disable that behavior. The compact-adapter direction is conservative: keep provider-specific files as generated runtime carriers, avoid hand-editing them, slim them only through generator-controlled selective embedding, and place personalized runtime projections under `~/.gal/generated` or provider-visible `.gal` projection paths rather than in the GAL source repo.
+- [x] OQ-002 — Can state convergence be made incremental without introducing a new pending-state concept, or is explicit pending state required? Resolved by human decision: state convergence may be delayed inside an in-flight task, but all durable state surfaces must be synchronized before any git commit that records task progress or completion. No committed state may contain disagreement between `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md`.
+- [x] OQ-003 — Does OpenCode expose reliable token telemetry that can be used in a future iteration to replace heuristic task-boundary estimation? Resolved: The native `opencode stats` only provides aggregate data, but OpenCode stores raw session data locally (SQLite/JSON). Community tools (like CodeBurn) demonstrate that turn-level analysis is possible. Therefore, GAL should add its own phase markers and measurement wrapper to parse the local session data, rather than relying only on aggregate stats, to correlate usage precisely with pipeline task boundaries.
 
 ## Approval
 
