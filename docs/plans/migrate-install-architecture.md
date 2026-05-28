@@ -303,7 +303,7 @@ Verdict: CLEAR
 
 ## Tasks
 
-- [ ] T-001 — 更新 PowerShell/Bash 共用根路徑與 provider artifact helper，讓 `dist` 與 local config primary path 全部轉向 `~/.gal`。
+- [x] T-001 — 更新 PowerShell/Bash 共用根路徑與 provider artifact helper，讓 `dist` 與 local config primary path 全部轉向 `~/.gal`。
 - [ ] T-002 — 遷移 `config.local.env`、`model-roles.local.md`、`mcp.local.json` 的讀寫與 filter primary path 至 `~/.gal/config`，並保留明確的 legacy fallback。
 - [ ] T-003 — 將 `GAL_SKILLS` 視為一次性 migration input，把既有 skills 收編到 `.gal` 的 plugin 管理面後從最終設定中移除。
 - [ ] T-004 — 將 xmachine canonical path 統一為 `~/.gal/config/xmachine.json`，並讓 wrappers / tests 共用同一 fallback 警告邏輯。
