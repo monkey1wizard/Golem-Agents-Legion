@@ -106,7 +106,6 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 | `<GAL_ROOT>` | 本機 GAL repo clone 路徑（僅 source mode） | source mode 貢獻者工作流 |
 | `<TEMP_DIR>` | 暫存輸出目錄 | PDF 與檔案處理工作流 |
 | `<MCP_FILESYSTEM_PATHS>` | filesystem MCP server 允許的根路徑 | MCP 清單合併 |
-| `<MCP_MEMORY_FILE_PATH>` | 存放持久化 MCP memory JSON 檔案的路徑 | MCP 清單合併 |
 | `<CONTEXT7_API_KEY>` | 需要 Context7 API key 的執行環境設定 | MCP 清單合併（materialize 至 `~/.gal/generated/mcp/managed.json`） |
 
 ## 常見的個人化步驟 (Common Personalization Steps)

@@ -399,7 +399,6 @@ Concentrates personalization, plugin/profile/provider selections, install/source
 | `researchDefaultDest` | no | string | `repo`, `private`, `knowledge`, or `none` |
 | `localSearchProject` | no | string | clone path for local search project |
 | `tempDir` | no | string | temp output directory |
-| `mcpMemoryFilePath` | no | string | path to persistent MCP memory JSON file |
 | `mcpFilesystemPaths` | no | array | optional compatibility field; only output when filesystem MCP is present |
 | `context7ApiKey` | no | string | **SECRET-BEARING** — do not share; materialized into `mcp/managed.json` |
 | `workingHoursEnabled` | no | boolean | enables working-hours enforcement |
@@ -494,7 +493,6 @@ Generated file owned by GAL that replaces repo-root `mcp.local.json` in install 
 
 **Resolved values rules**:
 
-- `mcpMemoryFilePath` is resolved to its absolute value.
 - `mcpFilesystemPaths` appears only when filesystem MCP is present in the resolved set; otherwise omitted.
 - No runtime placeholder resolution is required — all values are fully materialized.
 

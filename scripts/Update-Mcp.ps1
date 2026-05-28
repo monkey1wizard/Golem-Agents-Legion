@@ -33,7 +33,6 @@ function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues, [Sy
             OBSIDIAN_VAULT_NAME = 'obsidianVaultName'
             OBSIDIAN_GUIDE_PATH = 'obsidianGuidePath'
             OBSIDIAN_GUIDE_MODE = 'obsidianGuideMode'
-            MCP_MEMORY_FILE_PATH = 'mcpMemoryFilePath'
             CONTEXT7_API_KEY = 'context7ApiKey'
             TEMP_DIR = 'tempDir'
             LOCAL_SEARCH_PROJECT = 'localSearchProject'
@@ -55,10 +54,6 @@ function Get-McpVariableMap([System.Collections.IDictionary]$LocalEnvValues, [Sy
                 $values['MCP_FILESYSTEM_PATHS'] = [string]$configuredPaths
             }
         }
-    }
-
-    if (-not $values.Contains('MCP_MEMORY_FILE_PATH')) {
-        $values['MCP_MEMORY_FILE_PATH'] = Join-Path $env:USERPROFILE 'mcp-memory.json'
     }
 
     if (-not $values.Contains('MCP_FILESYSTEM_PATHS')) {
@@ -225,7 +220,6 @@ function New-ManagedMcpProjection([System.Collections.IDictionary]$ResolvedManif
         schemaVersion = 1
         generatedAt = (Get-Date).ToString('o')
         generatedBy = 'Update-Mcp.ps1'
-        mcpMemoryFilePath = [string](Get-ConfiguredValue $McpValues 'MCP_MEMORY_FILE_PATH')
         mcpServers = $projectionServers
         _metadata = [ordered]@{
             ownership = 'gal-managed'
@@ -540,7 +534,6 @@ function Get-CodexBridgeProfile([string]$ServerName) {
     switch ($ServerName) {
         'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
         'github-mcp-server' { return [ordered]@{ Enabled = $false; Key = $null } }
-        'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
         'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
         'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
         'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
@@ -562,7 +555,6 @@ function Get-CopilotCliBridgeProfile([string]$ServerName) {
     switch ($ServerName) {
         'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
         'github-mcp-server' { return [ordered]@{ Enabled = $false; Key = $null } }
-        'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
         'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
         'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
         'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
@@ -583,7 +575,6 @@ function Get-ClaudeBridgeProfile([string]$ServerName) {
     switch ($ServerName) {
         'chromedevtools/chrome-devtools-mcp' { return [ordered]@{ Enabled = $true; Key = 'chrome-devtools' } }
         'github-mcp-server' { return [ordered]@{ Enabled = $false; Key = $null } }
-        'memory' { return [ordered]@{ Enabled = $true; Key = 'memory' } }
         'microsoftdocs/mcp' { return [ordered]@{ Enabled = $true; Key = 'microsoftdocs' } }
         'microsoft/markitdown' { return [ordered]@{ Enabled = $true; Key = 'markitdown' } }
         'playwright' { return [ordered]@{ Enabled = $true; Key = 'playwright' } }
@@ -904,6 +895,73 @@ function Get-LegacyManagedMcpAliases([string]$RuntimeName, [string]$ServerName) 
     return @()
 }
 
+function Get-DeprecatedManagedMcpDefinitions {
+    return [ordered]@{
+        memory = [ordered]@{
+            RawConfig = [ordered]@{
+                command = 'npx'
+                args = @('-y', '@modelcontextprotocol/server-memory')
+                env = [ordered]@{
+                    MEMORY_FILE_PATH = Join-Path $env:USERPROFILE 'mcp-memory.json'
+                }
+            }
+            Match = [ordered]@{
+                command = 'npx'
+                args = @('-y', '@modelcontextprotocol/server-memory')
+            }
+        }
+    }
+}
+
+function Get-DeprecatedManagedMcpKeys {
+    return @((Get-DeprecatedManagedMcpDefinitions).Keys)
+}
+
+function Get-DeprecatedManagedMcpConfig([string]$RuntimeName, [string]$Key) {
+    $definitions = Get-DeprecatedManagedMcpDefinitions
+    if (-not $definitions.Contains($Key)) {
+        return $null
+    }
+
+    $rawConfig = ConvertTo-OrderedMap $definitions[$Key]['RawConfig']
+    switch ($RuntimeName) {
+        'vscode' { return $rawConfig }
+        'copilot-cli' { return ConvertTo-CopilotCliMcpConfig $rawConfig }
+        default { return $null }
+    }
+}
+
+function Test-IsDeprecatedManagedMcpEntry([string]$RuntimeName, [string]$Key, [object]$ExistingConfig) {
+    if ($null -eq $ExistingConfig) {
+        return $false
+    }
+
+    $definitions = Get-DeprecatedManagedMcpDefinitions
+    if (-not $definitions.Contains($Key)) {
+        return $false
+    }
+
+    $expectedMatch = ConvertTo-OrderedMap $definitions[$Key]['Match']
+    $config = ConvertTo-OrderedMap $ExistingConfig
+    if ($RuntimeName -eq 'copilot-cli') {
+        if (-not $config.Contains('command') -or -not $config.Contains('args')) {
+            return $false
+        }
+
+        if ($config.Contains('type') -and [string]$config['type'] -ne 'local') {
+            return $false
+        }
+    }
+    elseif (-not $config.Contains('command') -or -not $config.Contains('args')) {
+        return $false
+    }
+
+    $command = [string]$config['command']
+    $args = @($config['args'] | ForEach-Object { [string]$_ })
+    $expectedArgs = @($expectedMatch['args'] | ForEach-Object { [string]$_ })
+    return $command -eq [string]$expectedMatch['command'] -and (Test-JsonLikeEqual $args $expectedArgs)
+}
+
 function Get-ResolvedManagedMcpManifest {
     $context = $script:SetupContext
     if (-not (Test-Path $context.McpSourceFile)) {
@@ -965,6 +1023,26 @@ function Update-VscodeMcpConfig([System.Collections.IDictionary]$ManagedManifest
     }
 
     $changed = $false
+    foreach ($deprecatedKey in (Get-DeprecatedManagedMcpKeys)) {
+        if (-not $vscodeMcp['servers'].Contains($deprecatedKey)) {
+            continue
+        }
+
+        $deprecatedConfig = Get-DeprecatedManagedMcpConfig -RuntimeName 'vscode' -Key $deprecatedKey
+        if (-not (Test-IsDeprecatedManagedMcpEntry -RuntimeName 'vscode' -Key $deprecatedKey -ExistingConfig $vscodeMcp['servers'][$deprecatedKey]) -and -not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key $deprecatedKey -ExistingConfig $vscodeMcp['servers'][$deprecatedKey] -DesiredConfig $deprecatedConfig -RuntimeLabel 'VS Code')) {
+            continue
+        }
+
+        $vscodeMcp['servers'].Remove($deprecatedKey)
+        $changed = $true
+        if ($script:SetupOptions.DryRun) {
+            Write-Host "  [DRY RUN] Would remove deprecated VS Code MCP server: $deprecatedKey"
+        }
+        else {
+            Write-Host "  [CLEANUP] Deprecated VS Code MCP server removed: $deprecatedKey"
+        }
+    }
+
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
         $resolvedConfig = $ManagedManifest['servers'][$serverName]
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'vscode' -ServerName $serverName)) {
@@ -1048,6 +1126,9 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     foreach ($legacyName in @('chromedevtools/chrome-devtools-mcp', 'github-mcp-server', 'microsoftdocs/mcp', 'microsoft/markitdown', 'upstash/context7')) {
         [void]$managedKeys.Add($legacyName)
     }
+    foreach ($deprecatedKey in (Get-DeprecatedManagedMcpKeys)) {
+        [void]$managedKeys.Add($deprecatedKey)
+    }
     foreach ($serverName in $ManagedManifest['servers'].Keys) {
         foreach ($legacyAlias in (Get-LegacyManagedMcpAliases -RuntimeName 'copilot-cli' -ServerName $serverName)) {
             [void]$managedKeys.Add($legacyAlias)
@@ -1058,7 +1139,10 @@ function Update-CopilotCliMcpConfig([System.Collections.IDictionary]$ManagedMani
     foreach ($existingServerName in @($copilotCliMcp['mcpServers'].Keys)) {
         if ($managedKeys.Contains([string]$existingServerName)) {
             $desiredConfig = Find-CopilotCliManagedConfigForKey -ManagedManifest $ManagedManifest -Key ([string]$existingServerName)
-            if (-not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key ([string]$existingServerName) -ExistingConfig $copilotCliMcp['mcpServers'][$existingServerName] -DesiredConfig $desiredConfig -RuntimeLabel 'Copilot CLI')) {
+            if ($null -eq $desiredConfig) {
+                $desiredConfig = Get-DeprecatedManagedMcpConfig -RuntimeName 'copilot-cli' -Key ([string]$existingServerName)
+            }
+            if (-not (Test-IsDeprecatedManagedMcpEntry -RuntimeName 'copilot-cli' -Key ([string]$existingServerName) -ExistingConfig $copilotCliMcp['mcpServers'][$existingServerName]) -and -not (Test-CanReplaceManagedRuntimeEntry -PreviousRuntimeEntries $previousRuntimeEntries -Key ([string]$existingServerName) -ExistingConfig $copilotCliMcp['mcpServers'][$existingServerName] -DesiredConfig $desiredConfig -RuntimeLabel 'Copilot CLI')) {
                 continue
             }
 

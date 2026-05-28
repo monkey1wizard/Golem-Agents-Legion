@@ -233,7 +233,6 @@ def build_mcp_values(legacy_values, machine_config):
         'OBSIDIAN_VAULT_NAME': 'obsidianVaultName',
         'OBSIDIAN_GUIDE_PATH': 'obsidianGuidePath',
         'OBSIDIAN_GUIDE_MODE': 'obsidianGuideMode',
-        'MCP_MEMORY_FILE_PATH': 'mcpMemoryFilePath',
         'CONTEXT7_API_KEY': 'context7ApiKey',
         'TEMP_DIR': 'tempDir',
         'LOCAL_SEARCH_PROJECT': 'localSearchProject',
@@ -251,7 +250,6 @@ def build_mcp_values(legacy_values, machine_config):
     elif filesystem_paths is not None and str(filesystem_paths).strip():
         values['MCP_FILESYSTEM_PATHS'] = str(filesystem_paths).strip()
 
-    values.setdefault('MCP_MEMORY_FILE_PATH', str(Path.home() / 'mcp-memory.json'))
     if 'MCP_FILESYSTEM_PATHS' not in values:
         defaults = [str(repo_root.parent)]
         obsidian_vault = get_value(values, 'OBSIDIAN_VAULT')
@@ -309,7 +307,6 @@ def build_generated_mcp_projection(manifest, values, runtime_entries):
         'schemaVersion': 1,
         'generatedAt': datetime.now(timezone.utc).isoformat(),
         'generatedBy': 'update-mcp.sh',
-        'mcpMemoryFilePath': str(get_value(values, 'MCP_MEMORY_FILE_PATH') or ''),
         'mcpServers': projection_servers,
         '_metadata': {
             'ownership': 'gal-managed',
@@ -510,6 +507,63 @@ def legacy_aliases(runtime_name, server_name):
     return LEGACY_ALIASES.get((runtime_name, server_name), [])
 
 
+def deprecated_managed_definitions():
+    return {
+        'memory': {
+            'raw_config': {
+                'command': 'npx',
+                'args': ['-y', '@modelcontextprotocol/server-memory'],
+                'env': {
+                    'MEMORY_FILE_PATH': str(Path.home() / 'mcp-memory.json'),
+                },
+            },
+            'match': {
+                'command': 'npx',
+                'args': ['-y', '@modelcontextprotocol/server-memory'],
+            },
+        },
+    }
+
+
+def deprecated_managed_keys():
+    return list(deprecated_managed_definitions().keys())
+
+
+def deprecated_managed_config(runtime_name, key):
+    definition = deprecated_managed_definitions().get(key)
+    if definition is None:
+        return None
+
+    raw = dict(definition['raw_config'])
+    if runtime_name == 'vscode':
+        return raw
+    if runtime_name == 'copilot-cli':
+        return convert_copilot_cli_config(raw)
+    return None
+
+
+def is_deprecated_managed_entry(runtime_name, key, existing_config):
+    if not isinstance(existing_config, dict):
+        return False
+
+    definition = deprecated_managed_definitions().get(key)
+    if definition is None:
+        return False
+
+    if runtime_name == 'copilot-cli':
+        if 'command' not in existing_config or 'args' not in existing_config:
+            return False
+        if 'type' in existing_config and str(existing_config['type']) != 'local':
+            return False
+    elif 'command' not in existing_config or 'args' not in existing_config:
+        return False
+
+    raw_args = existing_config.get('args') or []
+    args = [str(item) for item in raw_args] if isinstance(raw_args, list) else [str(raw_args)]
+    expected = definition['match']
+    return str(existing_config.get('command')) == str(expected['command']) and args == [str(item) for item in expected['args']]
+
+
 def json_like_equal(left, right):
     return json.dumps(left, sort_keys=True) == json.dumps(right, sort_keys=True)
 
@@ -569,7 +623,6 @@ def get_copilot_cli_bridge_profile(server_name):
     profiles = {
         'chromedevtools/chrome-devtools-mcp': {'enabled': True, 'key': 'chrome-devtools'},
         'github-mcp-server': {'enabled': False, 'key': None},
-        'memory': {'enabled': True, 'key': 'memory'},
         'microsoftdocs/mcp': {'enabled': True, 'key': 'microsoftdocs'},
         'microsoft/markitdown': {'enabled': True, 'key': 'markitdown'},
         'playwright': {'enabled': True, 'key': 'playwright'},
@@ -756,6 +809,18 @@ def update_vscode(manifest, previous_projection):
     previous_runtime_entries = get_projection_runtime_entries(previous_projection, 'vscode')
     changed = False
     managed_runtime_entries = {}
+    for deprecated_key in deprecated_managed_keys():
+        if deprecated_key not in servers:
+            continue
+        desired_config = deprecated_managed_config('vscode', deprecated_key)
+        if not is_deprecated_managed_entry('vscode', deprecated_key, servers[deprecated_key]) and not can_replace_managed_runtime_entry(previous_runtime_entries, deprecated_key, servers[deprecated_key], desired_config, 'VS Code'):
+            continue
+        changed = True
+        prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'
+        print(f'  {prefix} deprecated VS Code MCP server: {deprecated_key}')
+        if not dry_run:
+            del servers[deprecated_key]
+
     for server_name in manifest['servers']:
         desired_config = manifest['servers'][server_name]
         for alias in legacy_aliases('vscode', server_name):
@@ -815,13 +880,16 @@ def update_copilot_cli(manifest, previous_projection):
         'microsoft/markitdown',
         'upstash/context7',
     })
+    managed_keys.update(deprecated_managed_keys())
     for server_name in manifest['servers']:
         managed_keys.update(legacy_aliases('copilot-cli', server_name))
 
     for existing_server_name in list(servers.keys()):
         if existing_server_name in managed_keys:
             desired_config = find_copilot_managed_config_for_key(manifest, existing_server_name)
-            if not can_replace_managed_runtime_entry(previous_runtime_entries, existing_server_name, servers[existing_server_name], desired_config, 'Copilot CLI'):
+            if desired_config is None:
+                desired_config = deprecated_managed_config('copilot-cli', existing_server_name)
+            if not is_deprecated_managed_entry('copilot-cli', existing_server_name, servers[existing_server_name]) and not can_replace_managed_runtime_entry(previous_runtime_entries, existing_server_name, servers[existing_server_name], desired_config, 'Copilot CLI'):
                 continue
             changed = True
             prefix = '[DRY RUN] Would remove' if dry_run else '[CLEANUP]'

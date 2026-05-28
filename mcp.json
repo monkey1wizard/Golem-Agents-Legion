@@ -22,16 +22,6 @@
         "type": "http",
         "url": "https://api.githubcopilot.com/mcp/"
     },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ],
-      "env": {
-        "MEMORY_FILE_PATH": "${MCP_MEMORY_FILE_PATH}"
-      }
-    },
     "microsoftdocs/mcp": {
         "type": "http",
         "url": "https://learn.microsoft.com/api/mcp"

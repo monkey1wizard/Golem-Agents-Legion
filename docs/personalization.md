@@ -153,7 +153,6 @@ Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when mi
 | `<GAL_ROOT>` | path to local GAL repo clone (source mode only) | source mode contributor workflow |
 | `<TEMP_DIR>` | temp output directory | PDF and file-processing workflows |
 | `<MCP_FILESYSTEM_PATHS>` | allowed root paths for the filesystem MCP server | MCP manifest merge |
-| `<MCP_MEMORY_FILE_PATH>` | path to the persistent MCP memory JSON file | MCP manifest merge |
 | `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP manifest merge (materialized into `~/.gal/generated/mcp/managed.json`) |
 
 ## Common Personalization Steps

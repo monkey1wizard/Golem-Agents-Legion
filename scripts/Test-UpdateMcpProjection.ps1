@@ -56,13 +56,11 @@ try {
     New-Item -ItemType Directory -Path $copilotRoot -Force | Out-Null
     New-Item -ItemType Directory -Path $vscodeRoot -Force | Out-Null
 
-    $memoryPath = Join-Path $testHome 'state\mcp-memory.json'
     $machineConfigPath = Join-Path $galConfigRoot 'config.json'
     $machineConfig = [ordered]@{
         schemaVersion = 1
         installMode = 'install'
         obsidianVault = 'C:\Vault'
-        mcpMemoryFilePath = $memoryPath
         context7ApiKey = 'ctx-secret'
         providerSelections = [ordered]@{
             copilot = [ordered]@{ enabled = $true; lane = 'primary' }
@@ -95,6 +93,13 @@ try {
     $vscodeMcpPath = Join-Path $vscodeRoot 'mcp.json'
     $vscodeMcp = [ordered]@{
         servers = [ordered]@{
+            memory = [ordered]@{
+                command = 'npx'
+                args = @('-y', '@modelcontextprotocol/server-memory')
+                env = [ordered]@{
+                    MEMORY_FILE_PATH = (Join-Path $testHome 'state\mcp-memory.json')
+                }
+            }
             'user-owned' = [ordered]@{
                 command = 'custom-user-mcp'
                 args = @('--keep')
@@ -110,6 +115,15 @@ try {
     $copilotMcpPath = Join-Path $copilotRoot 'mcp-config.json'
     $copilotMcp = [ordered]@{
         mcpServers = [ordered]@{
+            memory = [ordered]@{
+                type = 'local'
+                tools = @('*')
+                command = 'npx'
+                args = @('-y', '@modelcontextprotocol/server-memory')
+                env = [ordered]@{
+                    MEMORY_FILE_PATH = (Join-Path $testHome 'state\mcp-memory.json')
+                }
+            }
             'user-owned' = [ordered]@{
                 command = 'custom-user-mcp'
                 args = @('--keep')
@@ -132,8 +146,8 @@ try {
     Assert-True (Test-Path $generatedXmachinePath) 'Update-Mcp should write the managed xmachine projection.'
 
     $generatedMcp = Get-Content -LiteralPath $generatedMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-Equal $generatedMcp.mcpMemoryFilePath $memoryPath 'Managed MCP projection should materialize mcpMemoryFilePath from machine config.'
-    Assert-Equal $generatedMcp.mcpServers.memory.env.MEMORY_FILE_PATH $memoryPath 'Memory MCP env should resolve from machine config.'
+    Assert-True ($generatedMcp.PSObject.Properties.Name -notcontains 'mcpMemoryFilePath') 'Managed MCP projection should not emit deprecated mcpMemoryFilePath state.'
+    Assert-True ($generatedMcp.mcpServers.PSObject.Properties.Name -notcontains 'memory') 'Managed MCP projection should not include the removed memory MCP server.'
     Assert-Equal $generatedMcp.mcpServers.'upstash/context7'.headers.CONTEXT7_API_KEY 'ctx-secret' 'Context7 auth header should be materialized only in generated MCP state.'
     Assert-True ($generatedMcp.PSObject.Properties.Name -notcontains 'mcpFilesystemPaths') 'mcpFilesystemPaths should be omitted when filesystem MCP is absent.'
     Assert-True ([bool]$generatedMcp._metadata.secretBearing) 'Managed MCP projection metadata should mark secret-bearing state.'
@@ -144,28 +158,14 @@ try {
 
     $updatedVscodeMcp = Get-Content -LiteralPath $vscodeMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Equal $updatedVscodeMcp.servers.'user-owned'.command 'custom-user-mcp' 'VS Code MCP update should preserve unrelated user-owned entries.'
-    Assert-Equal $updatedVscodeMcp.servers.memory.env.MEMORY_FILE_PATH $memoryPath 'VS Code MCP update should add managed entries from the resolved projection.'
+    Assert-True ($updatedVscodeMcp.servers.PSObject.Properties.Name -notcontains 'memory') 'VS Code MCP update should not install the removed memory MCP server.'
     Assert-Equal $updatedVscodeMcp.servers.github.url 'https://example.com/user-owned-github' 'VS Code MCP update should preserve conflicting user-owned keys it does not already own.'
 
     $updatedCopilotMcp = Get-Content -LiteralPath $copilotMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Equal $updatedCopilotMcp.mcpServers.'user-owned'.command 'custom-user-mcp' 'Copilot CLI MCP update should preserve unrelated user-owned entries.'
     Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -contains 'github') 'Copilot CLI MCP update should install managed bridge entries.'
+    Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -notcontains 'memory') 'Copilot CLI MCP update should not install the removed memory MCP server.'
     Assert-Equal $updatedCopilotMcp.mcpServers.context7.url 'https://example.com/user-owned-context7' 'Copilot CLI MCP update should preserve conflicting user-owned keys it does not already own.'
-
-    $updatedMemoryPath = Join-Path $testHome 'state\mcp-memory-updated.json'
-    $machineConfig.mcpMemoryFilePath = $updatedMemoryPath
-    $machineConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
-
-    & $scriptUnderTest -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' | Out-Null
-
-    $rerunGeneratedMcp = Get-Content -LiteralPath $generatedMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-Equal $rerunGeneratedMcp.mcpMemoryFilePath $updatedMemoryPath 'Managed MCP projection should update keys GAL already owns on a later run.'
-
-    $rerunVscodeMcp = Get-Content -LiteralPath $vscodeMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-Equal $rerunVscodeMcp.servers.memory.env.MEMORY_FILE_PATH $updatedMemoryPath 'VS Code MCP update should replace previously managed keys on a later run.'
-
-    $rerunCopilotMcp = Get-Content -LiteralPath $copilotMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-Equal $rerunCopilotMcp.mcpServers.memory.env.MEMORY_FILE_PATH $updatedMemoryPath 'Copilot CLI MCP update should replace previously managed keys on a later run.'
 
     Write-Host 'PASS: MCP/xmachine generated projections and user-owned MCP preservation verified.'
 }
