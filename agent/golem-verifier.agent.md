@@ -24,6 +24,8 @@ Before verifying, load:
 4. **Read plan's `## Review Results`** — any blocking issues and their resolution
 5. **Inspect the actual codebase** — verify required files and components exist and work
 6. **Read `.dev/state.md`** — for session continuity update after verification
+7. **Treat generated adapters as already-loaded runtime carriers** — do not routine-reread `AGENTS.md`, `copilot-instructions.md`, `CLAUDE.md`, or `GEMINI.md`; if no runtime adapter is detectable, use `.dev/project.md` as the compact fallback for project rules
+8. **Use injected dispatch context first when present** — if `/gal` emitted `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`, `PIPELINE_CONTEXT_MODE`, or `CONTEXT_CARRY`, treat them as the first verification shortlist before widening reads
 </project_context>
 
 <core_principle>

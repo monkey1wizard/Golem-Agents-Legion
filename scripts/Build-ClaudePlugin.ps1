@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Builds the provider-neutral common package, validates it, and renders
-    Claude-specific artifacts to ~/.gal/dist/provider-plugins/claude/gal/.
+    Claude-specific artifacts to the canonical plugin root under ~/.gal/plugins/gal/.
 
     Outputs:
     - .claude-plugin/plugin.json  (Claude plugin manifest)
@@ -146,7 +146,7 @@ if (-not $validation.Valid) {
 }
 Write-Host 'Common package validated successfully.' -ForegroundColor Green
 
-$artifactRoot = Get-ClaudePluginArtifactRoot -RepoRoot $RepoRoot
+$artifactRoot = Get-GalPluginRoot -PluginId 'gal'
 if (Test-Path $artifactRoot) {
     if (-not $Force) {
         throw "Artifact root already exists: $artifactRoot. Use -Force to overwrite."

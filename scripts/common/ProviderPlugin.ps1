@@ -23,21 +23,40 @@ function Get-GalCoreCanonicalPackageSchema {
     #>
 
     return [ordered]@{
-        schemaId = 'claude-compatible-gal-core-v1'
+        schemaId = 'gal-plugin-root-v2'
         schemaVersion = 1
         packageId = 'gal-core'
         packageKind = 'canonical-plugin'
         canonicalProvider = 'claude'
         compatibleProviders = @('claude', 'copilot', 'codex', 'agy')
+        canonicalLayout = '.gal/plugins/<plugin-id>'
         componentRoots = [ordered]@{
+            claudeManifest = '.claude-plugin/plugin.json'
+            codexManifest = '.codex-plugin/plugin.json'
             skills = 'skills'
             commands = 'commands'
             agents = 'agents'
+            hooks = 'hooks'
             mcp = 'provider-managed'
             lsp = 'provider-managed'
+            app = 'provider-managed'
+            assets = 'assets'
         }
         nativeInstallProviders = @('claude', 'copilot', 'codex')
         managedShortcutProviders = @('agy')
+    }
+}
+
+function Get-GalCanonicalPluginRootRecord {
+    param(
+        [string]$PluginId = 'gal'
+    )
+
+    return [ordered]@{
+        pluginId = $PluginId
+        relativeRoot = '.gal/plugins/{0}' -f $PluginId
+        absoluteRoot = Get-GalPluginRoot -PluginId $PluginId
+        dataRoot = Get-GalPluginDataRoot -PluginId $PluginId
     }
 }
 
@@ -156,6 +175,7 @@ function New-ProviderPluginPackage {
             name = 'gal'
             displayName = 'Golem Agents Legion'
             generatedAt = (Get-Date -Format 'o')
+            canonicalPluginRoot = Get-GalCanonicalPluginRootRecord
         }
         sourcePlugins = @($packageInput.SourcePlugins)
         deferredCompanionPlugins = @($packageInput.DeferredCompanionPlugins)
@@ -314,8 +334,6 @@ function Test-ProviderPluginPackage {
 
     # --- Reject provider-specific paths in the common model ---
     $providerSpecificPaths = @(
-        '.codex-plugin'
-        '.claude-plugin'
         'rules/'
         'mcp_config.json'
         'hooks.json'
@@ -411,18 +429,11 @@ function Test-ProviderPluginPackage {
         }
     }
 
-    # --- T-002: Verify no stubs for unsupported components ---
-    # If hooks or runtimeScripts appear anywhere other than skippedComponents, it's a stub
-    $jsonText = $Package | ConvertTo-Json -Depth 20
-    $stubIndicators = @('"hooks"', '"runtimeScripts"')
-    foreach ($indicator in $stubIndicators) {
-        $stubTokens = [regex]::Matches($jsonText, [regex]::Escape($indicator))
-        foreach ($token in $stubTokens) {
-            $before = $jsonText.Substring(0, $token.Index)
-            # If this occurrence is not inside skippedComponents, it's a stub
-            if (-not ($before -match '"skippedComponents"')) {
-                $errors.Add("Unsupported component stub detected: $indicator appears outside skippedComponents")
-            }
+    # --- T-002: Verify no unsupported component stubs are emitted as package payload ---
+    $unexpectedRootComponents = @('hooks', 'runtimeScripts')
+    foreach ($component in $unexpectedRootComponents) {
+        if ($Package.Contains($component) -and $null -ne $Package[$component]) {
+            $errors.Add("Unsupported component stub detected: '$component' is emitted as package payload")
         }
     }
 
@@ -469,13 +480,22 @@ function Test-ProviderPluginPackage {
     }
 }
 
-function Get-AgyPluginArtifactRoot {
+function Get-AgyPluginPackageOutputRoot {
     <#
     .SYNOPSIS
-        Returns the generated artifact root for the AGY renderer.
+        Returns the AGY package output root under ~/.gal/dist.
     #>
     param([string]$RepoRoot)
     return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\agy\gal'
+}
+
+function Get-AgyPluginArtifactRoot {
+    <#
+    .SYNOPSIS
+        Backward-compatible alias for the AGY package output root.
+    #>
+    param([string]$RepoRoot)
+    return Get-AgyPluginPackageOutputRoot -RepoRoot $RepoRoot
 }
 
 function Get-AgyPluginInstallTarget {
@@ -486,13 +506,22 @@ function Get-AgyPluginInstallTarget {
     return Join-Path $env:USERPROFILE '.gemini/antigravity-cli/plugins/gal'
 }
 
-function Get-ClaudePluginArtifactRoot {
+function Get-ClaudePluginPackageOutputRoot {
     <#
     .SYNOPSIS
-        Returns the generated artifact root for the Claude renderer.
+        Returns the Claude package output root under ~/.gal/dist.
     #>
     param([string]$RepoRoot)
     return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\claude\gal'
+}
+
+function Get-ClaudePluginArtifactRoot {
+    <#
+    .SYNOPSIS
+        Backward-compatible alias for the Claude package output root.
+    #>
+    param([string]$RepoRoot)
+    return Get-ClaudePluginPackageOutputRoot -RepoRoot $RepoRoot
 }
 
 function Get-ClaudePluginComponentRelativePaths {

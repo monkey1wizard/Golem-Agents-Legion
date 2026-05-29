@@ -225,8 +225,8 @@ function Get-ProviderNamesByLane {
         }
     }
 
-    if ($providerNames.Count -eq 0 -and $FallbackSelectedRuntimes.Count -gt 0) {
-        foreach ($runtime in $FallbackSelectedRuntimes) {
+    if ($providerNames.Count -eq 0 -and @($FallbackSelectedRuntimes).Count -gt 0) {
+        foreach ($runtime in @($FallbackSelectedRuntimes)) {
             if ((Get-ProviderLaneForRuntime $runtime) -ne $Lane) {
                 continue
             }
@@ -238,11 +238,36 @@ function Get-ProviderNamesByLane {
         }
     }
 
-    return @($providerNames)
+    return [string[]]$providerNames.ToArray()
+}
+
+function Get-ProviderNamesFromSelectedRuntimesByLane {
+    param(
+        [string[]]$SelectedRuntimes,
+        [string]$Lane
+    )
+
+    $providerNames = [System.Collections.Generic.List[string]]::new()
+    foreach ($runtime in @($SelectedRuntimes)) {
+        if ([string]::IsNullOrWhiteSpace($runtime)) {
+            continue
+        }
+
+        if ((Get-ProviderLaneForRuntime $runtime) -ne $Lane) {
+            continue
+        }
+
+        $providerName = Get-ProviderFromRuntime $runtime
+        if ($providerNames -notcontains $providerName) {
+            $providerNames.Add($providerName)
+        }
+    }
+
+    return [string[]]$providerNames.ToArray()
 }
 
 function Get-DisplayValue([string[]]$Items, [string]$Fallback = 'none') {
-    if ($null -eq $Items -or $Items.Count -eq 0) {
+    if ($null -eq $Items -or @($Items).Count -eq 0) {
         return $Fallback
     }
 
@@ -386,17 +411,17 @@ function Write-ClaudeLifecycleState {
 
 function Sync-ClaudePluginProjection {
     param(
-        [string]$ArtifactRoot,
+        [string]$CanonicalRoot,
         [pscustomobject]$Context
     )
 
     Ensure-SetupDirectories @($Context.ClaudePluginsRoot)
 
-    if (-not (Test-Path $ArtifactRoot)) {
-        throw "Claude artifact root not found for projection: $ArtifactRoot"
+    if (-not (Test-Path $CanonicalRoot)) {
+        throw "Claude canonical root not found for projection: $CanonicalRoot"
     }
 
-    if (-not (New-SafeSymlink $Context.ClaudePluginInstallTarget $ArtifactRoot 'Directory')) {
+    if (-not (New-SafeSymlink $Context.ClaudePluginInstallTarget $CanonicalRoot 'Directory')) {
         throw "Failed to project Claude plugin into $($Context.ClaudePluginInstallTarget)"
     }
 
@@ -414,15 +439,19 @@ function Invoke-ClaudePluginLifecycle {
     }
 
     Write-Host '  [OK] Evaluating Claude plugin lifecycle.'
-    $artifactRoot = Get-ClaudePluginArtifactRoot -RepoRoot $RepoRoot
-    $manifestPath = Get-ClaudePluginManifestPath -PluginRoot $artifactRoot
+    $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+    $packageOutputRoot = Get-ClaudePluginPackageOutputRoot -RepoRoot $RepoRoot
+    $manifestPath = Get-ClaudePluginManifestPath -PluginRoot $canonicalRoot
     $contract = Get-ClaudePluginInstallContract
     $support = Get-ClaudeCliLifecycleSupport
 
     $state = [ordered]@{
         schemaVersion = 1
         provider = 'claude'
-        artifactRoot = $artifactRoot
+        canonicalRoot = $canonicalRoot
+        packageOutputRoot = $packageOutputRoot
+        projectionRoot = $Context.ClaudePluginInstallTarget
+        installTarget = $Context.ClaudePluginInstallTarget
         manifestPath = $manifestPath
         generatedAt = (Get-Date -Format 'o')
         cli = [ordered]@{
@@ -439,7 +468,7 @@ function Invoke-ClaudePluginLifecycle {
         lifecycle = [ordered]@{
             mode = [string]$support.installMode
             stagedPluginRoot = $null
-            sessionLoadCommand = ("claude --plugin-dir `"{0}`"" -f $artifactRoot)
+            sessionLoadCommand = ("claude --plugin-dir `"{0}`"" -f $canonicalRoot)
             installCommandTemplate = 'claude plugin install <plugin> --scope <scope>'
             updateCommandTemplate = 'claude plugin update <plugin> --scope <scope>'
             uninstallCommandTemplate = 'claude plugin uninstall <plugin> --scope <scope>'
@@ -451,8 +480,8 @@ function Invoke-ClaudePluginLifecycle {
         )
     }
 
-    if (-not (Test-Path $artifactRoot)) {
-        throw "Claude artifact root not found: $artifactRoot"
+    if (-not (Test-Path $canonicalRoot)) {
+        throw "Claude canonical root not found: $canonicalRoot"
     }
 
     if (-not (Test-Path $manifestPath)) {
@@ -461,14 +490,14 @@ function Invoke-ClaudePluginLifecycle {
 
     if (-not $support.cliAvailable) {
         Write-Host '  [WARN] Claude CLI not found on PATH; artifact is built but lifecycle validation is unavailable.' -ForegroundColor Yellow
-        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
 
     if (-not $support.validateSupported) {
         Write-Host '  [WARN] Claude CLI is present but `claude plugin validate` is unavailable; recording artifact-only lifecycle status.' -ForegroundColor Yellow
-        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+        $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
@@ -476,22 +505,22 @@ function Invoke-ClaudePluginLifecycle {
     if ($DryRun) {
         $state['lifecycle']['stagedPluginRoot'] = $Context.ClaudePluginInstallTarget
         Write-Host ("  [DRY RUN] Would project Claude plugin into: {0}" -f $Context.ClaudePluginInstallTarget)
-        Write-Host ("  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict `"{0}`"" -f $artifactRoot)
+        Write-Host ("  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict `"{0}`"" -f $canonicalRoot)
         if (-not $support.localArtifactInstallSupported) {
-            Write-Host ("  [DRY RUN] Claude local artifact install is not available; session smoke remains: claude --plugin-dir `"{0}`"" -f $artifactRoot)
+            Write-Host ("  [DRY RUN] Claude local artifact install is not available; session smoke remains: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
         }
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
 
-    $validationOutput = (& claude plugin validate --strict $artifactRoot 2>&1 | Out-String)
+    $validationOutput = (& claude plugin validate --strict $canonicalRoot 2>&1 | Out-String)
     if ($LASTEXITCODE -ne 0) {
-        throw "Claude plugin validation failed for $artifactRoot`n$validationOutput"
+        throw "Claude plugin validation failed for $canonicalRoot`n$validationOutput"
     }
 
     $state['validation']['strictPassed'] = $true
     Write-Host '  [OK] Claude plugin validation passed.'
-    $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -ArtifactRoot $artifactRoot -Context $Context
+    $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
     Write-Host ("  [OK] Projected Claude plugin root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
 
     if ($support.localArtifactInstallSupported) {
@@ -499,7 +528,7 @@ function Invoke-ClaudePluginLifecycle {
     }
     else {
         Write-Host '  [OK] Claude CLI supports validation but not documented local artifact install; recording session-load fallback.'
-        Write-Host ("  [OK] Session smoke command: claude --plugin-dir `"{0}`"" -f $artifactRoot)
+        Write-Host ("  [OK] Session smoke command: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
     }
 
     Write-ClaudeLifecycleState -Context $Context -State $state
@@ -531,7 +560,7 @@ if ($Uninstall) {
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
     Remove-SafeLink $script:SetupContext.ClaudePluginInstallTarget
-    Remove-GalManagedDirectory -Path $script:SetupContext.GalStorePluginsRoot -Label 'GAL-managed plugin store'
+    Remove-GalManagedDirectory -Path $script:SetupContext.GalPluginsRoot -Label 'GAL canonical plugin root'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedMcpRoot -Label 'GAL-managed MCP projections'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedXmachineRoot -Label 'GAL-managed xmachine projections'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedProvidersRoot -Label 'GAL-managed provider projections'
@@ -562,7 +591,9 @@ Ensure-SetupDirectories @(
     $context.GalStateRoot,
     $context.GalConfigRoot,
     $context.GalStateDirectory,
-    $context.GalStorePluginsRoot,
+    $context.GalPluginsRoot,
+    $context.GalDataRoot,
+    $context.GalCacheRoot,
     $context.GalGeneratedMcpRoot,
     $context.GalGeneratedXmachineRoot,
     $context.GalGeneratedProvidersRoot
@@ -609,6 +640,26 @@ $enabledPlugins = @($effectiveConfig['enabledPlugins'])
 $primaryProviders = @(Get-ProviderNamesByLane -ProviderSelections $effectiveConfig['providerSelections'] -Lane 'primary' -FallbackSelectedRuntimes $selection.SelectedRuntimes)
 $bridgeProviders = @(Get-ProviderNamesByLane -ProviderSelections $effectiveConfig['providerSelections'] -Lane 'bridge' -FallbackSelectedRuntimes $selection.SelectedRuntimes)
 $migrationProviders = @(Get-ProviderNamesByLane -ProviderSelections $effectiveConfig['providerSelections'] -Lane 'migration' -FallbackSelectedRuntimes $selection.SelectedRuntimes)
+
+if ($primaryProviders.Count -eq 0) {
+    $primaryProviders = @(Get-ProviderNamesFromSelectedRuntimesByLane -SelectedRuntimes $selection.SelectedRuntimes -Lane 'primary')
+}
+
+if (
+    $primaryProviders.Count -eq 0 -and
+    -not [string]::IsNullOrWhiteSpace($selection.PrimaryRuntime) -and
+    (Get-ProviderLaneForRuntime $selection.PrimaryRuntime) -eq 'primary'
+) {
+    $primaryProviders = @((Get-ProviderFromRuntime $selection.PrimaryRuntime))
+}
+
+if ($bridgeProviders.Count -eq 0) {
+    $bridgeProviders = @(Get-ProviderNamesFromSelectedRuntimesByLane -SelectedRuntimes $selection.SelectedRuntimes -Lane 'bridge')
+}
+
+if ($migrationProviders.Count -eq 0) {
+    $migrationProviders = @(Get-ProviderNamesFromSelectedRuntimesByLane -SelectedRuntimes $selection.SelectedRuntimes -Lane 'migration')
+}
 
 Write-Host ("  [OK] Mode: {0}" -f $installMode)
 Write-Host ("  [OK] GAL runtime home: {0}" -f $context.GalStateRoot)

@@ -169,6 +169,178 @@ function Get-PlanStatusField([string]$PlanPath, [string]$FieldName) {
     return $null
 }
 
+function Get-SourcePlanPath([string]$ExecutionPlanPath) {
+    if ([string]::IsNullOrWhiteSpace($ExecutionPlanPath)) { return $null }
+
+    $repoContextRoot = Get-RepoContextRoot
+    $devPlansRoot = Join-Path $repoContextRoot '.dev\plans'
+    if (-not $ExecutionPlanPath.StartsWith($devPlansRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $null
+    }
+
+    $relativePromptPath = $ExecutionPlanPath.Substring($devPlansRoot.Length).TrimStart('\\')
+    if ($relativePromptPath -notmatch '\.prompt\.md$') {
+        return $null
+    }
+
+    $relativeSourcePath = $relativePromptPath -replace '\.prompt\.md$', '.md'
+    return Join-Path (Join-Path $repoContextRoot 'docs\plans') $relativeSourcePath
+}
+
+function Get-LanguageConventionFileNames([string]$SignalText) {
+    $fileNames = [System.Collections.Generic.List[string]]::new()
+    $languageMap = [ordered]@{
+        'c#' = 'csharp.md'
+        '.net' = 'csharp.md'
+        'typescript' = 'typescript.md'
+        'javascript' = 'typescript.md'
+        'go' = 'go.md'
+        'golang' = 'go.md'
+        'rust' = 'rust.md'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SignalText)) {
+        return @()
+    }
+
+    $normalizedSignalText = $SignalText.ToLowerInvariant()
+    foreach ($key in $languageMap.Keys) {
+        if ($normalizedSignalText.Contains($key) -and $fileNames -notcontains $languageMap[$key]) {
+            $fileNames.Add($languageMap[$key])
+        }
+    }
+
+    return @($fileNames)
+}
+
+function Get-TaskScopeLanguageSignalText {
+    param(
+        [string]$TaskScope,
+        [string[]]$PlanPaths
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TaskScope)) {
+        return $null
+    }
+
+    foreach ($planPath in $PlanPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique) {
+        if (-not (Test-Path $planPath)) {
+            continue
+        }
+
+        foreach ($line in Get-Content $planPath) {
+            if ($line -match [regex]::Escape($TaskScope)) {
+                return $line.Trim()
+            }
+        }
+    }
+
+    return $null
+}
+
+function Get-ProjectLanguageConventionPaths {
+    param(
+        [string]$TaskScope,
+        [string[]]$PlanPaths
+    )
+
+    $repoContextRoot = Get-RepoContextRoot
+    $projectPath = Join-Path $repoContextRoot '.dev\project.md'
+    $conventionsRoot = Join-Path $repoContextRoot 'conventions'
+    $paths = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($path in @(
+        (Join-Path $conventionsRoot 'token-budget.md'),
+        (Join-Path $conventionsRoot 'working-hours.md')
+    )) {
+        if ((Test-Path $path) -and $paths -notcontains $path) {
+            $paths.Add($path)
+        }
+    }
+
+    foreach ($fileName in (Get-LanguageConventionFileNames -SignalText (Get-TaskScopeLanguageSignalText -TaskScope $TaskScope -PlanPaths $PlanPaths))) {
+        $path = Join-Path $conventionsRoot $fileName
+        if ((Test-Path $path) -and $paths -notcontains $path) {
+            $paths.Add($path)
+        }
+    }
+
+    if ($paths.Count -gt 2) {
+        return @($paths)
+    }
+
+    if (-not (Test-Path $projectPath)) {
+        return @($paths)
+    }
+
+    $languageLine = Get-Content $projectPath | Where-Object { $_ -match '^\|\s*Language\s*\|' } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($languageLine)) {
+        return @($paths)
+    }
+
+    foreach ($fileName in (Get-LanguageConventionFileNames -SignalText $languageLine)) {
+        $path = Join-Path $conventionsRoot $fileName
+        if ((Test-Path $path) -and $paths -notcontains $path) {
+            $paths.Add($path)
+        }
+    }
+
+    return @($paths)
+}
+
+function Get-PipelineDispatchMetadata {
+    param(
+        [string]$Phase,
+        [bool]$ContextCarrySupported,
+        [string]$PreferredPlanPath,
+        [string]$TaskScope
+    )
+
+    $stateContext = Get-StateContext
+    $activePlanPath = $stateContext.ActivePlanPath
+    $sourcePlanPath = Get-SourcePlanPath -ExecutionPlanPath $activePlanPath
+
+    if (-not [string]::IsNullOrWhiteSpace($PreferredPlanPath)) {
+        $resolvedPlanPath = Resolve-PlanPath $PreferredPlanPath
+        if ($resolvedPlanPath -match '\.prompt\.md$') {
+            $activePlanPath = $resolvedPlanPath
+            $sourcePlanPath = Get-SourcePlanPath -ExecutionPlanPath $resolvedPlanPath
+        } elseif ($resolvedPlanPath -match '\.md$') {
+            $activePlanPath = $null
+            $sourcePlanPath = $resolvedPlanPath
+        }
+    }
+
+    $contextMode = if ($ContextCarrySupported -and $Phase -ne 'implement') { 'delta' } else { 'full' }
+    $metadata = [ordered]@{
+        CURRENT_TASK = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Current Task' } else { $null }
+        TASK_BASE_COMMIT = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Task Base Commit' } else { $null }
+        TASK_FINAL_COMMIT = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Task Final Commit' } else { $null }
+        TEST_RETRY_COUNT = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Test Retry Count' } else { $null }
+        REVIEW_RETRY_COUNT = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Review Retry Count' } else { $null }
+        CONTEXT_CARRY = if ($ContextCarrySupported) { 'true' } else { 'false' }
+        PIPELINE_CONTEXT_MODE = $contextMode
+    }
+
+    if ($contextMode -eq 'full') {
+        $metadata['ACTIVE_EXECUTION_PROMPT'] = $activePlanPath
+        $metadata['SOURCE_PLAN'] = $sourcePlanPath
+        $metadata['WORKFLOW_STATE'] = $stateContext.WorkflowState
+        $metadata['STATUS_STEP'] = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Step' } else { $null }
+        $metadata['STATUS_LAST_ACTIVITY'] = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Last activity' } else { $null }
+        $metadata['STATUS_NEXT_STEP'] = if ($activePlanPath) { Get-PlanStatusField -PlanPath $activePlanPath -FieldName 'Next step' } else { $null }
+        $metadata['PIPELINE_CONTEXT_FILES'] = ((@(
+            (Join-Path (Get-RepoContextRoot) '.dev\project.md'),
+            (Join-Path (Get-RepoContextRoot) '.dev\state.md'),
+            $activePlanPath,
+            $sourcePlanPath
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique) -join '; ')
+        $metadata['CONVENTION_HINTS'] = (((Get-ProjectLanguageConventionPaths -TaskScope $TaskScope -PlanPaths @($activePlanPath, $sourcePlanPath) | Select-Object -Unique)) -join '; ')
+    }
+
+    return $metadata
+}
+
 function Get-StateContext {
     $statePath = Get-StatePath
     if (-not (Test-Path $statePath)) {
@@ -315,6 +487,19 @@ function Get-ExplicitPlanArgument {
     return $null
 }
 
+function Test-IsExplicitPlanToken([string]$Token) {
+    if ([string]::IsNullOrWhiteSpace($Token)) {
+        return $false
+    }
+
+    $candidate = $Token.Trim()
+    if ($candidate.StartsWith('#file:', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $candidate = $candidate.Substring(6)
+    }
+
+    return $candidate -match '\.(prompt\.md|md)$'
+}
+
 function Get-PipelineDispatchContext {
     param([string[]]$Tokens)
 
@@ -322,6 +507,8 @@ function Get-PipelineDispatchContext {
     $requested = $false
     $phase = $null
     $taskScope = $null
+    $fromTask = $null
+    $stopAtTask = $null
     $fixMode = $false
 
     for ($index = 0; $index -lt $Tokens.Count; $index++) {
@@ -368,7 +555,46 @@ function Get-PipelineDispatchContext {
                 $fixMode = $true
                 continue
             }
+            'from' {
+                if ($index + 1 -ge $Tokens.Count -or [string]::IsNullOrWhiteSpace($Tokens[$index + 1])) {
+                    return [pscustomobject]@{
+                        Requested = $false
+                        Phase = $null
+                        TaskScope = $null
+                        From = $null
+                        StopAt = $null
+                        FixMode = $false
+                        RemainingTokens = @()
+                        Error = 'Missing task reference after from.'
+                    }
+                }
+
+                $index++
+                $fromTask = $Tokens[$index].Trim()
+                continue
+            }
+            'stop-at' {
+                if ($index + 1 -ge $Tokens.Count -or [string]::IsNullOrWhiteSpace($Tokens[$index + 1])) {
+                    return [pscustomobject]@{
+                        Requested = $false
+                        Phase = $null
+                        TaskScope = $null
+                        From = $null
+                        StopAt = $null
+                        FixMode = $false
+                        RemainingTokens = @()
+                        Error = 'Missing task reference after stop-at.'
+                    }
+                }
+
+                $index++
+                $stopAtTask = $Tokens[$index].Trim()
+                continue
+            }
             default {
+                if (Test-IsExplicitPlanToken -Token $token) {
+                    continue
+                }
                 $remainingTokens.Add($token)
             }
         }
@@ -381,6 +607,8 @@ function Get-PipelineDispatchContext {
                 Requested = $false
                 Phase = $null
                 TaskScope = $null
+                From = $null
+                StopAt = $null
                 FixMode = $false
                 RemainingTokens = @()
                 Error = 'Pipeline-bound dispatch requires --pipeline-phase <implement|test|review|verify|security>.'
@@ -392,6 +620,8 @@ function Get-PipelineDispatchContext {
                 Requested = $false
                 Phase = $null
                 TaskScope = $null
+                From = $null
+                StopAt = $null
                 FixMode = $false
                 RemainingTokens = @()
                 Error = "Unsupported pipeline phase '$phase'. Expected one of: implement, test, review, verify, security."
@@ -403,6 +633,8 @@ function Get-PipelineDispatchContext {
         Requested = $requested
         Phase = $phase
         TaskScope = $taskScope
+        From = $fromTask
+        StopAt = $stopAtTask
         FixMode = $fixMode
         RemainingTokens = @($remainingTokens)
         Error = $null
@@ -513,7 +745,7 @@ switch ($Command) {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
         $dispatchTokens = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count-1)] } else { @() }
         $xmachineContext = Get-XmachineDispatchContext -Tokens $dispatchTokens
-        $explicitPlan = if ($intent -eq 'pipeline') { Get-ExplicitPlanArgument -Tokens $dispatchTokens } else { $null }
+        $explicitPlan = Get-ExplicitPlanArgument -Tokens $dispatchTokens
         $pipelineContext = Get-PipelineDispatchContext -Tokens $dispatchTokens
 
         if ($xmachineContext.Requested -and -not $xmachineContext.WorkNode) {
@@ -571,6 +803,14 @@ switch ($Command) {
                 $dispatchFields['PLAN'] = $explicitPlan
             }
 
+            if (-not [string]::IsNullOrWhiteSpace($pipelineContext.From)) {
+                $dispatchFields['FROM'] = $pipelineContext.From
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($pipelineContext.StopAt)) {
+                $dispatchFields['STOP_AT'] = $pipelineContext.StopAt
+            }
+
             if ($xmachineContext.Requested) {
                 $dispatchFields['READ'] = $xmachineDocPath
                 $dispatchFields['EXECUTION'] = 'xmachine'
@@ -583,7 +823,7 @@ switch ($Command) {
 
         $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
         if ($resolved) {
-            $isPipelineGolem = @('golem-implementer','golem-tester','golem-reviewer','golem-verifier') -contains $resolved
+            $isPipelineGolem = @('golem-implementer','golem-tester','golem-reviewer','golem-verifier','golem-security') -contains $resolved
 
             if ($utilityGolems -contains $resolved) {
                 $mode = 'utility'
@@ -617,6 +857,13 @@ switch ($Command) {
                 }
                 if ($pipelineContext.FixMode) {
                     $dispatchFields['FIX_MODE'] = 'true'
+                }
+
+                $contextCarrySupported = -not $xmachineContext.Requested
+                foreach ($entry in (Get-PipelineDispatchMetadata -Phase $pipelineContext.Phase -ContextCarrySupported:$contextCarrySupported -PreferredPlanPath $explicitPlan -TaskScope $pipelineContext.TaskScope).GetEnumerator()) {
+                    if ($null -ne $entry.Value -and $entry.Value -ne '') {
+                        $dispatchFields[$entry.Key] = $entry.Value
+                    }
                 }
             }
 

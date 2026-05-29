@@ -107,7 +107,7 @@ if [[ "$(printf '%s' "$validation_json" | jq -r '.valid')" != 'true' ]]; then
 fi
 echo 'Common package validated successfully.'
 
-artifact_root="$(get_claude_plugin_artifact_root "$REPO_ROOT")"
+artifact_root="$(get_gal_plugin_root gal)"
 if [[ -d "$artifact_root" ]]; then
     if [[ "$FORCE" != 'true' ]]; then
         echo "Artifact root already exists: $artifact_root. Use --force to overwrite." >&2

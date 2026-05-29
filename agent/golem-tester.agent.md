@@ -36,7 +36,9 @@ Use for unit, integration, contract, or public-API verification.
 - `.dev/project.md` — project context and testing conventions
 - Public API surface: interfaces, DTOs, endpoint contracts, public method signatures
 - Test infrastructure: existing test helpers, fixtures, base classes
-- `copilot-instructions.md` — project testing conventions
+- Loaded runtime adapter instructions — treat generated adapters as already-loaded runtime carriers and do not routine-reread `AGENTS.md`, `copilot-instructions.md`, `CLAUDE.md`, or `GEMINI.md`
+- `.dev/project.md` again only when no runtime adapter is detectable — compact fallback for project testing conventions
+- Dispatcher-injected `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`, `PIPELINE_CONTEXT_MODE`, and `CONTEXT_CARRY` when present — use these as the first read shortlist and do not widen scope unless the shortlist is insufficient
 
 ### Forbidden
 

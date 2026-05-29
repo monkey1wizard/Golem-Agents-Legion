@@ -12,6 +12,8 @@ The authoritative cold-start stack consists of `.dev/project.md`, `.dev/state.md
 
 Cross-session and cross-provider handoffs are managed via `/gal wrap-up`, which writes `### Handoff Notes` and session continuity states back into the repo files. Provider-local chat history is advisory only. The core memory operations include retrieve, encode, summarize, promote, and prune. Generated adapters carry this contract to each runtime without becoming the source of truth.
 
+GAL's machine-local install topology also has a single canonical plugin root: `~/.gal/plugins/gal/`. Provider-visible targets such as `~/.claude/plugins/gal` or `~/.gal/active/<provider>/` are projections or aliases, not content owners. `~/.gal/dist/` is reserved for package output, managed metadata, conversion output, and `~/.gal/dist/commits/` dev-mode isolation; it is not the runtime source of truth.
+
 If you have multiple devices, you can also use xmachine to route AI tasks via SSH to remote work nodes for execution, maximizing resource utilization. (Requires manual setup of SSH connections, Zellij, AI CLI tools, etc.)
 
 ## Prerequisites

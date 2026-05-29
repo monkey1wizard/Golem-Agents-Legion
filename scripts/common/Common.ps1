@@ -22,8 +22,8 @@ function New-SetupContext {
     $galGeneratedRoot = Join-Path $galStateRoot 'generated'
     $galGeneratedMcpRoot = Join-Path $galGeneratedRoot 'mcp'
     $galGeneratedXmachineRoot = Join-Path $galGeneratedRoot 'xmachine'
-    $galGeneratedProvidersRoot = Join-Path $galGeneratedRoot 'providers'
     $galDistRoot = Join-Path $galStateRoot 'dist'
+    $galGeneratedProvidersRoot = Join-Path $galDistRoot 'providers'
     $galSourceRoot = Join-Path $galStateRoot 'source'
 
     $galSource = Join-Path $repoRoot 'commands\gal'
@@ -65,6 +65,9 @@ function New-SetupContext {
         GalStateRoot = $galStateRoot
         GalConfigRoot = $galConfigRoot
         GalStateDirectory = $galStateDirectory
+        GalPluginsRoot = Join-Path $galStateRoot 'plugins'
+        GalDataRoot = Join-Path $galStateRoot 'data'
+        GalCacheRoot = Join-Path $galStateRoot 'cache'
         GalStoreRoot = $galStoreRoot
         GalStorePluginsRoot = $galStorePluginsRoot
         GalGeneratedRoot = $galGeneratedRoot
@@ -152,6 +155,34 @@ function Get-GalUserHome {
     }
 
     return [Environment]::GetFolderPath('UserProfile')
+}
+
+function Get-GalPluginsRoot {
+    return Join-Path (Get-GalUserHome) '.gal\plugins'
+}
+
+function Get-GalPluginRoot {
+    param(
+        [string]$PluginId = 'gal'
+    )
+
+    return Join-Path (Get-GalPluginsRoot) $PluginId
+}
+
+function Get-GalDataRoot {
+    return Join-Path (Get-GalUserHome) '.gal\data'
+}
+
+function Get-GalPluginDataRoot {
+    param(
+        [string]$PluginId = 'gal'
+    )
+
+    return Join-Path (Get-GalDataRoot) $PluginId
+}
+
+function Get-GalCacheRoot {
+    return Join-Path (Get-GalUserHome) '.gal\cache'
 }
 
 function Resolve-XmachineConfigRecord {

@@ -41,6 +41,9 @@ You may also run standalone when asked for a branch security audit.
 Read:
 - `.dev/state.md` to find the active plan
 - `.dev/plans/<slug>.prompt.md` for intended behavior, task state, and sensitive surfaces
+- Treat generated adapters as already-loaded runtime carriers during normal pipeline audit; do not routine-reread `AGENTS.md`, `copilot-instructions.md`, `CLAUDE.md`, or `GEMINI.md`
+- If no runtime adapter is detectable, use `.dev/project.md` as the compact fallback for project-level rules and constraints
+- If `/gal` emitted `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`, `PIPELINE_CONTEXT_MODE`, or `CONTEXT_CARRY`, use those injected fields as the first read shortlist and widen only when the shortlist is insufficient
 - the branch diff or relevant changed files
 
 If no active plan exists, still perform the audit and report results in chat.

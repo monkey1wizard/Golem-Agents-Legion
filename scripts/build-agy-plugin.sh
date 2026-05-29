@@ -3,7 +3,7 @@
 # AGY plugin renderer for GAL.
 #
 # Builds the provider-neutral common package, validates it, and renders
-# AGY-specific artifacts to ~/.gal/dist/provider-plugins/agy/gal/.
+# AGY-specific package output to ~/.gal/dist/provider-plugins/agy/gal/.
 #
 # Outputs:
 #   plugin.json          (manifest with stable name: gal)
@@ -76,7 +76,7 @@ fi
 echo "Common package validated successfully."
 
 # --- Prepare artifact root ---
-artifact_root="$(get_agy_plugin_artifact_root "$REPO_ROOT")"
+artifact_root="$(get_agy_plugin_package_output_root "$REPO_ROOT")"
 if [[ -d "$artifact_root" ]]; then
     if [[ "$FORCE" != 'true' ]]; then
         echo "Artifact root already exists: $artifact_root. Use --force to overwrite." >&2

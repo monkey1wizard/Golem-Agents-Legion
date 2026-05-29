@@ -17,22 +17,43 @@ REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
 get_gal_core_canonical_package_schema() {
     jq -n '{
-        schemaId: "claude-compatible-gal-core-v1",
+        schemaId: "gal-plugin-root-v2",
         schemaVersion: 1,
         packageId: "gal-core",
         packageKind: "canonical-plugin",
         canonicalProvider: "claude",
         compatibleProviders: ["claude", "copilot", "codex", "agy"],
+        canonicalLayout: ".gal/plugins/<plugin-id>",
         componentRoots: {
+            claudeManifest: ".claude-plugin/plugin.json",
+            codexManifest: ".codex-plugin/plugin.json",
             skills: "skills",
             commands: "commands",
             agents: "agents",
+            hooks: "hooks",
             mcp: "provider-managed",
-            lsp: "provider-managed"
+            lsp: "provider-managed",
+            app: "provider-managed",
+            assets: "assets"
         },
         nativeInstallProviders: ["claude", "copilot", "codex"],
         managedShortcutProviders: ["agy"]
     }'
+}
+
+get_gal_canonical_plugin_root_record() {
+    local plugin_id="${1:-gal}"
+    jq -n \
+        --arg pluginId "$plugin_id" \
+        --arg relativeRoot ".gal/plugins/$plugin_id" \
+        --arg absoluteRoot "$(get_gal_plugin_root "$plugin_id")" \
+        --arg dataRoot "$(get_gal_plugin_data_root "$plugin_id")" \
+        '{
+            pluginId: $pluginId,
+            relativeRoot: $relativeRoot,
+            absoluteRoot: $absoluteRoot,
+            dataRoot: $dataRoot
+        }'
 }
 
 get_gal_core_copied_companion_skill_patterns() {
@@ -227,6 +248,7 @@ build_provider_plugin_package() {
         --arg name 'gal' \
         --arg displayName 'Golem Agents Legion' \
         --arg generatedAt "$generated_at" \
+        --argjson canonicalPluginRoot "$(get_gal_canonical_plugin_root_record gal)" \
         --argjson packageSchema "$package_schema_json" \
         --argjson sourcePlugins "$source_plugins_json" \
         --argjson deferredCompanionPlugins "$deferred_companions_json" \
@@ -241,7 +263,8 @@ build_provider_plugin_package() {
             metadata: {
                 name: $name,
                 displayName: $displayName,
-                generatedAt: $generatedAt
+                generatedAt: $generatedAt,
+                canonicalPluginRoot: $canonicalPluginRoot
             },
             sourcePlugins: $sourcePlugins,
             deferredCompanionPlugins: $deferredCompanionPlugins,
@@ -266,7 +289,7 @@ validate_provider_plugin_package() {
     local errors_json='[]'
 
     # --- Reject provider-specific paths ---
-    local provider_paths=('.codex-plugin' '.claude-plugin' 'rules/' 'mcp_config.json' 'hooks.json' 'gal-results/' 'runtimeScripts' 'scripts/')
+    local provider_paths=('rules/' 'mcp_config.json' 'hooks.json' 'gal-results/' 'runtimeScripts' 'scripts/')
     local path
     for path in "${provider_paths[@]}"; do
         if [ "$path" = 'runtimeScripts' ]; then
@@ -361,18 +384,13 @@ validate_provider_plugin_package() {
         fi
     done
 
-    # --- T-002: Verify no stubs for unsupported components ---
-    local stub_indicators=('"hooks"' '"runtimeScripts"')
-    for indicator in "${stub_indicators[@]}"; do
-        # Count occurrences outside skippedComponents
-        local outside_count
-        outside_count="$(printf '%s' "$package_json" | jq -r --arg ind "$indicator" '
-            [paths as $p | select(. == ($ind | fromjson)) | $p]
-            | map(select($p | index("skippedComponents") | not))
-            | length
-        ')"
-        if [ "$outside_count" -gt 0 ]; then
-            local msg="Unsupported component stub detected: $indicator appears outside skippedComponents"
+    # --- T-002: Verify no unsupported component stubs are emitted as package payload ---
+    local unexpected_root_components=('hooks' 'runtimeScripts')
+    for component in "${unexpected_root_components[@]}"; do
+        local has_component
+        has_component="$(printf '%s' "$package_json" | jq --arg c "$component" 'has($c) and .[$c] != null')"
+        if [ "$has_component" = 'true' ]; then
+            local msg="Unsupported component stub detected: '$component' is emitted as package payload"
             errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
         fi
     done
@@ -436,10 +454,16 @@ validate_provider_plugin_package() {
         '{valid: $valid, errors: $errors}'
 }
 
-# Returns the generated artifact root for the AGY renderer.
-get_agy_plugin_artifact_root() {
+# Returns the AGY package output root under ~/.gal/dist.
+get_agy_plugin_package_output_root() {
     local repo_root="${1:-$REPO_ROOT}"
     printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/agy/gal"
+}
+
+# Backward-compatible alias for the AGY package output root.
+get_agy_plugin_artifact_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    get_agy_plugin_package_output_root "$repo_root"
 }
 
 # Returns the AGY plugin install target path.
@@ -447,10 +471,16 @@ get_agy_plugin_install_target() {
     printf '%s\n' "$HOME/.gemini/antigravity-cli/plugins/gal"
 }
 
-# Returns the generated artifact root for the Claude renderer.
-get_claude_plugin_artifact_root() {
+# Returns the Claude package output root under ~/.gal/dist.
+get_claude_plugin_package_output_root() {
     local repo_root="${1:-$REPO_ROOT}"
     printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/claude/gal"
+}
+
+# Backward-compatible alias for the Claude package output root.
+get_claude_plugin_artifact_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    get_claude_plugin_package_output_root "$repo_root"
 }
 
 # Returns the Claude plugin component layout relative to the plugin root.

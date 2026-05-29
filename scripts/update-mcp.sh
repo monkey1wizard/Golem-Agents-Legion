@@ -382,8 +382,8 @@ def import_legacy_gal_skills(binding):
                 print(f'  [CLEANUP] Removed empty GAL_SKILLS from: {env_file}')
         return binding
 
-    legacy_plugin_root = gal_store_plugins_root / 'legacy-gal-skills'
-    legacy_skills_root = legacy_plugin_root / 'skills'
+    canonical_plugin_root = gal_config.parent.parent / 'plugins' / 'gal'
+    canonical_skills_root = canonical_plugin_root / 'skills'
     copied_any = False
     can_remove_legacy_key = True
     local_plugin_paths = [str(path) for path in binding.get('localPluginPaths', []) if str(path).strip()]
@@ -406,7 +406,7 @@ def import_legacy_gal_skills(binding):
             if not skill_file.exists():
                 continue
 
-            destination_file = legacy_skills_root / skill_dir.name / 'SKILL.md'
+            destination_file = canonical_skills_root / skill_dir.name / 'SKILL.md'
             if dry_run:
                 print(f'  [DRY RUN] Would import legacy GAL_SKILLS skill: {skill_dir} -> {destination_file}')
             else:
@@ -415,9 +415,6 @@ def import_legacy_gal_skills(binding):
                 print(f'  [MIGRATE] Imported legacy GAL_SKILLS skill: {skill_dir.name}')
 
             copied_any = True
-
-    if copied_any and str(legacy_plugin_root) not in local_plugin_paths:
-        local_plugin_paths.append(str(legacy_plugin_root))
 
     binding['localPluginPaths'] = local_plugin_paths
 

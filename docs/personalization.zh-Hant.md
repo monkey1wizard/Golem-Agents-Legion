@@ -29,6 +29,56 @@ Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL �
 
 ## 安裝模式 vs 原始碼模式 (Install Mode vs Source Mode)
 
+GAL 透過 `~/.gal/config/config.json` 控制 install mode 與 source mode 兩種運作模式。
+
+- **Install mode**：給只想使用 GAL 的終端使用者。你不需要 clone repo。透過 `winget`（Windows）或 `homebrew`（macOS/Linux）安裝後，GAL 會管理自己的 `~/.gal/` runtime home。AGY 已支援完整的 provider-native lifecycle，不需要 source checkout。Claude 目前也支援 plugin artifact rendering、在本機 CLI 可用時的 strict validation、lifecycle-state tracking 與 session-load smoke，但 direct provider-native install 仍取決於實際 CLI capability，尚未是已驗證的預設路徑。
+
+- **Source mode**：給 GAL 貢獻者。保留本機 GAL repo checkout，將 `~/.gal/config/config.json` 裡的 `galRoot` 指向該路徑，並啟用 `devMode`。這會保留 live local override、直接掛載 repo skills，以及不經過正式封裝就測試變更的能力。
+
+無論哪一種模式，`~/.gal/plugins/gal/` 都是 canonical plugin root。像 `~/.claude/plugins/gal` 這類 provider-visible target，以及 `~/.gal/active/<provider>/` 這類 stable alias，都只是 projection 或 shortcut，不是內容擁有者。`~/.gal/dist/` 僅保留給 package output、managed metadata、conversion output，以及 dev mode 的 `~/.gal/dist/commits/` 隔離輸出；它不是 runtime source of truth。
+
+### `~/.gal/` 資料夾結構
+
+```text
+~/.gal/
+|-- active/
+|   |-- agy/                    # 需要 capability shortcut 時的穩定 provider alias
+|   `-- opencode/               # 啟用時使用的穩定 bridge-lane alias
+|-- config/
+|   |-- config.json             # 機器意圖：installMode、galRoot、plugins、runtime selection overrides
+|   |-- config.local.env        # 機器本機 env 值與 secrets
+|   |-- mcp.local.json          # 本機 MCP overrides
+|   |-- model-roles.local.md    # 本機模型角色對應覆寫
+|   `-- xmachine.json           # 機器本機 xmachine node 定義
+|-- dist/
+|   |-- commits/                # dev mode 下 GAL 變更的隔離輸出；永遠不是 runtime source of truth
+|   |-- provider-plugins/
+|   |   `-- agy/
+|   |       `-- gal/            # AGY package output / conversion output
+|   `-- providers/
+|       `-- claude/
+|           `-- managed.json    # Claude lifecycle metadata：canonicalRoot、projectionRoot、installTarget、packageOutputRoot
+|-- generated/
+|   |-- mcp/
+|   |   `-- managed.json        # GAL-managed MCP projection state
+|   `-- xmachine/
+|       `-- managed.json        # GAL-managed xmachine projection state
+|-- install-state.json          # selectedRuntimes 與 primaryRuntime
+|-- plugins/
+|   `-- gal/                    # canonical GAL plugin root
+|       |-- .claude-plugin/
+|       |   `-- plugin.json     # 位於 canonical root 之下的 Claude manifest
+|       |-- .mcp.json           # portable GAL-managed Claude MCP config
+|       |-- agents/
+|       |-- commands/
+|       `-- skills/
+|-- source/                     # source mode repo-linked workflow 使用的 bridge roots
+`-- state/
+  `-- plugins.lock.json       # 解析後的 plugin catalog state
+```
+
+這張圖應該用 ownership 來讀，而不只是看路徑：`plugins/gal` 擁有 canonical runtime content，`dist/` 擁有可重建的 package 與 metadata output，`active/` 擁有 stable alias，而 `config/` 與 `state/` 則承載 machine intent。
+
 GAL 支援兩種由 `~/.gal/config/config.json` 控制的操作模式：
 
 - **安裝模式（Install mode）** — 給只想使用 GAL 的一般使用者。你不需要 clone 儲存庫。透過 `winget`（Windows）或 `homebrew`（macOS/Linux）安裝，GAL 自行管理 `~/.gal/` runtime home。所有 provider-native 外掛安裝、更新與解除安裝都不需要 source checkout。這是最終預設模式，但需 Claude、AGY 與 Copilot 三個 smoke guard 全部通過後才會正式切換。
@@ -341,7 +391,7 @@ GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin p
 
 ### AGY 作為渲染器 1 (AGY as Renderer 1)
 
-AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 將共同套件渲染至 `~/.gal/dist/provider-plugins/agy/gal/`，並安裝至 `~/.gemini/antigravity-cli/plugins/gal/`。AGY 外掛程式承載：
+AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 會把 package output 產生在 `~/.gal/dist/provider-plugins/agy/gal/`，而 install orchestration 則維持 `~/.gal/plugins/gal/` 為 canonical plugin root，只有在需要 capability shortcut 時才使用 `~/.gal/active/agy/` 這個 stable alias。AGY 外掛程式承載：
 
 - `plugin.json` — 含穩定 `name: gal` 的清單
 - `skills/` — 可重用技能與指令技能

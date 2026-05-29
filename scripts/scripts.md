@@ -6,7 +6,7 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
-| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific plugin artifacts to `~/.gal/dist/provider-plugins/agy/gal/` |
+| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific package output to `~/.gal/dist/provider-plugins/agy/gal/` while keeping `~/.gal/plugins/gal/` as the canonical plugin root |
 | `build-agy-plugin.sh` | macOS/Linux | Same for Mac/Linux |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `~/.gal/config/config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
@@ -16,7 +16,7 @@ Machine setup and adapter sync scripts.
 | `sync-dev-context.sh` | macOS | Same for Mac |
 | `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `Update-Personalization.ps1`, `Update-Skills.ps1`, `Update-Commands.ps1`, and `Update-Mcp.ps1` |
 | `Install-GalPlugins.ps1` | Windows | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
-| `Build-ProviderPlugins.ps1` | Windows | Build provider-specific install-mode artifacts from resolver output; currently AGY is implemented, while Copilot/Codex/Claude remain not-yet-implemented native-install lanes |
+| `Build-ProviderPlugins.ps1` | Windows | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY and Claude renderers are wired, while Copilot/Codex remain not-yet-implemented native-install lanes |
 | `Update-Personalization.ps1` | Windows | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `Update-Skills.ps1` | Windows | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `Update-Commands.ps1` | Windows | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
@@ -24,7 +24,7 @@ Machine setup and adapter sync scripts.
 | `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
 | `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, then orchestrate `update-personalization.sh`, `update-skills.sh`, `update-commands.sh`, and `update-mcp.sh` |
 | `install-gal-plugins.sh` | macOS/Linux | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
-| `build-provider-plugins.sh` | macOS/Linux | Build provider-specific install-mode artifacts from resolver output; currently AGY is implemented, while Copilot/Codex/Claude remain not-yet-implemented native-install lanes |
+| `build-provider-plugins.sh` | macOS/Linux | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY and Claude renderers are wired, while Copilot/Codex remain not-yet-implemented native-install lanes |
 | `update-personalization.sh` | macOS | Manage install-state, legacy Gemini `gal-context.md` and settings bridges, Antigravity runtime integration, local config seeding, and git smudge/clean personalization |
 | `update-skills.sh` | macOS | Manage GAL root links, agent links, Antigravity global skill links, remaining shared skill links, Claude skill links, and legacy runtime skill cleanup |
 | `update-commands.sh` | macOS | Bake `commands/*/SKILL.md`, install Copilot/Codex/Antigravity command skill links, generate legacy Gemini `.toml` commands, generate Claude `.md` commands, generate OpenCode `.md` commands, and remove stale command artifacts |
@@ -114,7 +114,7 @@ The current script surface is split across two adjacent concerns:
 - install-mode plugin orchestration: `Install-GalPlugins.*`, `Build-ProviderPlugins.*`, resolver output, `~/.gal/` ownership, and provider-specific lifecycle work
 - bootstrap installer and official distribution channels: versioned bootstrap payloads, package managers, release archives, and marketplace/discoverability work
 
-Today only the AGY provider-native lifecycle slice is implemented end to end in the install-mode scripts. Copilot CLI, Codex, and Claude Code remain planned native-install lanes, while bootstrap packaging and official install-channel wording are handled by the separate bootstrap-installer planning track.
+Today the AGY provider-native lifecycle slice is implemented end to end in the install-mode scripts, and Claude also has canonical-root rendering, lifecycle-state tracking, validation, and session-load projection coverage. Copilot CLI and Codex remain planned native-install lanes, while bootstrap packaging and official install-channel wording are handled by the separate bootstrap-installer planning track.
 
 ## Setup-Machine Symlinks
 
@@ -174,7 +174,7 @@ Rerun guidance:
 
 1. Builds a provider-neutral common package using `New-ProviderPluginPackage` / `build_provider_plugin_package`
 2. Validates the common package using `Test-ProviderPluginPackage` / `validate_provider_plugin_package`
-3. Renders AGY-specific artifacts to `~/.gal/dist/provider-plugins/agy/gal/`:
+3. Renders AGY-specific package output to `~/.gal/dist/provider-plugins/agy/gal/` while keeping `~/.gal/plugins/gal/` as the canonical runtime root:
    - `plugin.json` — manifest with stable `name: gal`, skill/agent indexes, capability flags
    - `skills/` — reusable skills and command skills (as AGY skills)
    - `agents/` — agent definitions
@@ -192,7 +192,7 @@ Rerun guidance:
 ### Usage
 
 ```powershell
-# Render to ~/.gal/dist/provider-plugins/agy/gal/
+# Render package output to ~/.gal/dist/provider-plugins/agy/gal/
 .\scripts\Build-AgyPlugin.ps1
 
 # Force overwrite existing artifacts
@@ -203,7 +203,7 @@ Rerun guidance:
 ```
 
 ```bash
-# Render to ~/.gal/dist/provider-plugins/agy/gal/
+# Render package output to ~/.gal/dist/provider-plugins/agy/gal/
 ./scripts/build-agy-plugin.sh
 
 # Force overwrite existing artifacts

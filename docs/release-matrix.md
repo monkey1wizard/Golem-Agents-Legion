@@ -49,6 +49,8 @@ Excluded from all archives:
 
 The bootstrap binary owns first-run initialization of `~/.gal/`; release artifacts do not pre-seed that runtime state.
 
+Release packaging also does not define GAL's runtime source of truth. The machine-local canonical plugin root remains `~/.gal/plugins/gal/`, while `~/.gal/dist/` is reserved for package output, managed metadata, conversion output, and dev-mode `~/.gal/dist/commits/` isolation.
+
 ## 3. Required Release Metadata and Provenance
 
 Every canonical release must publish the following companion files:

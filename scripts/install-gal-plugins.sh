@@ -186,13 +186,14 @@ invoke_claude_plugin_lifecycle() {
     fi
 
     echo '  [OK] Evaluating Claude plugin lifecycle.'
-    local artifact_root manifest_path session_load_command
-    artifact_root="$(get_claude_plugin_artifact_root "$REPO_ROOT")"
-    manifest_path="$(get_claude_plugin_manifest_path "$artifact_root")"
-    session_load_command="claude --plugin-dir \"$artifact_root\""
+    local canonical_root package_output_root manifest_path session_load_command
+    canonical_root="$(get_gal_plugin_root gal)"
+    package_output_root="$(get_claude_plugin_package_output_root "$REPO_ROOT")"
+    manifest_path="$(get_claude_plugin_manifest_path "$canonical_root")"
+    session_load_command="claude --plugin-dir \"$canonical_root\""
 
-    if [[ ! -d "$artifact_root" ]]; then
-        echo "Claude artifact root not found: $artifact_root" >&2
+    if [[ ! -d "$canonical_root" ]]; then
+        echo "Claude canonical root not found: $canonical_root" >&2
         exit 1
     fi
 
@@ -240,9 +241,9 @@ invoke_claude_plugin_lifecycle() {
         echo '  [WARN] Claude CLI is present but `claude plugin validate` is unavailable; recording artifact-only lifecycle status.'
     else
         if $DRY_RUN; then
-            echo "  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict \"$artifact_root\""
+            echo "  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict \"$canonical_root\""
         else
-            claude plugin validate --strict "$artifact_root"
+            claude plugin validate --strict "$canonical_root"
             strict_passed=true
             echo '  [OK] Claude plugin validation passed.'
         fi
@@ -254,7 +255,10 @@ invoke_claude_plugin_lifecycle() {
 
     local state_json
     state_json="$(jq -n \
-        --arg artifactRoot "$artifact_root" \
+        --arg canonicalRoot "$canonical_root" \
+        --arg packageOutputRoot "$package_output_root" \
+        --arg projectionRoot "$CLAUDE_PLUGIN_INSTALL_TARGET" \
+        --arg installTarget "$CLAUDE_PLUGIN_INSTALL_TARGET" \
         --arg manifestPath "$manifest_path" \
         --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg installHelpSummary "$install_help_summary" \
@@ -271,7 +275,10 @@ invoke_claude_plugin_lifecycle() {
         '{
             schemaVersion: 1,
             provider: "claude",
-            artifactRoot: $artifactRoot,
+            canonicalRoot: $canonicalRoot,
+            packageOutputRoot: $packageOutputRoot,
+            projectionRoot: $projectionRoot,
+            installTarget: $installTarget,
             manifestPath: $manifestPath,
             generatedAt: $generatedAt,
             cli: {
@@ -313,7 +320,7 @@ if $UNINSTALL; then
     for managed_target in \
         "$INSTALL_STATE_FILE" \
         "$AGY_PLUGIN_INSTALL_TARGET" \
-        "$GAL_STORE_PLUGINS_ROOT" \
+        "$GAL_PLUGINS_ROOT" \
         "$GAL_GENERATED_MCP_ROOT" \
         "$GAL_GENERATED_XMACHINE_ROOT" \
         "$GAL_GENERATED_PROVIDERS_ROOT" \
@@ -369,7 +376,7 @@ if $UNINSTALL; then
         echo "  [REMOVED] $label: $path"
     }
 
-    remove_managed_dir "$GAL_STORE_PLUGINS_ROOT" 'GAL-managed plugin store'
+    remove_managed_dir "$GAL_PLUGINS_ROOT" 'GAL canonical plugin root'
     remove_managed_dir "$GAL_GENERATED_MCP_ROOT" 'GAL-managed MCP projections'
     remove_managed_dir "$GAL_GENERATED_XMACHINE_ROOT" 'GAL-managed xmachine projections'
     remove_managed_dir "$GAL_GENERATED_PROVIDERS_ROOT" 'GAL-managed provider projections'
@@ -392,7 +399,7 @@ mapfile -t selection_parts < <(resolve_selection_csv)
 resolved_selected_csv="${selection_parts[0]}"
 resolved_primary_runtime="${selection_parts[1]}"
 
-mkdir -p "$GAL_CONFIG_ROOT" "$GAL_STATE_DIRECTORY" "$GAL_STORE_PLUGINS_ROOT" "$GAL_GENERATED_MCP_ROOT" "$GAL_GENERATED_XMACHINE_ROOT" "$GAL_GENERATED_PROVIDERS_ROOT"
+mkdir -p "$GAL_CONFIG_ROOT" "$GAL_STATE_DIRECTORY" "$GAL_PLUGINS_ROOT" "$GAL_DATA_ROOT" "$GAL_CACHE_ROOT" "$GAL_GENERATED_MCP_ROOT" "$GAL_GENERATED_XMACHINE_ROOT" "$GAL_GENERATED_PROVIDERS_ROOT"
 
 config_exists=false
 config_for_resolver="$CONFIG_PATH"
@@ -431,6 +438,26 @@ install_mode="$(printf '%s' "$summary_json" | jq -r '.installMode')"
 default_profile="$(printf '%s' "$summary_json" | jq -r '.defaultProfile')"
 resolved_plugins="$(pwsh -NoProfile -File "$SCRIPT_DIR/Resolve-GalCatalog.ps1" -CatalogPath "$REPO_ROOT/plugins/catalog.json" -ConfigPath "$config_for_resolver" -LockfilePath "$resolver_lockfile_path" -PassThru | jq -r '.ResolvedPlugins | map(.pluginId) | join(", ")')"
 primary_providers_csv="$(printf '%s' "$summary_json" | jq -r '.primaryProviders | join(",")')"
+bridge_providers_csv="$(printf '%s' "$summary_json" | jq -r '.bridgeProviders | join(",")')"
+migration_providers_csv="$(printf '%s' "$summary_json" | jq -r '.migrationProviders | join(",")')"
+
+if [[ -z "$primary_providers_csv" && -n "$resolved_selected_csv" ]]; then
+    IFS=',' read -r -a fallback_runtimes <<< "$resolved_selected_csv"
+    fallback_primary=()
+    fallback_bridge=()
+    fallback_migration=()
+    for runtime in "${fallback_runtimes[@]}"; do
+        case "$runtime" in
+            opencode) fallback_bridge+=(opencode) ;;
+            gemini) fallback_migration+=(gemini) ;;
+            antigravity) fallback_primary+=(agy) ;;
+            copilot|codex|claude) fallback_primary+=("$runtime") ;;
+        esac
+    done
+    primary_providers_csv="$(join_by ',' "${fallback_primary[@]}")"
+    bridge_providers_csv="$(join_by ',' "${fallback_bridge[@]}")"
+    migration_providers_csv="$(join_by ',' "${fallback_migration[@]}")"
+fi
 
 echo "  [OK] Mode: $install_mode"
 echo "  [OK] GAL runtime home: $GAL_STATE_ROOT"
@@ -438,9 +465,21 @@ echo "  [OK] Lockfile target: $LOCKFILE_PATH"
 echo "  [OK] Active profile: $default_profile"
 echo "  [OK] Explicit plugins: $(printf '%s' "$summary_json" | jq -r 'if (.enabledPlugins | length) == 0 then "none" else (.enabledPlugins | join(", ")) end')"
 echo "  [OK] Resolved plugins: ${resolved_plugins:-none}"
-echo "  [OK] Primary provider lanes: $(printf '%s' "$summary_json" | jq -r 'if (.primaryProviders | length) == 0 then "none" else (.primaryProviders | join(", ")) end')"
-echo "  [OK] Bridge lanes: $(printf '%s' "$summary_json" | jq -r 'if (.bridgeProviders | length) == 0 then "none" else (.bridgeProviders | join(", ")) end')"
-echo "  [OK] Migration lanes: $(printf '%s' "$summary_json" | jq -r 'if (.migrationProviders | length) == 0 then "none" else (.migrationProviders | join(", ")) end')"
+if [[ -n "$primary_providers_csv" ]]; then
+    echo "  [OK] Primary provider lanes: ${primary_providers_csv//,/ , }"
+else
+    echo '  [OK] Primary provider lanes: none'
+fi
+if [[ -n "$bridge_providers_csv" ]]; then
+    echo "  [OK] Bridge lanes: ${bridge_providers_csv//,/ , }"
+else
+    echo '  [OK] Bridge lanes: none'
+fi
+if [[ -n "$migration_providers_csv" ]]; then
+    echo "  [OK] Migration lanes: ${migration_providers_csv//,/ , }"
+else
+    echo '  [OK] Migration lanes: none'
+fi
 
 if [ "$install_mode" = 'source' ]; then
     echo "  [OK] Source mode galRoot: $(printf '%s' "$summary_json" | jq -r '.galRoot')"

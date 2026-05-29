@@ -51,6 +51,29 @@ append_source_block() {
   printf '\n\n' >> "$output_path"
 }
 
+get_project_convention_file_names() {
+  if [[ ! -f "$project_path" ]]; then
+    printf '%s\n' conventions.md token-budget.md working-hours.md
+    return 0
+  fi
+
+  local language_line language_text
+  language_line="$(grep -E '^\|[[:space:]]*Language[[:space:]]*\|' "$project_path" | head -n 1 || true)"
+  if [[ -z "$language_line" ]]; then
+    printf '%s\n' conventions.md csharp.md go.md rust.md token-budget.md typescript.md working-hours.md
+    return 0
+  fi
+
+  local names=(conventions.md token-budget.md working-hours.md)
+  language_text="$(printf '%s' "$language_line" | tr '[:upper:]' '[:lower:]')"
+  [[ "$language_text" == *"c#"* || "$language_text" == *".net"* ]] && names+=(csharp.md)
+  [[ "$language_text" == *"typescript"* || "$language_text" == *"javascript"* ]] && names+=(typescript.md)
+  [[ "$language_text" == *"golang"* || "$language_text" == *"go"* ]] && names+=(go.md)
+  [[ "$language_text" == *"rust"* ]] && names+=(rust.md)
+
+  printf '%s\n' "${names[@]}" | awk '!seen[$0]++'
+}
+
 append_skill_index() {
   local output_path="$1"
   printf '## Repo Skills\n\n' >> "$output_path"
@@ -113,8 +136,16 @@ if [[ -d "$skills_root" ]]; then
 fi
 
 declare -a convention_files=()
+declare -A selected_convention_names=()
+while IFS= read -r convention_name; do
+  [[ -n "$convention_name" ]] && selected_convention_names["$convention_name"]=1
+done < <(get_project_convention_file_names)
+
 while IFS= read -r convention_file; do
-  [[ -n "$convention_file" ]] && convention_files+=("$convention_file")
+  [[ -n "$convention_file" ]] || continue
+  if [[ -n "${selected_convention_names[$(basename "$convention_file")]:-}" ]]; then
+    convention_files+=("$convention_file")
+  fi
 done < <(find "$conventions_dir" -maxdepth 1 -type f -name '*.md' | sort)
 mkdir -p "$copilot_dir"
 

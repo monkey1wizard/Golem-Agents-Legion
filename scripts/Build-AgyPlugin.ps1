@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Builds the provider-neutral common package, validates it, and renders
-    AGY-specific artifacts to ~/.gal/dist/provider-plugins/agy/gal/.
+    AGY-specific package output to ~/.gal/dist/provider-plugins/agy/gal/.
 
     Outputs:
     - plugin.json          (manifest with stable name: gal)
@@ -75,7 +75,7 @@ if (-not $validation.Valid) {
 Write-Host "Common package validated successfully." -ForegroundColor Green
 
 # --- Prepare artifact root ---
-$artifactRoot = Get-AgyPluginArtifactRoot -RepoRoot $RepoRoot
+$artifactRoot = Get-AgyPluginPackageOutputRoot -RepoRoot $RepoRoot
 if (Test-Path $artifactRoot) {
     if (-not $Force) {
         throw "Artifact root already exists: $artifactRoot. Use -Force to overwrite."

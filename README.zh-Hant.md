@@ -12,6 +12,8 @@ GAL 採用基於檔案的記憶模型（file-owned memory model）。儲存庫�
 
 跨工作階段（cross-session）與跨 AI 工具（cross-provider）的交接（handoff）是透過 `/gal wrap-up` 進行，它會將交接筆記（`### Handoff Notes`）與工作階段的連續性狀態（session continuity）回寫至儲存庫檔案中。AI 工具本身的對話紀錄（provider-local chat history）僅供參考（advisory only）。核心的記憶操作包含讀取（retrieve）、編碼（encode）、摘要（summarize）、晉升（promote）與修剪（prune），而產生的轉接器（generated adapters）僅負責將這份契約帶入各個執行環境中，其本身不會成為唯一的事實來源（source of truth）。
 
+GAL 在機器本機的安裝拓撲也只有一個 canonical plugin root：`~/.gal/plugins/gal/`。像 `~/.claude/plugins/gal` 或 `~/.gal/active/<provider>/` 這類 provider-visible target 只是 projection 或 alias，不是內容擁有者。`~/.gal/dist/` 僅保留給 package output、managed metadata、conversion output，以及 dev mode 的 `~/.gal/dist/commits/` 隔離輸出；它不是 runtime 的 source of truth。
+
 若有多個電腦設備，你也可使用 xmachine 能幫你把 AI 任務透過 SSH 路由到遠端工作節點執行，以最大化資源利用率。（需自行先設定完 SSH 連線、Zellji、ai cli 工具）
 
 ## 前置需求 (Prerequisites)

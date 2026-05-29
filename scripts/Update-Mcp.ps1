@@ -315,6 +315,31 @@ function Remove-EnvKeyFromFile {
     return $true
 }
 
+function Sync-LegacyGalSkillsStore {
+    param([System.Collections.IDictionary]$XmachineBinding)
+
+    $context = $script:SetupContext
+    $legacyPluginRoot = Join-Path $context.GalStorePluginsRoot 'legacy-gal-skills'
+    if (-not (Test-Path $legacyPluginRoot)) {
+        return
+    }
+
+    $legacyPluginRootText = [string]$legacyPluginRoot
+    foreach ($pluginPath in @($XmachineBinding['localPluginPaths'])) {
+        if ([string]$pluginPath -eq $legacyPluginRootText) {
+            return
+        }
+    }
+
+    if ($script:SetupOptions.DryRun) {
+        Write-Host "  [DRY RUN] Would remove stale legacy GAL_SKILLS store: $legacyPluginRoot"
+        return
+    }
+
+    Remove-Item -LiteralPath $legacyPluginRoot -Recurse -Force
+    Write-Host "  [CLEANUP] Removed stale legacy GAL_SKILLS store: $legacyPluginRoot"
+}
+
 function Import-LegacyGalSkillsIntoXmachineBinding {
     param([System.Collections.IDictionary]$XmachineBinding)
 
@@ -322,6 +347,7 @@ function Import-LegacyGalSkillsIntoXmachineBinding {
     $envFile = Get-ResolvedLocalEnvFilePath
     $envValues = Read-KeyValueEnvFile $envFile
     if (-not $envValues.Contains('GAL_SKILLS')) {
+        Sync-LegacyGalSkillsStore -XmachineBinding $XmachineBinding
         return $XmachineBinding
     }
 
@@ -333,11 +359,12 @@ function Import-LegacyGalSkillsIntoXmachineBinding {
             }
         }
 
+        Sync-LegacyGalSkillsStore -XmachineBinding $XmachineBinding
         return $XmachineBinding
     }
 
-    $legacyPluginRoot = Join-Path $context.GalStorePluginsRoot 'legacy-gal-skills'
-    $legacySkillsRoot = Join-Path $legacyPluginRoot 'skills'
+    $canonicalPluginRoot = Get-GalPluginRoot -PluginId 'gal'
+    $canonicalSkillsRoot = Join-Path $canonicalPluginRoot 'skills'
     $copiedAny = $false
     $canRemoveLegacyKey = $true
     $localPluginPaths = [System.Collections.Generic.List[string]]::new()
@@ -368,7 +395,7 @@ function Import-LegacyGalSkillsIntoXmachineBinding {
                 continue
             }
 
-            $destinationDir = Join-Path $legacySkillsRoot $skillDir.Name
+            $destinationDir = Join-Path $canonicalSkillsRoot $skillDir.Name
             $destinationFile = Join-Path $destinationDir 'SKILL.md'
             if ($script:SetupOptions.DryRun) {
                 Write-Host "  [DRY RUN] Would import legacy GAL_SKILLS skill: $($skillDir.FullName) -> $destinationFile"
@@ -383,10 +410,6 @@ function Import-LegacyGalSkillsIntoXmachineBinding {
         }
     }
 
-    if ($copiedAny -and -not $localPluginPaths.Contains($legacyPluginRoot)) {
-        $localPluginPaths.Add($legacyPluginRoot)
-    }
-
     $XmachineBinding['localPluginPaths'] = @($localPluginPaths)
 
     if ($canRemoveLegacyKey -and (Remove-EnvKeyFromFile -Path $envFile -Key 'GAL_SKILLS')) {
@@ -394,6 +417,8 @@ function Import-LegacyGalSkillsIntoXmachineBinding {
             Write-Host "  [CLEANUP] Removed GAL_SKILLS from: $envFile"
         }
     }
+
+    Sync-LegacyGalSkillsStore -XmachineBinding $XmachineBinding
 
     return $XmachineBinding
 }

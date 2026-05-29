@@ -181,10 +181,10 @@ try {
     $agyShortcut = Join-Path $activeRoot 'agy'
     New-Item -ItemType SymbolicLink -Path $agyShortcut -Target $agyInstallTarget | Out-Null
 
-    $managedPluginStore = Join-Path $testHome '.gal\store\plugins'
+    $managedPluginStore = Join-Path $testHome '.gal\plugins'
     $managedMcpRoot = Join-Path $testHome '.gal\generated\mcp'
     $managedXmachineRoot = Join-Path $testHome '.gal\generated\xmachine'
-    $managedProvidersRoot = Join-Path $testHome '.gal\generated\providers'
+    $managedProvidersRoot = Join-Path $testHome '.gal\dist\providers'
     $claudeLifecycleStatePath = Join-Path $managedProvidersRoot 'claude\managed.json'
     New-Item -ItemType Directory -Path $managedPluginStore -Force | Out-Null
     New-Item -ItemType Directory -Path $managedMcpRoot -Force | Out-Null
@@ -197,13 +197,10 @@ try {
     Set-Content -LiteralPath $claudeLifecycleStatePath -Value '{}' -Encoding utf8
 
     $machineConfigBeforeUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
-    $xmachineConfigBeforeUninstall = Get-Content -LiteralPath $xmachineConfigPath -Raw -Encoding utf8
-    $lockfileBeforeUninstall = Get-Content -LiteralPath $pluginsLockPath -Raw -Encoding utf8
-
     $uninstallOutput = (& $uninstallScriptUnderTest -DryRun 6>&1 | Out-String)
     Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove AGY plugin install target:' 'Install-mode uninstall should preview AGY plugin removal.'
-    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed plugin store:' 'Install-mode uninstall should preview GAL-managed plugin store removal.'
+    Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL canonical plugin root:' 'Install-mode uninstall should preview canonical plugin-root removal.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed MCP projections:' 'Install-mode uninstall should preview GAL-managed MCP projection removal.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed xmachine projections:' 'Install-mode uninstall should preview GAL-managed xmachine projection removal.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed provider projections:' 'Install-mode uninstall should preview GAL-managed provider projection removal.'
@@ -258,6 +255,15 @@ try {
     $claudeLifecycleState = Get-Content -LiteralPath $claudeLifecycleStatePath -Raw -Encoding utf8 | ConvertFrom-Json
     if ($claudeLifecycleState.provider -ne 'claude') {
         throw 'Claude lifecycle state should record provider=claude.'
+    }
+    if ($claudeLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
+        throw 'Claude lifecycle state should record the canonical root under ~/.gal/plugins/gal.'
+    }
+    if ($claudeLifecycleState.packageOutputRoot -ne (Join-Path $testHome '.gal\dist\provider-plugins\claude\gal')) {
+        throw 'Claude lifecycle state should record the package output root under ~/.gal/dist/provider-plugins/claude/gal.'
+    }
+    if ($claudeLifecycleState.projectionRoot -ne (Join-Path $testHome '.claude\plugins\gal')) {
+        throw 'Claude lifecycle state should record the provider-visible projection root.'
     }
     if ($claudeLifecycleState.lifecycle.mode -ne 'session-load-only') {
         throw "Claude lifecycle state should record session-load-only mode for the current CLI capability. Actual: $($claudeLifecycleState.lifecycle.mode)"
@@ -325,7 +331,7 @@ try {
         throw "Install-mode uninstall should remove the AGY provider install target."
     }
     if (Test-Path $managedPluginStore) {
-        throw "Install-mode uninstall should remove the GAL-managed plugin store."
+        throw "Install-mode uninstall should remove the GAL canonical plugin root."
     }
     if (Test-Path $managedMcpRoot) {
         throw "Install-mode uninstall should remove GAL-managed MCP projections."

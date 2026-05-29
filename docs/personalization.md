@@ -35,6 +35,50 @@ GAL supports two operational modes controlled by `~/.gal/config/config.json`:
 
 - **Source mode** — for GAL contributors. Keep a local clone of the GAL repo, set `galRoot` in `~/.gal/config/config.json` to that path, and enable `devMode`. This gives you live local overrides, direct repo-skill mounting, and the ability to test changes without packaging.
 
+In both modes, `~/.gal/plugins/gal/` is the canonical plugin root. Provider-visible targets such as `~/.claude/plugins/gal` and stable aliases such as `~/.gal/active/<provider>/` are projections or shortcuts, not content owners. `~/.gal/dist/` is reserved for package output, managed metadata, conversion output, and dev-mode `~/.gal/dist/commits/` isolation; it is not the runtime source of truth.
+
+### `~/.gal/` Directory Layout
+
+```text
+~/.gal/
+|-- active/
+|   |-- agy/                    # stable provider alias when a capability shortcut is needed
+|   `-- opencode/               # stable bridge-lane alias when enabled
+|-- config/
+|   |-- config.json             # machine intent: installMode, galRoot, plugins, runtime selection overrides
+|   |-- config.local.env        # machine-local env values and secrets
+|   |-- mcp.local.json          # local MCP overrides
+|   |-- model-roles.local.md    # local model-role mapping overrides
+|   `-- xmachine.json           # machine-local xmachine node definitions
+|-- dist/
+|   |-- commits/                # dev-mode isolated GAL change output; never the runtime source of truth
+|   |-- provider-plugins/
+|   |   `-- agy/
+|   |       `-- gal/            # AGY package output / conversion output
+|   `-- providers/
+|       `-- claude/
+|           `-- managed.json    # Claude lifecycle metadata: canonicalRoot, projectionRoot, installTarget, packageOutputRoot
+|-- generated/
+|   |-- mcp/
+|   |   `-- managed.json        # GAL-managed MCP projection state
+|   `-- xmachine/
+|       `-- managed.json        # GAL-managed xmachine projection state
+|-- install-state.json          # selectedRuntimes and primaryRuntime
+|-- plugins/
+|   `-- gal/                    # canonical GAL plugin root
+|       |-- .claude-plugin/
+|       |   `-- plugin.json     # Claude manifest under the canonical root
+|       |-- .mcp.json           # portable GAL-managed Claude MCP config
+|       |-- agents/
+|       |-- commands/
+|       `-- skills/
+|-- source/                     # source-mode bridge roots used by repo-linked workflows
+`-- state/
+  `-- plugins.lock.json       # resolved plugin catalog state
+```
+
+Read it as ownership, not just path listing: `plugins/gal` owns the canonical runtime content, `dist/` owns rebuildable package and metadata output, `active/` owns stable aliases, and `config/` plus `state/` carry machine intent.
+
 To switch modes:
 
 - Set `installMode` to `install` or `source` in `~/.gal/config/config.json`.
@@ -386,7 +430,7 @@ The common package model carries metadata, reusable skills, command skills (as s
 
 ### AGY as Renderer 1
 
-AGY is the first renderer, not the architecture. `Build-AgyPlugin` renders the common package into `~/.gal/dist/provider-plugins/agy/gal/` and installs to `~/.gemini/antigravity-cli/plugins/gal/`. The AGY plugin carries:
+AGY is the first renderer, not the architecture. `Build-AgyPlugin` emits package output into `~/.gal/dist/provider-plugins/agy/gal/`, while install orchestration keeps `~/.gal/plugins/gal/` as the canonical plugin root and uses `~/.gal/active/agy/` only as a stable alias when a capability shortcut is required. The AGY plugin carries:
 
 - `plugin.json` — manifest with stable `name: gal`
 - `skills/` — reusable skills and command skills

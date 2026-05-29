@@ -75,7 +75,8 @@ foreach ($provider in $Providers) {
                 Provider = 'agy'
                 Mode = 'managed-shortcut'
                 Renderer = 'Build-AgyPlugin.ps1'
-                ArtifactRoot = Get-AgyPluginArtifactRoot -RepoRoot $RepoRoot
+                CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+                PackageOutputRoot = Get-AgyPluginPackageOutputRoot -RepoRoot $RepoRoot
                 InstallTarget = Get-AgyPluginInstallTarget
                 ShortcutTarget = Get-GalActiveProviderTarget -Provider 'agy'
                 LifecycleStatus = 'implemented'
@@ -86,7 +87,8 @@ foreach ($provider in $Providers) {
                 Provider = 'copilot'
                 Mode = 'native-install'
                 Renderer = 'not-yet-implemented'
-                ArtifactRoot = $null
+                CanonicalRoot = $null
+                PackageOutputRoot = $null
                 InstallTarget = $null
                 ShortcutTarget = $null
                 LifecycleStatus = 'not-implemented'
@@ -97,7 +99,8 @@ foreach ($provider in $Providers) {
                 Provider = 'codex'
                 Mode = 'native-install'
                 Renderer = 'not-yet-implemented'
-                ArtifactRoot = $null
+                CanonicalRoot = $null
+                PackageOutputRoot = $null
                 InstallTarget = $null
                 ShortcutTarget = $null
                 LifecycleStatus = 'not-implemented'
@@ -108,7 +111,8 @@ foreach ($provider in $Providers) {
                 Provider = 'claude'
                 Mode = 'native-install'
                 Renderer = 'Build-ClaudePlugin.ps1'
-                ArtifactRoot = Get-ClaudePluginArtifactRoot -RepoRoot $RepoRoot
+                CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+                PackageOutputRoot = Get-ClaudePluginPackageOutputRoot -RepoRoot $RepoRoot
                 InstallTarget = 'provider-managed via claude plugin install --scope <scope>'
                 ShortcutTarget = $null
                 LifecycleStatus = 'artifact-rendered-install-deferred'

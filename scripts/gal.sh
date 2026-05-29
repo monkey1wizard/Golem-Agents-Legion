@@ -138,10 +138,25 @@ get_explicit_plan_argument() {
   return 0
 }
 
+is_explicit_plan_token() {
+  local token candidate
+  token="${1:-}"
+  [[ -n "$token" ]] || return 1
+
+  candidate="$token"
+  if [[ "$candidate" == \#file:* || "$candidate" == \#FILE:* ]]; then
+    candidate="${candidate:6}"
+  fi
+
+  [[ "$candidate" == *.prompt.md || "$candidate" == *.md ]]
+}
+
 get_pipeline_dispatch_context() {
   PIPELINE_REQUESTED=0
   PIPELINE_PHASE=""
   PIPELINE_TASK_SCOPE=""
+  PIPELINE_FROM=""
+  PIPELINE_STOP_AT=""
   PIPELINE_FIX_MODE=0
   PIPELINE_ERROR=""
   PIPELINE_REMAINING_TOKENS=()
@@ -174,7 +189,26 @@ get_pipeline_dispatch_context() {
       --fix-mode)
         PIPELINE_FIX_MODE=1
         ;;
+      from)
+        if (($# == 0)) ; then
+          PIPELINE_ERROR="Missing task reference after from."
+          return 0
+        fi
+        PIPELINE_FROM="$1"
+        shift
+        ;;
+      stop-at)
+        if (($# == 0)) ; then
+          PIPELINE_ERROR="Missing task reference after stop-at."
+          return 0
+        fi
+        PIPELINE_STOP_AT="$1"
+        shift
+        ;;
       *)
+        if is_explicit_plan_token "$token"; then
+          continue
+        fi
         PIPELINE_REMAINING_TOKENS+=("$token")
         ;;
     esac
@@ -363,6 +397,149 @@ get_plan_status_field() {
   ' "$plan_path"
 }
 
+get_source_plan_path() {
+  local execution_plan_path="$1"
+  [[ -n "$execution_plan_path" ]] || return 0
+
+  local repo_context_root dev_plans_root relative_prompt_path relative_source_path
+  repo_context_root="$(get_repo_context_root)"
+  dev_plans_root="$repo_context_root/.dev/plans"
+
+  case "$execution_plan_path" in
+    "$dev_plans_root"/*) ;;
+    *) return 0 ;;
+  esac
+
+  relative_prompt_path="${execution_plan_path#"$dev_plans_root"/}"
+  [[ "$relative_prompt_path" == *.prompt.md ]] || return 0
+  relative_source_path="${relative_prompt_path%.prompt.md}.md"
+  printf '%s\n' "$repo_context_root/docs/plans/$relative_source_path"
+}
+
+get_language_convention_file_names() {
+  local signal_text="$1"
+  [[ -n "$signal_text" ]] || return 0
+
+  local normalized_signal_text
+  normalized_signal_text="$(printf '%s' "$signal_text" | tr '[:upper:]' '[:lower:]')"
+
+  [[ "$normalized_signal_text" == *"c#"* || "$normalized_signal_text" == *".net"* ]] && printf '%s\n' csharp.md
+  [[ "$normalized_signal_text" == *"typescript"* || "$normalized_signal_text" == *"javascript"* ]] && printf '%s\n' typescript.md
+  [[ "$normalized_signal_text" == *"golang"* || "$normalized_signal_text" == *"go"* ]] && printf '%s\n' go.md
+  [[ "$normalized_signal_text" == *"rust"* ]] && printf '%s\n' rust.md
+}
+
+get_task_scope_language_signal_text() {
+  local task_scope="$1"
+  shift
+  [[ -n "$task_scope" ]] || return 0
+
+  local plan_path line
+  for plan_path in "$@"; do
+    [[ -n "$plan_path" && -f "$plan_path" ]] || continue
+    while IFS= read -r line; do
+      if [[ "$line" == *"$task_scope"* ]]; then
+        printf '%s\n' "$(printf '%s' "$line" | trim)"
+        return 0
+      fi
+    done < "$plan_path"
+  done
+}
+
+get_project_language_convention_paths() {
+  local task_scope="$1"
+  shift
+  local repo_context_root project_path conventions_root language_line language_text
+  repo_context_root="$(get_repo_context_root)"
+  project_path="$repo_context_root/.dev/project.md"
+  conventions_root="$repo_context_root/conventions"
+
+  local paths=()
+  [[ -f "$conventions_root/token-budget.md" ]] && paths+=("$conventions_root/token-budget.md")
+  [[ -f "$conventions_root/working-hours.md" ]] && paths+=("$conventions_root/working-hours.md")
+
+  local task_signal_text convention_file_name
+  task_signal_text="$(get_task_scope_language_signal_text "$task_scope" "$@")"
+  while IFS= read -r convention_file_name; do
+    [[ -n "$convention_file_name" ]] || continue
+    paths+=("$conventions_root/$convention_file_name")
+  done < <(get_language_convention_file_names "$task_signal_text")
+
+  if (( ${#paths[@]} > 2 )); then
+    printf '%s\n' "${paths[@]}" | awk 'NF && !seen[$0]++'
+    return 0
+  fi
+
+  if [[ ! -f "$project_path" ]]; then
+    printf '%s\n' "${paths[@]}"
+    return 0
+  fi
+
+  language_line="$(grep -E '^\|[[:space:]]*Language[[:space:]]*\|' "$project_path" | head -n 1 || true)"
+  if [[ -z "$language_line" ]]; then
+    printf '%s\n' "${paths[@]}"
+    return 0
+  fi
+
+  while IFS= read -r convention_file_name; do
+    [[ -n "$convention_file_name" ]] || continue
+    paths+=("$conventions_root/$convention_file_name")
+  done < <(get_language_convention_file_names "$language_line")
+
+  printf '%s\n' "${paths[@]}" | awk 'NF && !seen[$0]++'
+}
+
+add_pipeline_dispatch_metadata() {
+  local phase="$1" context_carry_supported="$2" preferred_plan_path="${3:-}" task_scope="${4:-}"
+  get_state_context
+
+  local active_plan_path source_plan_path status_step status_last_activity status_next_step context_mode repo_context_root
+  repo_context_root="$(get_repo_context_root)"
+  active_plan_path="$STATE_ACTIVE_PLAN"
+  source_plan_path="$(get_source_plan_path "$active_plan_path")"
+
+  if [[ -n "$preferred_plan_path" ]]; then
+    local resolved_plan_path
+    resolved_plan_path="$(resolve_plan_path "$preferred_plan_path")"
+    if [[ "$resolved_plan_path" == *.prompt.md ]]; then
+      active_plan_path="$resolved_plan_path"
+      source_plan_path="$(get_source_plan_path "$resolved_plan_path")"
+    elif [[ "$resolved_plan_path" == *.md ]]; then
+      active_plan_path=""
+      source_plan_path="$resolved_plan_path"
+    fi
+  fi
+
+  status_step="$(get_plan_status_field "$active_plan_path" Step)"
+  status_last_activity="$(get_plan_status_field "$active_plan_path" 'Last activity')"
+  status_next_step="$(get_plan_status_field "$active_plan_path" 'Next step')"
+
+  if [[ "$context_carry_supported" == true && "$phase" != implement ]]; then
+    context_mode='delta'
+  else
+    context_mode='full'
+  fi
+
+  dispatch_extra+=(CURRENT_TASK "$(get_plan_status_field "$active_plan_path" 'Current Task')")
+  dispatch_extra+=(TASK_BASE_COMMIT "$(get_plan_status_field "$active_plan_path" 'Task Base Commit')")
+  dispatch_extra+=(TASK_FINAL_COMMIT "$(get_plan_status_field "$active_plan_path" 'Task Final Commit')")
+  dispatch_extra+=(TEST_RETRY_COUNT "$(get_plan_status_field "$active_plan_path" 'Test Retry Count')")
+  dispatch_extra+=(REVIEW_RETRY_COUNT "$(get_plan_status_field "$active_plan_path" 'Review Retry Count')")
+  dispatch_extra+=(CONTEXT_CARRY "$context_carry_supported")
+  dispatch_extra+=(PIPELINE_CONTEXT_MODE "$context_mode")
+
+  if [[ "$context_mode" == full ]]; then
+    dispatch_extra+=(ACTIVE_EXECUTION_PROMPT "$active_plan_path")
+    dispatch_extra+=(SOURCE_PLAN "$source_plan_path")
+    dispatch_extra+=(WORKFLOW_STATE "$STATE_WORKFLOW")
+    dispatch_extra+=(STATUS_STEP "$status_step")
+    dispatch_extra+=(STATUS_LAST_ACTIVITY "$status_last_activity")
+    dispatch_extra+=(STATUS_NEXT_STEP "$status_next_step")
+    dispatch_extra+=(PIPELINE_CONTEXT_FILES "$(printf '%s\n' "$repo_context_root/.dev/project.md" "$repo_context_root/.dev/state.md" "$active_plan_path" "$source_plan_path" | awk 'NF && !seen[$0]++' | paste -sd '; ' -)")
+    dispatch_extra+=(CONVENTION_HINTS "$(get_project_language_convention_paths "$task_scope" "$active_plan_path" "$source_plan_path" | paste -sd '; ' -)")
+  fi
+}
+
 get_state_context() {
   STATE_KIND=""
   STATE_WORKFLOW=""
@@ -440,10 +617,7 @@ case "$command" in
     dispatch_tokens=("${@:2}")
     get_xmachine_dispatch_context "${dispatch_tokens[@]}"
     get_pipeline_dispatch_context "${dispatch_tokens[@]}"
-    explicit_plan=""
-    if [[ "$intent" == "pipeline" ]]; then
-      explicit_plan="$(get_explicit_plan_argument "${dispatch_tokens[@]}")"
-    fi
+    explicit_plan="$(get_explicit_plan_argument "${dispatch_tokens[@]}")"
 
     if [[ "$XMACHINE_REQUESTED" -eq 1 && -z "$XMACHINE_WORK_NODE" ]]; then
       available_nodes="<none configured>"
@@ -464,6 +638,7 @@ case "$command" in
       init|research|deep-research|pipeline)
         action="Execute the $intent workflow step."
         on_complete="Report result to user."
+        dispatch_args=()
         case "$intent" in
           init)
             action="Initialize .dev/ for the target repo, then surface the manual next step."
@@ -485,17 +660,18 @@ case "$command" in
 
         if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
           action="$action Use xmachine work node '$XMACHINE_WORK_NODE' for bounded execution where supported, and keep control-plane state convergence local."
-          if [[ -n "$explicit_plan" ]]; then
-            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" PLAN "$explicit_plan" READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
-          else
-            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE"
-          fi
+          dispatch_args=(COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete")
+          [[ -n "$explicit_plan" ]] && dispatch_args+=(PLAN "$explicit_plan")
+          [[ -n "$PIPELINE_FROM" ]] && dispatch_args+=(FROM "$PIPELINE_FROM")
+          [[ -n "$PIPELINE_STOP_AT" ]] && dispatch_args+=(STOP_AT "$PIPELINE_STOP_AT")
+          dispatch_args+=(READ "$xmachine_doc_path" EXECUTION xmachine WORK_NODE "$XMACHINE_WORK_NODE")
+          write_dispatch "${dispatch_args[@]}"
         else
-          if [[ -n "$explicit_plan" ]]; then
-            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete" PLAN "$explicit_plan"
-          else
-            write_dispatch COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete"
-          fi
+          dispatch_args=(COMMAND "$intent" ACTION "$action" ON_COMPLETE "$on_complete")
+          [[ -n "$explicit_plan" ]] && dispatch_args+=(PLAN "$explicit_plan")
+          [[ -n "$PIPELINE_FROM" ]] && dispatch_args+=(FROM "$PIPELINE_FROM")
+          [[ -n "$PIPELINE_STOP_AT" ]] && dispatch_args+=(STOP_AT "$PIPELINE_STOP_AT")
+          write_dispatch "${dispatch_args[@]}"
         fi
         ;;
       "")
@@ -517,7 +693,7 @@ case "$command" in
           cls="$(golem_class "$resolved")"
           if [[ "$cls" == utility ]]; then
             mode=utility
-          elif [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier)$ ]]; then
+          elif [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier|security)$ ]]; then
             mode=bound
           else
             mode=consult
@@ -534,13 +710,18 @@ case "$command" in
           fi
 
           dispatch_extra=()
-          if [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier)$ ]]; then
+          if [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier|security)$ ]]; then
             dispatch_extra+=(DISPATCH_KIND pipeline-phase PIPELINE_PHASE "$PIPELINE_PHASE")
             if [[ -n "$PIPELINE_TASK_SCOPE" ]]; then
               dispatch_extra+=(TASK_SCOPE "$PIPELINE_TASK_SCOPE")
             fi
             if [[ "$PIPELINE_FIX_MODE" -eq 1 ]]; then
               dispatch_extra+=(FIX_MODE true)
+            fi
+            if [[ "$XMACHINE_REQUESTED" -eq 1 ]]; then
+              add_pipeline_dispatch_metadata "$PIPELINE_PHASE" false "$explicit_plan" "$PIPELINE_TASK_SCOPE"
+            else
+              add_pipeline_dispatch_metadata "$PIPELINE_PHASE" true "$explicit_plan" "$PIPELINE_TASK_SCOPE"
             fi
           fi
 

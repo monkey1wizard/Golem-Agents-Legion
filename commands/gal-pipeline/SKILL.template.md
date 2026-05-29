@@ -76,6 +76,16 @@ OpenCode-specific rule:
 - Inherited subagent execution under the same primary agent model does not satisfy independent verification.
 - If no verified per-agent model split exists, OpenCode must follow the documented same-runtime fallback instead of pretending multi-model verification is available.
 
+### Same-Runtime Fallback Contract
+
+If runtime preflight cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER routes:
+
+- Mark the run internally and in any user-facing summary as `Verification Independence: DEGRADED_SAME_RUNTIME`.
+- Keep implement, test, review, conditional security, and verify as separate bounded phase invocations with their normal durable write-back requirements. Same-runtime fallback does **not** collapse these phases into a single blended pass by default.
+- Do not silently bundle implement + test + review just to save tokens. Bundled same-runtime execution is allowed only when the user explicitly asks for it.
+- If the user explicitly asks for bundled same-runtime execution, mark the run as `Verification Independence: DEGRADED_BUNDLED`, keep separate task-scoped `## Test Results` and `## Review Results` write-back, and state clearly that tester/reviewer independence was reduced for this invocation.
+- Same-runtime fallback never waives retry ceilings, protected-path escalation, conditional security review, interrupted-phase handoff, or final verifier requirements.
+
 ### Runtime Step-Budget Preflight
 
 Provider turn limits and OpenCode agent `steps` limits are hard runtime boundaries. GAL cannot remove them, so the pipeline must avoid treating a provider cutoff as a workflow decision.
@@ -259,6 +269,8 @@ The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELI
 
 **Hard Commit Gate:** If `Current Task` is missing or points at a different task, `git status` is not clean, or `Task Final Commit` is not recorded, do not proceed. Stop and surface the missing write-back instead of inferring completion from chat alone.
 
+The implementation commit created for `T-NNN` must stay scoped to the implementation itself. Do not use the implementation commit to record source-plan, execution-prompt, or `.dev/state.md` completion state for the task. Cross-surface progress or completion state belongs to the convergence step after all gates pass.
+
 **xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
 
 ### 2d — Test (TESTER model — different vendor from CODER)
@@ -383,6 +395,10 @@ The gate passes only when:
 - source plan and execution prompt do not disagree about which blocking `T-NNN` tasks are checked
 
 If any convergence check fails, **STOP immediately** and write an `Interrupted Phase — T-NNN / VERIFY` block explaining the missing write-back. Do not report the task complete from chat memory alone.
+
+No git commit that records task progress or task completion in `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, or `.dev/state.md` may be created or retained before this convergence gate passes. In-flight task-local edits may remain uncommitted while gates are still running, but the repository history must never contain a committed cross-surface disagreement.
+
+If a state-recording commit was created too early and the three durable surfaces do not yet agree, **STOP immediately** and repair convergence before advancing to another task. Do not treat a premature state commit as an acceptable intermediate state.
 
 1. If `stop-at T-NNN` was specified and this task matches: **STOP**. Report task complete and prompt user before starting the next task.
 

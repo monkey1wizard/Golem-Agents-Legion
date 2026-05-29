@@ -9,7 +9,7 @@ Reduce `/gal pipeline` token consumption without weakening GAL's safety guarante
 Before executing any step, the following concrete sizes were verified:
 
 | File | Lines | Bytes | Notes |
-|------|-------|-------|-------|
+| ------ | ------- | ------- | ------- |
 | `AGENTS.md` | 1,121 | 57,284 | Generated adapter |
 | `.github/copilot-instructions.md` | 1,069 | 53,923 | Generated adapter |
 | `CLAUDE.md` | 1,121 | 57,203 | Generated adapter |
@@ -25,7 +25,7 @@ The four generated adapters are near-identical clones. Only the first ~10 lines 
 ## Success Criteria (Numeric)
 
 | Metric | Current | Target |
-|--------|---------|--------|
+| -------- | --------- | -------- |
 | OpenCode startup payload | ~111 KB (2 adapters) | ≤60 KB (1 adapter) |
 | Single-task 3-phase total context load | ~270 KB | ≤80 KB |
 | 5-task pipeline total redundant context | ~1,071 KB | ≤200 KB |
@@ -143,6 +143,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - `agent/golem-verifier.agent.md` — consume compact completion context while retaining goal-backward verification; add fallback rule.
 - `scripts/gal.ps1` — emit compact pipeline-bound injected context; add `CONTEXT_CARRY` field; emit language-scoped convention injection.
 - `scripts/gal.sh` — mirror the above behavior.
+- `scripts/Test-PipelineTokenBurn.ps1` — repeatable verification for startup payload, task-scoped convention hints, delta-mode dispatch behavior, adapter slimming, and baked pipeline contract markers.
 
 ### Conditional or later-stage changes
 
@@ -157,16 +158,16 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ## Test Plan
 
-- [ ] Measure OpenCode startup payload before and after Step 1. Confirm ≤60 KB target is met.
-- [ ] Confirm pipeline-bound agent contracts no longer require routine reads of generated adapters after Step 2.
-- [ ] Confirm each agent contract includes the `.dev/project.md` fallback rule (not `copilot-instructions.md`).
-- [ ] Run a Go task through the dispatcher and confirm the injected context contains only `go.md`, `token-budget.md`, and `working-hours.md` conventions after Step 3.
-- [ ] Run a C# task and confirm no Go, Rust, or TypeScript convention content appears.
+- [x] Measure OpenCode startup payload before and after Step 1. Confirm ≤60 KB target is met. Verified by repo file sizes: startup changed from `AGENTS.md` + `.github/copilot-instructions.md` = 111,207 bytes to `AGENTS.md` only = 40,914 bytes after selective embedding.
+- [x] Confirm pipeline-bound agent contracts no longer require routine reads of generated adapters after Step 2.
+- [x] Confirm each agent contract includes the `.dev/project.md` fallback rule (not `copilot-instructions.md`).
+- [x] Run a Go task through the dispatcher and confirm the injected context contains only `go.md`, `token-budget.md`, and `working-hours.md` conventions after Step 3. Verified with a temporary `T-100` Go task plan via `./scripts/gal.ps1 dispatch implementer .tmp/go-task-plan.md --pipeline-phase implement --task-scope T-100`.
+- [x] Run a C# task and confirm no Go, Rust, or TypeScript convention content appears. Verified with a temporary `T-200` C# task plan via `./scripts/gal.ps1 dispatch implementer .tmp/csharp-task-plan.md --pipeline-phase implement --task-scope T-200`.
 - [ ] Run a bounded `/gal pipeline stop-at T-NNN` scenario and confirm implement, test, and review still produce separate durable write-back.
-- [ ] Verify `CONTEXT_CARRY` field appears in dispatch output and that Phase 2/3 receive delta-only injection when applicable after Step 4.
-- [ ] After any sync-script change, regenerate adapters and verify they still contain valid adapter rules, the expected language conventions, and the two cross-language conventions.
-- [ ] Compare single-task 3-phase total context load before and after. Confirm ≤80 KB target is met.
-- [ ] Compare 5-task pipeline total redundant context before and after. Confirm ≤200 KB target is met.
+- [x] Verify `CONTEXT_CARRY` field appears in dispatch output and that Phase 2/3 receive delta-only injection when applicable after Step 4. Verified with `review`, `security`, and `verify` dispatch output from `./scripts/gal.ps1 dispatch ... --pipeline-phase <phase>`.
+- [x] After any sync-script change, regenerate adapters and verify they still contain valid adapter rules, the expected language conventions, and the two cross-language conventions. Verified by rerunning `./scripts/Sync-DevContext.ps1` and checking the regenerated adapter sizes plus retained `conventions.md`, `token-budget.md`, and `working-hours.md` source blocks.
+- [x] Compare single-task 3-phase total context load before and after. Confirm ≤80 KB target is met. Verified by `./scripts/Test-PipelineTokenBurn.ps1` carrier-load measurement: before `272,976` bytes, after `42,163` bytes.
+- [x] Compare 5-task pipeline total redundant context before and after. Confirm ≤200 KB target is met. Verified by `./scripts/Test-PipelineTokenBurn.ps1` carrier-load measurement: before `920,052` bytes, after `47,159` bytes.
 - [ ] Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
 - [ ] Confirm no pipeline git commit is created while source plan, execution prompt, and `.dev/state.md` disagree about the current task state.
 
@@ -206,4 +207,15 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ### Engineering Review
 
-Pending.
+2026-05-29
+
+- Implemented OpenCode startup slimming by removing duplicate adapter loading from `opencode.json`.
+- Updated pipeline-bound agent contracts to treat generated adapters as already-loaded runtime carriers and to prefer compact injected dispatch context.
+- Extended PowerShell and Bash dispatchers to emit compact pipeline metadata (`CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`) and to honor explicit plan overrides cleanly.
+- Tightened delta-mode dispatch so review and verify phases no longer emit the full file/convention shortlist when same-session context carry is available.
+- Extended delta-mode validation to cover `test` phase omission of full file/convention shortlists as well.
+- Fixed `dispatch pipeline` so explicit `from` / `stop-at` bounds are emitted in the dispatch payload instead of being silently dropped.
+- Tightened language-scoped convention selection so task-scoped language hints from the selected plan win before `.dev/project.md` tech-stack fallback.
+- Regenerated adapters through `Sync-DevContext.ps1` and command skills through `Update-Commands.ps1`; baked `/gal-pipeline` now includes same-runtime degraded fallback wording and commit-boundary convergence hard gates.
+- Added `scripts/Test-PipelineTokenBurn.ps1` and validated 55 passing checks covering startup payload, explicit pipeline bounds, task-scoped convention routing, delta-mode dispatch, carrier-load targets, adapter slimming, and baked pipeline safety/contract markers.
+- Remaining gaps are Bash runtime execution validation on this machine, a bounded `/gal pipeline stop-at T-NNN` durable write-back check, no-regression checks for retry/protected-path/handoff behavior, and any future opt-in same-runtime bundled execution path beyond the new contract wording.

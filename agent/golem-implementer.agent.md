@@ -27,10 +27,12 @@ Before implementing, load context:
 1. **Read the active execution prompt** — `.dev/plans/<slug>.prompt.md` is your execution spec; use `docs/plans/<slug>.md` only as planning context when needed
 2. **Read `.dev/project.md`** — project architecture, tech stack, active conventions, protected paths
 3. **Read `.dev/state.md`** — active plans index, session continuity for resume
-4. **Read `copilot-instructions.md`** if it exists — project rules take precedence over plan when they conflict
-5. **Read related conventions** — language-specific rules from `~/.copilot/gal/conventions/`
+4. **Treat generated adapters as already-loaded runtime carriers** — do not routine-reread `AGENTS.md`, `copilot-instructions.md`, `CLAUDE.md`, or `GEMINI.md` during normal pipeline execution
+5. **Fallback only when no runtime adapter is detectable** — read `.dev/project.md` again as the compact project-rules fallback, not `copilot-instructions.md`
+6. **Use injected dispatch context first when present** — if `/gal` emitted `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`, `PIPELINE_CONTEXT_MODE`, or `CONTEXT_CARRY`, treat them as the authoritative shortlist for this phase before widening reads
+7. **Read related conventions** — only the language-specific or task-specific rules actually needed from `CONVENTION_HINTS` or `~/.copilot/gal/conventions/`
 
-If `copilot-instructions.md` directives conflict with plan instructions, follow `copilot-instructions.md` — it represents permanent project rules. Document the deviation.
+If the loaded runtime adapter directives conflict with plan instructions, follow the runtime adapter as the permanent project-rule carrier. In bare-terminal fallback mode, `.dev/project.md` is the project-rule source. Document any deviation.
 </project_context>
 
 <philosophy>

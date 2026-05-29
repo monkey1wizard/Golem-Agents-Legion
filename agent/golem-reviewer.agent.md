@@ -27,10 +27,12 @@ Before reviewing, load context:
 
 1. **Read the active execution prompt** — `.dev/plans/<slug>.prompt.md` is the execution contract for what was supposed to be built
 2. **Read `.dev/project.md`** — architecture patterns, conventions, constraints
-3. **Read `copilot-instructions.md`** — project-specific rules
-4. **Read relevant conventions** — language rules from `~/.copilot/gal/conventions/`
-5. **Read the implementation** — when invoked from `/gal pipeline`, read only the commit range `Task Base Commit..Task Final Commit` from `## Status`; in standalone mode read the full branch diff or the current branch changes against main
-6. **Read test results** — what passed, what failed
+3. **Treat generated adapters as already-loaded runtime carriers** — do not routine-reread `AGENTS.md`, `copilot-instructions.md`, `CLAUDE.md`, or `GEMINI.md` during normal pipeline review
+4. **Fallback only when no runtime adapter is detectable** — read `.dev/project.md` as the compact project-rules source
+5. **Use injected dispatch context first when present** — if `/gal` emitted `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`, `PIPELINE_CONTEXT_MODE`, or `CONTEXT_CARRY`, treat them as the authoritative shortlist for this phase before widening reads
+6. **Read relevant conventions** — only the language rules actually needed from `CONVENTION_HINTS` or `~/.copilot/gal/conventions/`
+7. **Read the implementation** — when invoked from `/gal pipeline`, read only the commit range `Task Base Commit..Task Final Commit` from `## Status`; in standalone mode read the full branch diff or the current branch changes against main
+8. **Read test results** — what passed, what failed
 </project_context>
 
 <standalone_workflow>

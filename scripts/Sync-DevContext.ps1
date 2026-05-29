@@ -45,9 +45,50 @@ function Get-AllSkillSources() {
     return @($resolved)
 }
 
+function Get-ProjectConventionFileNames {
+    $defaultNames = @('conventions.md','token-budget.md','working-hours.md')
+    if (-not (Test-Path $projectPath)) {
+        return $defaultNames
+    }
+
+    $languageLine = Get-Content $projectPath | Where-Object { $_ -match '^\|\s*Language\s*\|' } | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($languageLine)) {
+        return @('conventions.md','csharp.md','go.md','rust.md','token-budget.md','typescript.md','working-hours.md')
+    }
+
+    $fileNames = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in $defaultNames) {
+        $fileNames.Add($name)
+    }
+
+    $languageText = $languageLine.ToLowerInvariant()
+    $languageMap = [ordered]@{
+        'c#' = 'csharp.md'
+        '.net' = 'csharp.md'
+        'typescript' = 'typescript.md'
+        'javascript' = 'typescript.md'
+        'go' = 'go.md'
+        'golang' = 'go.md'
+        'rust' = 'rust.md'
+    }
+
+    foreach ($key in $languageMap.Keys) {
+        if ($languageText.Contains($key)) {
+            $name = $languageMap[$key]
+            if ($fileNames -notcontains $name) {
+                $fileNames.Add($name)
+            }
+        }
+    }
+
+    return @($fileNames)
+}
+
 function Get-ConventionSources() {
+    $selectedConventionNames = Get-ProjectConventionFileNames
     return Get-ChildItem -Path $conventionsDir -File -Filter '*.md' |
         Sort-Object Name |
+        Where-Object { $selectedConventionNames -contains $_.Name } |
         ForEach-Object {
             [pscustomobject]@{
                 Label   = "conventions/$($_.Name)"
