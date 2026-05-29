@@ -183,32 +183,31 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
   Verify: generated adapters include only the conventions overview, `token-budget.md`, `working-hours.md`, and project-relevant language convention files.
 - [x] T-005 — Update `/gal pipeline` source contract with same-runtime degraded fallback, opt-in bundled-mode degraded marker, retry ceilings, protected-path escalation, interrupted-phase handoff, final verifier, and commit-boundary convergence gates.
   Verify: `commands/gal-pipeline/SKILL.template.md` contains those contract markers; generated `commands/gal-pipeline/SKILL.md` is validation output only when present.
-- [ ] T-006 — Fix `scripts/Test-PipelineTokenBurn.ps1` so command-contract validation follows current repo structure: prefer `commands/gal-pipeline/SKILL.template.md`, or generate/read local baked `commands/gal-pipeline/SKILL.md` through `Update-Commands` in an isolated validation flow.
+- [ ] T-006 — Fix `scripts/Test-PipelineTokenBurn.ps1` so command-contract validation resolves the current repo layout first: prefer `commands/gal-pipeline/SKILL.template.md`, or generate/read local baked `commands/gal-pipeline/SKILL.md` through `Update-Commands` in an isolated validation flow.
   Verify: the test no longer fails solely because tracked source lacks `commands/gal-pipeline/SKILL.md`.
-- [ ] T-007 — Re-run token-burn verification and record current before/after metrics against the numeric targets.
+- [ ] T-007 — Re-run token-burn verification and record the current before/after metrics against the numeric targets.
   Verify: `scripts/Test-PipelineTokenBurn.ps1` passes and prints startup payload, single-task 3-phase carrier load, and five-task carrier load.
 - [ ] T-008 — Run a bounded `/gal pipeline stop-at T-NNN` scenario against a disposable fixture plan/prompt and confirm implement, test, and review still write separate durable sections.
   Verify: fixture source plan, execution prompt, and `.dev/state.md` converge without recording a committed disagreement.
-- [ ] T-009 — Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, and final verifier behavior.
+- [ ] T-009 — Confirm the slimming changes did not regress retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
   Verify: static contract checks plus focused fixture or parser checks cover each safety marker.
 - [ ] T-010 — Validate Bash parity for dispatcher and adapter generation on a host with Bash available, or record the host limitation explicitly.
   Verify: Bash dispatch emits the same compact fields and convention hints as PowerShell; Bash adapter generation mirrors PowerShell language-scoped embedding.
 
 ## Test Plan
 
-- [x] Measure OpenCode startup payload before and after Step 1. Confirm ≤60 KB target is met. Verified by repo file sizes: startup changed from `AGENTS.md` + `.github/copilot-instructions.md` = 111,207 bytes to `AGENTS.md` only = 40,914 bytes after selective embedding.
-- [x] Confirm pipeline-bound agent contracts no longer require routine reads of generated adapters after Step 2.
-- [x] Confirm each agent contract includes the `.dev/project.md` fallback rule (not `copilot-instructions.md`).
-- [x] Run a Go task through the dispatcher and confirm the injected context contains only `go.md`, `token-budget.md`, and `working-hours.md` conventions after Step 3. Verified with a temporary `T-100` Go task plan via `./scripts/gal.ps1 dispatch implementer .tmp/go-task-plan.md --pipeline-phase implement --task-scope T-100`.
-- [x] Run a C# task and confirm no Go, Rust, or TypeScript convention content appears. Verified with a temporary `T-200` C# task plan via `./scripts/gal.ps1 dispatch implementer .tmp/csharp-task-plan.md --pipeline-phase implement --task-scope T-200`.
-- [ ] Run a bounded `/gal pipeline stop-at T-NNN` scenario and confirm implement, test, and review still produce separate durable write-back.
-- [x] Verify `CONTEXT_CARRY` field appears in dispatch output and that Phase 2/3 receive delta-only injection when applicable after Step 4. Verified with `review`, `security`, and `verify` dispatch output from `./scripts/gal.ps1 dispatch ... --pipeline-phase <phase>`.
-- [x] After any sync-script change, regenerate adapters and verify they still contain valid adapter rules, the expected language conventions, and the two cross-language conventions. Verified by rerunning `./scripts/Sync-DevContext.ps1` and checking the regenerated adapter sizes plus retained `conventions.md`, `token-budget.md`, and `working-hours.md` source blocks.
-- [x] Compare single-task 3-phase total context load before and after. Confirm ≤80 KB target is met. Verified by `./scripts/Test-PipelineTokenBurn.ps1` carrier-load measurement: before `272,976` bytes, after `42,163` bytes.
-- [x] Compare 5-task pipeline total redundant context before and after. Confirm ≤200 KB target is met. Verified by `./scripts/Test-PipelineTokenBurn.ps1` carrier-load measurement: before `920,052` bytes, after `47,159` bytes.
-- [ ] Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
-- [ ] Confirm no pipeline git commit is created while source plan, execution prompt, and `.dev/state.md` disagree about the current task state.
-- [ ] Confirm `scripts/Test-PipelineTokenBurn.ps1` validates the current command source layout instead of assuming tracked `commands/gal-pipeline/SKILL.md` exists.
+| ID | Type | Description | Covers |
+| --- | --- | --- | --- |
+| TP-001 | manual | Inspect `opencode.json` and confirm OpenCode loads only `AGENTS.md` at startup. | T-001 |
+| TP-002 | static | Review the five pipeline-bound agent contracts and confirm they exclude routine generated-adapter rereads and use `.dev/project.md` as the fallback carrier. | T-002 |
+| TP-003 | integration | Dispatch representative Go and C# task-scoped phases from both PowerShell and Bash lanes and confirm `CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, and `CONVENTION_HINTS` are emitted with task-language precedence. | T-003, T-010 |
+| TP-004 | integration | Regenerate adapters through both sync paths and confirm only the conventions overview, `token-budget.md`, `working-hours.md`, and project-relevant language conventions are embedded. | T-004, T-010 |
+| TP-005 | static | Inspect `commands/gal-pipeline/SKILL.template.md` and any baked `SKILL.md` output to confirm same-runtime degraded fallback wording, opt-in bundled-mode marker, retry ceilings, protected-path escalation, interrupted-phase handoff, final verifier, and commit-boundary convergence gates are present. | T-005, T-009 |
+| TP-006 | script | Run `scripts/Test-PipelineTokenBurn.ps1` against the source-only repo layout and confirm command-contract validation resolves `SKILL.template.md` or isolated baked output instead of assuming tracked `commands/gal-pipeline/SKILL.md`. | T-006 |
+| TP-007 | script | Re-run token-burn verification and record startup payload, single-task three-phase carrier load, and five-task carrier load against the numeric targets in this plan. | T-007 |
+| TP-008 | integration | Execute a bounded disposable `/gal pipeline stop-at T-NNN` run and confirm implement, test, and review still write separate durable prompt sections while the source plan, execution prompt, and `.dev/state.md` converge before any recorded progress commit. | T-008 |
+| TP-009 | static | Re-check the pipeline contract and any focused fixture output for retry ceilings, protected-path escalation, interrupted-phase handoff, and final verifier behavior after the token-burn changes. | T-009 |
+| TP-010 | manual | If Bash is unavailable on the current host, record the explicit host limitation in the validation output instead of claiming parity. | T-010 |
 
 ## Risks
 
@@ -246,15 +245,12 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ### Engineering Review
 
-2026-05-29
+#### Verdict: CLEAR
 
-- Implemented OpenCode startup slimming by removing duplicate adapter loading from `opencode.json`.
-- Updated pipeline-bound agent contracts to treat generated adapters as already-loaded runtime carriers and to prefer compact injected dispatch context.
-- Extended PowerShell and Bash dispatchers to emit compact pipeline metadata (`CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`) and to honor explicit plan overrides cleanly.
-- Tightened delta-mode dispatch so review and verify phases no longer emit the full file/convention shortlist when same-session context carry is available.
-- Extended delta-mode validation to cover `test` phase omission of full file/convention shortlists as well.
-- Fixed `dispatch pipeline` so explicit `from` / `stop-at` bounds are emitted in the dispatch payload instead of being silently dropped.
-- Tightened language-scoped convention selection so task-scoped language hints from the selected plan win before `.dev/project.md` tech-stack fallback.
-- Regenerated adapters through `Sync-DevContext.ps1` and command skills through `Update-Commands.ps1`; baked `/gal-pipeline` now includes same-runtime degraded fallback wording and commit-boundary convergence hard gates.
-- Added `scripts/Test-PipelineTokenBurn.ps1` and validated 55 passing checks covering startup payload, explicit pipeline bounds, task-scoped convention routing, delta-mode dispatch, carrier-load targets, adapter slimming, and baked pipeline safety/contract markers.
-- Remaining gaps are Bash runtime execution validation on this machine, a bounded `/gal pipeline stop-at T-NNN` durable write-back check, no-regression checks for retry/protected-path/handoff behavior, and any future opt-in same-runtime bundled execution path beyond the new contract wording.
+The plan is implementation-ready. Scope is narrowed to the remaining validation and script-hardening tasks, each task is independently testable, and the unresolved work does not require reopening architecture as long as it stays within the already-approved validation surface.
+
+The current source plan already captures the key guardrails that must not regress: same-runtime degradation must stay explicit, commit-boundary convergence must hold across the three durable state surfaces, and generated adapters remain derived outputs only. The remaining gaps are bounded execution checks for fixture write-back, Bash-host parity, and command-layout validation in `scripts/Test-PipelineTokenBurn.ps1`, not missing design decisions.
+
+Return to `/deep-planning` only if the remaining work expands beyond validation into new protected-path behavior, changes cross-runtime semantics, or introduces a default bundled execution mode.
+
+<!-- ENG_REVIEW: CLEAR -->
