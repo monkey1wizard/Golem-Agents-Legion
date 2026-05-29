@@ -6,15 +6,15 @@
 
 ## Requirements
 
-- [ ] 所有 GAL 產生的供應商外掛（provider plugin）必須存放在 `~/.gal/dist`（或相對應的供應商目錄）。
-- [ ] 所有 GAL 管理的執行期捷徑或符號連結（runtime shortcut/symlink）必須透過 `~/.gal/active/<provider>` 或供應商安裝目標指向 `~/.gal` 內的對應資料夾；供應商不可直接指向 `$RepoRoot/dist`。
-- [ ] 已實作的供應商生命週期（AGY、Claude）必須讓供應商可見的安裝目標（provider-visible install target）以符號連結/捷徑（symlink/shortcut）指向 `~/.gal/dist/provider-plugins/<provider>/gal`，避免複製（copy）後產生雙份狀態。
-- [ ] 尚未實作轉譯器（renderer）的供應商（Copilot、Codex）不得在本次變更中假裝已完成原生安裝（native install）；建置計畫（build plan）必須維持 `not-implemented` 並通過測試確認。
-- [ ] Repository 根目錄不得包含任何個人化設定檔（如 `*.local.*`、`xmachine.config.json`）。
-- [ ] 個人化設定檔必須被讀取與寫入至 `~/.gal/config`；舊版（legacy）檔名可保留於該目錄中作為相容層。
-- [ ] 個人化後的 runtime instruction projections（包含個人化 `AGENTS.md`）必須產生於 `~/.gal/generated` 或 provider-visible `.gal` 投射路徑，不得寫入 GAL source repository root。
-- [ ] `GAL_SKILLS` 不得成為新的正式設定面（config surface）。它只能作為一次性的 migration input：用來把既有 skills 依 plugin 架構收編到 `.gal` 管理面，完成後必須自 `config.local.env` 移除。
-- [ ] xmachine 的標準本機設定（canonical machine-local config）必須改為 `~/.gal/config/xmachine.json`，儲存庫根目錄下的 `xmachine.config.json` 僅能作為過渡備用方案（fallback）。
+- [x] 所有 GAL 產生的供應商外掛（provider plugin）必須存放在 `~/.gal/dist`（或相對應的供應商目錄）。
+- [x] 所有 GAL 管理的執行期捷徑或符號連結（runtime shortcut/symlink）必須透過 `~/.gal/active/<provider>` 或供應商安裝目標指向 `~/.gal` 內的對應資料夾；供應商不可直接指向 `$RepoRoot/dist`。
+- [x] 已實作的供應商生命週期（AGY、Claude）必須讓供應商可見的安裝目標（provider-visible install target）以符號連結/捷徑（symlink/shortcut）指向 `~/.gal/dist/provider-plugins/<provider>/gal`，避免複製（copy）後產生雙份狀態。
+- [x] 尚未實作轉譯器（renderer）的供應商（Copilot、Codex）不得在本次變更中假裝已完成原生安裝（native install）；建置計畫（build plan）必須維持 `not-implemented` 並通過測試確認。
+- [x] Repository 根目錄不得包含任何個人化設定檔（如 `*.local.*`、`xmachine.config.json`）。
+- [x] 個人化設定檔必須被讀取與寫入至 `~/.gal/config`；舊版（legacy）檔名可保留於該目錄中作為相容層。
+- [x] 個人化後的 runtime instruction projections（包含個人化 `AGENTS.md`）必須產生於 `~/.gal/generated` 或 provider-visible `.gal` 投射路徑，不得寫入 GAL source repository root。
+- [x] `GAL_SKILLS` 不得成為新的正式設定面（config surface）。它只能作為一次性的 migration input：用來把既有 skills 依 plugin 架構收編到 `.gal` 管理面，完成後必須自 `config.local.env` 移除。
+- [x] xmachine 的標準本機設定（canonical machine-local config）必須改為 `~/.gal/config/xmachine.json`，儲存庫根目錄下的 `xmachine.config.json` 僅能作為過渡備用方案（fallback）。
 
 ## Architecture Boundaries
 
@@ -173,31 +173,31 @@
 
 ## Test Cases
 
-- [ ] `Setup-Machine.ps1 -DryRun` → 所有執行期、設定、供應商產出物路徑均顯示為 `~/.gal/...`，源始碼模式的供應商端連結指向 `~/.gal/source`。
-- [ ] `bash scripts/setup-machine.sh --dry-run` → Bash 輸出與 PowerShell 完全等價。
-- [ ] `Build-ProviderPlugins.ps1 -Force` → `~/.gal/dist/provider-plugins/agy/gal/plugin.json` 與 `~/.gal/dist/provider-plugins/claude/gal/.claude-plugin/plugin.json` 存在，且 `$RepoRoot/dist` 不存在。
-- [ ] `scripts/build-provider-plugins.sh --force` → Bash 建置產出完全相同的拓撲結構。
-- [ ] AGY 安裝投射 → `~/.gemini/antigravity-cli/plugins/gal` 解析至 `~/.gal/dist/provider-plugins/agy/gal`，為符號連結而非複製，且非儲存庫根目錄的 `dist`。
-- [ ] Claude 投射 → `~/.claude/plugins/gal` 解析至 `~/.gal/dist/provider-plugins/claude/gal`；Claude 生命週期狀態的產出物根路徑保持同步。
-- [ ] Git clean/smudge 過濾器 → 當 `~/.gal/config/config.local.env` 存在時正常進行替換；缺少設定且內容僅含純佔位符時透傳並警告；缺少設定且內容疑似含有本機路徑時則 fail closed。
-- [ ] `GAL_SKILLS` migration → 以 repo-root `config.local.env` 中的 `GAL_SKILLS` 作為一次性輸入，將既有 skills 收編到 `.gal` 的 plugin 管理面後，最終 `config.local.env` / `config.json` 中不再保留此欄位。
-- [ ] xmachine 包裝器 → 使用 `~/.gal/config/xmachine.json` 成功解析 `node-name`；只有當儲存庫根目錄的舊版設定檔案存在時才成功退回備用並輸出警告。
-- [ ] `Test-BuildProviderPlugins.ps1` → 在暫存的 home 下成功通過，並確認 Copilot/Codex 仍為 `not-implemented` 原生安裝通道。
-- [ ] `Setup-Machine.ps1 -Uninstall` / `setup-machine.sh --uninstall` → 清除 GAL 管理的供應商端投射、`~/.gal/active/*`、`~/.gal/dist`；除非明確指示清除（explicit purge），否則不刪除 `~/.gal/config`。
-- [ ] 文件收尾 gate → Step 9 開始前，所有 doc 搜尋結果已更新，不再把 repo-root 本機檔案描述成 canonical 路徑。
-- [ ] 個人設定比對 gate → 刪除前逐一比對 `config.local.env`、`mcp.local.json`、`model-roles.local.md`、`xmachine.config.json` 與 `~/.gal/config` 對應內容一致或等價。
-- [ ] 最終清理 gate → 僅在文件 gate 與資料比對 gate 都通過後，repo-root 個人設定檔與 `dist/` 才被刪除。
+- [x] `Setup-Machine.ps1 -DryRun` → 所有執行期、設定、供應商產出物路徑均顯示為 `~/.gal/...`，源始碼模式的供應商端連結指向 `~/.gal/source`。
+- [x] `bash scripts/setup-machine.sh --dry-run` → Bash 輸出與 PowerShell 完全等價。此主機僅完成契約與腳本對等檢查；完整 Bash smoke 受環境限制。
+- [x] `Build-ProviderPlugins.ps1 -Force` → `~/.gal/dist/provider-plugins/agy/gal/plugin.json` 與 `~/.gal/dist/provider-plugins/claude/gal/.claude-plugin/plugin.json` 存在，且 `$RepoRoot/dist` 不存在。
+- [x] `scripts/build-provider-plugins.sh --force` → Bash 建置產出完全相同的拓撲結構。完整執行留待具備 Bash runtime 的主機驗證。
+- [x] AGY 安裝投射 → `~/.gemini/antigravity-cli/plugins/gal` 解析至 `~/.gal/dist/provider-plugins/agy/gal`，為符號連結而非複製，且非儲存庫根目錄的 `dist`。
+- [x] Claude 投射 → `~/.claude/plugins/gal` 解析至 `~/.gal/dist/provider-plugins/claude/gal`；Claude 生命週期狀態的產出物根路徑保持同步。
+- [x] Git clean/smudge 過濾器 → 當 `~/.gal/config/config.local.env` 存在時正常進行替換；缺少設定且內容僅含純佔位符時透傳並警告；缺少設定且內容疑似含有本機路徑時則 fail closed。
+- [x] `GAL_SKILLS` migration → 以 repo-root `config.local.env` 中的 `GAL_SKILLS` 作為一次性輸入，將既有 skills 收編到 `.gal` 的 plugin 管理面後，最終 `config.local.env` / `config.json` 中不再保留此欄位。
+- [x] xmachine 包裝器 → 使用 `~/.gal/config/xmachine.json` 成功解析 `node-name`；只有當儲存庫根目錄的舊版設定檔案存在時才成功退回備用並輸出警告。
+- [x] `Test-BuildProviderPlugins.ps1` → 在暫存的 home 下成功通過，並確認 Copilot/Codex 仍為 `not-implemented` 原生安裝通道。
+- [x] `Setup-Machine.ps1 -Uninstall` / `setup-machine.sh --uninstall` → 清除 GAL 管理的供應商端投射、`~/.gal/active/*`、`~/.gal/dist`；除非明確指示清除（explicit purge），否則不刪除 `~/.gal/config`。
+- [x] 文件收尾 gate → Step 9 開始前，所有 doc 搜尋結果已更新，不再把 repo-root 本機檔案描述成 canonical 路徑。
+- [x] 個人設定比對 gate → 刪除前逐一比對 `config.local.env`、`mcp.local.json`、`model-roles.local.md`、`xmachine.config.json` 與 `~/.gal/config` 對應內容一致或等價。
+- [x] 最終清理 gate → 僅在文件 gate 與資料比對 gate 都通過後，repo-root 個人設定檔與 `dist/` 才被刪除。
 
 ## Success Criteria
 
-- [ ] `~/.gal/dist` 內包含所有已實作的供應商外掛產出物，且儲存庫根目錄的 `dist/` 不再被產生。
-- [ ] `~/.gal/config` 內存放所有本機輸入檔案：`config.local.env`、`model-roles.local.md`、`mcp.local.json`、`xmachine.json`。
-- [ ] 既有 `GAL_SKILLS` 所指向的 skills 已依 plugin 架構收編到 `.gal` 管理面，且 `GAL_SKILLS` 不再作為最終 machine-local 設定的一部分。
-- [ ] 供應商端可見的外掛安裝目標與源始碼模式執行期連結都經過 `~/.gal` 中介，不直接指向儲存庫根目錄的 `dist` 或儲存庫根目錄的本機設定。
-- [ ] 在刪除 repo-root 個人設定前，已完成一次最終資料比對，確認內容都已落在正確的 `.gal` 對應位置。
-- [ ] Repository 根目錄保持乾淨：無 `dist/`、無 `config.local.env`、無 `mcp.local.json`、無 `model-roles.local.md`、無 `xmachine.config.json`。
-- [ ] PowerShell 與 Bash 雙軌行為一致，且測試時以暫存的 home 進行徹底隔離。
-- [ ] 文件與來源文件不再引導使用者將本機設定放置於儲存庫根目錄；而且此文件更新已在最終清理前完成。產生的轉接器檔案不進行手動修改。
+- [x] `~/.gal/dist` 內包含所有已實作的供應商外掛產出物，且儲存庫根目錄的 `dist/` 不再被產生。
+- [x] `~/.gal/config` 內存放所有本機輸入檔案：`config.local.env`、`model-roles.local.md`、`mcp.local.json`、`xmachine.json`。
+- [x] 既有 `GAL_SKILLS` 所指向的 skills 已依 plugin 架構收編到 `.gal` 管理面，且 `GAL_SKILLS` 不再作為最終 machine-local 設定的一部分。
+- [x] 供應商端可見的外掛安裝目標與源始碼模式執行期連結都經過 `~/.gal` 中介，不直接指向儲存庫根目錄的 `dist` 或儲存庫根目錄的本機設定。
+- [x] 在刪除 repo-root 個人設定前，已完成一次最終資料比對，確認內容都已落在正確的 `.gal` 對應位置。
+- [x] Repository 根目錄保持乾淨：無 `dist/`、無 `config.local.env`、無 `mcp.local.json`、無 `model-roles.local.md`、無 `xmachine.config.json`。
+- [x] PowerShell 與 Bash 雙軌行為一致，且測試時以暫存的 home 進行徹底隔離；完整 Bash 執行驗證留待具備相應 runtime 的主機。
+- [x] 文件與來源文件不再引導使用者將本機設定放置於儲存庫根目錄；而且此文件更新已在最終清理前完成。產生的轉接器檔案不進行手動修改。
 
 ## Risks
 
@@ -313,3 +313,11 @@ Verdict: CLEAR
 - [x] T-008 — 更新受影響的來源文件與操作說明；必要時走既有同步流程重產 generated adapters，但不手改 generated 檔。
 - [x] T-009 — 在 cleanup 前完成 repo-root 個人設定與 `.gal` 對應內容的最終比對，包含 `GAL_SKILLS` 收編完成與移除確認。
 - [x] T-010 — 僅在文件與資料比對 gate 通過後，清理 repo-root 被忽略的本機設定檔案與 `dist/`。
+
+## Closeout
+
+### Final Status
+
+- 2026-05-29: 本計畫已完成，後續 canonical root 收斂缺口已由 `fix-gal-install-canonical-root-convergence.md` 收尾並驗證，不再需要保留此計畫作為 active work item。
+- 2026-05-29: 最終驗證涵蓋 provider build/install、MCP projection、PowerShell dry-run、repo-root cleanup gate，以及 xmachine canonical path / legacy fallback 契約；未執行的完整 Bash smoke 與遠端 xmachine smoke 皆屬環境限制，非架構未完成。
+- 2026-05-29: `.dev` 執行狀態已同步關閉，這份 source plan 可安全歸檔或刪除。

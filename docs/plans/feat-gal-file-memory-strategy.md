@@ -310,17 +310,17 @@ No engineering blocker requires a return to `/deep-planning`. Human approval rem
 
 ## Tasks
 
-- [ ] T-001 — Update `conventions/token-budget.md` with the authoritative file-system memory contract: memory scopes, owner files, writers, readers, cold-start usage, retrieve / encode / summarize / promote / prune operations, promotion gates, prune gate, and the explicit no-external-memory rule for core GAL state.
+- [x] T-001 — Update `conventions/token-budget.md` with the authoritative file-system memory contract: memory scopes, owner files, writers, readers, cold-start usage, retrieve / encode / summarize / promote / prune operations, promotion gates, prune gate, and the explicit no-external-memory rule for core GAL state.
   Verify: the document alone lets a reader identify the owner location and promotion path for task, session, project, shared methodology, private, and generated memory surfaces.
-- [ ] T-002 — Update `workflows/coding.md` to encode cross-session and cross-provider handoff semantics, require file-based resume through `.dev/state.md` plus `.dev/plans/<slug>.prompt.md`, and state that control-plane chat plus specialist agents share the same execution-memory substrate.
+- [x] T-002 — Update `workflows/coding.md` to encode cross-session and cross-provider handoff semantics, require file-based resume through `.dev/state.md` plus `.dev/plans/<slug>.prompt.md`, and state that control-plane chat plus specialist agents share the same execution-memory substrate.
   Verify: the workflow text makes `/gal wrap-up` the handoff path and names the same repo-owned files for chat and specialist resumption.
-- [ ] T-003 — Update `commands/gal-wrap-up/SKILL.template.md` so active-plan resolution prefers `.dev/plans/<slug>.prompt.md`, not `docs/plans/<slug>.prompt.md`, and so wrap-up guidance explicitly covers pausing, provider switching, and machine switching through repo files only.
+- [x] T-003 — Update `commands/gal-wrap-up/SKILL.template.md` so active-plan resolution prefers `.dev/plans/<slug>.prompt.md`, not `docs/plans/<slug>.prompt.md`, and so wrap-up guidance explicitly covers pausing, provider switching, and machine switching through repo files only.
   Verify: the template resolves the execution prompt under `.dev/plans` and its handoff language is provider-agnostic and file-based.
-- [ ] T-004 — Update `commands/plan-to-prompt/SKILL.template.md` so the execution prompt is defined as the shared mutable work file for control-plane chat and specialist write-back flows, seeded from the refined source plan without inventing a separate chat-memory lane.
+- [x] T-004 — Update `commands/plan-to-prompt/SKILL.template.md` so the execution prompt is defined as the shared mutable work file for control-plane chat and specialist write-back flows, seeded from the refined source plan without inventing a separate chat-memory lane.
   Verify: the command text points to `.dev/plans/<slug>.prompt.md` as the common mutable execution file and preserves execution-owned sections on refresh.
-- [ ] T-005 — Update `templates/plan-prompt.md` so the scaffold wording matches the shared-memory contract and clearly identifies which sections are stable planning content versus mutable execution-owned state.
+- [x] T-005 — Update `templates/plan-prompt.md` so the scaffold wording matches the shared-memory contract and clearly identifies which sections are stable planning content versus mutable execution-owned state.
   Verify: the template header and section guidance match the source-contract wording used by plan-to-prompt and the workflow docs.
-- [ ] T-006 — Regenerate derived runtime and command outputs through the existing sync/setup path and inspect the generated diffs only as validation output.
+- [x] T-006 — Regenerate derived runtime and command outputs through the existing sync/setup path and inspect the generated diffs only as validation output.
   Verify: generated adapters and baked command files reflect the updated memory contract with no hand-authored divergence.
 - [ ] T-007 — (optional, deferred) Update `docs/personalization.md` only if Phase 1 still leaves privacy or machine-local memory boundaries ambiguous.
   Verify: the doc explicitly routes secrets, diary content, personal notes, and local machine paths away from tracked GAL memory.

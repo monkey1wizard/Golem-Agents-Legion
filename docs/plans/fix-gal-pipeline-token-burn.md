@@ -4,9 +4,9 @@
 
 Reduce `/gal pipeline` token consumption without weakening GAL's safety guarantees, and specifically prevent OpenCode Go daily and weekly quota from being exhausted too early by redundant startup context, repeated phase context loading, and avoidable same-runtime overhead.
 
-## Measured Burn Surface
+## Baseline Burn Surface
 
-Before executing any step, the following concrete sizes were verified:
+Historical baseline before this plan's first implementation pass:
 
 | File | Lines | Bytes | Notes |
 | ------ | ------- | ------- | ------- |
@@ -20,29 +20,42 @@ Before executing any step, the following concrete sizes were verified:
 | `golem-verifier.agent.md` | 188 | 7,448 | |
 | `.dev/project.md` | 98 | 5,450 | Actual source of truth |
 
-The four generated adapters are near-identical clones. Only the first ~10 lines differ (adapter-specific header); the remainder is verbatim concatenation of `.dev/project.md` + all six convention files. OpenCode startup loads two of these (~111 KB of duplicated content). The agent contracts instruct a third read of `copilot-instructions.md` per phase, in direct violation of the repo's own `conventions/token-budget.md` generated-artifact exclusion rule.
+At baseline, the four generated adapters were near-identical clones. Only the first ~10 lines differed, and OpenCode startup loaded two large generated adapters. Pipeline-bound agent contracts also instructed another generated-adapter read per phase.
+
+## Current Verified Surface
+
+Checked on 2026-05-29 against the current repository:
+
+| Surface | Current state | Gap |
+| --- | --- | --- |
+| OpenCode startup | `opencode.json` loads only `AGENTS.md`. | None for startup payload. |
+| Generated adapter size | `AGENTS.md` is ~40 KB; provider adapters are ~39-41 KB after language-scoped embedding. | Baseline table is historical only. |
+| Pipeline-bound agents | Implementer, tester, reviewer, security, and verifier treat generated adapters as already-loaded runtime carriers and use `.dev/project.md` as fallback. | Designer / analyst / architect still mention `copilot-instructions.md`, but they are not pipeline-bound agents in this plan. |
+| Dispatcher metadata | PowerShell and Bash dispatchers emit `CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, and `CONVENTION_HINTS`. | Bash runtime execution still needs field validation on a host with Bash available. |
+| Command contract | `commands/gal-pipeline/SKILL.template.md` contains same-runtime degraded markers, commit-boundary convergence gates, retry ceilings, protected-path escalation, interrupted-phase handoff, and final verifier requirements. | Repo source currently has only `SKILL.template.md`; generated `commands/gal-pipeline/SKILL.md` is a local baked output and may not exist until `Update-Commands` runs. |
+| Token-burn test script | `scripts/Test-PipelineTokenBurn.ps1` exists and covers startup payload, dispatch metadata, adapter slimming, and command contract markers. | The script currently assumes `commands/gal-pipeline/SKILL.md` exists; update it to resolve template first or create baked output in an isolated temp path before validation. |
 
 ## Success Criteria (Numeric)
 
 | Metric | Current | Target |
 | -------- | --------- | -------- |
-| OpenCode startup payload | ~111 KB (2 adapters) | ≤60 KB (1 adapter) |
-| Single-task 3-phase total context load | ~270 KB | ≤80 KB |
-| 5-task pipeline total redundant context | ~1,071 KB | ≤200 KB |
+| OpenCode startup payload | Baseline ~111 KB; current ~40 KB | ≤60 KB |
+| Single-task 3-phase total context load | Baseline ~270 KB; last measured current 42,163 bytes | ≤80 KB |
+| 5-task pipeline total redundant context | Baseline ~1,071 KB; last measured current 47,159 bytes | ≤200 KB |
 
 ## Requirements
 
 - [ ] `/gal pipeline` must continue to honor the existing safety model: implement, test, review, conditional security, verifier, retry ceilings, interrupted-phase handoff, and protected-path escalation must remain intact.
-- [ ] OpenCode must stop loading duplicate large generated adapters at startup; the repo-local OpenCode bridge should load a single authoritative instruction carrier.
-- [ ] Pipeline-bound golem agents must stop re-reading generated adapters during normal phase execution unless the task is explicitly about adapter content.
-- [ ] Same-runtime fallback must not silently collapse spec-driven testing and review independence by default just to save tokens.
-- [ ] Any same-runtime bundling optimization must be explicit, documented as degraded verification independence, and must still produce separate durable write-back for test and review.
-- [ ] Three-surface durable state convergence across `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` must be complete before any git commit that records task progress or completion; in-flight task-local edits may be staged internally, but no committed state may contain cross-surface disagreement.
-- [ ] Dispatch and agent changes must favor compact injected context and on-demand reads over repeated full cold-start loading.
-- [ ] Generated adapter content should be compressed at the generator layer using selective language-scoped embedding rather than full-body duplication or pointer indirection.
-- [ ] Personalized runtime instruction projections, including personalized `AGENTS.md`, must live under `~/.gal/generated` or the provider-visible `.gal` projection path, not in the GAL source repository root.
+- [x] OpenCode must stop loading duplicate large generated adapters at startup; the repo-local OpenCode bridge should load a single authoritative instruction carrier.
+- [x] Pipeline-bound golem agents must stop re-reading generated adapters during normal phase execution unless the task is explicitly about adapter content.
+- [x] Same-runtime fallback must not silently collapse spec-driven testing and review independence by default just to save tokens.
+- [x] Any same-runtime bundling optimization must be explicit, documented as degraded verification independence, and must still produce separate durable write-back for test and review.
+- [x] Three-surface durable state convergence across `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` must be complete before any git commit that records task progress or completion; in-flight task-local edits may be staged internally, but no committed state may contain cross-surface disagreement.
+- [x] Dispatch and agent changes must favor compact injected context and on-demand reads over repeated full cold-start loading.
+- [x] Generated adapter content should be compressed at the generator layer using selective language-scoped embedding rather than full-body duplication or pointer indirection.
+- [x] Personalized runtime instruction projections, including personalized `AGENTS.md`, must live under `~/.gal/generated` or the provider-visible `.gal` projection path, not in the GAL source repository root.
 - [ ] Changes must preserve cross-runtime alignment across Copilot, Antigravity CLI, Codex CLI, Claude Code, and the OpenCode bridge lane.
-- [ ] Generated adapters remain derived outputs only; any fix must be authored in source files and sync scripts, not by hand-editing generated adapter files.
+- [x] Generated adapters remain derived outputs only; any fix must be authored in source files and sync scripts, not by hand-editing generated adapter files.
 - [ ] The implementation must produce measurable before-and-after evidence against the numeric targets above.
 
 ## Approach
@@ -112,9 +125,9 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ---
 
-### Step 6 (Later): Re-evaluate same-runtime bundling only after context slimming lands
+### Step 6: Re-evaluate same-runtime bundling after context slimming lands
 
-- **Files**: `commands/gal-pipeline/SKILL.template.md`, `commands/gal-pipeline/SKILL.md`, pipeline agent contracts if needed
+- **Files**: `commands/gal-pipeline/SKILL.template.md`, generated `commands/gal-pipeline/SKILL.md` when `Update-Commands` has produced it, pipeline agent contracts if needed
 - **What**: Reassess whether same-runtime fallback should support an explicit opt-in bundled mode for implement, test, and review.
 - **Default**: Do not make bundling the default because it weakens tester independence.
 - **If accepted**: Mark the run as degraded verification independence and still require separate durable `## Test Results` and `## Review Results` subsections.
@@ -122,9 +135,9 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ---
 
-### Step 7 (Later): Enforce commit-boundary state convergence
+### Step 7: Enforce commit-boundary state convergence
 
-- **Files**: `commands/gal-pipeline/SKILL.template.md`, `commands/gal-pipeline/SKILL.md`, `.dev/state.md` semantics if needed
+- **Files**: `commands/gal-pipeline/SKILL.template.md`, generated `commands/gal-pipeline/SKILL.md` when `Update-Commands` has produced it, `.dev/state.md` semantics if needed
 - **What**: Update the pipeline contract so any git commit that records task progress or task completion happens only after `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, and `.dev/state.md` agree on the relevant task state. Convergence may be delayed only inside an uncommitted in-flight task.
 - **Constraint**: Do not introduce an implicit `Convergence Pending` state that can be committed. If a future explicit pending-state model is proposed, `status`, `whats-next`, and commit gates must be updated before it can ship.
 - **Verify**: Before any pipeline commit, the three durable state surfaces are re-read and checked for agreement; no commit records source plan, execution prompt, and `.dev/state.md` drift.
@@ -147,14 +160,39 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ### Conditional or later-stage changes
 
-- `scripts/Sync-DevContext.ps1` — selective language-scoped adapter embedding after first-wave fixes are validated.
+- `scripts/Sync-DevContext.ps1` — selective language-scoped adapter embedding.
 - `scripts/sync-dev-context.sh` — Bash-side mirror.
+- `commands/gal-pipeline/SKILL.template.md` — same-runtime fallback wording, bundled-mode degraded marker, retry/protected-path/interruption/final-verifier safety gates, and commit-boundary convergence hard gate.
 - `conventions/token-budget.md` — add a reusable lesson on language-scoped convention loading only if confirmed as shared methodology rather than repo-local tuning.
 - `.dev/state.md` — only if commit-boundary convergence semantics require session-continuity wording changes.
 
 ### Generated validation outputs (do not edit directly)
 
 - `AGENTS.md`, `.github/copilot-instructions.md`, `CLAUDE.md`, `GEMINI.md` — validate after any sync-script change; do not edit directly.
+- `commands/*/SKILL.md` — local baked command output from `Update-Commands`; validate after generation when present, but source edits belong in `SKILL.template.md`.
+
+## Tasks
+
+- [x] T-001 — Remove duplicate OpenCode startup adapter loading so OpenCode uses `AGENTS.md` as its single startup instruction carrier.
+  Verify: `opencode.json` contains exactly one `instructions` entry and it is `AGENTS.md`.
+- [x] T-002 — Update pipeline-bound agent contracts to stop routine generated-adapter rereads and use `.dev/project.md` as the compact fallback when no runtime adapter is detectable.
+  Verify: implementer, tester, reviewer, security, and verifier contracts contain the generated-adapter exclusion and `.dev/project.md` fallback rule.
+- [x] T-003 — Add language-scoped convention selection and compact pipeline metadata to PowerShell and Bash dispatchers.
+  Verify: dispatch output includes `CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, and `CONVENTION_HINTS`; task-scoped language hints win over project tech-stack fallback.
+- [x] T-004 — Add selective language-scoped adapter embedding to PowerShell and Bash adapter generators.
+  Verify: generated adapters include only the conventions overview, `token-budget.md`, `working-hours.md`, and project-relevant language convention files.
+- [x] T-005 — Update `/gal pipeline` source contract with same-runtime degraded fallback, opt-in bundled-mode degraded marker, retry ceilings, protected-path escalation, interrupted-phase handoff, final verifier, and commit-boundary convergence gates.
+  Verify: `commands/gal-pipeline/SKILL.template.md` contains those contract markers; generated `commands/gal-pipeline/SKILL.md` is validation output only when present.
+- [ ] T-006 — Fix `scripts/Test-PipelineTokenBurn.ps1` so command-contract validation follows current repo structure: prefer `commands/gal-pipeline/SKILL.template.md`, or generate/read local baked `commands/gal-pipeline/SKILL.md` through `Update-Commands` in an isolated validation flow.
+  Verify: the test no longer fails solely because tracked source lacks `commands/gal-pipeline/SKILL.md`.
+- [ ] T-007 — Re-run token-burn verification and record current before/after metrics against the numeric targets.
+  Verify: `scripts/Test-PipelineTokenBurn.ps1` passes and prints startup payload, single-task 3-phase carrier load, and five-task carrier load.
+- [ ] T-008 — Run a bounded `/gal pipeline stop-at T-NNN` scenario against a disposable fixture plan/prompt and confirm implement, test, and review still write separate durable sections.
+  Verify: fixture source plan, execution prompt, and `.dev/state.md` converge without recording a committed disagreement.
+- [ ] T-009 — Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, and final verifier behavior.
+  Verify: static contract checks plus focused fixture or parser checks cover each safety marker.
+- [ ] T-010 — Validate Bash parity for dispatcher and adapter generation on a host with Bash available, or record the host limitation explicitly.
+  Verify: Bash dispatch emits the same compact fields and convention hints as PowerShell; Bash adapter generation mirrors PowerShell language-scoped embedding.
 
 ## Test Plan
 
@@ -170,6 +208,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - [x] Compare 5-task pipeline total redundant context before and after. Confirm ≤200 KB target is met. Verified by `./scripts/Test-PipelineTokenBurn.ps1` carrier-load measurement: before `920,052` bytes, after `47,159` bytes.
 - [ ] Confirm no regression to retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
 - [ ] Confirm no pipeline git commit is created while source plan, execution prompt, and `.dev/state.md` disagree about the current task state.
+- [ ] Confirm `scripts/Test-PipelineTokenBurn.ps1` validates the current command source layout instead of assuming tracked `commands/gal-pipeline/SKILL.md` exists.
 
 ## Risks
 
@@ -186,7 +225,7 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 - Existing research: [docs/research/pipeline-multi-invocation-overhead.md](../research/pipeline-multi-invocation-overhead.md)
 - Active workflow contract: [workflows/coding.md](../../workflows/coding.md)
 - Token discipline contract: [conventions/token-budget.md](../../conventions/token-budget.md)
-- Current pipeline contract: [commands/gal-pipeline/SKILL.md](../../commands/gal-pipeline/SKILL.md)
+- Current pipeline contract source: [commands/gal-pipeline/SKILL.template.md](../../commands/gal-pipeline/SKILL.template.md)
 - OpenCode bridge config: [opencode.json](../../opencode.json)
 - OpenCode CLI stats reference: [opencode.ai/docs/cli](https://opencode.ai/docs/cli/)
 - Architect analysis: [pipeline_token_burn_analysis.md](../../.gemini/antigravity/brain/aa206f41-de3a-42d3-bf73-3d50cefee377/pipeline_token_burn_analysis.md)
@@ -199,8 +238,8 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 
 ## Approval
 
-- Human approval: [pending]
-- Architect review: [required]
+- Human approval: [completed]
+- Architect review: [not required for remaining T-006..T-010 validation/script-test tasks unless scope expands into protected paths]
 - Additional domain review: [security review only if the implementation changes trust-boundary behavior]
 
 ## Review Results

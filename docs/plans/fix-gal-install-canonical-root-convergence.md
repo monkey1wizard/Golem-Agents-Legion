@@ -23,17 +23,17 @@
 
 ## Requirements
 
-- [ ] 必須選定一個單一 canonical root，並讓 build、install、projection、tests、docs 全部收斂到同一模型。
-- [ ] 任何 provider-visible install target、active shortcut、`dist` 內的 projection / conversion output、release artifact 都不得反向成為 canonical root。
-- [ ] 若 canonical root 選為 `~/.gal/plugins/<plugin-id>/`，則 `dist/` 必須明確降級為 release/package output；不得再作 runtime source of truth。
-- [ ] 若保留 `~/.gal/dist/provider-plugins/<provider>/gal`，則它只能是 projection/package layer，且實際 canonical content owner 仍需明確記錄。
-- [ ] `Install-GalPlugins` 必須能在 source mode 與 install mode 下都 materialize 正確的 canonical root，而不是只建立空目錄或只更新部分 metadata。
-- [ ] dev mode 下若有 GAL 相關變更，必須輸出到 `.gal/dist/commits/` 以隔離變更；不得把這些隔離輸出誤當 canonical root。
-- [ ] `Build-ProviderPlugins`、provider lifecycle state、provider shortcut/install target、以及 smoke command 必須對同一個 root 達成一致。
-- [ ] `GAL_SKILLS` migration、`xmachine` canonical config、`~/.gal/source` source-mode bridge、`~/.gal/config` local config 主路徑等已完成切片不得退回舊拓撲。
-- [ ] Copilot/Codex native install 仍維持 `not-implemented`，不得因這次收斂順便假裝完成。
-- [ ] 測試必須以 temp `HOME` / `USERPROFILE` 驗證收斂後的單一路徑，不污染真實 `~/.gal`。
-- [ ] 文件必須與實作完全一致，且不得手改 generated adapters。
+- [x] 必須選定一個單一 canonical root，並讓 build、install、projection、tests、docs 全部收斂到同一模型。
+- [x] 任何 provider-visible install target、active shortcut、`dist` 內的 projection / conversion output、release artifact 都不得反向成為 canonical root。
+- [x] 若 canonical root 選為 `~/.gal/plugins/<plugin-id>/`，則 `dist/` 必須明確降級為 release/package output；不得再作 runtime source of truth。
+- [x] 若保留 `~/.gal/dist/provider-plugins/<provider>/gal`，則它只能是 projection/package layer，且實際 canonical content owner 仍需明確記錄。
+- [x] `Install-GalPlugins` 必須能在 source mode 與 install mode 下都 materialize 正確的 canonical root，而不是只建立空目錄或只更新部分 metadata。
+- [x] dev mode 下若有 GAL 相關變更，必須輸出到 `.gal/dist/commits/` 以隔離變更；不得把這些隔離輸出誤當 canonical root。
+- [x] `Build-ProviderPlugins`、provider lifecycle state、provider shortcut/install target、以及 smoke command 必須對同一個 root 達成一致。
+- [x] `GAL_SKILLS` migration、`xmachine` canonical config、`~/.gal/source` source-mode bridge、`~/.gal/config` local config 主路徑等已完成切片不得退回舊拓撲。
+- [x] Copilot/Codex native install 仍維持 `not-implemented`，不得因這次收斂順便假裝完成。
+- [x] 測試必須以 temp `HOME` / `USERPROFILE` 驗證收斂後的單一路徑，不污染真實 `~/.gal`。
+- [x] 文件必須與實作完全一致，且不得手改 generated adapters。
 
 ## Decision To Lock
 
@@ -160,13 +160,13 @@
 
 ## Success Criteria
 
-- [ ] `~/.gal/plugins/gal` 被明確且一致地視為 GAL canonical plugin root。
-- [ ] `Build-ClaudePlugin`、`Build-ProviderPlugins`、`Install-GalPlugins`、Claude lifecycle state 對 canonical root 的定義完全一致。
-- [ ] `~/.gal/dist` 僅作 package/release output、conversion output 與 provider managed metadata；不再被 runtime install path 視為 canonical content owner。
-- [ ] dev mode 下 GAL 變更會被隔離到 `~/.gal/dist/commits/`，且此隔離輸出不會與 canonical root 混淆。
-- [ ] 使用者重新安裝後，可直接在磁碟上看到 `~/.gal/plugins/gal` materialize 成功。
-- [ ] 測試、文件、CLI 輸出不再對 canonical root 提供互相矛盾的資訊。
-- [ ] `~/.gal/config`、`~/.gal/source`、`GAL_SKILLS` migration、`xmachine` canonical config 等已完成切片不回退。
+- [x] `~/.gal/plugins/gal` 被明確且一致地視為 GAL canonical plugin root。
+- [x] `Build-ClaudePlugin`、`Build-ProviderPlugins`、`Install-GalPlugins`、Claude lifecycle state 對 canonical root 的定義完全一致。
+- [x] `~/.gal/dist` 僅作 package/release output、conversion output 與 provider managed metadata；不再被 runtime install path 視為 canonical content owner。
+- [x] dev mode 下 GAL 變更會被隔離到 `~/.gal/dist/commits/`，且此隔離輸出不會與 canonical root 混淆。
+- [x] 使用者重新安裝後，可直接在磁碟上看到 `~/.gal/plugins/gal` materialize 成功。
+- [x] 測試、文件、CLI 輸出不再對 canonical root 提供互相矛盾的資訊。
+- [x] `~/.gal/config`、`~/.gal/source`、`GAL_SKILLS` migration、`xmachine` canonical config 等已完成切片不回退。
 
 ## Risks
 
