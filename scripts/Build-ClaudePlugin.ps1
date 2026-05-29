@@ -23,7 +23,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')),
+    [string]$RepoRoot,
     [string]$ResolvedPluginsFile,
     [switch]$Install,
     [switch]$Force
@@ -31,8 +31,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
-. (Join-Path $PSScriptRoot 'common' 'Common.ps1')
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+}
+
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'Common.ps1')
 
 if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
     $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path

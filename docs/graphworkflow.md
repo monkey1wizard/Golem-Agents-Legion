@@ -8,7 +8,7 @@
 - `blender-mcp` 套件可透過 `uvx` 正常解析與載入
 - Blender addon 目前已在 `localhost:9876` 正常監聽
 - 透過 `blender-mcp` 對 Blender 發送 `get_scene_info` 已成功
-- 目前 repo 內的 `mcp.local.json` 已可用 `env` 顯式設定 `BLENDER_HOST` 與 `BLENDER_PORT`
+- 目前 `~/.gal/config/mcp.local.json` 已可用 `env` 顯式設定 `BLENDER_HOST` 與 `BLENDER_PORT`
 
 本次檢查代表兩件事都成立：
 
@@ -53,7 +53,7 @@ uvx --from blender-mcp python -c "from blender_mcp.server import get_blender_con
 }
 ```
 
-如果要在 GAL repo 的 `mcp.local.json` 內直接指定 Blender 連線埠，建議寫成：
+如果要在 `~/.gal/config/mcp.local.json` 內直接指定 Blender 連線埠，建議寫成：
 
 ```json
 {
@@ -131,7 +131,7 @@ If you want the verified English startup and execution checklist for FreeCAD, se
 
 這樣 Blender 與 FreeCAD 不會互搶 socket port。
 
-### `mcp.local.json` 範例
+### `~/.gal/config/mcp.local.json` 範例
 
 以下是可同時支援 Blender 與 FreeCAD 的本地 MCP 設定示例：
 
@@ -165,9 +165,9 @@ If you want the verified English startup and execution checklist for FreeCAD, se
 要讓設定真的生效，port 必須在兩邊一致：
 
 1. Blender 內 `BlenderMCP` 面板顯示的 port
-2. `mcp.local.json` 的 `BLENDER_PORT`
+2. `~/.gal/config/mcp.local.json` 的 `BLENDER_PORT`
 
-如果你改了 Blender addon 內的 port，例如改成 `9872`，那 `mcp.local.json` 也必須同步改成：
+如果你改了 Blender addon 內的 port，例如改成 `9872`，那 `~/.gal/config/mcp.local.json` 也必須同步改成：
 
 ```json
 "env": {
@@ -179,7 +179,7 @@ If you want the verified English startup and execution checklist for FreeCAD, se
 FreeCAD 也是同樣原則：
 
 1. FreeCAD bridge 實際監聽的 XML-RPC / socket port
-2. `mcp.local.json` 中 `FREECAD_XMLRPC_PORT` / `FREECAD_SOCKET_PORT`
+2. `~/.gal/config/mcp.local.json` 中 `FREECAD_XMLRPC_PORT` / `FREECAD_SOCKET_PORT`
 
 這兩邊必須一致，MCP client 才會連到正確的服務。
 
@@ -278,6 +278,6 @@ ComfyUI → Blender → 預覽渲染 / 匯出
 - `blender-mcp` 套件有正確安裝
 - Blender addon 已啟動，且 socket 連線正常
 - 端到端 `get_scene_info` 驗證已成功
-- `mcp.local.json` 可以直接設定 `BLENDER_PORT`
+- `~/.gal/config/mcp.local.json` 可以直接設定 `BLENDER_PORT`
 - 若 Blender 與 FreeCAD 同時使用，必須避開兩者預設 `9876` 的衝突
 - 若 VS Code 端還看不到工具，最可能原因是 MCP client 尚未重新載入更新後的設定

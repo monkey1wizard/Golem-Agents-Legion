@@ -397,7 +397,7 @@ function Get-XmachineStatus {
 
     if (Test-Path $cachePath) {
         try {
-            $cache = Get-Content $cachePath -Raw | ConvertFrom-Json -AsHashtable
+            $cache = Get-Content $cachePath -Raw | ConvertFrom-Json
             foreach ($node in @($cache.nodes)) {
                 if ($node.status -eq 'tooling-ready') {
                     $toolingReadyNodes += $node.nodeId

@@ -163,7 +163,9 @@ try {
 
     $updatedCopilotMcp = Get-Content -LiteralPath $copilotMcpPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Equal $updatedCopilotMcp.mcpServers.'user-owned'.command 'custom-user-mcp' 'Copilot CLI MCP update should preserve unrelated user-owned entries.'
-    Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -contains 'github') 'Copilot CLI MCP update should install managed bridge entries.'
+    Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -contains 'chrome-devtools') 'Copilot CLI MCP update should install enabled managed bridge entries.'
+    Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -notcontains 'github') 'Copilot CLI MCP update should not install disabled GitHub bridge entries.'
+    Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -notcontains 'github-mcp-server') 'Copilot CLI MCP update should remove the disabled legacy GitHub bridge entry.'
     Assert-True ($updatedCopilotMcp.mcpServers.PSObject.Properties.Name -notcontains 'memory') 'Copilot CLI MCP update should not install the removed memory MCP server.'
     Assert-Equal $updatedCopilotMcp.mcpServers.context7.url 'https://example.com/user-owned-context7' 'Copilot CLI MCP update should preserve conflicting user-owned keys it does not already own.'
 

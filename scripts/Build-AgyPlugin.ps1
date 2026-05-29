@@ -24,7 +24,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')),
+    [string]$RepoRoot,
     [string]$ResolvedPluginsFile,
     [switch]$Install,
     [switch]$Force
@@ -32,14 +32,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+}
+
 # --- Import common helpers ---
-$providerPluginScript = Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1'
+$providerPluginScript = Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1'
 if (-not (Test-Path $providerPluginScript)) {
     throw "Common helpers not found: $providerPluginScript"
 }
 . $providerPluginScript
 
-$commonHelpersScript = Join-Path $PSScriptRoot 'common' 'Common.ps1'
+$commonHelpersScript = Join-Path (Join-Path $PSScriptRoot 'common') 'Common.ps1'
 if (-not (Test-Path $commonHelpersScript)) {
     throw "Common helpers not found: $commonHelpersScript"
 }
@@ -47,6 +51,15 @@ if (-not (Test-Path $commonHelpersScript)) {
 
 if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
     $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
+}
+
+if (-not (Get-Variable -Scope Script -Name SetupOptions -ErrorAction SilentlyContinue)) {
+    $script:SetupOptions = [pscustomobject]@{
+        Uninstall = $false
+        Replace = $Force.IsPresent
+        DryRun = $false
+        Reconfigure = $false
+    }
 }
 
 $resolvedPlugins = $null
@@ -261,7 +274,7 @@ if ($package.instructionCorpus.sources.Count -gt 0) {
 # --- Install if requested ---
 if ($Install) {
     $installTarget = Get-AgyPluginInstallTarget
-    Write-Host "Installing to $installTarget..." -ForegroundColor Cyan
+    Write-Host "Projecting to $installTarget..." -ForegroundColor Cyan
     if (Test-Path $installTarget) {
         Remove-Item -LiteralPath $installTarget -Recurse -Force
     }
@@ -269,8 +282,10 @@ if ($Install) {
     if (-not (Test-Path $installParent)) {
         New-Item -ItemType Directory -Path $installParent -Force | Out-Null
     }
-    Copy-Item -LiteralPath $artifactRoot -Destination $installTarget -Recurse -Force
-    Write-Host "Installed to $installTarget" -ForegroundColor Green
+    if (-not (New-SafeSymlink -LinkPath $installTarget -TargetPath $artifactRoot -Type 'Directory')) {
+        throw "Failed to project AGY plugin into $installTarget"
+    }
+    Write-Host "Projected to $installTarget" -ForegroundColor Green
 }
 
 Write-Host "`nAGY plugin rendered successfully to: $artifactRoot" -ForegroundColor Green

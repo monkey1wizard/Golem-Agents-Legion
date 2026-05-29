@@ -36,7 +36,7 @@ function Assert-True {
 }
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-. (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
 
 $catalogPath = Join-Path $repoRoot 'plugins\catalog.json'
 $resolveScript = Join-Path $PSScriptRoot 'Resolve-GalCatalog.ps1'

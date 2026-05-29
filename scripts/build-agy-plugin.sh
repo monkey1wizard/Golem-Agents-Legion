@@ -277,13 +277,16 @@ fi
 # --- Install if requested ---
 if [[ "$INSTALL" == 'true' ]]; then
     install_target="$(get_agy_plugin_install_target)"
-    echo "Installing to $install_target..."
-    if [[ -d "$install_target" ]]; then
+    echo "Projecting to $install_target..."
+    if [[ -L "$install_target" || -e "$install_target" ]]; then
         rm -rf "$install_target"
     fi
     mkdir -p "$(dirname "$install_target")"
-    cp -r "$artifact_root" "$install_target"
-    echo "Installed to $install_target"
+    if ! safe_link "$install_target" "$artifact_root"; then
+        echo "Failed to project AGY plugin into $install_target" >&2
+        exit 1
+    fi
+    echo "Projected to $install_target"
 fi
 
 # --- Summary ---

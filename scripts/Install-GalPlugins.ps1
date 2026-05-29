@@ -2,7 +2,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')),
+    [string]$RepoRoot,
     [string]$ConfigPath = (Join-Path $env:USERPROFILE '.gal\config\config.json'),
     [string]$LockfilePath = (Join-Path $env:USERPROFILE '.gal\state\plugins.lock.json'),
     [string[]]$SelectedRuntimes,
@@ -19,8 +19,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'common' 'Common.ps1')
-. (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+}
+
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'Common.ps1')
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
 
 $script:SetupOptions = [pscustomobject]@{
     Uninstall = $Uninstall.IsPresent

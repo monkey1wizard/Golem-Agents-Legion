@@ -49,6 +49,19 @@ function ConvertTo-Hashtable {
     return $InputObject
 }
 
+function Get-StringSha256 {
+    param([Parameter(Mandatory)][string]$Value)
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha256.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '').ToUpperInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 function Read-JsonFile {
     param([string]$Path)
     if (-not (Test-Path $Path)) { return $null }
@@ -215,7 +228,7 @@ function Build-Lockfile {
 
     # Simple catalog hash: SHA256 of canonical JSON
     $catalogJson = $Catalog | ConvertTo-Json -Depth 20 -Compress
-    $lockfile.catalogHash = (Get-FileHash -InputStream ([System.IO.MemoryStream]::new([System.Text.Encoding]::UTF8.GetBytes($catalogJson))) -Algorithm SHA256).Hash
+    $lockfile.catalogHash = Get-StringSha256 $catalogJson
     $lockfile.driftDetection.catalogHash = $lockfile.catalogHash
 
     foreach ($plugin in $ResolvedPlugins) {

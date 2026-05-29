@@ -2,7 +2,7 @@
 
 xmachine 是 GAL 的一項可選執行工具，能夠將範圍明確的任務從主要的控制節點（control node）卸載到可透過 SSH 存取的工作節點（work node）。它的運作不會修改 GAL 的控制平面（control plane）、儲存庫擁有的狀態模型（repo-owned state model）或 patch-first 的收斂規則。
 
-`-WorkNode` 參數接受一個 xmachine 工作節點 ID。此 ID 必須是在 GAL runtime checkout 中的 `xmachine.config.json` 頂層 `nodes` 物件下定義的節點別名（alias），不一定要在當前開發的目標專案中。xmachine 會將這個別名解析為明確的 SSH 目標（例如 `user@host`），並使用本機的 SSH 客戶端來處理特定的連線設定，例如帳號、主機、通訊埠及金鑰設定。它的就緒狀態（Readiness）是基於本機而非儲存庫：GAL 會將驗證過的節點記錄在 `~/.gal/xmachine-nodes.json`，讓其他儲存庫可以重複使用。節點在通過 SSH、儲存庫、工具和工作節點的冒煙測試（smoke tests）後，會被標記為 `tooling-ready`。只有在通過獨立的 GAL pipeline smoke 關卡後，才會完全轉為 `readied` 狀態。
+`-WorkNode` 參數接受一個 xmachine 工作節點 ID。此 ID 必須是在 `~/.gal/config/xmachine.json` 的頂層 `xmachineNodeAliases` 物件下定義的節點別名（alias）；舊版 `nodes` 僅保留作為過渡 fallback，不一定要在當前開發的目標專案中。xmachine 會將這個別名解析為明確的 SSH 目標（例如 `user@host`），並使用本機的 SSH 客戶端來處理特定的連線設定，例如帳號、主機、通訊埠及金鑰設定。它的就緒狀態（Readiness）是基於本機而非儲存庫：GAL 會將驗證過的節點記錄在 `~/.gal/xmachine-nodes.json`，讓其他儲存庫可以重複使用。節點在通過 SSH、儲存庫、工具和工作節點的冒煙測試（smoke tests）後，會被標記為 `tooling-ready`。只有在通過獨立的 GAL pipeline smoke 關卡後，才會完全轉為 `readied` 狀態。
 
 ## 能力與特色
 
@@ -91,9 +91,9 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 
 ## 節點設定
 
-在 GAL runtime checkout 的 `xmachine.config.json` 中定義工作節點，為工作節點提供穩定、好記的 ID。
+在 `~/.gal/config/xmachine.json` 中定義工作節點，為工作節點提供穩定、好記的 ID。
 
-- 頂層的 `nodes` 物件以工作節點別名作為鍵值（key）。
+- 頂層的 `xmachineNodeAliases` 物件以工作節點別名作為鍵值（key）。
 - 每個節點都必須定義 `target` 值。
 - `runtimeRepoPath` 為選填，用來指向遠端 GAL runtime checkout；若未設定，才會回退到節點層級的 `repoPath`。
 - `repoPath` 現在比較適合表示 repo mode 要用的持久遠端 checkout，或舊設定中的 GAL runtime fallback 路徑。
@@ -105,7 +105,7 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 
 ```json
 {
-  "nodes": {
+  "xmachineNodeAliases": {
     "node-name": {
       "target": "username@mechine-name",
       "repoPath": "/path/to/Golem-Agents-Legion",
@@ -146,7 +146,7 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 
 1. 明確指定的 `-WorkRepoPath`
 2. 所選節點上的 `repoMappings.<current-repo>.repoPath`
-3. `xmachine.config.json` 中所選節點的 `repoPath`
+3. `~/.gal/config/xmachine.json` 中所選節點的 `repoPath`
 4. 現有本機快取 `~/.gal/xmachine-nodes.json` 中的路徑
 
 GAL runtime checkout 路徑則依下列順序解析：
@@ -271,7 +271,7 @@ xmachine 不會自行發想有邊界的任務規格 (task specs)。它只執行�
     -Wait
 ```
 
-如果選擇的節點在 `xmachine.config.json` 中定義了 `repoPath`，則可省略 `-WorkRepoPath`。
+如果選擇的節點在 `~/.gal/config/xmachine.json` 中定義了 `repoPath`，則可省略 `-WorkRepoPath`。
 
 ### 控制節點通用派發 (Control Node Generic Dispatch)
 
@@ -284,7 +284,7 @@ xmachine 不會自行發想有邊界的任務規格 (task specs)。它只執行�
   -Wait
 ```
 
-這個 wrapper 會透過 GAL runtime checkout 的 `xmachine.config.json` 解析節點別名，偵測遠端平台，透過適當的 xmachine 通道派發，並在指定 `-Wait` 時將 `status.json`、`summary.md`、`runtime.log` 與 `result.patch` 取回到本機的 `gal-results\<TaskId>` 目錄。
+這個 wrapper 會透過 `~/.gal/config/xmachine.json` 解析節點別名，偵測遠端平台，透過適當的 xmachine 通道派發，並在指定 `-Wait` 時將 `status.json`、`summary.md`、`runtime.log` 與 `result.patch` 取回到本機的 `gal-results\<TaskId>` 目錄。
 
 ### Windows 工作節點
 

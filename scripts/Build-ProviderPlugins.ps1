@@ -2,8 +2,8 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')),
-    [string]$CatalogPath = (Join-Path $RepoRoot 'plugins\catalog.json'),
+    [string]$RepoRoot,
+    [string]$CatalogPath,
     [string]$ConfigPath = (Join-Path $env:USERPROFILE '.gal\config\config.json'),
     [string]$LockfilePath = (Join-Path $env:USERPROFILE '.gal\state\plugins.lock.json'),
     [string[]]$Providers = @('agy', 'copilot', 'codex', 'claude'),
@@ -14,8 +14,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'common' 'ProviderPlugin.ps1')
-. (Join-Path $PSScriptRoot 'common' 'Common.ps1')
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+}
+if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
+    $CatalogPath = Join-Path $RepoRoot 'plugins\catalog.json'
+}
+
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
+. (Join-Path (Join-Path $PSScriptRoot 'common') 'Common.ps1')
 
 if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyContinue)) {
     $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
@@ -137,15 +144,23 @@ try {
         }
     }
     else {
+        $canonicalPluginRendered = $false
         foreach ($plan in $buildPlan) {
             if ($plan.Provider -eq 'agy') {
+                if (-not $canonicalPluginRendered) {
+                    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
+                    $canonicalPluginRendered = $true
+                }
                 & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
                 Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
                 continue
             }
 
             if ($plan.Provider -eq 'claude') {
-                & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                if (-not $canonicalPluginRendered) {
+                    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                    $canonicalPluginRendered = $true
+                }
             }
         }
     }

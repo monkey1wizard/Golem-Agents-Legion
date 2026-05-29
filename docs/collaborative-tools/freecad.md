@@ -43,7 +43,7 @@ The matching local MCP config shape is:
 }
 ```
 
-In this repo, that alignment is already represented in `mcp.local.json` and propagated by `scripts/Setup-Machine.ps1`.
+On this machine, that alignment is represented in `~/.gal/config/mcp.local.json` and propagated by `scripts/Setup-Machine.ps1`.
 
 ## Recommended Startup Path
 
@@ -251,7 +251,7 @@ Give the agent this sequence:
 
 ## Related Files
 
-- `mcp.local.json`
+- `~/.gal/config/mcp.local.json`
 - `scripts/Setup-Machine.ps1`
 - `docs/graphworkflow.md`
 - `M6OnePieceSpanner.FCStd`

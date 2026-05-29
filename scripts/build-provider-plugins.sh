@@ -76,9 +76,18 @@ if [[ "$FORCE" == 'true' ]]; then
     agy_args+=(--force)
 fi
 
+canonical_plugin_rendered=false
 for local_provider in "${requested_providers[@]}"; do
     case "$local_provider" in
         agy)
+            if [[ "$canonical_plugin_rendered" != 'true' ]]; then
+                claude_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
+                if [[ "$FORCE" == 'true' ]]; then
+                    claude_args+=(--force)
+                fi
+                "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}"
+                canonical_plugin_rendered=true
+            fi
             "$SCRIPT_DIR/build-agy-plugin.sh" "${agy_args[@]}" --install
             mkdir -p "$(dirname "$(get_gal_active_provider_target agy)")"
             if ! safe_link "$(get_gal_active_provider_target agy)" "$AGY_PLUGIN_INSTALL_TARGET"; then
@@ -91,7 +100,10 @@ for local_provider in "${requested_providers[@]}"; do
             if [[ "$FORCE" == 'true' ]]; then
                 claude_args+=(--force)
             fi
-            "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}" --install
+            if [[ "$canonical_plugin_rendered" != 'true' ]]; then
+                "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}" --install
+                canonical_plugin_rendered=true
+            fi
             ;;
         copilot|codex|'') ;;
         *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;

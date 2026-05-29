@@ -54,7 +54,7 @@ if [[ ! -f "$CONFIG_PATH" ]]; then
     exit 1
 fi
 
-if ! jq -e --arg node "$WORK_NODE" '.nodes[$node]' "$CONFIG_PATH" >/dev/null 2>&1; then
+if ! jq -e --arg node "$WORK_NODE" '(.xmachineNodeAliases // .nodes // {})[$node]' "$CONFIG_PATH" >/dev/null 2>&1; then
     echo "Unknown work node alias '$WORK_NODE' in '$CONFIG_PATH'." >&2
     exit 1
 fi
@@ -343,7 +343,7 @@ receive_windows_task_artifacts() {
     echo "Results saved to: $local_output_dir"
 }
 
-resolved_work_node_target="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].target // empty' "$CONFIG_PATH")"
+resolved_work_node_target="$(jq -r --arg node "$WORK_NODE" '(.xmachineNodeAliases // .nodes // {})[$node].target // empty' "$CONFIG_PATH")"
 if [[ -z "$resolved_work_node_target" ]]; then
     echo "Work node '$WORK_NODE' in '$CONFIG_PATH' must define a non-empty target value." >&2
     exit 1
@@ -351,10 +351,10 @@ fi
 
 repo_context_root="$(get_repo_context_root)"
 repo_mapping_key="$(basename "$repo_context_root")"
-configured_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].repoPath // empty' "$CONFIG_PATH")"
-mapped_project_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '.nodes[$node].repoMappings[$repo].repoPath // empty' "$CONFIG_PATH")"
-mapped_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '.nodes[$node].repoMappings[$repo].runtimeRepoPath // empty' "$CONFIG_PATH")"
-configured_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" '.nodes[$node].runtimeRepoPath // empty' "$CONFIG_PATH")"
+configured_repo_path="$(jq -r --arg node "$WORK_NODE" '(.xmachineNodeAliases // .nodes // {})[$node].repoPath // empty' "$CONFIG_PATH")"
+mapped_project_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '(.xmachineNodeAliases // .nodes // {})[$node].repoMappings[$repo].repoPath // empty' "$CONFIG_PATH")"
+mapped_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" --arg repo "$repo_mapping_key" '(.xmachineNodeAliases // .nodes // {})[$node].repoMappings[$repo].runtimeRepoPath // empty' "$CONFIG_PATH")"
+configured_runtime_repo_path="$(jq -r --arg node "$WORK_NODE" '(.xmachineNodeAliases // .nodes // {})[$node].runtimeRepoPath // empty' "$CONFIG_PATH")"
 
 if [[ -n "$WORK_REPO_PATH" ]]; then
     resolved_project_repo_path="$WORK_REPO_PATH"

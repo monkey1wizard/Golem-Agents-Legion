@@ -80,20 +80,19 @@ function Read-XmachineConfig {
         throw "Xmachine config '$configPath' is empty."
     }
 
-    try {
-        $config = $raw | ConvertFrom-Json -AsHashtable
-    }
-    catch {
-        throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
+    $config = Read-JsonOrderedMap $configPath
+    if ($null -eq $config) {
+        throw "Invalid JSON in '$configPath'."
     }
 
-    if ($null -eq $config -or -not $config.ContainsKey("nodes")) {
-        throw "Xmachine config '$configPath' must define a top-level 'nodes' object."
+    $nodesKey = if ($config.Contains('xmachineNodeAliases')) { 'xmachineNodeAliases' } elseif ($config.Contains('nodes')) { 'nodes' } else { $null }
+    if ($null -eq $nodesKey) {
+        throw "Xmachine config '$configPath' must define top-level 'xmachineNodeAliases' or legacy 'nodes'."
     }
 
-    $nodes = $config["nodes"]
+    $nodes = $config[$nodesKey]
     if ($nodes -isnot [System.Collections.IDictionary]) {
-        throw "Xmachine config '$configPath' must define 'nodes' as an object keyed by work-node alias."
+        throw "Xmachine config '$configPath' must define '$nodesKey' as an object keyed by work-node alias."
     }
 
     return @{

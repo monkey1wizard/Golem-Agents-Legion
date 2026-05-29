@@ -74,20 +74,19 @@ function Read-XmachineConfig {
         throw "Xmachine config '$configPath' is empty. Define at least one node in ~/.gal/config/xmachine.json or the temporary repository-root fallback."
     }
 
-    try {
-        $config = $raw | ConvertFrom-Json -AsHashtable
-    }
-    catch {
-        throw "Invalid JSON in '$configPath'. $($_.Exception.Message)"
+    $config = Read-JsonOrderedMap $configPath
+    if ($null -eq $config) {
+        throw "Invalid JSON in '$configPath'."
     }
 
-    if ($null -eq $config -or -not $config.ContainsKey("nodes")) {
-        throw "Xmachine config '$configPath' must define a top-level 'nodes' object."
+    $nodesKey = if ($config.Contains('xmachineNodeAliases')) { 'xmachineNodeAliases' } elseif ($config.Contains('nodes')) { 'nodes' } else { $null }
+    if ($null -eq $nodesKey) {
+        throw "Xmachine config '$configPath' must define top-level 'xmachineNodeAliases' or legacy 'nodes'."
     }
 
-    $nodes = $config["nodes"]
+    $nodes = $config[$nodesKey]
     if ($nodes -isnot [System.Collections.IDictionary]) {
-        throw "Xmachine config '$configPath' must define 'nodes' as an object keyed by work-node alias."
+        throw "Xmachine config '$configPath' must define '$nodesKey' as an object keyed by work-node alias."
     }
 
     return @{
@@ -250,7 +249,39 @@ function Read-XmachineNodeCache {
         }
     }
 
-    return $raw | ConvertFrom-Json -AsHashtable
+    return ConvertTo-XmachineHashtable ($raw | ConvertFrom-Json)
+}
+
+function ConvertTo-XmachineHashtable {
+    param([object]$InputObject)
+
+    if ($null -eq $InputObject) { return $null }
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        $hash = @{}
+        foreach ($key in $InputObject.Keys) {
+            $hash[$key] = ConvertTo-XmachineHashtable $InputObject[$key]
+        }
+        return $hash
+    }
+
+    if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+        $items = [System.Collections.Generic.List[object]]::new()
+        foreach ($item in $InputObject) {
+            $items.Add((ConvertTo-XmachineHashtable $item))
+        }
+        return $items.ToArray()
+    }
+
+    if ($InputObject.PSObject -and $InputObject -isnot [string] -and $InputObject -isnot [ValueType]) {
+        $hash = @{}
+        foreach ($property in $InputObject.PSObject.Properties) {
+            $hash[$property.Name] = ConvertTo-XmachineHashtable $property.Value
+        }
+        return $hash
+    }
+
+    return $InputObject
 }
 
 function Write-XmachineNodeCache {
@@ -717,7 +748,7 @@ try {
     $xmachineConfig = Read-XmachineConfig -RepoRoot $repoRoot
 
     if ([string]::IsNullOrWhiteSpace($WorkNode)) {
-        throw "WorkNode is required. Pass -WorkNode <configured-work-node-alias> and define that alias under 'nodes' in '$($xmachineConfig.path)'."
+        throw "WorkNode is required. Pass -WorkNode <configured-work-node-alias> and define that alias under 'xmachineNodeAliases' or legacy 'nodes' in '$($xmachineConfig.path)'."
     }
 
     $workNodeRecord = Get-XmachineNodeRecord -RequestedNode $WorkNode -Nodes $xmachineConfig.nodes -ConfigPath $xmachineConfig.path

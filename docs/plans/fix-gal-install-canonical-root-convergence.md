@@ -178,15 +178,15 @@
 
 ## Approval
 
-- Human approval: [pending]
-- Architect review: [required]
+- Human approval: [completed]
+- Architect review: [done]
 - Additional domain review: [not requested]
 
 ## Review Results
 
 ### Engineering Review
 
-Pending.
+Clear. Closeout verification on 2026-05-29 aligned AGY install/projection behavior with the canonical-root contract, updated xmachine dispatch readers to accept `xmachineNodeAliases`, restored Windows PowerShell 5.1 compatibility in the affected install/build entry points, reconciled MCP projection expectations, and updated stale user-facing docs. Remaining test limits are environmental rather than architectural.
 
 ## Tasks
 
@@ -197,3 +197,25 @@ Pending.
 - [x] T-005 — 更新 PowerShell/Bash tests 到單一模型並保留 temp-home 隔離。
 - [x] T-006 — 重新驗證 reinstall / uninstall / migration / xmachine / source bridge 全部不回歸。
 - [x] T-007 — 更新 docs 與 user-facing contract，說明 canonical root、projection、package output 的差異。
+
+## Closeout
+
+### Checklist
+
+- [x] T-008 — Make AGY install/projection follow the canonical root contract instead of copying package output into the provider target.
+- [x] T-009 — Make all xmachine dispatch readers accept canonical `xmachineNodeAliases` while retaining legacy `nodes` fallback.
+- [x] T-010 — Restore Windows PowerShell 5.1 compatibility for install/build scripts.
+- [x] T-011 — Reconcile MCP projection test expectations with current managed bridge behavior.
+- [x] T-012 — Update stale user-facing docs that still point to repo-root local config paths.
+- [x] T-013 — Close plan/state bookkeeping for the completed install architecture work.
+- [x] T-014 — Run verification gates and record results.
+
+### Closeout Results
+
+- 2026-05-29: T-008 complete. `Build-AgyPlugin` now projects the provider install target to AGY package output via symlink/junction instead of copying. `Build-ProviderPlugins` materializes `~/.gal/plugins/gal` before AGY package projection, so AGY-only provider builds no longer leave the canonical root absent. Temp-home verification confirmed canonical root, package output, provider projection, and active alias all exist, with provider/active paths as reparse points.
+- 2026-05-29: T-009 complete. `Invoke-XmachineTask`, `Invoke-XmachinePipeline`, `Test-Xmachine`, and Bash xmachine dispatch readers now prefer `xmachineNodeAliases` and fall back to legacy `nodes`. Temp-home probes against canonical `~/.gal/config/xmachine.json` now discover `node-name` instead of failing on a missing `nodes` object.
+- 2026-05-29: T-010 complete. Removed PowerShell 7-only assumptions from install/build paths. Windows PowerShell 5.1 now passes `scripts\Setup-Machine.ps1 -DryRun` and `scripts\Build-ProviderPlugins.ps1 -DryRun`; static scan found no remaining three-argument `Join-Path`, `ConvertFrom-Json -AsHashtable`, or `Get-FileHash -InputStream` uses in scripts.
+- 2026-05-29: T-011 complete. `Test-UpdateMcpProjection.ps1` now asserts the actual Copilot CLI bridge contract: enabled managed entries are installed, while disabled GitHub bridge aliases are not reintroduced.
+- 2026-05-29: T-012 complete. Updated stale docs and examples that still described repo-root `mcp.local.json`, repo-root `config.local.env`, or runtime-checkout `xmachine.config.json` as canonical user-edit surfaces.
+- 2026-05-29: T-013 complete. Repo state was closed out so the install-architecture prompt/state no longer remain parked in `IMPLEMENT` after the closeout pass.
+- 2026-05-29: T-014 complete. Verification passed for `pwsh scripts/Test-BuildProviderPlugins.ps1`, `pwsh scripts/Test-InstallGalPlugins.ps1`, `pwsh scripts/Test-UpdateMcpProjection.ps1`, `powershell scripts/Setup-Machine.ps1 -DryRun`, `powershell scripts/Build-ProviderPlugins.ps1 -DryRun`, and `git status --short --ignored -- config.local.env mcp.local.json model-roles.local.md xmachine.config.json dist`. `Test-Xmachine.ps1` was not run as a full smoke test because this machine did not provide a configured remote `-WorkNode`; the canonical config/schema paths were still verified locally during T-009.

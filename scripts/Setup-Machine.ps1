@@ -11,7 +11,7 @@
             5. `Install-GalPlugins.ps1`
 
     Each update script can also run standalone. `mcp.json` plus optional
-        `mcp.local.json` remains the MCP source of truth, while Copilot MCP is
+        `~/.gal/config/mcp.local.json` remains the MCP source of truth, while Copilot MCP is
         written separately for VS Code Copilot and Copilot CLI.
 
 .PARAMETER Uninstall
