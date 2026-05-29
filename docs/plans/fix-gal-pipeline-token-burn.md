@@ -45,7 +45,7 @@ Checked on 2026-05-29 against the current repository:
 
 ## Requirements
 
-- [ ] `/gal pipeline` must continue to honor the existing safety model: implement, test, review, conditional security, verifier, retry ceilings, interrupted-phase handoff, and protected-path escalation must remain intact.
+- [x] `/gal pipeline` must continue to honor the existing safety model: implement, test, review, conditional security, verifier, retry ceilings, interrupted-phase handoff, and protected-path escalation must remain intact.
 - [x] OpenCode must stop loading duplicate large generated adapters at startup; the repo-local OpenCode bridge should load a single authoritative instruction carrier.
 - [x] Pipeline-bound golem agents must stop re-reading generated adapters during normal phase execution unless the task is explicitly about adapter content.
 - [x] Same-runtime fallback must not silently collapse spec-driven testing and review independence by default just to save tokens.
@@ -54,7 +54,7 @@ Checked on 2026-05-29 against the current repository:
 - [x] Dispatch and agent changes must favor compact injected context and on-demand reads over repeated full cold-start loading.
 - [x] Generated adapter content should be compressed at the generator layer using selective language-scoped embedding rather than full-body duplication or pointer indirection.
 - [x] Personalized runtime instruction projections, including personalized `AGENTS.md`, must live under `~/.gal/generated` or the provider-visible `.gal` projection path, not in the GAL source repository root.
-- [ ] Changes must preserve cross-runtime alignment across Copilot, Antigravity CLI, Codex CLI, Claude Code, and the OpenCode bridge lane.
+- [x] Changes must preserve cross-runtime alignment across Copilot, Antigravity CLI, Codex CLI, Claude Code, and the OpenCode bridge lane.
 - [x] Generated adapters remain derived outputs only; any fix must be authored in source files and sync scripts, not by hand-editing generated adapter files.
 - [x] The implementation must produce measurable before-and-after evidence against the numeric targets above.
 
@@ -187,11 +187,11 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
   Verify: the test no longer fails solely because tracked source lacks `commands/gal-pipeline/SKILL.md`.
 - [x] T-007 — Re-run token-burn verification and record the current before/after metrics against the numeric targets.
   Verify: `scripts/Test-PipelineTokenBurn.ps1` passes and prints startup payload, single-task 3-phase carrier load, and five-task carrier load.
-- [ ] T-008 — Run a bounded `/gal pipeline stop-at T-NNN` scenario against a disposable fixture plan/prompt and confirm implement, test, and review still write separate durable sections.
+- [x] T-008 — Run a bounded `/gal pipeline stop-at T-NNN` scenario against a disposable fixture plan/prompt and confirm implement, test, and review still write separate durable sections.
   Verify: fixture source plan, execution prompt, and `.dev/state.md` converge without recording a committed disagreement.
-- [ ] T-009 — Confirm the slimming changes did not regress retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
+- [x] T-009 — Confirm the slimming changes did not regress retry ceilings, protected-path escalation, interrupted-phase handoff, or final verifier behavior.
   Verify: static contract checks plus focused fixture or parser checks cover each safety marker.
-- [ ] T-010 — Validate Bash parity for dispatcher and adapter generation on a host with Bash available, or record the host limitation explicitly.
+- [x] T-010 — Validate Bash parity for dispatcher and adapter generation on a host with Bash available, or record the host limitation explicitly.
   Verify: Bash dispatch emits the same compact fields and convention hints as PowerShell; Bash adapter generation mirrors PowerShell language-scoped embedding.
 
 ## Test Plan
@@ -252,6 +252,8 @@ The plan is implementation-ready. Scope is narrowed to the remaining validation 
 The current source plan already captures the key guardrails that must not regress: same-runtime degradation must stay explicit, commit-boundary convergence must hold across the three durable state surfaces, and generated adapters remain derived outputs only. The remaining gaps are bounded execution checks for fixture write-back, Bash-host parity, and command-layout validation in `scripts/Test-PipelineTokenBurn.ps1`, not missing design decisions.
 
 2026-05-29 update: `scripts/Test-PipelineTokenBurn.ps1` now accepts the current source-only repo layout by falling back from `commands/gal-pipeline/SKILL.md` to `commands/gal-pipeline/SKILL.template.md` when the baked output is absent. The script passes with 55 checks, confirming the current measurable results: startup payload `40914` bytes, single-task 3-phase carrier load `42941` bytes, and five-task carrier load `51049` bytes. This closes the proof gap for T-001 through T-005 in the current repo state, while leaving Bash-host runtime parity as a separate environment-limited follow-up.
+
+2026-05-29 update: T-010 is closed on the documented host-limitation path. Static inspection confirms the Bash dispatcher still emits the compact pipeline metadata fields (`CURRENT_TASK`, `TASK_BASE_COMMIT`, `TASK_FINAL_COMMIT`, `TEST_RETRY_COUNT`, `REVIEW_RETRY_COUNT`, `CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, `CONVENTION_HINTS`) and the Bash adapter generator still performs language-scoped convention selection from `.dev/project.md`. Runtime Bash execution could not be validated on this Windows host because `C:\WINDOWS\System32\bash.exe` fails through WSL with `/bin/bash` missing, so the repo records that limitation explicitly instead of claiming a live Bash-lane pass.
 
 Return to `/deep-planning` only if the remaining work expands beyond validation into new protected-path behavior, changes cross-runtime semantics, or introduces a default bundled execution mode.
 
