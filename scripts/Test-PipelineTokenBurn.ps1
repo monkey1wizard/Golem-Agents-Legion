@@ -94,7 +94,15 @@ $agentsPath = Join-Path $repoRoot 'AGENTS.md'
 $copilotPath = Join-Path (Join-Path $repoRoot '.github') 'copilot-instructions.md'
 $claudePath = Join-Path $repoRoot 'CLAUDE.md'
 $geminiPath = Join-Path $repoRoot 'GEMINI.md'
-$pipelineSkillPath = Join-Path $repoRoot 'commands\gal-pipeline\SKILL.md'
+$pipelineSkillCandidates = @(
+    (Join-Path $repoRoot 'commands\gal-pipeline\SKILL.md'),
+    (Join-Path $repoRoot 'commands\gal-pipeline\SKILL.template.md')
+)
+$pipelineSkillPath = $pipelineSkillCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+if (-not $pipelineSkillPath) {
+    throw 'Missing gal-pipeline command contract source. Expected commands\gal-pipeline\SKILL.md or commands\gal-pipeline\SKILL.template.md.'
+}
 
 $baselineStartupPayloadBytes = 111207
 $baselineGeneratedAdapterRereadBytes = 53923
@@ -193,18 +201,19 @@ try {
     Assert-Contains -Text $agentsContent -Needle '<!-- Source: conventions/working-hours.md -->' -Label 'AGENTS.md keeps working-hours block'
 
     $pipelineSkill = Get-Content $pipelineSkillPath -Raw
-    Assert-Contains -Text $pipelineSkill -Needle 'Verification Independence: DEGRADED_SAME_RUNTIME' -Label 'Baked gal-pipeline skill carries same-runtime degraded marker'
-    Assert-Contains -Text $pipelineSkill -Needle 'Verification Independence: DEGRADED_BUNDLED' -Label 'Baked gal-pipeline skill carries bundled degraded marker'
-    Assert-Contains -Text $pipelineSkill -Needle 'No git commit that records task progress or task completion' -Label 'Baked gal-pipeline skill carries commit-boundary convergence gate'
-    Assert-Contains -Text $pipelineSkill -Needle 'The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.' -Label 'Baked gal-pipeline skill keeps task-scoped test write-back'
-    Assert-Contains -Text $pipelineSkill -Needle 'The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.' -Label 'Baked gal-pipeline skill keeps task-scoped review write-back'
-    Assert-Contains -Text $pipelineSkill -Needle 'Same-runtime fallback never waives retry ceilings, protected-path escalation, conditional security review, interrupted-phase handoff, or final verifier requirements.' -Label 'Baked gal-pipeline skill keeps same-runtime safety guardrails'
-    Assert-Contains -Text $pipelineSkill -Needle 'If `stop-at T-NNN` was specified and this task matches: **STOP**.' -Label 'Baked gal-pipeline skill keeps explicit stop-at boundary'
-    Assert-Contains -Text $pipelineSkill -Needle 'Keep exactly one `OPEN` interrupted-phase block per task and phase.' -Label 'Baked gal-pipeline skill keeps interrupted-phase handoff rule'
-    Assert-Contains -Text $pipelineSkill -Needle 'If `Test Retry Count` = 3: **STOP**.' -Label 'Baked gal-pipeline skill keeps test retry ceiling'
-    Assert-Contains -Text $pipelineSkill -Needle 'If `Review Retry Count` = 3: **STOP**.' -Label 'Baked gal-pipeline skill keeps review retry ceiling'
-    Assert-Contains -Text $pipelineSkill -Needle 'Protected Path violation, **STOP immediately** regardless of retry count.' -Label 'Baked gal-pipeline skill keeps protected-path escalation'
-    Assert-Contains -Text $pipelineSkill -Needle 'After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-level goal-backward verification pass.' -Label 'Baked gal-pipeline skill keeps final verifier pass'
+    $pipelineSkillLabel = Split-Path $pipelineSkillPath -Leaf
+    Assert-Contains -Text $pipelineSkill -Needle 'Verification Independence: DEGRADED_SAME_RUNTIME' -Label "$pipelineSkillLabel carries same-runtime degraded marker"
+    Assert-Contains -Text $pipelineSkill -Needle 'Verification Independence: DEGRADED_BUNDLED' -Label "$pipelineSkillLabel carries bundled degraded marker"
+    Assert-Contains -Text $pipelineSkill -Needle 'No git commit that records task progress or task completion' -Label "$pipelineSkillLabel carries commit-boundary convergence gate"
+    Assert-Contains -Text $pipelineSkill -Needle 'The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.' -Label "$pipelineSkillLabel keeps task-scoped test write-back"
+    Assert-Contains -Text $pipelineSkill -Needle 'The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.' -Label "$pipelineSkillLabel keeps task-scoped review write-back"
+    Assert-Contains -Text $pipelineSkill -Needle 'Same-runtime fallback never waives retry ceilings, protected-path escalation, conditional security review, interrupted-phase handoff, or final verifier requirements.' -Label "$pipelineSkillLabel keeps same-runtime safety guardrails"
+    Assert-Contains -Text $pipelineSkill -Needle 'If `stop-at T-NNN` was specified and this task matches: **STOP**.' -Label "$pipelineSkillLabel keeps explicit stop-at boundary"
+    Assert-Contains -Text $pipelineSkill -Needle 'Keep exactly one `OPEN` interrupted-phase block per task and phase.' -Label "$pipelineSkillLabel keeps interrupted-phase handoff rule"
+    Assert-Contains -Text $pipelineSkill -Needle 'If `Test Retry Count` = 3: **STOP**.' -Label "$pipelineSkillLabel keeps test retry ceiling"
+    Assert-Contains -Text $pipelineSkill -Needle 'If `Review Retry Count` = 3: **STOP**.' -Label "$pipelineSkillLabel keeps review retry ceiling"
+    Assert-Contains -Text $pipelineSkill -Needle 'Protected Path violation, **STOP immediately** regardless of retry count.' -Label "$pipelineSkillLabel keeps protected-path escalation"
+    Assert-Contains -Text $pipelineSkill -Needle 'After all unchecked tasks are complete, dispatch `golem-verifier` for a plan-level goal-backward verification pass.' -Label "$pipelineSkillLabel keeps final verifier pass"
 
     $implementPhaseBytes = Get-ByteCount $implementPlanDispatch.RawOutput
     $testPhaseBytes = Get-ByteCount $testDispatch.RawOutput

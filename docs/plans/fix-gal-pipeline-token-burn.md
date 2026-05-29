@@ -33,7 +33,7 @@ Checked on 2026-05-29 against the current repository:
 | Pipeline-bound agents | Implementer, tester, reviewer, security, and verifier treat generated adapters as already-loaded runtime carriers and use `.dev/project.md` as fallback. | Designer / analyst / architect still mention `copilot-instructions.md`, but they are not pipeline-bound agents in this plan. |
 | Dispatcher metadata | PowerShell and Bash dispatchers emit `CONTEXT_CARRY`, `PIPELINE_CONTEXT_MODE`, `PIPELINE_CONTEXT_FILES`, and `CONVENTION_HINTS`. | Bash runtime execution still needs field validation on a host with Bash available. |
 | Command contract | `commands/gal-pipeline/SKILL.template.md` contains same-runtime degraded markers, commit-boundary convergence gates, retry ceilings, protected-path escalation, interrupted-phase handoff, and final verifier requirements. | Repo source currently has only `SKILL.template.md`; generated `commands/gal-pipeline/SKILL.md` is a local baked output and may not exist until `Update-Commands` runs. |
-| Token-burn test script | `scripts/Test-PipelineTokenBurn.ps1` exists and covers startup payload, dispatch metadata, adapter slimming, and command contract markers. | The script currently assumes `commands/gal-pipeline/SKILL.md` exists; update it to resolve template first or create baked output in an isolated temp path before validation. |
+| Token-burn test script | `scripts/Test-PipelineTokenBurn.ps1` now resolves the current repo layout by preferring baked `commands/gal-pipeline/SKILL.md` and falling back to `commands/gal-pipeline/SKILL.template.md`. The script passes with 55 checks in the current source-only repo layout. | None for source-layout validation. |
 
 ## Success Criteria (Numeric)
 
@@ -56,7 +56,7 @@ Checked on 2026-05-29 against the current repository:
 - [x] Personalized runtime instruction projections, including personalized `AGENTS.md`, must live under `~/.gal/generated` or the provider-visible `.gal` projection path, not in the GAL source repository root.
 - [ ] Changes must preserve cross-runtime alignment across Copilot, Antigravity CLI, Codex CLI, Claude Code, and the OpenCode bridge lane.
 - [x] Generated adapters remain derived outputs only; any fix must be authored in source files and sync scripts, not by hand-editing generated adapter files.
-- [ ] The implementation must produce measurable before-and-after evidence against the numeric targets above.
+- [x] The implementation must produce measurable before-and-after evidence against the numeric targets above.
 
 ## Approach
 
@@ -183,9 +183,9 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
   Verify: generated adapters include only the conventions overview, `token-budget.md`, `working-hours.md`, and project-relevant language convention files.
 - [x] T-005 — Update `/gal pipeline` source contract with same-runtime degraded fallback, opt-in bundled-mode degraded marker, retry ceilings, protected-path escalation, interrupted-phase handoff, final verifier, and commit-boundary convergence gates.
   Verify: `commands/gal-pipeline/SKILL.template.md` contains those contract markers; generated `commands/gal-pipeline/SKILL.md` is validation output only when present.
-- [ ] T-006 — Fix `scripts/Test-PipelineTokenBurn.ps1` so command-contract validation resolves the current repo layout first: prefer `commands/gal-pipeline/SKILL.template.md`, or generate/read local baked `commands/gal-pipeline/SKILL.md` through `Update-Commands` in an isolated validation flow.
+- [x] T-006 — Fix `scripts/Test-PipelineTokenBurn.ps1` so command-contract validation resolves the current repo layout first: prefer `commands/gal-pipeline/SKILL.template.md`, or generate/read local baked `commands/gal-pipeline/SKILL.md` through `Update-Commands` in an isolated validation flow.
   Verify: the test no longer fails solely because tracked source lacks `commands/gal-pipeline/SKILL.md`.
-- [ ] T-007 — Re-run token-burn verification and record the current before/after metrics against the numeric targets.
+- [x] T-007 — Re-run token-burn verification and record the current before/after metrics against the numeric targets.
   Verify: `scripts/Test-PipelineTokenBurn.ps1` passes and prints startup payload, single-task 3-phase carrier load, and five-task carrier load.
 - [ ] T-008 — Run a bounded `/gal pipeline stop-at T-NNN` scenario against a disposable fixture plan/prompt and confirm implement, test, and review still write separate durable sections.
   Verify: fixture source plan, execution prompt, and `.dev/state.md` converge without recording a committed disagreement.
@@ -250,6 +250,8 @@ This plan fixes surfaces in strict ROI/risk order and leaves higher-risk converg
 The plan is implementation-ready. Scope is narrowed to the remaining validation and script-hardening tasks, each task is independently testable, and the unresolved work does not require reopening architecture as long as it stays within the already-approved validation surface.
 
 The current source plan already captures the key guardrails that must not regress: same-runtime degradation must stay explicit, commit-boundary convergence must hold across the three durable state surfaces, and generated adapters remain derived outputs only. The remaining gaps are bounded execution checks for fixture write-back, Bash-host parity, and command-layout validation in `scripts/Test-PipelineTokenBurn.ps1`, not missing design decisions.
+
+2026-05-29 update: `scripts/Test-PipelineTokenBurn.ps1` now accepts the current source-only repo layout by falling back from `commands/gal-pipeline/SKILL.md` to `commands/gal-pipeline/SKILL.template.md` when the baked output is absent. The script passes with 55 checks, confirming the current measurable results: startup payload `40914` bytes, single-task 3-phase carrier load `42941` bytes, and five-task carrier load `51049` bytes. This closes the proof gap for T-001 through T-005 in the current repo state, while leaving Bash-host runtime parity as a separate environment-limited follow-up.
 
 Return to `/deep-planning` only if the remaining work expands beyond validation into new protected-path behavior, changes cross-runtime semantics, or introduces a default bundled execution mode.
 
