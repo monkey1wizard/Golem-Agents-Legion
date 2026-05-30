@@ -256,5 +256,5 @@
 - [x] T-004 — 實作 MCP schema 轉換器 *(db6da4c3)*（純函式，置於 MCP 投影層）：`servers`→`mcpServers`、stdio 去 `type`、限縮為 `chrome-devtools`/`firebase`/`markitdown`/`playwright`、key 正規化、過濾密鑰佔位符。驗證 TP-004。
 - [x] T-005 — 實作 Claude Desktop 設定偵測 *(5a035589)*（Win/macOS）、備份、冪等安全合併進 `mcpServers`、`managed.json` key ledger、對應 uninstall、Windows `${APPDATA}` 處理；接進 `Install-GalPlugins.ps1` 協調與 Bash 同等。驗證 TP-005、TP-006、TP-007、TP-008。
 - [x] T-006 — （verify-only）以 dry-run 確認 *(5a035589)* `agy` managed shortcut 仍是指向 `~/.gal/plugins/gal` 的 link；`agy inspect` 可用時確認載入；確認未改 AGY renderer/腳本。記錄 AGY MCP `serverUrl` 差異為觀察，不在本計畫改寫。驗證 TP-009。
-- [ ] T-007 — 更新 `docs/release-matrix.md`：記錄 Claude Code／Claude Desktop（MCP-only）／Antigravity 的支援度與能力差異，遵守 R-4 能力誠實。驗證 TP-011。
-- [ ] T-008 — 將 Desktop 轉換/合併與 Claude Code 路徑斷言接進 `scripts/Test-InstallGalPlugins.ps1`（涵蓋 TP-002/004/005/006），確保自動化而非僅手動。驗證 TP-010。
+- [x] T-007 — 更新 `docs/release-matrix.md` *(8df8440b)*
+- [x] T-008 — 將 Desktop 轉換/合併與 Claude Code 路徑斷言接進 `scripts/Test-InstallGalPlugins.ps1` *(65fb17fb)*
