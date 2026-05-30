@@ -357,6 +357,7 @@ function Get-ClaudeCliLifecycleSupport {
         cliAvailable = $false
         validateSupported = $false
         localArtifactInstallSupported = $false
+        marketplaceInstallSupported = $false
         installScopeSupported = $false
         installMode = 'artifact-only'
         installHelpSummary = $null
@@ -384,8 +385,16 @@ function Get-ClaudeCliLifecycleSupport {
         }
     }
 
+    $marketplaceHelp = (& claude plugin marketplace --help 2>&1 | Out-String)
+    if ($LASTEXITCODE -eq 0 -and $marketplaceHelp -match 'marketplace') {
+        $support.marketplaceInstallSupported = $true
+    }
+
     $support.installMode = if ($support.localArtifactInstallSupported) {
         'provider-native-install'
+    }
+    elseif ($support.marketplaceInstallSupported) {
+        'marketplace'
     }
     elseif ($support.cliAvailable) {
         'session-load-only'
@@ -395,6 +404,91 @@ function Get-ClaudeCliLifecycleSupport {
     }
 
     return [pscustomobject]$support
+}
+
+function Get-ClaudeMarketplaceManifestPath {
+    param([pscustomobject]$Context)
+    return Join-Path $Context.GalPluginsRoot '.claude-plugin\marketplace.json'
+}
+
+function Ensure-ClaudeMarketplaceManifest {
+    param([pscustomobject]$Context)
+
+    $manifestPath = Get-ClaudeMarketplaceManifestPath -Context $Context
+    $manifestDir = Split-Path $manifestPath -Parent
+
+    $manifest = [ordered]@{
+        name = 'gal'
+        owner = [ordered]@{ name = 'GAL' }
+        description = 'Golem Agents Legion — document-driven AI working system'
+        plugins = @(
+            [ordered]@{
+                name = 'gal'
+                source = './gal'
+                description = 'Golem Agents Legion plugin for Claude Code'
+            }
+        )
+    }
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would write marketplace manifest: {0}" -f $manifestPath)
+        return
+    }
+
+    if (-not (Test-Path $manifestDir)) {
+        New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
+    }
+
+    Write-JsonOrderedMap $manifestPath $manifest
+    Write-Host ("  [OK] Wrote marketplace manifest: {0}" -f $manifestPath)
+}
+
+function Install-ClaudePluginViaMarketplace {
+    param(
+        [pscustomobject]$Context,
+        [bool]$Replace = $false
+    )
+
+    $marketplaceRoot = $Context.GalPluginsRoot
+    $pluginName = 'gal'
+    $marketplaceName = 'gal'
+
+    Ensure-ClaudeMarketplaceManifest -Context $Context
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would add GAL marketplace: claude plugin marketplace add --scope user `"{0}`"" -f $marketplaceRoot)
+        Write-Host ("  [DRY RUN] Would install plugin: claude plugin install {0} --scope user" -f $pluginName)
+        return $true
+    }
+
+    $listOutput = (& claude plugin list 2>&1 | Out-String)
+    $alreadyInstalled = ($LASTEXITCODE -eq 0 -and ($listOutput -match ('(?m)^\s*{0}\b' -f [regex]::Escape($pluginName))))
+
+    if ($alreadyInstalled) {
+        if ($Replace) {
+            Write-Host ("  [OK] Replacing existing Claude plugin '{0}'." -f $pluginName)
+            & claude plugin uninstall $pluginName --scope user 2>&1 | Out-Null
+        }
+        else {
+            Write-Host ("  [OK] Claude plugin '{0}' already installed via marketplace." -f $pluginName)
+            return $true
+        }
+    }
+
+    $addOutput = (& claude plugin marketplace add --scope user $marketplaceRoot 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ("  [WARN] Failed to add GAL marketplace from '{0}': {1}" -f $marketplaceRoot, $addOutput.Trim()) -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host ("  [OK] Added GAL marketplace from: {0}" -f $marketplaceRoot)
+
+    $installOutput = (& claude plugin install $pluginName --scope user 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ("  [WARN] Failed to install Claude plugin '{0}': {1}" -f $pluginName, $installOutput.Trim()) -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host ("  [OK] Installed Claude plugin '{0}' via marketplace '{1}'." -f $pluginName, $marketplaceName)
+    return $true
 }
 
 function Write-ClaudeLifecycleState {
@@ -472,6 +566,8 @@ function Invoke-ClaudePluginLifecycle {
         lifecycle = [ordered]@{
             mode = [string]$support.installMode
             stagedPluginRoot = $null
+            marketplaceRoot = $null
+            marketplaceName = 'gal'
             sessionLoadCommand = ("claude --plugin-dir `"{0}`"" -f $canonicalRoot)
             installCommandTemplate = 'claude plugin install <plugin> --scope <scope>'
             updateCommandTemplate = 'claude plugin update <plugin> --scope <scope>'
@@ -479,8 +575,8 @@ function Invoke-ClaudePluginLifecycle {
         }
         notes = @(
             'Artifact validation is supported when the local Claude CLI exposes `claude plugin validate <path>`.',
-            'The current local Claude CLI install help is marketplace-oriented; local artifact install is treated as unsupported unless the CLI documents a path-based install mode.',
-            'When local artifact install is unavailable, the supported smoke path is session loading via `claude --plugin-dir <artifact-root>`.'
+            'Persistent install uses a local marketplace at ~/.gal/plugins/ registered via `claude plugin marketplace add`.',
+            'When marketplace install is unavailable, the supported smoke path is session loading via `claude --plugin-dir <artifact-root>`.'
         )
     }
 
@@ -510,8 +606,12 @@ function Invoke-ClaudePluginLifecycle {
         $state['lifecycle']['stagedPluginRoot'] = $Context.ClaudePluginInstallTarget
         Write-Host ("  [DRY RUN] Would project Claude plugin into: {0}" -f $Context.ClaudePluginInstallTarget)
         Write-Host ("  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict `"{0}`"" -f $canonicalRoot)
-        if (-not $support.localArtifactInstallSupported) {
-            Write-Host ("  [DRY RUN] Claude local artifact install is not available; session smoke remains: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
+        if ($support.marketplaceInstallSupported) {
+            Install-ClaudePluginViaMarketplace -Context $Context -Replace:$Replace | Out-Null
+            $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
+        }
+        else {
+            Write-Host ("  [DRY RUN] Marketplace install unavailable; session smoke remains: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
         }
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
@@ -527,11 +627,18 @@ function Invoke-ClaudePluginLifecycle {
     $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
     Write-Host ("  [OK] Projected Claude plugin root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
 
-    if ($support.localArtifactInstallSupported) {
+    if ($support.marketplaceInstallSupported) {
+        $marketplaceOk = Install-ClaudePluginViaMarketplace -Context $Context -Replace:$Replace
+        if ($marketplaceOk) {
+            $state['lifecycle']['mode'] = 'marketplace'
+            $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
+        }
+    }
+    elseif ($support.localArtifactInstallSupported) {
         Write-Host '  [OK] Claude CLI reports local artifact install support.'
     }
     else {
-        Write-Host '  [OK] Claude CLI supports validation but not documented local artifact install; recording session-load fallback.'
+        Write-Host '  [OK] Marketplace install unavailable; session-load fallback available.'
         Write-Host ("  [OK] Session smoke command: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
     }
 
@@ -563,6 +670,23 @@ if ($Uninstall) {
     Write-Host '  [OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.'
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
+
+    if (Test-CommandAvailable 'claude') {
+        if ($DryRun) {
+            Write-Host '  [DRY RUN] Would uninstall Claude plugin: claude plugin uninstall gal --scope user'
+            Write-Host '  [DRY RUN] Would remove GAL marketplace: claude plugin marketplace remove gal --scope user'
+        }
+        else {
+            & claude plugin uninstall gal --scope user 2>&1 | Out-Null
+            Write-Host '  [OK] Uninstalled Claude plugin: gal'
+            & claude plugin marketplace remove gal --scope user 2>&1 | Out-Null
+            Write-Host '  [OK] Removed GAL marketplace registration'
+        }
+    }
+    else {
+        Write-Host '  [SKIP] Claude CLI not available; skipping marketplace plugin uninstall.'
+    }
+
     Remove-SafeLink $script:SetupContext.ClaudePluginInstallTarget
     Remove-GalManagedDirectory -Path $script:SetupContext.GalPluginsRoot -Label 'GAL canonical plugin root'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedMcpRoot -Label 'GAL-managed MCP projections'

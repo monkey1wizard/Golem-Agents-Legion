@@ -205,6 +205,7 @@ invoke_claude_plugin_lifecycle() {
     local cli_available=false
     local validate_supported=false
     local local_artifact_install_supported=false
+    local marketplace_install_supported=false
     local install_scope_supported=false
     local install_help_summary=''
 
@@ -225,11 +226,19 @@ invoke_claude_plugin_lifecycle() {
         if printf '%s' "$install_help" | grep -Eq '<path>|local path'; then
             local_artifact_install_supported=true
         fi
+
+        local marketplace_help
+        marketplace_help="$(claude plugin marketplace --help 2>&1 || true)"
+        if printf '%s' "$marketplace_help" | grep -qi 'marketplace'; then
+            marketplace_install_supported=true
+        fi
     fi
 
     local lifecycle_mode='artifact-only'
     if $local_artifact_install_supported; then
         lifecycle_mode='provider-native-install'
+    elif $marketplace_install_supported; then
+        lifecycle_mode='marketplace'
     elif $cli_available; then
         lifecycle_mode='session-load-only'
     fi
@@ -248,8 +257,59 @@ invoke_claude_plugin_lifecycle() {
             echo '  [OK] Claude plugin validation passed.'
         fi
 
-        if ! $local_artifact_install_supported; then
+        if ! $local_artifact_install_supported && ! $marketplace_install_supported; then
             echo "  [OK] Session smoke command: $session_load_command"
+        fi
+    fi
+
+    local marketplace_root="$GAL_PLUGINS_ROOT"
+    local marketplace_manifest_dir="$marketplace_root/.claude-plugin"
+    local marketplace_manifest_path="$marketplace_manifest_dir/marketplace.json"
+
+    ensure_claude_marketplace_manifest() {
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would write marketplace manifest: $marketplace_manifest_path"
+            return 0
+        fi
+        mkdir -p "$marketplace_manifest_dir"
+        cat > "$marketplace_manifest_path" <<'MANIFEST'
+{
+  "name": "gal",
+  "owner": { "name": "GAL" },
+  "description": "Golem Agents Legion — document-driven AI working system",
+  "plugins": [
+    {
+      "name": "gal",
+      "source": "./gal",
+      "description": "Golem Agents Legion plugin for Claude Code"
+    }
+  ]
+}
+MANIFEST
+        echo "  [OK] Wrote marketplace manifest: $marketplace_manifest_path"
+    }
+
+    if $marketplace_install_supported; then
+        ensure_claude_marketplace_manifest
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would add GAL marketplace: claude plugin marketplace add --scope user \"$marketplace_root\""
+            echo "  [DRY RUN] Would install plugin: claude plugin install gal --scope user"
+        else
+            if claude plugin list 2>&1 | grep -q '^gal\b'; then
+                echo "  [OK] Claude plugin 'gal' already installed via marketplace."
+            else
+                if claude plugin marketplace add --scope user "$marketplace_root" 2>&1; then
+                    echo "  [OK] Added GAL marketplace from: $marketplace_root"
+                    if claude plugin install gal --scope user 2>&1; then
+                        echo "  [OK] Installed Claude plugin 'gal' via marketplace 'gal'."
+                        lifecycle_mode='marketplace'
+                    else
+                        echo "  [WARN] Failed to install Claude plugin 'gal' via marketplace." >&2
+                    fi
+                else
+                    echo "  [WARN] Failed to add GAL marketplace from '$marketplace_root'." >&2
+                fi
+            fi
         fi
     fi
 
@@ -267,9 +327,11 @@ invoke_claude_plugin_lifecycle() {
         --arg updateTemplate 'claude plugin update <plugin> --scope <scope>' \
         --arg uninstallTemplate 'claude plugin uninstall <plugin> --scope <scope>' \
         --arg mode "$lifecycle_mode" \
+        --arg marketplaceRoot "$marketplace_root" \
         --argjson cliAvailable "$cli_available" \
         --argjson validateSupported "$validate_supported" \
         --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
         --argjson installScopeSupported "$install_scope_supported" \
         --argjson strictPassed "$strict_passed" \
         '{
@@ -285,6 +347,7 @@ invoke_claude_plugin_lifecycle() {
                 available: $cliAvailable,
                 validateSupported: $validateSupported,
                 localArtifactInstallSupported: $localArtifactInstallSupported,
+                marketplaceInstallSupported: $marketplaceInstallSupported,
                 installScopeSupported: $installScopeSupported,
                 installHelpSummary: $installHelpSummary
             },
@@ -294,6 +357,8 @@ invoke_claude_plugin_lifecycle() {
             },
             lifecycle: {
                 mode: $mode,
+                marketplaceRoot: $marketplaceRoot,
+                marketplaceName: "gal",
                 sessionLoadCommand: $sessionLoadCommand,
                 installCommandTemplate: $installTemplate,
                 updateCommandTemplate: $updateTemplate,
@@ -301,8 +366,8 @@ invoke_claude_plugin_lifecycle() {
             },
             notes: [
                 "Artifact validation is supported when the local Claude CLI exposes claude plugin validate <path>.",
-                "The current local Claude CLI install help is marketplace-oriented; local artifact install stays unsupported unless the CLI documents a path-based install mode.",
-                "When local artifact install is unavailable, the supported smoke path is session loading via claude --plugin-dir <artifact-root>."
+                "Persistent install uses a local marketplace at ~/.gal/plugins/ registered via claude plugin marketplace add.",
+                "When marketplace install is unavailable, the supported smoke path is session loading via claude --plugin-dir <artifact-root>."
             ]
         }')"
 
@@ -357,6 +422,20 @@ if $UNINSTALL; then
         fi
     else
         echo '  [SKIP] No AGY plugin install target to remove'
+    fi
+
+    if command_exists claude; then
+        if $DRY_RUN; then
+            echo '  [DRY RUN] Would uninstall Claude plugin: claude plugin uninstall gal --scope user'
+            echo '  [DRY RUN] Would remove GAL marketplace: claude plugin marketplace remove gal --scope user'
+        else
+            claude plugin uninstall gal --scope user 2>&1 || true
+            echo '  [OK] Uninstalled Claude plugin: gal'
+            claude plugin marketplace remove gal --scope user 2>&1 || true
+            echo '  [OK] Removed GAL marketplace registration'
+        fi
+    else
+        echo '  [SKIP] Claude CLI not available; skipping marketplace plugin uninstall.'
     fi
 
     remove_managed_dir() {
