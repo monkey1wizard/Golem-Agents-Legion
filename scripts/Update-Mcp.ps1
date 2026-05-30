@@ -1764,6 +1764,185 @@ function Update-ClaudeMcpConfig([System.Collections.IDictionary]$ManagedManifest
     }
 }
 
+function Get-ClaudeDesktopConfigPath {
+    if ($env:APPDATA) {
+        return Join-Path $env:APPDATA 'Claude\claude_desktop_config.json'
+    }
+    return $null
+}
+
+function Get-ClaudeDesktopLedgerPath {
+    $context = $script:SetupContext
+    return Join-Path $context.GalGeneratedProvidersRoot 'claude-desktop\managed.json'
+}
+
+function Read-ClaudeDesktopLedger {
+    $ledgerPath = Get-ClaudeDesktopLedgerPath
+    if (-not (Test-Path $ledgerPath)) {
+        return [ordered]@{ schemaVersion = 1; managedKeys = @() }
+    }
+    $data = Read-JsonOrderedMap $ledgerPath
+    if (-not $data -or -not $data.Contains('managedKeys')) {
+        return [ordered]@{ schemaVersion = 1; managedKeys = @() }
+    }
+    return $data
+}
+
+function Write-ClaudeDesktopLedger {
+    param([string[]]$ManagedKeys)
+    $ledgerPath = Get-ClaudeDesktopLedgerPath
+    $ledgerDir = Split-Path $ledgerPath -Parent
+
+    $ledger = [ordered]@{
+        schemaVersion = 1
+        generatedAt = (Get-Date -Format 'o')
+        generatedBy = 'Update-Mcp.ps1'
+        managedKeys = @($ManagedKeys)
+    }
+
+    if ($script:SetupOptions.DryRun) {
+        Write-Host ("  [DRY RUN] Would write Claude Desktop ledger: {0}" -f $ledgerPath)
+        return
+    }
+
+    if (-not (Test-Path $ledgerDir)) {
+        New-Item -ItemType Directory -Path $ledgerDir -Force | Out-Null
+    }
+
+    Write-JsonOrderedMap $ledgerPath $ledger
+    Write-Host ("  [OK] Wrote Claude Desktop ledger: {0}" -f $ledgerPath)
+}
+
+function Update-ClaudeDesktopMcpConfig([System.Collections.IDictionary]$ManagedManifest) {
+    $configPath = Get-ClaudeDesktopConfigPath
+    if (-not $configPath) {
+        Write-Host '  [SKIP] Cannot resolve Claude Desktop config path (APPDATA not set).'
+        return
+    }
+
+    if (-not (Test-Path $configPath)) {
+        Write-Host ("  [SKIP] Claude Desktop config not found: {0}" -f $configPath)
+        return
+    }
+
+    $desktopServers = ConvertTo-ClaudeDesktopMcpServers -ResolvedManifest $ManagedManifest
+    if ($desktopServers.Count -eq 0) {
+        Write-Host '  [SKIP] No Phase-1 Claude Desktop MCP servers to inject.'
+        return
+    }
+
+    $ledger = Read-ClaudeDesktopLedger
+    $previousManagedKeys = @($ledger['managedKeys'])
+
+    $config = Read-JsonOrderedMap $configPath
+    if ($null -eq $config) {
+        Write-Host ("  [WARN] Failed to read Claude Desktop config: {0}" -f $configPath) -ForegroundColor Yellow
+        return
+    }
+
+    if (-not $config.Contains('mcpServers') -or $config['mcpServers'] -isnot [System.Collections.IDictionary]) {
+        $config['mcpServers'] = [ordered]@{}
+    }
+
+    $changed = $false
+    $newManagedKeys = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($serverKey in $desktopServers.Keys) {
+        $desiredEntry = $desktopServers[$serverKey]
+        $existingEntry = if ($config['mcpServers'].Contains($serverKey)) { $config['mcpServers'][$serverKey] } else { $null }
+
+        $ownedByGal = $serverKey -in $previousManagedKeys
+        if ($null -ne $existingEntry -and -not $ownedByGal -and -not (Test-JsonLikeEqual $existingEntry $desiredEntry)) {
+            Write-Host ("  [WARN] Preserving user-owned Claude Desktop MCP server: {0}" -f $serverKey) -ForegroundColor Yellow
+            $newManagedKeys.Add($serverKey)
+            continue
+        }
+
+        if ($null -eq $existingEntry -or -not (Test-JsonLikeEqual $existingEntry $desiredEntry)) {
+            if ($script:SetupOptions.DryRun) {
+                Write-Host ("  [DRY RUN] Would set Claude Desktop MCP server: {0}" -f $serverKey)
+            }
+            else {
+                $config['mcpServers'][$serverKey] = $desiredEntry
+                Write-Host ("  [SET] Claude Desktop MCP server: {0}" -f $serverKey)
+            }
+            $changed = $true
+        }
+        else {
+            Write-Host ("  [OK] Claude Desktop MCP server already current: {0}" -f $serverKey)
+        }
+
+        $newManagedKeys.Add($serverKey)
+    }
+
+    if ($changed -and -not $script:SetupOptions.DryRun) {
+        $backupPath = $configPath + ('.bak.{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+        Copy-Item -LiteralPath $configPath -Destination $backupPath -Force
+        Write-Host ("  [OK] Backed up Claude Desktop config: {0}" -f $backupPath)
+
+        Write-JsonOrderedMap $configPath $config
+        Write-Host ("  [OK] {0}" -f $configPath)
+    }
+
+    Write-ClaudeDesktopLedger -ManagedKeys @($newManagedKeys)
+}
+
+function Remove-ClaudeDesktopMcpConfig {
+    $configPath = Get-ClaudeDesktopConfigPath
+    if (-not $configPath -or -not (Test-Path $configPath)) {
+        Write-Host '  [SKIP] Claude Desktop config not found; no removal needed.'
+        return
+    }
+
+    $ledger = Read-ClaudeDesktopLedger
+    $managedKeys = @($ledger['managedKeys'])
+    if ($managedKeys.Count -eq 0) {
+        Write-Host '  [SKIP] No GAL-managed Claude Desktop MCP entries to remove.'
+        return
+    }
+
+    $config = Read-JsonOrderedMap $configPath
+    if ($null -eq $config -or -not $config.Contains('mcpServers')) {
+        return
+    }
+
+    $changed = $false
+    foreach ($serverKey in $managedKeys) {
+        if (-not $config['mcpServers'].Contains($serverKey)) {
+            continue
+        }
+
+        if ($script:SetupOptions.DryRun) {
+            Write-Host ("  [DRY RUN] Would remove GAL-managed Claude Desktop MCP server: {0}" -f $serverKey)
+        }
+        else {
+            $config['mcpServers'].Remove($serverKey)
+            Write-Host ("  [CLEANUP] Removed GAL-managed Claude Desktop MCP server: {0}" -f $serverKey)
+        }
+        $changed = $true
+    }
+
+    if ($changed -and -not $script:SetupOptions.DryRun) {
+        $backupPath = $configPath + ('.bak.{0}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+        Copy-Item -LiteralPath $configPath -Destination $backupPath -Force
+        Write-Host ("  [OK] Backed up Claude Desktop config: {0}" -f $backupPath)
+
+        Write-JsonOrderedMap $configPath $config
+        Write-Host ("  [OK] {0}" -f $configPath)
+    }
+
+    if (-not $script:SetupOptions.DryRun) {
+        $ledgerPath = Get-ClaudeDesktopLedgerPath
+        if (Test-Path $ledgerPath) {
+            Remove-Item -LiteralPath $ledgerPath -Force
+            Write-Host ("  [OK] Removed Claude Desktop ledger: {0}" -f $ledgerPath)
+        }
+    }
+    else {
+        Write-Host ("  [DRY RUN] Would remove Claude Desktop ledger: {0}" -f (Get-ClaudeDesktopLedgerPath))
+    }
+}
+
 function Invoke-UpdateMcp {
     $context = $script:SetupContext
 
@@ -1782,7 +1961,10 @@ function Invoke-UpdateMcp {
                 Write-Host "  [CLEANUP] AGY plugin MCP config removed: $pluginMcpFile"
             }
         }
-        Write-Host '  [SKIP] Global MCP config files are preserved during uninstall.'
+        if ($context.InstallClaude) {
+            Remove-ClaudeDesktopMcpConfig
+        }
+        Write-Host '  [SKIP] Other global MCP config files are preserved during uninstall.'
         return
     }
 
@@ -1797,7 +1979,10 @@ function Invoke-UpdateMcp {
         }
         if ($context.InstallCodex) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.CodexConfigFile)" }
         if ($context.InstallOpenCode) { Write-Host "  [DRY RUN] Would merge MCP servers into: $($context.OpenCodeConfigFile)" }
-        if ($context.InstallClaude) { Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope' }
+        if ($context.InstallClaude) {
+            Write-Host '  [DRY RUN] Would merge MCP servers through Claude CLI user scope'
+            Write-Host ("  [DRY RUN] Would merge Phase-1 MCP servers into Claude Desktop config: {0}" -f (Get-ClaudeDesktopConfigPath))
+        }
     }
 
     $previousProjection = Get-PreviousManagedProjection
@@ -1818,7 +2003,10 @@ function Invoke-UpdateMcp {
     }
     if ($context.InstallCodex) { Update-CodexMcpConfig -ManagedManifest $manifest }
     if ($context.InstallOpenCode) { Update-OpenCodeMcpConfig -ManagedManifest $manifest }
-    if ($context.InstallClaude) { Update-ClaudeMcpConfig -ManagedManifest $manifest }
+    if ($context.InstallClaude) {
+        Update-ClaudeMcpConfig -ManagedManifest $manifest
+        Update-ClaudeDesktopMcpConfig -ManagedManifest $manifest
+    }
 
     Write-GeneratedProjectionFiles -ResolvedManifest $manifest -McpValues $mcpValues -RuntimeEntries $runtimeEntries
 }
