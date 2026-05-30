@@ -273,6 +273,7 @@ if ($package.instructionCorpus.sources.Count -gt 0) {
 
 # --- Install if requested ---
 if ($Install) {
+    # 1. Junction into antigravity-cli/plugins/ (for the agy CLI surface)
     $installTarget = Get-AgyPluginInstallTarget
     Write-Host "Projecting to $installTarget..." -ForegroundColor Cyan
     if (Test-Path $installTarget) {
@@ -286,6 +287,21 @@ if ($Install) {
         throw "Failed to project AGY plugin into $installTarget"
     }
     Write-Host "Projected to $installTarget" -ForegroundColor Green
+
+    # 2. agy plugin install (for Antigravity 2.0 GUI + IDE via ~/.gemini/config/plugins/)
+    if (Test-CommandAvailable 'agy') {
+        Write-Host 'Installing into shared Antigravity config store via `agy plugin install`...' -ForegroundColor Cyan
+        $agyInstallOutput = (& agy plugin install $artifactRoot 2>&1 | Out-String)
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host '  [OK] agy plugin install succeeded (GUI + IDE surfaces).' -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  [WARN] agy plugin install returned non-zero; check output:`n{0}" -f $agyInstallOutput.Trim()) -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host '  [SKIP] agy CLI not on PATH; skipping shared config store install.' -ForegroundColor Yellow
+    }
 }
 
 Write-Host "`nAGY plugin rendered successfully to: $artifactRoot" -ForegroundColor Green
