@@ -175,19 +175,18 @@ Provider marketplaces are downstream wrappers over the canonical GitHub Release 
 
 Claude Code is the canonical marketplace baseline because GAL's provider-neutral package schema is already defined as Claude-compatible.
 
-Current verification state:
+Current verification state (updated 2026-05-30):
 
 - the canonical package schema uses `canonicalProvider = "claude"`
 - the plugin catalog already marks `gal-core` as a `canonical-package` for `claude`, `copilot`, `codex`, and `agy`
 - the concrete Claude renderer now exists in `Build-ProviderPlugins.ps1`, and the current PowerShell validation surface has passed artifact build, strict `claude plugin validate`, lifecycle-state write-back, and legacy cleanup checks
+- **local marketplace install is now verified**: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal --scope user` installs `gal@gal` v1.0.0 at user scope; `claude plugin uninstall gal` and `claude plugin marketplace remove gal` are verified for uninstall; plugin cache at `~/.claude/plugins/cache/gal/gal/1.0.0/` is populated with all components (agents, commands, skills, .mcp.json); settings registered in `~/.claude/settings.json` under `extraKnownMarketplaces` and `enabledPlugins`
 
-That means Claude is now the baseline for package structure, renderer output, and validation-ready lifecycle checks, but it is still not a verified direct-install lane. The observed local Claude CLI supports strict validation and session-load smoke for the rendered artifact; it does not yet provide documented local artifact install, update, and uninstall behavior that would justify a direct-install claim. The Claude marketplace entry therefore remains discoverability-first.
-
-T-009 only establishes the Claude baseline. Codex and Copilot marketplace matrices stay deferred to T-010 after the Claude baseline is closed.
+Claude direct-install conditions (local dev mode with local marketplace source) are now met. The remaining gate before claiming Phase 2 public-marketplace direct install is condition 4: public GitHub Release tag visible through the public community marketplace entry.
 
 | Provider | Baseline role | Current classification | Entry metadata requirement | Install action | Fallback copy |
 | --- | --- | --- | --- | --- | --- |
-| Claude Code | canonical schema baseline | discoverability-only while direct install remains unverified; renderer, strict validation, and session-load smoke are implemented | Must identify GAL as the canonical plugin package baseline, expose the current GitHub Release version, and state that renderer/validation are verified separately from direct install | Direct users to GitHub Releases, `winget`, or Homebrew until documented provider-native install, update, and uninstall are verified | Must carry the standard lag fallback message and point to GitHub Releases as canonical source |
+| Claude Code | canonical schema baseline | **local-install verified** (local marketplace); public marketplace discoverability-only pending Phase 2 GitHub release + community marketplace submission | Must identify GAL as the canonical plugin package baseline, expose the current GitHub Release version, and state that local marketplace install is verified | Local: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal`; Phase 2: `/plugin install gal@claude-community` after community submission | Must carry the standard lag fallback message and point to GitHub Releases as canonical source |
 
 ### Claude submission contract
 
@@ -251,7 +250,62 @@ Codex or Copilot may only be reclassified from discoverability-only to direct-in
 3. Update and uninstall behavior are verified to preserve the same ownership boundaries already defined for bootstrap delivery.
 4. Release and marketplace metadata prove the same GitHub Release tag is visible through GitHub Releases and the provider marketplace entry.
 
-## 8. Raw PowerShell and Shell Convenience Installer Policy
+## 8. AI Tool Integration Status
+
+This section records the verified integration status across Claude Code, Claude Desktop, and Antigravity CLI as of 2026-05-30. It is the single-place capability reference for all three targets, per R-4 (capability honesty).
+
+### Capability ceiling by target
+
+| Target | GAL provider | Install mechanism | Loadable components | Status |
+| --- | --- | --- | --- | --- |
+| **Claude Code (CLI)** | `claude` | `claude plugin marketplace add ~/.gal/plugins` + `claude plugin install gal` — or `claude --plugin-dir ~/.gal/plugins/gal` for dev/session load | agents / skills / commands / MCP (complete) | ✓ **verified** (local marketplace, 2026-05-30) |
+| **Claude Desktop (GUI)** | MCP-only special target (not a plugin provider) | Safe-merge into `claude_desktop_config.json` via `Update-Mcp.ps1` → `Update-ClaudeDesktopMcpConfig`; Phase 2: `.mcpb` desktop extension | **MCP servers only** — agents/skills/commands are NOT supported | ✓ **verified** (4 Phase-1 servers injected, 2026-05-30) |
+| **Antigravity CLI** | `agy` | `Install-GalPlugins.ps1 -SelectedRuntimes antigravity` → managed shortcut `~/.gemini/antigravity-cli/plugins/gal → ~/.gal/plugins/gal` | plugin.json / mcp_config.json / skills / agents / rules (complete) | ⚠ **not yet installed** on this machine (P2; architecture verified via dry-run) |
+
+### Claude Desktop integration details
+
+Claude Desktop is an MCP-only host. It **cannot** load GAL agents, skills, or commands. The integration provides only the GAL-curated MCP server catalog.
+
+**Phase 1 (verified 2026-05-30) — no-auth stdio servers only:**
+
+| Server key in `claude_desktop_config.json` | Source in `mcp.json` | Why included |
+| --- | --- | --- |
+| `chrome-devtools` | `chromedevtools/chrome-devtools-mcp` | No auth, stdio, browser debugging |
+| `firebase-mcp-server` | `firebase-mcp-server` | No auth (uses logged-in Firebase account), stdio |
+| `markitdown` | `microsoft/markitdown` | No auth, stdio, document conversion |
+| `playwright` | `playwright` | No auth, stdio, headless browser automation |
+
+**Phase 1 excluded (auth required or HTTP-remote):**
+
+| Server | Reason excluded |
+| --- | --- |
+| `github` | Requires GitHub token |
+| `microsoftdocs` | HTTP-remote; not natively supported in Desktop config file |
+| `context7` | Requires `CONTEXT7_API_KEY`; HTTP-remote |
+
+These may be added as opt-in via Connectors/Integrations UI or via a future `.mcpb` extension (Phase 2).
+
+**Safety properties:**
+- Idempotent safe-merge: user-owned servers are never modified or removed
+- Timestamped backup created before every write
+- `~/.gal/dist/providers/claude-desktop/managed.json` ledger records GAL-written keys; uninstall only removes ledger entries
+- No secret placeholders (`${...}`) ever written to the config file
+
+### Antigravity integration details
+
+Antigravity CLI (`agy` v1.0.2) is available. GAL plugin install (`~/.gemini/antigravity-cli/plugins/gal`) is P2. When installed, it uses a managed shortcut (symlink/junction) from the AGY plugin path to the canonical root `~/.gal/plugins/gal`, so updates to the canonical root are immediately reflected without reinstall.
+
+Note: Antigravity's MCP config uses `serverUrl` (not `url`) for HTTP servers; the `Update-Mcp.ps1` `ConvertTo-AgyMcpConfig` function already handles this conversion.
+
+### Promotion gates for public marketplace listing
+
+| Provider | Required before public community marketplace submission |
+| --- | --- |
+| Claude Code | GitHub Release tag published; `/plugin marketplace add anthropics/claude-plugins-community` + `/plugin install gal@claude-community` tested |
+| Claude Desktop | `.mcpb` packaging verified; `.mcpb` submitted to Desktop extension gallery |
+| Antigravity | GAL plugin installed and verified on Antigravity; `agy inspect` confirms component load |
+
+## 9. Raw PowerShell and Shell Convenience Installer Policy
 
 Raw PowerShell or shell installers such as `irm ... | iex` and `curl ... | sh` are convenience entrypoints only. They are not canonical install channels, they do not define an independent package shape, and they must not become the only supported way to get GAL onto a machine.
 
