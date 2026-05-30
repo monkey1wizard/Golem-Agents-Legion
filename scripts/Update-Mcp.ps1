@@ -752,6 +752,98 @@ function Get-ClaudeBridgeProfile([string]$ServerName) {
     }
 }
 
+$script:ClaudeDesktopPhase1Allowlist = @('chrome-devtools', 'firebase-mcp-server', 'markitdown', 'playwright')
+
+function Test-McpServerHasUnresolvedSecrets([System.Collections.IDictionary]$ServerConfig) {
+    $secretPattern = '^\$\{[A-Z0-9_]+\}$'
+    foreach ($key in @('command', 'url')) {
+        if ($ServerConfig.Contains($key) -and [string]$ServerConfig[$key] -match $secretPattern) {
+            return $true
+        }
+    }
+
+    if ($ServerConfig.Contains('args') -and $ServerConfig['args'] -is [System.Collections.IEnumerable]) {
+        foreach ($arg in $ServerConfig['args']) {
+            if ([string]$arg -match $secretPattern) {
+                return $true
+            }
+        }
+    }
+
+    if ($ServerConfig.Contains('env') -and $ServerConfig['env'] -is [System.Collections.IDictionary]) {
+        foreach ($envValue in $ServerConfig['env'].Values) {
+            if ([string]$envValue -match $secretPattern) {
+                return $true
+            }
+        }
+    }
+
+    if ($ServerConfig.Contains('headers') -and $ServerConfig['headers'] -is [System.Collections.IDictionary]) {
+        foreach ($headerValue in $ServerConfig['headers'].Values) {
+            if ([string]$headerValue -match $secretPattern) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
+function ConvertTo-ClaudeDesktopServerEntry([System.Collections.IDictionary]$ServerConfig) {
+    $entry = [ordered]@{}
+    if ($ServerConfig.Contains('command')) {
+        $entry['command'] = [string]$ServerConfig['command']
+    }
+
+    if ($ServerConfig.Contains('args') -and $null -ne $ServerConfig['args']) {
+        if ($ServerConfig['args'] -is [System.Collections.IEnumerable] -and -not ($ServerConfig['args'] -is [string])) {
+            $entry['args'] = @($ServerConfig['args'] | ForEach-Object { [string]$_ })
+        }
+        else {
+            $entry['args'] = @([string]$ServerConfig['args'])
+        }
+    }
+
+    if ($ServerConfig.Contains('env') -and $ServerConfig['env'] -is [System.Collections.IDictionary] -and $ServerConfig['env'].Count -gt 0) {
+        $entry['env'] = ConvertTo-OrderedMap $ServerConfig['env']
+    }
+
+    return $entry
+}
+
+function ConvertTo-ClaudeDesktopMcpServers([System.Collections.IDictionary]$ResolvedManifest) {
+    $result = [ordered]@{}
+
+    foreach ($serverName in $ResolvedManifest['servers'].Keys) {
+        $serverConfig = $ResolvedManifest['servers'][$serverName]
+
+        if ($serverConfig.Contains('type') -and [string]$serverConfig['type'] -eq 'http') {
+            continue
+        }
+        if ($serverConfig.Contains('url') -and -not $serverConfig.Contains('command')) {
+            continue
+        }
+
+        $bridgeProfile = Get-ClaudeBridgeProfile -ServerName $serverName
+        if (-not $bridgeProfile['Enabled']) {
+            continue
+        }
+
+        $normalizedKey = [string]$bridgeProfile['Key']
+        if ($normalizedKey -notin $script:ClaudeDesktopPhase1Allowlist) {
+            continue
+        }
+
+        if (Test-McpServerHasUnresolvedSecrets -ServerConfig $serverConfig) {
+            continue
+        }
+
+        $result[$normalizedKey] = ConvertTo-ClaudeDesktopServerEntry -ServerConfig $serverConfig
+    }
+
+    return $result
+}
+
 function ConvertTo-PowerShellSingleQuotedLiteral([string]$Value) {
     if ($null -eq $Value) {
         return "''"
