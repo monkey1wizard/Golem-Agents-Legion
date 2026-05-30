@@ -68,8 +68,8 @@
 
 ### Step 1: 修正 Claude Code (CLI) 安裝
 - **Diagnose（gating spike，必為第一個任務）**：以 `pwsh -File scripts/Install-GalPlugins.ps1 -DryRun` 與 `claude plugin validate --help`、`claude plugin install --help` 判定本機落點；**並實測** symlink 投影後 Claude Code 是否真的會自動載入該外掛（無 marketplace、無 `--plugin-dir`）。這個 spike 的結果決定 Primary 是 link 還是 marketplace——在它有結論前，不得把任一條當成既定主路徑。
-- **Primary 候選 A（link-first，依 R-6，待 spike 證實）**：以 symlink 把 canonical `~/.gal/plugins/gal` 投影到 Claude Code 的外掛探索位置（現有 `Sync-ClaudePluginProjection`／`New-SafeSymlink`），讓其就地載入正本、零複製。**風險**：官方文件未保證裸 symlink 會被自動探索；若不成立則此候選作廢。
-- **Primary 候選 B（local marketplace，spike 否定 A 時轉正）**：產出最小 `.claude-plugin/marketplace.json` 指向 `~/.gal/plugins/gal`，走 `/plugin marketplace add` + `/plugin install`。即使走 B，marketplace 來源仍指向同一正本以符合 R-6 的「單一正本、不複製」精神。
+- **候選 A（link-first）— 已由 T-001 spike 否決**：`~/.claude/plugins/gal` symlink 存在但 `claude plugin list` = "No plugins installed"，實測確認 `~/.claude/plugins/<name>` **不是** Claude Code 的自動載入路徑。
+- **定案：候選 B（local marketplace）**：`claude plugin marketplace add --scope user <canonical-root>` + `claude plugin install gal@gal`。為唯一文件化的持久安裝方式；`claude plugin validate --strict ~/.gal/plugins/gal` 已通過。marketplace manifest 未來公開即為 Phase 2 成品，不重做。
 - **Phase 2 收斂**：無論 spike 選 A 或 B，候選 B 的 `marketplace.json` 都是 Phase 2 公開上架的同一份成品（公開同 repo 即完成），不重做。`--plugin-dir`／skills-dir 僅作開發與最終後備。
 - **Fix**：依 spike 結論，讓 `Install-GalPlugins.ps1` 走定案的 Primary 路徑並更新 `managed.json`；若為 B，追加 marketplace manifest 並串接 `/plugin` 生命週期。
 - **Verify**：link 路徑下啟動 Claude Code 能列出 GAL 的 commands/agents/skills 並執行 `/gal status`；若走 fallback，另驗 `/plugin install`／`/plugin update`／`/plugin uninstall`。
