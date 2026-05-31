@@ -305,6 +305,33 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
 }
 
 # ---------------------------------------------------------------------------
+# CODEX: .codex-plugin/plugin.json  (Codex plugin manifest — skills only; no agents per spec)
+# Follows OpenAI Codex plugin format: .codex-plugin/ directory at plugin root,
+# skills path reference, no agents (providerCapabilities.codex.agents = false).
+# ---------------------------------------------------------------------------
+Write-Host 'Rendering .codex-plugin/plugin.json (Codex manifest)...' -ForegroundColor Cyan
+New-Item -ItemType Directory -Path (Join-Path $artifactRoot '.codex-plugin') -Force | Out-Null
+$codexPluginManifest = [ordered]@{
+    name = 'gal'
+    version = '1.0.0'
+    description = 'Golem Agents Legion plugin for Codex CLI'
+    author = [ordered]@{ name = 'GAL' }
+    homepage = 'https://github.com/leetz/Golem-Agents-Legion'
+    repository = 'https://github.com/leetz/Golem-Agents-Legion'
+    license = 'MIT'
+    keywords = @('gal', 'golem-agents-legion', 'codex', 'plugin')
+    skills = './skills/'
+    interface = [ordered]@{
+        displayName = $package.metadata.displayName
+        shortDescription = 'Document-driven AI working system'
+        developerName = 'GAL'
+        category = 'Engineering'
+    }
+}
+$codexPluginManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $artifactRoot '.codex-plugin\plugin.json') -Encoding UTF8
+Write-Host '  -> .codex-plugin/plugin.json' -ForegroundColor Gray
+
+# ---------------------------------------------------------------------------
 # COPILOT: copilot-manifest.json  (root manifest — explicitly exposes component paths)
 # Fixes BUG-02: Copilot will not load commands/ unless the path is explicitly defined
 # in a root-level manifest. Unlike Claude (.claude-plugin/) and AGY (plugin.json),
@@ -525,6 +552,53 @@ if ($Install) {
     }
     else {
         Write-Host '  [SKIP] agy CLI not on PATH; skipping GUI-config store install.' -ForegroundColor Yellow
+    }
+
+    # Surface 4: Codex marketplace descriptor + plugin install
+    Write-Host '' -ForegroundColor Cyan
+    Write-Host '=== Codex Marketplace Projection ===' -ForegroundColor Cyan
+    $pluginsRoot = Split-Path $artifactRoot -Parent  # ~/.gal/plugins
+    $codexMarketplaceDir = Join-Path $pluginsRoot '.agents\plugins'
+    $codexMarketplaceFile = Join-Path $codexMarketplaceDir 'marketplace.json'
+    New-Item -ItemType Directory -Path $codexMarketplaceDir -Force | Out-Null
+    $codexMarketplace = [ordered]@{
+        name = 'gal-marketplace'
+        interface = [ordered]@{ displayName = 'GAL Plugin Marketplace' }
+        plugins = @(
+            [ordered]@{
+                name = 'gal'
+                source = [ordered]@{ source = 'local'; path = './gal' }
+                policy = [ordered]@{ installation = 'AVAILABLE'; authentication = 'ON_INSTALL' }
+                category = 'Engineering'
+            }
+        )
+    }
+    $codexMarketplace | ConvertTo-Json -Depth 6 | Set-Content -Path $codexMarketplaceFile -Encoding UTF8
+    Write-Host "  [OK] Codex marketplace descriptor: $codexMarketplaceFile" -ForegroundColor Green
+
+    if (Test-CommandAvailable 'codex') {
+        # Register (or re-register) the GAL marketplace
+        Write-Host 'Registering gal-marketplace with codex...' -ForegroundColor Cyan
+        $regOutput = (& codex plugin marketplace add $pluginsRoot 2>&1 | Out-String)
+        if ($LASTEXITCODE -eq 0 -or $regOutput -match 'already') {
+            Write-Host '  [OK] gal-marketplace registered.' -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  [WARN] codex marketplace add returned non-zero; output:`n{0}" -f $regOutput.Trim()) -ForegroundColor Yellow
+        }
+
+        # Install/upgrade gal plugin from gal-marketplace
+        Write-Host 'Installing gal plugin from gal-marketplace...' -ForegroundColor Cyan
+        $addOutput = (& codex plugin add "gal@gal-marketplace" 2>&1 | Out-String)
+        if ($LASTEXITCODE -eq 0 -or $addOutput -match 'already installed') {
+            Write-Host '  [OK] gal plugin installed from gal-marketplace.' -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  [WARN] codex plugin add returned non-zero; output:`n{0}" -f $addOutput.Trim()) -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host '  [SKIP] codex CLI not on PATH; skipping Codex marketplace install.' -ForegroundColor Yellow
     }
 
     # Cleanup: remove GAL-owned vestigial artifacts (whitelist only — do NOT touch ~/.antigravity* IDE dirs)

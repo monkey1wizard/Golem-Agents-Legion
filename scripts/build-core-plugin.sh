@@ -233,6 +233,36 @@ if [[ "$(printf '%s' "$package_json" | jq -r '.mcpSpec.canonicalSource != null')
 fi
 
 # ---------------------------------------------------------------------------
+# CODEX: .codex-plugin/plugin.json  (Codex plugin manifest — skills only; no agents)
+# ---------------------------------------------------------------------------
+echo 'Rendering .codex-plugin/plugin.json (Codex manifest)...'
+mkdir -p "$artifact_root/.codex-plugin"
+display_name="$(printf '%s' "$package_json" | jq -r '.metadata.displayName')"
+jq -n \
+    --arg name 'gal' \
+    --arg version '1.0.0' \
+    --arg description 'Golem Agents Legion plugin for Codex CLI' \
+    --arg displayName "$display_name" \
+    '{
+        name: $name,
+        version: $version,
+        description: $description,
+        author: {name: "GAL"},
+        homepage: "https://github.com/leetz/Golem-Agents-Legion",
+        repository: "https://github.com/leetz/Golem-Agents-Legion",
+        license: "MIT",
+        keywords: ["gal", "golem-agents-legion", "codex", "plugin"],
+        "skills": "./skills/",
+        interface: {
+            displayName: $displayName,
+            shortDescription: "Document-driven AI working system",
+            developerName: "GAL",
+            category: "Engineering"
+        }
+    }' > "$artifact_root/.codex-plugin/plugin.json"
+echo '  -> .codex-plugin/plugin.json'
+
+# ---------------------------------------------------------------------------
 # COPILOT: copilot-manifest.json  (root manifest — explicitly exposes component paths)
 # Fixes BUG-02: Copilot will not load commands/ unless the path is explicitly defined.
 # ---------------------------------------------------------------------------
@@ -445,6 +475,42 @@ if [[ "$INSTALL" == 'true' ]]; then
         fi
     else
         echo '  [SKIP] agy CLI not on PATH; skipping GUI-config store install.'
+    fi
+
+    # Codex marketplace descriptor + plugin install
+    echo ''
+    echo '=== Codex Marketplace Projection ==='
+    plugins_root="$(dirname "$artifact_root")"  # ~/.gal/plugins
+    codex_marketplace_dir="$plugins_root/.agents/plugins"
+    codex_marketplace_file="$codex_marketplace_dir/marketplace.json"
+    mkdir -p "$codex_marketplace_dir"
+    jq -n '{
+        name: "gal-marketplace",
+        interface: {displayName: "GAL Plugin Marketplace"},
+        plugins: [{
+            name: "gal",
+            source: {source: "local", path: "./gal"},
+            policy: {installation: "AVAILABLE", authentication: "ON_INSTALL"},
+            category: "Engineering"
+        }]
+    }' > "$codex_marketplace_file"
+    echo "  [OK] Codex marketplace descriptor: $codex_marketplace_file"
+
+    if command -v codex >/dev/null 2>&1; then
+        echo 'Registering gal-marketplace with codex...'
+        if codex plugin marketplace add "$plugins_root" 2>&1; then
+            echo '  [OK] gal-marketplace registered.'
+        else
+            echo '  [WARN] codex marketplace add returned non-zero.'
+        fi
+        echo 'Installing gal plugin from gal-marketplace...'
+        if codex plugin add "gal@gal-marketplace" 2>&1; then
+            echo '  [OK] gal plugin installed from gal-marketplace.'
+        else
+            echo '  [WARN] codex plugin add returned non-zero.'
+        fi
+    else
+        echo '  [SKIP] codex CLI not on PATH; skipping Codex marketplace install.'
     fi
 
     # R-CLEANUP: remove GAL-owned vestigial artifacts (whitelist only)

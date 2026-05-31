@@ -74,7 +74,10 @@ Assert-True -Condition ($copilotPlan.CanonicalRoot -eq $canonicalPluginRoot) -La
 Assert-True -Condition ($copilotPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-005: Copilot build plan package output root is the canonical root'
 Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-002: Codex stays on native-install lane'
 Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-002: Codex does not get a managed shortcut target'
-Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-002: Codex direct install is not yet claimed before renderer verification'
+Assert-True -Condition ($codexPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-006: Codex build plan uses the core renderer'
+Assert-True -Condition ($codexPlan.LifecycleStatus -eq 'implemented') -Label 'TP-006: Codex lifecycle is implemented after T-003'
+Assert-True -Condition ($codexPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-006: Codex build plan canonical root is the superset plugin root'
+Assert-True -Condition ($codexPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-006: Codex build plan package output root is the canonical root'
 Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-002: Claude remains the baseline native-install lane'
 Assert-True -Condition ($claudePlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-002: Claude build plan uses the core renderer'
 Assert-True -Condition ($agyPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-002: AGY build plan uses the core renderer'
@@ -108,6 +111,13 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         $agyMcpConfigPath = Join-Path $canonicalPluginRoot 'mcp_config.json'
         $agyRulesPath = Join-Path $canonicalPluginRoot 'rules\gal.md'
         $pluginJson = Get-Content -LiteralPath $agyRootPluginJsonPath -Raw | ConvertFrom-Json
+
+        $codexPluginManifestPath = Join-Path $canonicalPluginRoot '.codex-plugin\plugin.json'
+        Assert-True -Condition (Test-Path $codexPluginManifestPath) -Label 'TP-007: Superset canonical root contains Codex .codex-plugin/plugin.json'
+        $codexManifest = Get-Content -LiteralPath $codexPluginManifestPath -Raw | ConvertFrom-Json
+        Assert-True -Condition ($codexManifest.name -eq 'gal') -Label 'TP-006: Codex manifest name is gal'
+        Assert-True -Condition ($codexManifest.skills -eq './skills/') -Label 'TP-006: Codex manifest references skills/ path'
+        Assert-True -Condition ($null -eq $codexManifest.agents) -Label 'TP-006: Codex manifest does not reference agents/ (providerCapabilities.codex.agents=false)'
 
         $copilotManifestPath = Join-Path $canonicalPluginRoot 'copilot-manifest.json'
         Assert-True -Condition (Test-Path $copilotManifestPath) -Label 'TP-007: Superset canonical root contains Copilot copilot-manifest.json'

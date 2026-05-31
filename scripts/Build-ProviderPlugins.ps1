@@ -105,12 +105,12 @@ foreach ($provider in $Providers) {
             $buildPlan.Add([pscustomobject]@{
                 Provider = 'codex'
                 Mode = 'native-install'
-                Renderer = 'not-yet-implemented'
-                CanonicalRoot = $null
-                PackageOutputRoot = $null
-                InstallTarget = $null
+                Renderer = 'Build-CorePlugin.ps1'
+                CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+                PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
+                InstallTarget = 'provider-managed via codex plugin marketplace add + codex plugin add gal@gal-marketplace'
                 ShortcutTarget = $null
-                LifecycleStatus = 'not-implemented'
+                LifecycleStatus = 'implemented'
             })
         }
         'claude' {
