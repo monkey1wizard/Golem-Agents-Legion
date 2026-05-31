@@ -271,7 +271,7 @@ Re-confirm 評估（2026-05-31）：
   Verify: TP-001, TP-002, TP-003, TP-004, TP-007, TP-008 (若可用), TP-009 (若 AGY 可用), TP-010, TP-011, TP-012。
 - [x] T-002 — Copilot：以 link-first 把 Copilot 外掛目錄連到 superset canonical root，暴露 Copilot 可讀的 agents/skills/commands/mcpServers 路徑，更新 Copilot 測試/文件。 *(2ca9305)*
   Verify: TP-001, TP-002, TP-003, TP-005, TP-007, TP-008 (若可用), TP-009 (若 Copilot 可用), TP-010。
-- [ ] T-003 — Codex：以 link-first 把 Codex 連到 superset canonical root，加入 `.codex-plugin/plugin.json` 標記，依 Codex lifecycle/marketplace 接線，組件支援宣稱限於已驗證項目，更新 Codex 測試/文件。
+- [x] T-003 — Codex：以 link-first 把 Codex 連到 superset canonical root，加入 `.codex-plugin/plugin.json` 標記，依 Codex lifecycle/marketplace 接線，組件支援宣稱限於已驗證項目，更新 Codex 測試/文件。 *(3f8ca6e)*
   Verify: TP-001, TP-002, TP-003, TP-006, TP-007, TP-008 (若可用), TP-009 (若 Codex 可用), TP-010。
 
 ## Test Plan
@@ -290,4 +290,4 @@ Re-confirm 評估（2026-05-31）：
 
 - [x] T-001 - AGY：將 Claude renderer 更名為核心 renderer 並產出 superset canonical root（acceptance gate：`agy plugin validate ~/.gal/plugins/gal` 通過）；**補 IDE surface**——把 gal 投影到 `~/.gemini/antigravity-ide/plugins/gal`，使 CLI / IDE / GUI 三 surface 都載入；評估並（若可行）將三 surface 改指 `~/.gal/plugins/gal` 正本或經 `agy plugin link/install <plugin@marketplace>` 收掉獨立 dist；把 `Build-AgyPlugin.ps1` `-Install` 的安裝邏輯（junction + GUI `agy plugin install` + **新增 IDE**）搬遷至核心/協作層後刪除 `Build-AgyPlugin.ps1` 與 `build-agy-plugin.sh`；**清理殘留**——刪 `~/.gal/dist/provider-plugins/claude/` 與 `~/.antigravitycli`（白名單式，不得碰 `~/.antigravity*` 編輯器目錄），`~/.gal/dist/provider-plugins/agy/` 僅在三 surface 收斂後刪；更新 AGY 測試/文件；確認 Claude/Desktop 路徑與其測試未退步。確認驗證 TP-001, TP-002, TP-003, TP-004, TP-007, TP-008 (若可用), TP-009 (若 AGY 可用), TP-010, **TP-011, TP-012**。
 - [x] T-002 - Copilot：以 link-first 把 Copilot 外掛目錄連到 superset canonical root（能 link 則 link，不行才依 Copilot 原生 lifecycle host-copy），暴露 Copilot 可讀的組件路徑，並更新 Copilot 的測試/文件。確認驗證 TP-001, TP-002, TP-003, TP-005, TP-007, TP-008 (若可用), TP-009 (若 Copilot 可用), 及 TP-010。
-- [ ] T-003 - Codex：以 link-first 把 Codex 連到 superset canonical root，加入 `.codex-plugin/plugin.json` 標記於正本，依 Codex 文件化 lifecycle/市場流程接線（不行才 host-copy/generate），將 Codex 的組件支援宣稱限制在經過驗證的項目，並更新 Codex 的測試/文件。確認驗證 TP-001, TP-002, TP-003, TP-006, TP-007, TP-008 (若可用), TP-009 (若 Codex 可用), 及 TP-010。
+- [x] T-003 - Codex：以 link-first 把 Codex 連到 superset canonical root，加入 `.codex-plugin/plugin.json` 標記於正本，依 Codex 文件化 lifecycle/市場流程接線（不行才 host-copy/generate），將 Codex 的組件支援宣稱限制在經過驗證的項目，並更新 Codex 的測試/文件。確認驗證 TP-001, TP-002, TP-003, TP-006, TP-007, TP-008 (若可用), TP-009 (若 Codex 可用), 及 TP-010。
