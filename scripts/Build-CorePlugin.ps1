@@ -53,6 +53,15 @@ if (-not (Get-Variable -Scope Script -Name SetupContext -ErrorAction SilentlyCon
     $script:SetupContext = New-SetupContext -EntryScriptPath $MyInvocation.MyCommand.Path
 }
 
+if (-not (Get-Variable -Scope Script -Name SetupOptions -ErrorAction SilentlyContinue)) {
+    $script:SetupOptions = [pscustomobject]@{
+        Uninstall = $false
+        Replace = $Force.IsPresent
+        DryRun = $false
+        Reconfigure = $false
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Helper: filter Claude agent frontmatter (keep only Claude-compatible keys)
 # ---------------------------------------------------------------------------
