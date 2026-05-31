@@ -81,9 +81,9 @@ foreach ($provider in $Providers) {
             $buildPlan.Add([pscustomobject]@{
                 Provider = 'agy'
                 Mode = 'managed-shortcut'
-                Renderer = 'Build-AgyPlugin.ps1'
+                Renderer = 'Build-CorePlugin.ps1'
                 CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
-                PackageOutputRoot = Get-AgyPluginPackageOutputRoot -RepoRoot $RepoRoot
+                PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
                 InstallTarget = Get-AgyPluginInstallTarget
                 ShortcutTarget = Get-GalActiveProviderTarget -Provider 'agy'
                 LifecycleStatus = 'implemented'
@@ -117,9 +117,9 @@ foreach ($provider in $Providers) {
             $buildPlan.Add([pscustomobject]@{
                 Provider = 'claude'
                 Mode = 'native-install'
-                Renderer = 'Build-ClaudePlugin.ps1'
+                Renderer = 'Build-CorePlugin.ps1'
                 CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
-                PackageOutputRoot = Get-ClaudePluginPackageOutputRoot -RepoRoot $RepoRoot
+                PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
                 InstallTarget = 'provider-managed via claude plugin install --scope <scope>'
                 ShortcutTarget = $null
                 LifecycleStatus = 'artifact-rendered-install-deferred'
@@ -147,18 +147,17 @@ try {
         $canonicalPluginRendered = $false
         foreach ($plan in $buildPlan) {
             if ($plan.Provider -eq 'agy') {
-                if (-not $canonicalPluginRendered) {
-                    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
-                    $canonicalPluginRendered = $true
-                }
-                & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                # Core renderer builds superset canonical root AND installs all 3 AGY surfaces
+                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                $canonicalPluginRendered = $true
                 Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
                 continue
             }
 
             if ($plan.Provider -eq 'claude') {
                 if (-not $canonicalPluginRendered) {
-                    & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                    # Core renderer without -Install (Claude uses marketplace; no surface projection needed)
+                    & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
                     $canonicalPluginRendered = $true
                 }
             }

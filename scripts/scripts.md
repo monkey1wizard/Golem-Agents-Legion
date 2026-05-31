@@ -6,8 +6,8 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
-| `Build-AgyPlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render AGY-specific package output to `~/.gal/dist/provider-plugins/agy/gal/` while keeping `~/.gal/plugins/gal/` as the canonical plugin root |
-| `build-agy-plugin.sh` | macOS/Linux | Same for Mac/Linux |
+| `Build-CorePlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render the superset canonical plugin root at `~/.gal/plugins/gal/` with all provider entry-point markers (Claude, AGY, Codex, Copilot); when `-Install` is specified, projects to all AGY surfaces (CLI junction, IDE junction, GUI-config) and removes GAL-owned vestigial artifacts |
+| `build-core-plugin.sh` | macOS/Linux | Same for Mac/Linux |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `~/.gal/config/config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then inspect any existing graphify artifacts without generating new ones |
@@ -136,7 +136,7 @@ All `commands/` subdirectories are picked up dynamically — adding a new comman
 
 Additionally **generates** each `commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. Setup-Machine then symlinks those command directories into Copilot and Codex skill targets while generating legacy Gemini native command files plus Claude and OpenCode markdown command files from the same baked content.
 
-Antigravity installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/`. The plugin tree carries skills, agents, rules, and MCP config as a self-contained bundle rendered by `Build-AgyPlugin` from the provider-neutral common package model. Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up.
+Antigravity installs as a provider plugin projected from the superset canonical root `~/.gal/plugins/gal/`. The canonical root carries all provider entry-point markers and is rendered by `Build-CorePlugin` from the provider-neutral common package model. Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up. AGY is projected to three surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and GUI-config (`~/.gemini/config/plugins/gal` via `agy plugin install`).
 
 `Sync-DevContext` generates `.agents/rules/gal.md`, which references the repo-local `AGENTS.md` through Antigravity's documented `@filename` rule syntax instead of introducing a custom Antigravity-only adapter file.
 
@@ -166,51 +166,60 @@ Rerun guidance:
 - `Sync-DevContext.ps1` / `sync-dev-context.sh`: regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` after changing their source-of-truth inputs.
 - `Setup-Machine.ps1` / `setup-machine.sh`: rerun the full concern stack when you want one top-level refresh.
 
-## AGY Plugin Renderer
+## Core Plugin Renderer
 
-`Build-AgyPlugin.ps1` and `build-agy-plugin.sh` render a complete AGY plugin package from the GAL repo source contracts.
+`Build-CorePlugin.ps1` and `build-core-plugin.sh` render the superset canonical plugin root from the GAL repo source contracts.
 
 ### What It Does
 
 1. Builds a provider-neutral common package using `New-ProviderPluginPackage` / `build_provider_plugin_package`
 2. Validates the common package using `Test-ProviderPluginPackage` / `validate_provider_plugin_package`
-3. Renders AGY-specific package output to `~/.gal/dist/provider-plugins/agy/gal/` while keeping `~/.gal/plugins/gal/` as the canonical runtime root:
-   - `plugin.json` — manifest with stable `name: gal`, skill/agent indexes, capability flags
-   - `skills/` — reusable skills and command skills (as AGY skills)
-   - `agents/` — agent definitions
-   - `mcp_config.json` — MCP server configuration
-   - `rules/gal.md` — combined instruction corpus
+3. Renders the superset canonical root at `~/.gal/plugins/gal/` with all provider entry-point markers:
+   - `.claude-plugin/plugin.json` — Claude Code plugin manifest
+   - `skills/` — reusable skills (shared by all providers)
+   - `commands/` — flat command markdown files (Claude / Copilot)
+   - `agents/<name>.md` — Claude-compatible filtered agent definitions
+   - `agents/<name>.agent.md` — AGY-compatible unfiltered agent definitions
+   - `.mcp.json` — portable non-secret MCP server configuration (Claude / Copilot)
+   - `plugin.json` — AGY root manifest
+   - `mcp_config.json` — AGY MCP configuration
+   - `rules/gal.md` — AGY instruction corpus
+4. When `-Install` / `--install` is specified, projects to all AGY surfaces (link-first):
+   - CLI junction: `~/.gemini/antigravity-cli/plugins/gal` → canonical root
+   - IDE junction: `~/.gemini/antigravity-ide/plugins/gal` → canonical root
+   - GUI-config: `agy plugin install <canonical root>` (host-managed copy)
+   - Removes GAL-owned vestigial artifacts (whitelist-guarded)
 
 ### What It Does NOT Output
 
 - `hooks.json`
 - `scripts/`
 - Marketplace metadata
-- Provider stubs (`.codex-plugin`, `.claude-plugin`, etc.)
+- Provider stubs moved out of the shared root
 - `gal-results/`
 
 ### Usage
 
 ```powershell
-# Render package output to ~/.gal/dist/provider-plugins/agy/gal/
-.\scripts\Build-AgyPlugin.ps1
+# Render superset canonical root (all provider markers)
+.\scripts\Build-CorePlugin.ps1
 
 # Force overwrite existing artifacts
-.\scripts\Build-AgyPlugin.ps1 -Force
+.\scripts\Build-CorePlugin.ps1 -Force
 
-# Render and install to ~/.gemini/antigravity-cli/plugins/gal/
-.\scripts\Build-AgyPlugin.ps1 -Install -Force
+# Render and install to all AGY surfaces (CLI + IDE + GUI-config)
+.\scripts\Build-CorePlugin.ps1 -Install -Force
 ```
 
 ```bash
-# Render package output to ~/.gal/dist/provider-plugins/agy/gal/
-./scripts/build-agy-plugin.sh
+# Render superset canonical root (all provider markers)
+./scripts/build-core-plugin.sh
 
 # Force overwrite existing artifacts
-./scripts/build-agy-plugin.sh --force
+./scripts/build-core-plugin.sh --force
 
-# Render and install to ~/.gemini/antigravity-cli/plugins/gal/
-./scripts/build-agy-plugin.sh --install --force
+# Render and install to all AGY surfaces (CLI + IDE + GUI-config)
+./scripts/build-core-plugin.sh --install --force
 ```
 
 ### Common Package Model

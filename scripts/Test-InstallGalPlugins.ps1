@@ -158,7 +158,7 @@ try {
     $installOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot', 'antigravity', 'codex', 'opencode') -PrimaryRuntime 'copilot' -DryRun 6>&1 | Out-String)
     Assert-Contains $installOutput '[OK] Mode: install' 'Install-mode dry run should report install mode.'
     Assert-Contains $installOutput '[OK] Install mode disables repo-root links and source-only local overrides.' 'Install-mode dry run should declare repo-root links disabled.'
-    Assert-Contains $installOutput '[agy] mode=managed-shortcut renderer=Build-AgyPlugin.ps1 shortcut=' 'Install-mode dry run should surface AGY provider orchestration.'
+    Assert-Contains $installOutput '[agy] mode=managed-shortcut renderer=Build-CorePlugin.ps1 shortcut=' 'Install-mode dry run should surface AGY provider orchestration with core renderer.'
     Assert-Contains $installOutput '[copilot] mode=native-install renderer=not-yet-implemented shortcut=none' 'Install-mode dry run should surface Copilot provider orchestration.'
 
     $setupInstallOutput = (& $setupScriptUnderTest -SelectedRuntimes @('copilot', 'antigravity', 'codex', 'opencode') -PrimaryRuntime 'copilot' -DryRun 6>&1 | Out-String)

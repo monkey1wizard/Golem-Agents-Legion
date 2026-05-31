@@ -87,16 +87,16 @@ invoke_update_personalization() {
         fi
     else
         # Build and install the AGY plugin (includes rules/gal.md from instruction corpus)
-        local build_script="$SCRIPT_DIR/build-agy-plugin.sh"
+        local build_script="$SCRIPT_DIR/build-core-plugin.sh"
         if [ -f "$build_script" ]; then
             if $DRY_RUN; then
-                echo '  [DRY RUN] Would run: build-agy-plugin.sh --force --install'
+                echo '  [DRY RUN] Would run: build-core-plugin.sh --force --install'
             else
                 bash "$build_script" --force --install
-                echo '  [OK] AGY plugin built and installed (rules/gal.md from instruction corpus)'
+                echo '  [OK] Core plugin built and installed (rules/gal.md from instruction corpus)'
             fi
         else
-            echo "  [WARN] build-agy-plugin.sh not found at: $build_script"
+            echo "  [WARN] build-core-plugin.sh not found at: $build_script"
         fi
     fi
 

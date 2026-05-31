@@ -221,7 +221,7 @@ invoke_update_commands() {
 
     echo ''
     echo '=== AGY command skill legacy cleanup ==='
-    # AGY command skills are now rendered by build-agy-plugin.sh (called from update-skills).
+    # AGY command skills are now rendered by build-core-plugin.sh (called from update-skills).
     # This section only cleans up legacy symlinks that predate the plugin model.
     local antigravity_target
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do

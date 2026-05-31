@@ -64,20 +64,21 @@ try {
     $canonicalValidation = Test-ProviderPluginPackage -Package $canonicalPackage
     $releaseMatrix = Get-Content -LiteralPath $releaseMatrixPath -Raw
 
-Assert-True -Condition ($agyPlan.Mode -eq 'managed-shortcut') -Label 'TP-010: AGY build plan uses managed shortcut mode'
-Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Label 'TP-010: AGY shortcut target points to ~/.gal/active/agy'
-Assert-True -Condition ($copilotPlan.Mode -eq 'native-install') -Label 'TP-010: Copilot stays on native-install lane'
-Assert-True -Condition ($null -eq $copilotPlan.ShortcutTarget) -Label 'TP-010: Copilot does not get a managed shortcut target'
-Assert-True -Condition ($copilotPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-016: Copilot direct install is not yet claimed before renderer verification'
-Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-006: Codex stays on native-install lane'
-Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-006: Codex does not get a managed shortcut target'
-Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-016: Codex direct install is not yet claimed before renderer verification'
-Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-006: Claude remains the baseline native-install lane'
-Assert-True -Condition ($claudePlan.Renderer -eq 'Build-ClaudePlugin.ps1') -Label 'TP-004: Claude build plan uses the real Claude renderer'
-Assert-True -Condition ($agyPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-010: AGY build plan reports the canonical root separately from package output'
-Assert-True -Condition ($agyPlan.PackageOutputRoot -eq $agyPackageOutputRoot) -Label 'TP-010: AGY build plan reports package output under ~/.gal/dist'
-Assert-True -Condition ($claudePlan.CanonicalRoot -eq $claudeArtifactRoot) -Label 'TP-004: Claude build plan reports the Claude canonical root'
-Assert-True -Condition ($claudePlan.PackageOutputRoot -eq (Join-Path $testHome '.gal\dist\provider-plugins\claude\gal')) -Label 'TP-004: Claude build plan reports package output separately from canonical root'
+Assert-True -Condition ($agyPlan.Mode -eq 'managed-shortcut') -Label 'TP-002: AGY build plan uses managed shortcut mode'
+Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Label 'TP-002: AGY shortcut target points to ~/.gal/active/agy'
+Assert-True -Condition ($copilotPlan.Mode -eq 'native-install') -Label 'TP-002: Copilot stays on native-install lane'
+Assert-True -Condition ($null -eq $copilotPlan.ShortcutTarget) -Label 'TP-002: Copilot does not get a managed shortcut target'
+Assert-True -Condition ($copilotPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-002: Copilot direct install is not yet claimed before renderer verification'
+Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-002: Codex stays on native-install lane'
+Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-002: Codex does not get a managed shortcut target'
+Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-002: Codex direct install is not yet claimed before renderer verification'
+Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-002: Claude remains the baseline native-install lane'
+Assert-True -Condition ($claudePlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-002: Claude build plan uses the core renderer'
+Assert-True -Condition ($agyPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-002: AGY build plan uses the core renderer'
+Assert-True -Condition ($agyPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-002: AGY build plan canonical root is the superset plugin root'
+Assert-True -Condition ($agyPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-002: AGY build plan package output root is the canonical root (link-first; no separate dist)'
+Assert-True -Condition ($claudePlan.CanonicalRoot -eq $claudeArtifactRoot) -Label 'TP-002: Claude build plan canonical root is the superset plugin root'
+Assert-True -Condition ($claudePlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-002: Claude build plan package output root is the canonical root (link-first; no separate dist)'
 Assert-True -Condition ($claudePlan.InstallTarget -eq 'provider-managed via claude plugin install --scope <scope>') -Label 'TP-004: Claude build plan documents provider-managed install targeting'
 Assert-True -Condition ($claudePlan.LifecycleStatus -eq 'artifact-rendered-install-deferred') -Label 'TP-004: Claude build plan distinguishes rendered artifact from direct-install verification'
 Assert-True -Condition ($canonicalSchema.canonicalProvider -eq 'claude') -Label 'TP-006: Claude is the canonical package schema baseline'
@@ -97,13 +98,20 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
 
     $resolvedJsonPath = $plan.ResolvedPluginsFile
     try {
-        & (Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
-        $pluginJson = Get-Content -LiteralPath (Join-Path $agyPackageOutputRoot 'plugin.json') -Raw | ConvertFrom-Json
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
 
-        Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-009: AGY manifest preserves canonical package identity'
-        Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-009: AGY manifest preserves deferred companion identity'
+        # AGY: root plugin.json in the canonical root
+        $agyRootPluginJsonPath = Join-Path $canonicalPluginRoot 'plugin.json'
+        $agyMcpConfigPath = Join-Path $canonicalPluginRoot 'mcp_config.json'
+        $agyRulesPath = Join-Path $canonicalPluginRoot 'rules\gal.md'
+        $pluginJson = Get-Content -LiteralPath $agyRootPluginJsonPath -Raw | ConvertFrom-Json
 
-        & (Join-Path $PSScriptRoot 'Build-ClaudePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+        Assert-True -Condition (Test-Path $agyRootPluginJsonPath) -Label 'TP-007: Superset canonical root contains AGY root plugin.json'
+        Assert-True -Condition (Test-Path $agyMcpConfigPath) -Label 'TP-007: Superset canonical root contains AGY mcp_config.json'
+        Assert-True -Condition (Test-Path $agyRulesPath) -Label 'TP-007: Superset canonical root contains AGY rules/gal.md'
+        Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-007: AGY root manifest preserves canonical package identity'
+        Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-007: AGY root manifest preserves deferred companion identity'
+
         $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 
         Assert-True -Condition (Test-Path $claudeManifestPath) -Label 'TP-001: Claude artifact contains .claude-plugin/plugin.json'

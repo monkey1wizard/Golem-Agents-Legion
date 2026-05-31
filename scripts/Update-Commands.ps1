@@ -212,7 +212,7 @@ function Invoke-UpdateCommands {
 
     Write-Host ''
     Write-Host '=== AGY command skill legacy cleanup ==='
-    # AGY command skills are now rendered by Build-AgyPlugin.ps1 (called from Update-Skills).
+    # AGY command skills are now rendered by Build-CorePlugin.ps1 (called from Update-Skills).
     # This section only cleans up legacy symlinks that predate the plugin model.
     foreach ($commandSkill in $context.CommandSkillDirs) {
         $antigravityTarget = Join-Path $context.AntigravitySkillsTarget $commandSkill.Name

@@ -231,10 +231,10 @@ function Invoke-UpdateSkills {
         }
 
         # Build and install the AGY plugin (includes reusable skills, command skills, agents)
-        $buildScript = Join-Path $PSScriptRoot 'Build-AgyPlugin.ps1'
+        $buildScript = Join-Path $PSScriptRoot 'Build-CorePlugin.ps1'
         if (Test-Path $buildScript) {
             if ($script:SetupOptions.DryRun) {
-                Write-Host '  [DRY RUN] Would run: Build-AgyPlugin.ps1 -Force -Install'
+                Write-Host '  [DRY RUN] Would run: Build-CorePlugin.ps1 -Force -Install'
             }
             else {
                 & $buildScript -Force -Install
@@ -242,7 +242,7 @@ function Invoke-UpdateSkills {
             }
         }
         else {
-            Write-Host "  [WARN] Build-AgyPlugin.ps1 not found at: $buildScript"
+            Write-Host "  [WARN] Build-CorePlugin.ps1 not found at: $buildScript"
         }
     }
 

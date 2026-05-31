@@ -60,10 +60,10 @@ if [[ "$DRY_RUN" == 'true' ]]; then
     local_provider=''
     for local_provider in "${requested_providers[@]}"; do
         case "$local_provider" in
-            agy) echo "[agy] mode=managed-shortcut renderer=build-agy-plugin.sh shortcut=$(get_gal_active_provider_target agy) lifecycle=implemented" ;;
+            agy) echo "[agy] mode=managed-shortcut renderer=build-core-plugin.sh shortcut=$(get_gal_active_provider_target agy) lifecycle=implemented" ;;
             copilot) echo "[copilot] mode=native-install renderer=not-yet-implemented shortcut=none lifecycle=not-implemented" ;;
             codex) echo "[codex] mode=native-install renderer=not-yet-implemented shortcut=none lifecycle=not-implemented" ;;
-            claude) echo "[claude] mode=native-install renderer=build-claude-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
+            claude) echo "[claude] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
             '') ;;
             *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
         esac
@@ -71,37 +71,28 @@ if [[ "$DRY_RUN" == 'true' ]]; then
     exit 0
 fi
 
-agy_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
+core_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
 if [[ "$FORCE" == 'true' ]]; then
-    agy_args+=(--force)
+    core_args+=(--force)
 fi
 
 canonical_plugin_rendered=false
 for local_provider in "${requested_providers[@]}"; do
     case "$local_provider" in
         agy)
-            if [[ "$canonical_plugin_rendered" != 'true' ]]; then
-                claude_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
-                if [[ "$FORCE" == 'true' ]]; then
-                    claude_args+=(--force)
-                fi
-                "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}"
-                canonical_plugin_rendered=true
-            fi
-            "$SCRIPT_DIR/build-agy-plugin.sh" "${agy_args[@]}" --install
+            # Core renderer builds superset canonical root AND installs all 3 AGY surfaces
+            "$SCRIPT_DIR/build-core-plugin.sh" "${core_args[@]}" --install
+            canonical_plugin_rendered=true
             mkdir -p "$(dirname "$(get_gal_active_provider_target agy)")"
-            if ! safe_link "$(get_gal_active_provider_target agy)" "$AGY_PLUGIN_INSTALL_TARGET"; then
+            if ! safe_link "$(get_gal_active_provider_target agy)" "$(get_agy_plugin_install_target)"; then
                 echo "Failed to claim GAL-managed shortcut for provider 'agy': $(get_gal_active_provider_target agy)" >&2
                 exit 1
             fi
             ;;
         claude)
-            claude_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
-            if [[ "$FORCE" == 'true' ]]; then
-                claude_args+=(--force)
-            fi
             if [[ "$canonical_plugin_rendered" != 'true' ]]; then
-                "$SCRIPT_DIR/build-claude-plugin.sh" "${claude_args[@]}" --install
+                # Core renderer without --install (Claude uses marketplace; no surface projection needed)
+                "$SCRIPT_DIR/build-core-plugin.sh" "${core_args[@]}"
                 canonical_plugin_rendered=true
             fi
             ;;
