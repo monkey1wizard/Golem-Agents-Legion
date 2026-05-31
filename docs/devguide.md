@@ -223,11 +223,11 @@ Shortcut policy:
 - Capability-level links in install mode must only point to `~/.gal/active/<provider>/` or its GAL-managed projection; source mode may point to user-specified local overrides.
 - Bridge lane must not imply primary provider-native install parity to users.
 
-### AGY Renderer (Implementation Status)
+### AGY Surface Projection (Implementation Status)
 
-AGY is renderer 1, not the architecture. `Build-AgyPlugin` emits package output under `~/.gal/dist/provider-plugins/agy/gal/`, while install orchestration keeps `~/.gal/plugins/gal/` as the canonical content owner and uses `~/.gal/active/agy/` only as a stable alias when a capability shortcut is needed. The AGY plugin carries `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. It does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
+AGY is a consumer of the canonical root, not a renderer. The provider-neutral core renderer `Build-CorePlugin` emits AGY's entry-point markers directly into `~/.gal/plugins/gal/` (the canonical content owner), and install orchestration projects that root to all three AGY surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and the Antigravity 2.0 GUI host-managed copy (`~/.gemini/config/plugins/gal` via `agy plugin install`). `~/.gal/active/agy/` is used only as a stable alias when a capability shortcut is needed. The AGY-facing markers are `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. The core renderer does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
 
-Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
+Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
 
 Current implementation status:
 

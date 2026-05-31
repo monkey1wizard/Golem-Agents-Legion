@@ -10,21 +10,21 @@ The machine installer now persists runtime selection in `~/.gal/install-state.js
 - `primaryRuntime` records which runtime should be treated as your default entry point.
 - The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
 
-Antigravity CLI (AGY) is the primary Google terminal runtime for GAL. GAL installs into AGY as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/`, which carries skills, agents, rules, and MCP config as a self-contained plugin tree. The plugin is a generated artifact rendered by `Build-AgyPlugin` from a provider-neutral common package model; AGY is renderer 1, not the architecture itself. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
+Antigravity CLI (AGY) is the primary Google terminal runtime for GAL. GAL installs into AGY by linking each AGY surface to the shared superset canonical root at `~/.gal/plugins/gal/`, which carries skills, agents, rules, and MCP config. The canonical root is rendered by the provider-neutral core renderer `Build-CorePlugin` (one renderer for all providers, not a per-provider renderer). AGY's CLI and IDE surfaces are junctions to that canonical root; the Antigravity 2.0 GUI surface is a host-managed copy installed via `agy plugin install` from the same canonical root. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
 
 Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
 
 The machine setup surface is now split by concern on both Windows and macOS/Linux:
 
 - `scripts/Setup-Machine.ps1` runs the full sequence
-- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
-- `scripts/Update-Skills.ps1` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), remaining Gemini native command files, and Claude legacy cleanup state
+- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-CorePlugin`), and local config seeding
+- `scripts/Update-Skills.ps1` refreshes agents, Antigravity plugin skills (via `Build-CorePlugin`), remaining shared skill links, and GAL root links
+- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-CorePlugin`), remaining Gemini native command files, and Claude legacy cleanup state
 - `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 - `scripts/setup-machine.sh` runs the full sequence
-- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-AgyPlugin`), and local config seeding
-- `scripts/update-skills.sh` refreshes agents, Antigravity plugin skills (via `Build-AgyPlugin`), remaining shared skill links, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `Build-AgyPlugin`), remaining Gemini native command files, and Claude legacy cleanup state
+- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `build-core-plugin.sh`), and local config seeding
+- `scripts/update-skills.sh` refreshes agents, Antigravity plugin skills (via `build-core-plugin.sh`), remaining shared skill links, and GAL root links
+- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `build-core-plugin.sh`), remaining Gemini native command files, and Claude legacy cleanup state
 - `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
 
 ## Install Mode vs Source Mode
@@ -416,7 +416,7 @@ macOS/Linux:
 
 ## Provider Plugin Packaging
 
-GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth; each provider plugin is a generated artifact rendered by a provider-specific renderer.
+GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth. A single provider-neutral core renderer (`Build-CorePlugin` / `build-core-plugin.sh`) renders one superset canonical root at `~/.gal/plugins/gal/` that carries every provider's entry-point markers. There is no per-provider renderer; providers link to the canonical root (link-first) and only fall back to a host-managed copy or generated files when a host cannot consume a link.
 
 ### Common Base
 
@@ -428,9 +428,15 @@ The common package model carries metadata, reusable skills, command skills (as s
 - `gal-results/`
 - Hooks (deferred from v1)
 
-### AGY as Renderer 1
+### AGY Surface Projection
 
-AGY is the first renderer, not the architecture. `Build-AgyPlugin` emits package output into `~/.gal/dist/provider-plugins/agy/gal/`, while install orchestration keeps `~/.gal/plugins/gal/` as the canonical plugin root and uses `~/.gal/active/agy/` only as a stable alias when a capability shortcut is required. The AGY plugin carries:
+AGY is not a renderer; it is a consumer of the canonical root. The core renderer emits AGY's entry-point markers directly into `~/.gal/plugins/gal/`, and install orchestration projects that canonical root to all three AGY surfaces:
+
+- CLI (`~/.gemini/antigravity-cli/plugins/gal`) — junction to the canonical root
+- IDE (`~/.gemini/antigravity-ide/plugins/gal`) — junction to the canonical root
+- Desktop GUI 2.0 (`~/.gemini/config/plugins/gal` + `import_manifest.json`) — host-managed copy installed via `agy plugin install` from the canonical root
+
+`~/.gal/active/agy/` remains available only as a stable alias when a capability shortcut is required. The AGY-facing markers in the canonical root are:
 
 - `plugin.json` — manifest with stable `name: gal`
 - `skills/` — reusable skills and command skills
@@ -438,15 +444,15 @@ AGY is the first renderer, not the architecture. `Build-AgyPlugin` emits package
 - `rules/gal.md` — combined instruction corpus
 - `mcp_config.json` — MCP server configuration (plugin-root)
 
-Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree.
+Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
 
 ### Gemini Migration Lane
 
-Gemini CLI is not a fifth renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the AGY renderer concern; it does not enter the provider-neutral substrate.
+Gemini CLI is not a separate renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the install-orchestration/collaboration layer; it does not enter the provider-neutral substrate.
 
-### Future Renderer Sequence
+### Provider Coverage
 
-After AGY and Claude renderer validation, the remaining planned renderer sequence is: Copilot CLI → Codex. Claude still has open direct-install lifecycle verification, but the renderer itself is no longer pending. No future renderer should copy the AGY layout.
+All four providers — Claude, AGY, Copilot, and Codex — are wired to the single core renderer and the shared canonical root. Each provider exposes its own entry-point markers in that root (`.claude-plugin/plugin.json`, AGY `plugin.json` + `mcp_config.json`, `copilot-manifest.json`, `.codex-plugin/plugin.json`) without a provider-specific renderer. No provider maintains a second rendered tree.
 
 ## Responsibility Boundary
 

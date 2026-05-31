@@ -10,21 +10,21 @@
 - `primaryRuntime` 記錄了哪一個執行環境應該作為你的預設進入點。
 - GAL 儲存庫仍然是 `agent/`、`skills/` 和 `commands/` 的唯一真相來源（source of truth）。主要執行環境（primary runtime）只會影響預設值和摘要，不會改變底層原始內容。
 
-Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL 以供應商外掛程式（provider plugin）的形式安裝至 AGY，安裝位置為 `~/.gemini/antigravity-cli/plugins/gal/`，此目錄承載 skills、agents、rules 與 MCP 設定，構成一個自包含的外掛程式樹。該外掛程式是由 `Build-AgyPlugin` 從供應商中立的共同套件模型（common package model）渲染而成的生成成品；AGY 是渲染器 1，而非架構本身。`Update-Personalization` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
+Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL 透過把各 AGY surface 連到共享的 superset canonical root `~/.gal/plugins/gal/` 來安裝至 AGY，此正本承載 skills、agents、rules 與 MCP 設定。正本由供應商中立的核心渲染器 `Build-CorePlugin` / `build-core-plugin.sh` 渲染（單一渲染器服務所有供應商，而非各供應商各自的渲染器）。AGY 的 CLI 與 IDE surface 是指向正本的 junction；Antigravity 2.0 GUI surface 則由 `agy plugin install` 從同一份正本安裝為 host-managed copy。`Update-Personalization` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
 
 如果你想要更改所選的執行環境或主要的執行環境，請再次在 Windows 上執行 setup 並加上 `-Reconfigure` 參數，或在 macOS/Linux 加上 `--reconfigure`。
 
 在 Windows 與 macOS/Linux 上，機器的設定介面現在已依據關注點（concern）拆分：
 
 - `scripts/Setup-Machine.ps1` 執行完整流程
-- `scripts/Update-Personalization.ps1` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `Build-AgyPlugin` 渲染 `rules/gal.md`），以及本機設定植入
-- `scripts/Update-Skills.ps1` 更新 agents、Antigravity 外掛程式 skills（透過 `Build-AgyPlugin`）、其餘共享技能連結，以及 GAL 根連結
-- `scripts/Update-Commands.ps1` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `Build-AgyPlugin`），以及 legacy Gemini / Claude 原生命令檔案
+- `scripts/Update-Personalization.ps1` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `Build-CorePlugin` 渲染 `rules/gal.md`），以及本機設定植入
+- `scripts/Update-Skills.ps1` 更新 agents、Antigravity 外掛程式 skills（透過 `Build-CorePlugin`）、其餘共享技能連結，以及 GAL 根連結
+- `scripts/Update-Commands.ps1` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `Build-CorePlugin`），以及 legacy Gemini / Claude 原生命令檔案
 - `scripts/Update-Mcp.ps1` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
 - `scripts/setup-machine.sh` 執行完整流程
-- `scripts/update-personalization.sh` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `Build-AgyPlugin` 渲染 `rules/gal.md`），以及本機設定植入
-- `scripts/update-skills.sh` 更新 agents、Antigravity 外掛程式 skills（透過 `Build-AgyPlugin`）、其餘共享技能連結，以及 GAL 根連結
-- `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `Build-AgyPlugin`），以及 legacy Gemini / Claude 原生命令檔案
+- `scripts/update-personalization.sh` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `build-core-plugin.sh` 渲染 `rules/gal.md`），以及本機設定植入
+- `scripts/update-skills.sh` 更新 agents、Antigravity 外掛程式 skills（透過 `build-core-plugin.sh`）、其餘共享技能連結，以及 GAL 根連結
+- `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `build-core-plugin.sh`），以及 legacy Gemini / Claude 原生命令檔案
 - `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
 
 ## 安裝模式 vs 原始碼模式 (Install Mode vs Source Mode)
@@ -377,7 +377,7 @@ macOS/Linux：
 
 ## 供應商外掛程式封裝 (Provider Plugin Packaging)
 
-GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin package model）。儲存庫中的原始碼合約是唯一的事實來源；每個供應商外掛程式是由供應商專屬渲染器（renderer）渲染而成的生成成品。
+GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin package model）。儲存庫中的原始碼合約是唯一的事實來源。單一供應商中立的核心渲染器（`Build-CorePlugin` / `build-core-plugin.sh`）會渲染出一個位於 `~/.gal/plugins/gal/` 的 superset canonical root，內含所有供應商所需的進入點標記。不存在各供應商各自的渲染器；供應商以 link-first 連到正本，只有在 host 無法消費 link 時才退而用 host-managed copy 或生成檔案。
 
 ### 共同基底 (Common Base)
 
@@ -389,9 +389,15 @@ GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin p
 - `gal-results/`
 - Hooks（自 v1 推遲）
 
-### AGY 作為渲染器 1 (AGY as Renderer 1)
+### AGY surface 投影 (AGY Surface Projection)
 
-AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 會把 package output 產生在 `~/.gal/dist/provider-plugins/agy/gal/`，而 install orchestration 則維持 `~/.gal/plugins/gal/` 為 canonical plugin root，只有在需要 capability shortcut 時才使用 `~/.gal/active/agy/` 這個 stable alias。AGY 外掛程式承載：
+AGY 不是渲染器，而是正本的消費者。核心渲染器把 AGY 的進入點標記直接寫進 `~/.gal/plugins/gal/`，install orchestration 再把該正本投影到 AGY 的三個 surface：
+
+- CLI（`~/.gemini/antigravity-cli/plugins/gal`）— 指向正本的 junction
+- IDE（`~/.gemini/antigravity-ide/plugins/gal`）— 指向正本的 junction
+- Desktop GUI 2.0（`~/.gemini/config/plugins/gal` + `import_manifest.json`）— 由 `agy plugin install` 從正本安裝的 host-managed copy
+
+只有在需要 capability shortcut 時才使用 `~/.gal/active/agy/` 這個 stable alias。正本中面向 AGY 的標記為：
 
 - `plugin.json` — 含穩定 `name: gal` 的清單
 - `skills/` — 可重用技能與指令技能
@@ -399,15 +405,15 @@ AGY 是第一個渲染器，而非架構本身。`Build-AgyPlugin` 會把 packag
 - `rules/gal.md` — 合併的指令語料庫
 - `mcp_config.json` — MCP 伺服器設定（外掛程式根目錄）
 
-Setup/reinstall 會在安裝乾淨的外掛程式樹之前，移除所有既有的 GAL 管理 AGY 內容（舊版 skills 目錄、`GAL_ROOT` 符號連結、全域 MCP 條目、先前的外掛程式安裝）。
+Setup/reinstall 會在重新投影乾淨的正本之前，移除所有既有的 GAL 管理 AGY 內容（舊版 skills 目錄、`GAL_ROOT` 符號連結、全域 MCP 條目、先前的外掛程式安裝）。既有的各供應商 AGY dist 樹（`~/.gal/dist/provider-plugins/agy/gal/`）已在三個 surface 全部收斂指向正本後退役。
 
 ### Gemini 遷移路徑 (Gemini Migration Lane)
 
-Gemini CLI 不是第五個渲染器。它是 AGY 的遷移/相容性路徑。既有的 Gemini 專屬清理與橋接邏輯保留在 AGY 渲染器的關注範圍內，不進入供應商中立的基底。
+Gemini CLI 不是另一個渲染器。它是 AGY 的遷移/相容性路徑。既有的 Gemini 專屬清理與橋接邏輯保留在 install orchestration／協作層的關注範圍內，不進入供應商中立的基底。
 
-### 未來的渲染器順序 (Future Renderer Sequence)
+### 供應商涵蓋範圍 (Provider Coverage)
 
-在 AGY 驗證之後，計畫的渲染器順序為：Copilot CLI → Codex → Claude Code。每個渲染器將以自己的佈局與安裝生命週期重用共同基底。未來的渲染器不應複製 AGY 的佈局。
+四個供應商——Claude、AGY、Copilot 與 Codex——全部接線到單一核心渲染器與共享正本。每個供應商在正本中各自暴露自己的進入點標記（`.claude-plugin/plugin.json`、AGY 的 `plugin.json` + `mcp_config.json`、`copilot-manifest.json`、`.codex-plugin/plugin.json`），無須供應商專屬渲染器。沒有任何供應商維護第二份 rendered 樹。
 
 ## 責任邊界 (Responsibility Boundary)
 
