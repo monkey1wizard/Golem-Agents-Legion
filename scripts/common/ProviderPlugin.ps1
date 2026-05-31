@@ -32,7 +32,9 @@ function Get-GalCoreCanonicalPackageSchema {
         canonicalLayout = '.gal/plugins/<plugin-id>'
         componentRoots = [ordered]@{
             claudeManifest = '.claude-plugin/plugin.json'
+            copilotManifest = 'copilot-manifest.json'
             codexManifest = '.codex-plugin/plugin.json'
+            agyManifest = 'plugin.json'
             skills = 'skills'
             commands = 'commands'
             agents = 'agents'

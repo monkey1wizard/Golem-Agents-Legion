@@ -68,7 +68,10 @@ Assert-True -Condition ($agyPlan.Mode -eq 'managed-shortcut') -Label 'TP-002: AG
 Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Label 'TP-002: AGY shortcut target points to ~/.gal/active/agy'
 Assert-True -Condition ($copilotPlan.Mode -eq 'native-install') -Label 'TP-002: Copilot stays on native-install lane'
 Assert-True -Condition ($null -eq $copilotPlan.ShortcutTarget) -Label 'TP-002: Copilot does not get a managed shortcut target'
-Assert-True -Condition ($copilotPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-002: Copilot direct install is not yet claimed before renderer verification'
+Assert-True -Condition ($copilotPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-005: Copilot build plan uses the core renderer'
+Assert-True -Condition ($copilotPlan.LifecycleStatus -eq 'implemented') -Label 'TP-005: Copilot lifecycle is implemented after T-002'
+Assert-True -Condition ($copilotPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-005: Copilot build plan canonical root is the superset plugin root'
+Assert-True -Condition ($copilotPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-005: Copilot build plan package output root is the canonical root'
 Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-002: Codex stays on native-install lane'
 Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-002: Codex does not get a managed shortcut target'
 Assert-True -Condition ($codexPlan.Renderer -eq 'not-yet-implemented') -Label 'TP-002: Codex direct install is not yet claimed before renderer verification'
@@ -106,6 +109,13 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         $agyRulesPath = Join-Path $canonicalPluginRoot 'rules\gal.md'
         $pluginJson = Get-Content -LiteralPath $agyRootPluginJsonPath -Raw | ConvertFrom-Json
 
+        $copilotManifestPath = Join-Path $canonicalPluginRoot 'copilot-manifest.json'
+        Assert-True -Condition (Test-Path $copilotManifestPath) -Label 'TP-007: Superset canonical root contains Copilot copilot-manifest.json'
+        $copilotManifest = Get-Content -LiteralPath $copilotManifestPath -Raw | ConvertFrom-Json
+        Assert-True -Condition ($copilotManifest.components.agents -eq 'agents/') -Label 'TP-005: Copilot manifest explicitly exposes agents/ path (fixes BUG-02)'
+        Assert-True -Condition ($copilotManifest.components.skills -eq 'skills/') -Label 'TP-005: Copilot manifest explicitly exposes skills/ path'
+        Assert-True -Condition ($copilotManifest.components.commands -eq 'commands/') -Label 'TP-005: Copilot manifest explicitly exposes commands/ path'
+        Assert-True -Condition ($copilotManifest.components.mcpConfig -eq '.mcp.json') -Label 'TP-005: Copilot manifest explicitly exposes .mcp.json path'
         Assert-True -Condition (Test-Path $agyRootPluginJsonPath) -Label 'TP-007: Superset canonical root contains AGY root plugin.json'
         Assert-True -Condition (Test-Path $agyMcpConfigPath) -Label 'TP-007: Superset canonical root contains AGY mcp_config.json'
         Assert-True -Condition (Test-Path $agyRulesPath) -Label 'TP-007: Superset canonical root contains AGY rules/gal.md'

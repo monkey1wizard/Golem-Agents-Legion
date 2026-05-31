@@ -93,12 +93,12 @@ foreach ($provider in $Providers) {
             $buildPlan.Add([pscustomobject]@{
                 Provider = 'copilot'
                 Mode = 'native-install'
-                Renderer = 'not-yet-implemented'
-                CanonicalRoot = $null
-                PackageOutputRoot = $null
-                InstallTarget = $null
+                Renderer = 'Build-CorePlugin.ps1'
+                CanonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+                PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
+                InstallTarget = 'provider-managed via gh copilot plugin install <canonical-root>'
                 ShortcutTarget = $null
-                LifecycleStatus = 'not-implemented'
+                LifecycleStatus = 'implemented'
             })
         }
         'codex' {

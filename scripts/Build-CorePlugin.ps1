@@ -305,6 +305,28 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
 }
 
 # ---------------------------------------------------------------------------
+# COPILOT: copilot-manifest.json  (root manifest — explicitly exposes component paths)
+# Fixes BUG-02: Copilot will not load commands/ unless the path is explicitly defined
+# in a root-level manifest. Unlike Claude (.claude-plugin/) and AGY (plugin.json),
+# Copilot reads a root 'copilot-manifest.json' when present.
+# ---------------------------------------------------------------------------
+Write-Host 'Rendering copilot-manifest.json...' -ForegroundColor Cyan
+$copilotManifest = [ordered]@{
+    name = 'gal'
+    displayName = $package.metadata.displayName
+    version = '1.0.0'
+    description = 'Golem Agents Legion plugin for GitHub Copilot CLI'
+    components = [ordered]@{
+        agents   = 'agents/'
+        skills   = 'skills/'
+        commands = 'commands/'
+        mcpConfig = '.mcp.json'
+    }
+}
+$copilotManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $artifactRoot 'copilot-manifest.json') -Encoding UTF8
+Write-Host '  -> copilot-manifest.json' -ForegroundColor Gray
+
+# ---------------------------------------------------------------------------
 # AGY: root plugin.json
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering plugin.json (AGY root manifest)...' -ForegroundColor Cyan

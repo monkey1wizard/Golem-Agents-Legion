@@ -233,6 +233,30 @@ if [[ "$(printf '%s' "$package_json" | jq -r '.mcpSpec.canonicalSource != null')
 fi
 
 # ---------------------------------------------------------------------------
+# COPILOT: copilot-manifest.json  (root manifest — explicitly exposes component paths)
+# Fixes BUG-02: Copilot will not load commands/ unless the path is explicitly defined.
+# ---------------------------------------------------------------------------
+echo 'Rendering copilot-manifest.json...'
+jq -n \
+    --arg name 'gal' \
+    --arg displayName 'Golem Agents Legion' \
+    --arg version '1.0.0' \
+    --arg description 'Golem Agents Legion plugin for GitHub Copilot CLI' \
+    '{
+        name: $name,
+        displayName: $displayName,
+        version: $version,
+        description: $description,
+        components: {
+            agents: "agents/",
+            skills: "skills/",
+            commands: "commands/",
+            mcpConfig: ".mcp.json"
+        }
+    }' > "$artifact_root/copilot-manifest.json"
+echo '  -> copilot-manifest.json'
+
+# ---------------------------------------------------------------------------
 # AGY: root plugin.json
 # ---------------------------------------------------------------------------
 echo 'Rendering plugin.json (AGY root manifest)...'
