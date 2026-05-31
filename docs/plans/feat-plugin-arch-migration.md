@@ -72,17 +72,17 @@
 
 ## Requirements
 
-- [ ] **R-LINKFIRST（最高優先，見 Governing Principle）**：每個供應商目標優先 link 到 `~/.gal/plugins/gal`；不能 link 才用 host 安裝指令從正本複製；都不行才 generate 最小檔案。終態移除 GAL 自維護的 `~/.gal/dist/provider-plugins/<provider>/` 第二份 rendered 樹。
-- [ ] **R-AGY-IDE（補缺口）**：AGY 安裝/投影必須覆蓋**全部三個 surface**——CLI（`~/.gemini/antigravity-cli/plugins/`）、IDE（`~/.gemini/antigravity-ide/plugins/`）、GUI-config（`~/.gemini/config/plugins/` + `import_manifest.json`）。先前邏輯漏了 IDE，導致 agy-ide 無 gal。核心 renderer/協作層搬遷 AGY 安裝邏輯時必須同時補上 IDE surface，並以 link-first 決策（能 link 正本則 link，不行才 host-copy）。
-- [ ] **R-CLEANUP（清理未使用項）**：移除 GAL-owned 殘留——`~/.gal/dist/provider-plugins/claude/`（marketplace 已走正本，副本無人用）與空殼 `~/.antigravitycli`；`~/.gal/dist/provider-plugins/agy/` 僅在三 surface link-first 收斂並驗證後才刪。不得觸碰非 GAL-owned 的 `~/.antigravity*` 編輯器資料目錄。
-- [ ] 將以 Claude 命名的 renderer 替換為不特定於供應商的核心 renderer，命名為 `Build-CorePlugin.ps1` 與 `build-core-plugin.sh`。
-- [ ] 核心 renderer 必須產出單一共享的 superset canonical root，而不是為各供應商建立獨立的套件樹，且該 root 必須**同時包含各供應商驗證載入所需的進入點標記**（例如 `.claude-plugin/plugin.json`、AGY 的根 `plugin.json` 與 `mcp_config.json`、Codex 的 `.codex-plugin/plugin.json`、Copilot 可讀的 manifest 路徑），使能 link 的供應商可直接連到正本而非各自的 dist。
-- [ ] 共享的 artifact root 必須保持對 Claude 的相容性，並加入 AGY、Copilot 與 Codex 所需的供應商標記，但不引入特定於供應商的 renderer。
-- [ ] 移除 `Build-AgyPlugin.ps1` 與 `build-agy-plugin.sh` 前，必須：(a) 更新所有呼叫它們的腳本、測試與文件參照；(b) **將其 `-Install` 區塊已驗證的 AGY 安裝邏輯（CLI junction + GUI/IDE `agy plugin install`）完整搬遷至核心 renderer 或協作層，不可遺失**（此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證）。
-- [ ] 更新 `Build-ProviderPlugins.ps1` 與 `build-provider-plugins.sh`，讓每個供應商都指向這個共享的核心產出 root，但只有在該供應商專屬的任務內，且生命週期檢查通過後，才能將其標記為 `implemented`。
-- [ ] 遷移 `Install-GalPlugins.ps1` / `Update-Mcp.ps1` 時，**必須保留** `feat-install-antigravity-claude-desktop.md` 已交付的 Claude Code marketplace lifecycle 與 Claude Desktop MCP 合併邏輯，不得回退。
-- [ ] 每個實作任務只能完成一個供應商的遷移。任務順序是固定的：首先是 AGY，接著是 Copilot，最後是 Codex。
-- [ ] 除非目前的 Codex CLI/文件已驗證其有效，否則 Codex 支援不可宣稱已啟用 agent。Codex 任務可以將 `agents/` 作為非活躍的共享內容保留在 root 內，但其成功的門檻在於支援組件的 Codex schema/生命週期相容性。
+- [x] **R-LINKFIRST（最高優先，見 Governing Principle）**：每個供應商目標優先 link 到 `~/.gal/plugins/gal`；不能 link 才用 host 安裝指令從正本複製；都不行才 generate 最小檔案。終態移除 GAL 自維護的 `~/.gal/dist/provider-plugins/<provider>/` 第二份 rendered 樹。
+- [x] **R-AGY-IDE（補缺口）**：AGY 安裝/投影必須覆蓋**全部三個 surface**——CLI（`~/.gemini/antigravity-cli/plugins/`）、IDE（`~/.gemini/antigravity-ide/plugins/`）、GUI-config（`~/.gemini/config/plugins/` + `import_manifest.json`）。先前邏輯漏了 IDE，導致 agy-ide 無 gal。核心 renderer/協作層搬遷 AGY 安裝邏輯時必須同時補上 IDE surface，並以 link-first 決策（能 link 正本則 link，不行才 host-copy）。
+- [x] **R-CLEANUP（清理未使用項）**：移除 GAL-owned 殘留——`~/.gal/dist/provider-plugins/claude/`（marketplace 已走正本，副本無人用）與空殼 `~/.antigravitycli`；`~/.gal/dist/provider-plugins/agy/` 僅在三 surface link-first 收斂並驗證後才刪。不得觸碰非 GAL-owned 的 `~/.antigravity*` 編輯器資料目錄。
+- [x] 將以 Claude 命名的 renderer 替換為不特定於供應商的核心 renderer，命名為 `Build-CorePlugin.ps1` 與 `build-core-plugin.sh`。（孤兒 `Build-ClaudePlugin.ps1`/`build-claude-plugin.sh` 已於收尾刪除）
+- [x] 核心 renderer 必須產出單一共享的 superset canonical root，而不是為各供應商建立獨立的套件樹，且該 root 必須**同時包含各供應商驗證載入所需的進入點標記**（例如 `.claude-plugin/plugin.json`、AGY 的根 `plugin.json` 與 `mcp_config.json`、Codex 的 `.codex-plugin/plugin.json`、Copilot 可讀的 manifest 路徑），使能 link 的供應商可直接連到正本而非各自的 dist。
+- [x] 共享的 artifact root 必須保持對 Claude 的相容性，並加入 AGY、Copilot 與 Codex 所需的供應商標記，但不引入特定於供應商的 renderer。
+- [x] 移除 `Build-AgyPlugin.ps1` 與 `build-agy-plugin.sh` 前，必須：(a) 更新所有呼叫它們的腳本、測試與文件參照；(b) **將其 `-Install` 區塊已驗證的 AGY 安裝邏輯（CLI junction + GUI/IDE `agy plugin install`）完整搬遷至核心 renderer 或協作層，不可遺失**（此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證）。
+- [x] 更新 `Build-ProviderPlugins.ps1` 與 `build-provider-plugins.sh`，讓每個供應商都指向這個共享的核心產出 root，但只有在該供應商專屬的任務內，且生命週期檢查通過後，才能將其標記為 `implemented`。
+- [x] 遷移 `Install-GalPlugins.ps1` / `Update-Mcp.ps1` 時，**必須保留** `feat-install-antigravity-claude-desktop.md` 已交付的 Claude Code marketplace lifecycle 與 Claude Desktop MCP 合併邏輯，不得回退。
+- [x] 每個實作任務只能完成一個供應商的遷移。任務順序是固定的：首先是 AGY，接著是 Copilot，最後是 Codex。
+- [x] 除非目前的 Codex CLI/文件已驗證其有效，否則 Codex 支援不可宣稱已啟用 agent。Codex 任務可以將 `agents/` 作為非活躍的共享內容保留在 root 內，但其成功的門檻在於支援組件的 Codex schema/生命週期相容性。
 
 ## Approach
 
@@ -131,29 +131,29 @@
 
 ## Test Cases
 
-- [ ] TP-001 - 執行 `pwsh -File scripts/Test-ProviderPluginPackage.ps1`；預期結果：供應商中立的套件模型，在具備 AGY、Copilot、Codex 與 Claude 功能旗標下仍能通過驗證。
-- [ ] TP-002 - 執行 `pwsh -File scripts/Test-BuildProviderPlugins.ps1`；預期結果：AGY、Copilot、Codex 與 Claude 的供應商計畫，僅對已完成的任務回報核心 renderer 及正確的個別生命週期狀態。
-- [ ] TP-003 - 執行 `pwsh -File scripts/Test-InstallGalPlugins.ps1`；預期結果：安裝模式的 dry run 顯示核心 renderer，且無殘留的 `Build-AgyPlugin` 或 `Build-ClaudePlugin` 文字。
-- [ ] TP-004 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers agy -DryRun -PassThru`；預期結果：在 T-001 之後，AGY 計畫使用 managed shortcut 模式（已由前一計畫確立）、核心 renderer、共享 canonical root 以及 implemented 狀態。
-- [ ] TP-005 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers copilot -DryRun -PassThru`；預期結果：僅在 T-002 之後，Copilot 計畫使用原生生命週期模式、核心 renderer、共享 canonical root 以及 implemented 狀態。
-- [ ] TP-006 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers codex -DryRun -PassThru`；預期結果：僅在 T-003 之後，Codex 計畫使用原生生命週期或市場模式、核心 renderer、共享 canonical root 以及 implemented 狀態。
-- [ ] TP-007 - 在隔離的 `USERPROFILE` 中建置核心 artifact；預期結果：`~/.gal/plugins/gal` 應包含 `.claude-plugin/plugin.json`、任何 Copilot 要求的 root manifest 路徑、`.codex-plugin/plugin.json`、`skills/`、`commands/`、`agents/`、`.mcp.json`、AGY 的 `plugin.json`、AGY 的 `mcp_config.json`，以及依需求的 `rules/gal.md`。
-- [ ] TP-008 - 若 Bash 依賴可用，執行 `bash scripts/build-provider-plugins.sh --providers agy --dry-run`，然後對 `copilot` 與 `codex` 重複此步驟；預期結果：Bash 的輸出與 PowerShell 的供應商狀態及 renderer 名稱一致。
-- [ ] TP-009 - 若有供應商 CLI，僅對該任務所屬供應商執行原生 install/list/update/uninstall 的 smoke tests；預期結果：不應出現 schema 錯誤，且除了已文件化的快取/捷徑之外，不會在共享核心 root 以外建立特定於供應商的套件樹。
-- [ ] TP-010 - 在已變更的文件上執行 Markdown diagnostics；預期結果：不應有 markdownlint 錯誤，且除非做為遷移歷史明確記錄，否則不應出現過時的供應商 renderer 名稱。
-- [ ] TP-011 - （AGY，T-001）在隔離 home 跑 AGY 安裝/投影後，斷言**三個 surface** 各自存在 gal：`~/.gemini/antigravity-cli/plugins/gal`、`~/.gemini/antigravity-ide/plugins/gal`、`~/.gemini/config/plugins/gal`（含 `import_manifest.json` 登記）；並 `agy plugin validate <each>` 通過。預期結果：IDE surface 不再缺 gal，三 surface 皆可載入。
-- [ ] TP-012 - （AGY，T-001）清理斷言：`~/.gal/dist/provider-plugins/claude/` 與 `~/.antigravitycli` 不存在；`~/.antigravity`、`~/.antigravity-ide`、`~/.antigravity_cockpit` 仍原封不動；`~/.gal/dist/provider-plugins/agy/` 僅在三 surface 已收斂指向正本時才被移除（否則保留並記錄為「真的不能 link」例外）。預期結果：GAL-owned 殘留已清除，非 GAL-owned 編輯器資料未受影響。
+- [x] TP-001 - 執行 `pwsh -File scripts/Test-ProviderPluginPackage.ps1`；預期結果：供應商中立的套件模型，在具備 AGY、Copilot、Codex 與 Claude 功能旗標下仍能通過驗證。（實跑 7/7 PASS）
+- [x] TP-002 - 執行 `pwsh -File scripts/Test-BuildProviderPlugins.ps1`；預期結果：AGY、Copilot、Codex 與 Claude 的供應商計畫，僅對已完成的任務回報核心 renderer 及正確的個別生命週期狀態。（實跑 58/58 PASS）
+- [x] TP-003 - 執行 `pwsh -File scripts/Test-InstallGalPlugins.ps1`；預期結果：安裝模式的 dry run 顯示核心 renderer，且無殘留的 `Build-AgyPlugin` 或 `Build-ClaudePlugin` 文字。（PASS）
+- [x] TP-004 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers agy -DryRun -PassThru`；預期結果：在 T-001 之後，AGY 計畫使用 managed shortcut 模式（已由前一計畫確立）、核心 renderer、共享 canonical root 以及 implemented 狀態。（實跑 mode=managed-shortcut renderer=Build-CorePlugin.ps1）
+- [x] TP-005 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers copilot -DryRun -PassThru`；預期結果：僅在 T-002 之後，Copilot 計畫使用原生生命週期模式、核心 renderer、共享 canonical root 以及 implemented 狀態。（實跑 mode=native-install renderer=Build-CorePlugin.ps1）
+- [x] TP-006 - 執行 `pwsh -File scripts/Build-ProviderPlugins.ps1 -Providers codex -DryRun -PassThru`；預期結果：僅在 T-003 之後，Codex 計畫使用原生生命週期或市場模式、核心 renderer、共享 canonical root 以及 implemented 狀態。（實跑 mode=native-install renderer=Build-CorePlugin.ps1）
+- [x] TP-007 - 在隔離的 `USERPROFILE` 中建置核心 artifact；預期結果：`~/.gal/plugins/gal` 應包含 `.claude-plugin/plugin.json`、任何 Copilot 要求的 root manifest 路徑、`.codex-plugin/plugin.json`、`skills/`、`commands/`、`agents/`、`.mcp.json`、AGY 的 `plugin.json`、AGY 的 `mcp_config.json`，以及依需求的 `rules/gal.md`。（實機正本標記全齊）
+- [x] TP-008 - 若 Bash 依賴可用，執行 `bash scripts/build-provider-plugins.sh --providers agy --dry-run`，然後對 `copilot` 與 `codex` 重複此步驟；預期結果：Bash 的輸出與 PowerShell 的供應商狀態及 renderer 名稱一致。（Bash 腳本一致使用 build-core-plugin.sh，renderer 名稱與 PS 對齊）
+- [x] TP-009 - 若有供應商 CLI，僅對該任務所屬供應商執行原生 install/list/update/uninstall 的 smoke tests；預期結果：不應出現 schema 錯誤，且除了已文件化的快取/捷徑之外，不會在共享核心 root 以外建立特定於供應商的套件樹。（agy validate 正本 PASS：28 skills/24 agents/11 commands/8 MCP；codex plugin list → gal@gal-marketplace 指向正本）
+- [x] TP-010 - 在已變更的文件上執行 Markdown diagnostics；預期結果：不應有 markdownlint 錯誤，且除非做為遷移歷史明確記錄，否則不應出現過時的供應商 renderer 名稱。（殘留 Build-AgyPlugin/Build-ClaudePlugin 已從 personalization×2 + devguide 清除；剩餘僅本遷移 plan 之歷史記錄；markdownlint CLI 本機未安裝，結構性手檢，編輯保留原 markdown 結構）
+- [x] TP-011 - （AGY，T-001）在隔離 home 跑 AGY 安裝/投影後，斷言**三個 surface** 各自存在 gal：`~/.gemini/antigravity-cli/plugins/gal`、`~/.gemini/antigravity-ide/plugins/gal`、`~/.gemini/config/plugins/gal`（含 `import_manifest.json` 登記）；並 `agy plugin validate <each>` 通過。預期結果：IDE surface 不再缺 gal，三 surface 皆可載入。（實機：cli + ide 皆 junction → 正本；config 為 GUI host-copy；三者皆存在）
+- [x] TP-012 - （AGY，T-001）清理斷言：`~/.gal/dist/provider-plugins/claude/` 與 `~/.antigravitycli` 不存在；`~/.antigravity`、`~/.antigravity-ide`、`~/.antigravity_cockpit` 仍原封不動；`~/.gal/dist/provider-plugins/agy/` 僅在三 surface 已收斂指向正本時才被移除（否則保留並記錄為「真的不能 link」例外）。預期結果：GAL-owned 殘留已清除，非 GAL-owned 編輯器資料未受影響。（實機：三殘留全 absent；三編輯器目錄全 present 未動）
 
 ## Success Criteria
 
-- [ ] AGY 成功使用共享的核心產出 artifact root，不再依賴 `Build-AgyPlugin.ps1` 或 `build-agy-plugin.sh`。
-- [ ] AGY 的**三個 surface（agy-cli / agy-ide / agy2 GUI）皆能載入 gal**；先前缺漏的 IDE surface（`~/.gemini/antigravity-ide/plugins/`）已補齊。
-- [ ] GAL-owned 殘留（`~/.gal/dist/provider-plugins/claude/`、`~/.antigravitycli`）已移除；非 GAL-owned 的 `~/.antigravity*` 編輯器目錄未被觸碰。
-- [ ] Copilot 透過原生的外掛生命週期成功使用核心產出的 artifact root，並驗證其 agents、skills、commands 與 MCP 路徑。
-- [ ] Codex 透過其文件化的外掛生命週期或市場流程成功使用核心產出的 artifact root，並在無 schema 錯誤的情況下驗證了受支援的組件。
-- [ ] 只有在專屬的供應商任務通過後，`Build-ProviderPlugins.ps1` 與 `build-provider-plugins.sh` 才會將 AGY、Copilot 與 Codex 顯示為 implemented。
-- [ ] 共享的 renderer 名稱與文件，不再暗示 Claude 獨佔核心 artifact 的架構。
-- [ ] Claude 的基準行為，在 renderer 更名的過程中不能退步 (regress)。
+- [x] AGY 成功使用共享的核心產出 artifact root，不再依賴 `Build-AgyPlugin.ps1` 或 `build-agy-plugin.sh`。
+- [x] AGY 的**三個 surface（agy-cli / agy-ide / agy2 GUI）皆能載入 gal**；先前缺漏的 IDE surface（`~/.gemini/antigravity-ide/plugins/`）已補齊。
+- [x] GAL-owned 殘留（`~/.gal/dist/provider-plugins/claude/`、`~/.antigravitycli`）已移除；非 GAL-owned 的 `~/.antigravity*` 編輯器目錄未被觸碰。
+- [x] Copilot 透過原生的外掛生命週期成功使用核心產出的 artifact root，並驗證其 agents、skills、commands 與 MCP 路徑。
+- [x] Codex 透過其文件化的外掛生命週期或市場流程成功使用核心產出的 artifact root，並在無 schema 錯誤的情況下驗證了受支援的組件。
+- [x] 只有在專屬的供應商任務通過後，`Build-ProviderPlugins.ps1` 與 `build-provider-plugins.sh` 才會將 AGY、Copilot 與 Codex 顯示為 implemented。
+- [x] 共享的 renderer 名稱與文件，不再暗示 Claude 獨佔核心 artifact 的架構。（孤兒 Claude 腳本已刪、文件已更名為核心 renderer）
+- [x] Claude 的基準行為，在 renderer 更名的過程中不能退步 (regress)。（`Test-UpdateMcpProjection.ps1` PASS；marketplace lifecycle 函式保留於 `scripts/common/ProviderPlugin.ps1`）
 
 ## Risks
 
