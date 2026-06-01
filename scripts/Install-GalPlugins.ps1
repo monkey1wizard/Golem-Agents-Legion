@@ -7,6 +7,7 @@ param(
     [string]$LockfilePath = (Join-Path $env:USERPROFILE '.gal\state\plugins.lock.json'),
     [string[]]$SelectedRuntimes,
     [string]$PrimaryRuntime,
+    [Alias('Doctor')][switch]$Check,
     [switch]$BootstrapInstall,
     [switch]$DryRun,
     [switch]$Uninstall,
@@ -966,6 +967,129 @@ function Invoke-CodexPluginLifecycle {
     Write-CodexLifecycleState -Context $Context -State $state
 }
 
+function Test-PathWithinRoot {
+    param(
+        [string]$Path,
+        [string]$Root
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Root)) {
+        return $false
+    }
+
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $normalizedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\')
+    return $normalizedPath.Equals($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase) -or $normalizedPath.StartsWith($normalizedRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-CopilotDoctorUnknownItems {
+    param([pscustomobject]$Context)
+
+    if (-not (Test-Path $Context.CopilotRoot)) {
+        return @()
+    }
+
+    $knownRoots = @(
+        $Context.CopilotPluginInstallTarget,
+        (Split-Path $Context.CopilotPluginInstallTarget -Parent),
+        $Context.GalRootCopilot,
+        $Context.AgentsTarget,
+        $Context.SkillsTarget
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    $unknownItems = New-Object System.Collections.Generic.List[string]
+    foreach ($item in (Get-ChildItem -LiteralPath $Context.CopilotRoot -Force -Recurse -ErrorAction SilentlyContinue)) {
+        $isKnown = $false
+        foreach ($knownRoot in $knownRoots) {
+            if (Test-PathWithinRoot -Path $item.FullName -Root $knownRoot) {
+                $isKnown = $true
+                break
+            }
+        }
+
+        if (-not $isKnown) {
+            $unknownItems.Add($item.FullName)
+        }
+    }
+
+    return @($unknownItems | Sort-Object -Unique)
+}
+
+function Invoke-GalProviderDoctor {
+    param(
+        [pscustomobject]$Context,
+        [string[]]$SelectedRuntimes
+    )
+
+    $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+    $copilotSelected = @($SelectedRuntimes) -contains 'copilot'
+    $canonicalManifestPath = Join-Path $canonicalRoot 'copilot-manifest.json'
+    $copilotHostManifestPath = Join-Path $Context.CopilotPluginInstallTarget 'copilot-manifest.json'
+
+    Write-Host ''
+    Write-Host '=== GAL provider doctor ==='
+    Write-Host 'CANONICAL:'
+    if (Test-Path $canonicalRoot) {
+        Write-Host ("  [OK] {0} — canonical GAL plugin root present" -f $canonicalRoot)
+    }
+    else {
+        Write-Host ("  [WARN] {0} — canonical GAL plugin root missing" -f $canonicalRoot)
+    }
+
+    Write-Host 'EXPECTED PROJECTION:'
+    if ($copilotSelected) {
+        Write-Host ("  [INFO] {0} — expected Copilot plugin projection root" -f $Context.CopilotPluginInstallTarget)
+    }
+    else {
+        Write-Host '  [INFO] No Copilot provider selected for this doctor invocation.'
+    }
+
+    Write-Host 'HOST-MANAGED:'
+    if ($copilotSelected -and (Test-Path $Context.CopilotPluginInstallTarget) -and -not (Test-SymlinkOrJunction $Context.CopilotPluginInstallTarget)) {
+        Write-Host ("  [WARN] {0} — Copilot host-managed copy detected" -f $Context.CopilotPluginInstallTarget)
+    }
+    else {
+        Write-Host '  [INFO] No Copilot host-managed copies detected.'
+    }
+
+    Write-Host 'LEGACY GAL:'
+    if (Test-GalRepoLink -Path $Context.GalRootCopilot -TargetFragment $Context.GalStateRoot) {
+        Write-Host ("  [WARN] {0} — legacy Copilot GAL_ROOT link" -f $Context.GalRootCopilot)
+    }
+    else {
+        Write-Host '  [INFO] No legacy Copilot GAL_ROOT link detected.'
+    }
+
+    Write-Host 'USER-OWNED-UNKNOWN:'
+    $unknownItems = Get-CopilotDoctorUnknownItems -Context $Context
+    if ($unknownItems.Count -gt 0) {
+        foreach ($unknownItem in $unknownItems) {
+            Write-Host ("  [INFO] {0} — user-owned or unknown Copilot artifact" -f $unknownItem)
+        }
+    }
+    else {
+        Write-Host '  [INFO] No user-owned unknown Copilot artifacts detected.'
+    }
+
+    Write-Host 'STALE:'
+    if ($copilotSelected -and (Test-Path $Context.CopilotPluginInstallTarget) -and -not (Test-SymlinkOrJunction $Context.CopilotPluginInstallTarget) -and (Test-Path $canonicalManifestPath) -and (Test-Path $copilotHostManifestPath)) {
+        $canonicalManifest = Read-JsonOrderedMap $canonicalManifestPath
+        $hostManifest = Read-JsonOrderedMap $copilotHostManifestPath
+        $canonicalVersion = if ($canonicalManifest -and $canonicalManifest.Contains('version')) { [string]$canonicalManifest['version'] } else { '' }
+        $hostVersion = if ($hostManifest -and $hostManifest.Contains('version')) { [string]$hostManifest['version'] } else { '' }
+
+        if (-not [string]::Equals($canonicalVersion, $hostVersion, [System.StringComparison]::Ordinal)) {
+            Write-Host ("  [WARN] {0} — host copy diverges from canonical (canonical={1}; host={2})" -f $Context.CopilotPluginInstallTarget, $canonicalVersion, $hostVersion)
+        }
+        else {
+            Write-Host ("  [OK] {0} — host copy version matches canonical" -f $Context.CopilotPluginInstallTarget)
+        }
+    }
+    else {
+        Write-Host '  [INFO] No stale host-copy findings detected.'
+    }
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
@@ -1034,6 +1158,12 @@ if ($Uninstall) {
 
 $context = $script:SetupContext
 $selection = Get-ResolvedRuntimeSelection -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -Context $context
+
+if ($Check) {
+    Invoke-GalProviderDoctor -Context $context -SelectedRuntimes $selection.SelectedRuntimes
+    return
+}
+
 $defaultConfig = New-DefaultGalConfig -RepoRoot $RepoRoot -SelectedRuntimes $selection.SelectedRuntimes -PrimaryRuntime $selection.PrimaryRuntime -BootstrapInstall:$BootstrapInstall
 $configExists = Test-Path $ConfigPath
 $rawConfig = if ($configExists) { Read-JsonOrderedMap $ConfigPath } else { [ordered]@{} }

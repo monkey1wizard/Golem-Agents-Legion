@@ -10,6 +10,7 @@ CONFIG_PATH="$GAL_CONFIG_FILE"
 LOCKFILE_PATH="$GAL_PLUGINS_LOCK_FILE"
 SELECTED_RUNTIMES_CSV=""
 PRIMARY_RUNTIME_OVERRIDE=""
+CHECK_ONLY=false
 DRY_RUN=false
 UNINSTALL=false
 PURGE=false
@@ -27,6 +28,7 @@ while [[ $# -gt 0 ]]; do
         --selected-runtimes=*) SELECTED_RUNTIMES_CSV="${1#*=}"; shift ;;
         --primary-runtime) shift; PRIMARY_RUNTIME_OVERRIDE="$1"; shift ;;
         --primary-runtime=*) PRIMARY_RUNTIME_OVERRIDE="${1#*=}"; shift ;;
+        --check|--doctor) CHECK_ONLY=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         --uninstall) UNINSTALL=true; shift ;;
         --purge) PURGE=true; shift ;;
@@ -714,6 +716,108 @@ invoke_codex_plugin_lifecycle() {
     write_codex_lifecycle_state "$state_json"
 }
 
+path_within_root() {
+    local path="$1"
+    local root="$2"
+    [ -n "$path" ] || return 1
+    [ -n "$root" ] || return 1
+
+    local normalized_path normalized_root
+    normalized_path="$(run_python - "$path" <<'PY'
+import os, sys
+print(os.path.abspath(sys.argv[1]))
+PY
+)"
+    normalized_root="$(run_python - "$root" <<'PY'
+import os, sys
+print(os.path.abspath(sys.argv[1]))
+PY
+)"
+
+    [[ "$normalized_path" == "$normalized_root" || "$normalized_path" == "$normalized_root"/* ]]
+}
+
+emit_copilot_doctor_unknown_items() {
+    [ -d "$COPILOT_ROOT" ] || return 0
+
+    local item known_root known
+    while IFS= read -r item; do
+        known=false
+        for known_root in "$COPILOT_PLUGIN_INSTALL_TARGET" "$(dirname "$COPILOT_PLUGIN_INSTALL_TARGET")" "$GAL_ROOT_COPILOT" "$AGENTS_TARGET" "$SKILLS_TARGET"; do
+            if path_within_root "$item" "$known_root"; then
+                known=true
+                break
+            fi
+        done
+
+        if ! $known; then
+            echo "  [INFO] $item — user-owned or unknown Copilot artifact"
+        fi
+    done < <(find "$COPILOT_ROOT" -mindepth 1 -print 2>/dev/null | sort -u)
+}
+
+invoke_gal_provider_doctor() {
+    local selected_csv="$1"
+    local copilot_selected=false
+    [[ ",${selected_csv}," == *",copilot,"* ]] && copilot_selected=true
+
+    local canonical_root canonical_manifest_path host_manifest_path
+    canonical_root="$(get_gal_plugin_root gal)"
+    canonical_manifest_path="$canonical_root/copilot-manifest.json"
+    host_manifest_path="$COPILOT_PLUGIN_INSTALL_TARGET/copilot-manifest.json"
+
+    echo
+    echo '=== GAL provider doctor ==='
+    echo 'CANONICAL:'
+    if [[ -d "$canonical_root" ]]; then
+        echo "  [OK] $canonical_root — canonical GAL plugin root present"
+    else
+        echo "  [WARN] $canonical_root — canonical GAL plugin root missing"
+    fi
+
+    echo 'EXPECTED PROJECTION:'
+    if $copilot_selected; then
+        echo "  [INFO] $COPILOT_PLUGIN_INSTALL_TARGET — expected Copilot plugin projection root"
+    else
+        echo '  [INFO] No Copilot provider selected for this doctor invocation.'
+    fi
+
+    echo 'HOST-MANAGED:'
+    if $copilot_selected && [[ -e "$COPILOT_PLUGIN_INSTALL_TARGET" ]] && ! is_symlink "$COPILOT_PLUGIN_INSTALL_TARGET"; then
+        echo "  [WARN] $COPILOT_PLUGIN_INSTALL_TARGET — Copilot host-managed copy detected"
+    else
+        echo '  [INFO] No Copilot host-managed copies detected.'
+    fi
+
+    echo 'LEGACY GAL:'
+    if is_gal_repo_link "$GAL_ROOT_COPILOT" "$GAL_STATE_ROOT"; then
+        echo "  [WARN] $GAL_ROOT_COPILOT — legacy Copilot GAL_ROOT link"
+    else
+        echo '  [INFO] No legacy Copilot GAL_ROOT link detected.'
+    fi
+
+    echo 'USER-OWNED-UNKNOWN:'
+    if [[ -d "$COPILOT_ROOT" ]]; then
+        emit_copilot_doctor_unknown_items
+    else
+        echo '  [INFO] No user-owned unknown Copilot artifacts detected.'
+    fi
+
+    echo 'STALE:'
+    if $copilot_selected && [[ -f "$canonical_manifest_path" && -f "$host_manifest_path" ]] && [[ -d "$COPILOT_PLUGIN_INSTALL_TARGET" ]] && ! is_symlink "$COPILOT_PLUGIN_INSTALL_TARGET"; then
+        local canonical_version host_version
+        canonical_version="$(jq -r '.version // ""' "$canonical_manifest_path" 2>/dev/null)"
+        host_version="$(jq -r '.version // ""' "$host_manifest_path" 2>/dev/null)"
+        if [[ "$canonical_version" != "$host_version" ]]; then
+            echo "  [WARN] $COPILOT_PLUGIN_INSTALL_TARGET — host copy diverges from canonical (canonical=${canonical_version}; host=${host_version})"
+        else
+            echo "  [OK] $COPILOT_PLUGIN_INSTALL_TARGET — host copy version matches canonical"
+        fi
+    else
+        echo '  [INFO] No stale host-copy findings detected.'
+    fi
+}
+
 if $UNINSTALL; then
     install_mode='source'
     if ! install_mode="$(get_configured_install_mode 2>/dev/null)"; then
@@ -834,6 +938,11 @@ fi
 mapfile -t selection_parts < <(resolve_selection_csv)
 resolved_selected_csv="${selection_parts[0]}"
 resolved_primary_runtime="${selection_parts[1]}"
+
+if $CHECK_ONLY; then
+    invoke_gal_provider_doctor "$resolved_selected_csv"
+    exit 0
+fi
 
 mkdir -p "$GAL_CONFIG_ROOT" "$GAL_STATE_DIRECTORY" "$GAL_PLUGINS_ROOT" "$GAL_DATA_ROOT" "$GAL_CACHE_ROOT" "$GAL_GENERATED_MCP_ROOT" "$GAL_GENERATED_XMACHINE_ROOT" "$GAL_GENERATED_PROVIDERS_ROOT"
 

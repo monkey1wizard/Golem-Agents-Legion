@@ -100,6 +100,51 @@ try {
 
     $machineConfigPath = Join-Path $testHome '.gal\config\config.json'
     $pluginsLockPath = Join-Path $testHome '.gal\state\plugins.lock.json'
+
+    $canonicalPluginRoot = Join-Path $testHome '.gal\plugins\gal'
+    New-Item -ItemType Directory -Path $canonicalPluginRoot -Force | Out-Null
+    ([ordered]@{
+        name = 'gal'
+        version = 'doctor-canonical'
+    } | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath (Join-Path $canonicalPluginRoot 'copilot-manifest.json') -Encoding utf8
+
+    $copilotHostCopyRoot = Join-Path $testHome '.copilot\installed-plugins\gal-copilot\gal'
+    New-Item -ItemType Directory -Path $copilotHostCopyRoot -Force | Out-Null
+    ([ordered]@{
+        name = 'gal'
+        version = 'doctor-stale'
+    } | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath (Join-Path $copilotHostCopyRoot 'copilot-manifest.json') -Encoding utf8
+
+    $legacyCopilotGalRoot = Join-Path $testHome '.copilot\gal'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $legacyCopilotGalRoot) -Force | Out-Null
+    New-TestDirectoryLink -Path $legacyCopilotGalRoot -Target (Join-Path $testHome '.gal')
+
+    $copilotUnknownPath = Join-Path $testHome '.copilot\custom-user-note.txt'
+    Set-Content -LiteralPath $copilotUnknownPath -Value 'keep-me' -Encoding utf8
+
+    $checkOutput = (& $scriptUnderTest -RepoRoot $repoRoot -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Check 6>&1 | Out-String)
+    Assert-Contains $checkOutput '=== GAL provider doctor ===' 'Doctor check should emit a dedicated provider doctor header.'
+    Assert-Contains $checkOutput 'CANONICAL:' 'Doctor check should classify canonical GAL content.'
+    Assert-Contains $checkOutput 'EXPECTED PROJECTION:' 'Doctor check should classify expected provider projections.'
+    Assert-Contains $checkOutput 'HOST-MANAGED:' 'Doctor check should classify host-managed provider surfaces.'
+    Assert-Contains $checkOutput 'LEGACY GAL:' 'Doctor check should classify legacy GAL-owned provider artifacts.'
+    Assert-Contains $checkOutput 'USER-OWNED-UNKNOWN:' 'Doctor check should classify unknown provider-owned files separately.'
+    Assert-Contains $checkOutput 'STALE:' 'Doctor check should surface staleness findings.'
+    Assert-Contains $checkOutput '.copilot\installed-plugins\gal-copilot\gal' 'Doctor check should report the Copilot installed-plugins surface.'
+    Assert-Contains $checkOutput '.copilot\gal' 'Doctor check should report the legacy Copilot GAL_ROOT shortcut.'
+    Assert-Contains $checkOutput '.copilot\custom-user-note.txt' 'Doctor check should preserve visibility into user-owned unknown Copilot files.'
+    Assert-Contains $checkOutput 'host copy diverges from canonical' 'Doctor check should report stale Copilot host copies.'
+
+    if (Test-Path $legacyCopilotGalRoot) {
+        Remove-Item -LiteralPath $legacyCopilotGalRoot -Force
+    }
+    if (Test-Path $copilotHostCopyRoot) {
+        Remove-Item -LiteralPath $copilotHostCopyRoot -Recurse -Force
+    }
+    if (Test-Path $copilotUnknownPath) {
+        Remove-Item -LiteralPath $copilotUnknownPath -Force
+    }
+
     if (Test-Path $machineConfigPath) {
         throw "Dry run should not write machine config: $machineConfigPath"
     }
