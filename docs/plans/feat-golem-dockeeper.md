@@ -268,7 +268,7 @@ Pending.
 
 - [x] T-001 — 撰寫 `docs/structure/structure-map.schema.json`：雙軸節點 JSON Schema（共用欄位 `id`/`axis`/`kind`/`syncStatus`/`lastSynced`/`lastSyncedRef` + `axis` 條件式必填：code 軸 `path`/`layer`/`docs`，doc 軸 `headingLevel`/`title`/`codeRefs`）。 *(0442856b72f7d0e354740bee2443606c6ecd7dbc)*
 - [x] T-002 — 建立 `templates/structure-map.template.ndjson` 範本與 `docs/structure/structure-map.ndjson` 首版骨架；行序先 `axis` 再 `id`、key 排序穩定，每行通過 T-001 schema。 *(823574cbc04e58c0189b417579b062f2058d7d42)*
-- [ ] T-003 — 建立 `skills/doc-sync/SKILL.md`：NDJSON 逐行讀寫/局部更新、schema 盡力驗證（機會性）、變更偵測來源優先序與降級、新鮮度規則、節點生命週期（`git diff -M`）、commit 邊界、待辦清單與樹視圖投影渲染。
+- [x] T-003 — 建立 `skills/doc-sync/SKILL.md`：NDJSON 逐行讀寫/局部更新、schema 盡力驗證（機會性）、變更偵測來源優先序與降級、新鮮度規則、節點生命週期（`git diff -M`）、commit 邊界、待辦清單與樹視圖投影渲染。 *(7c05aae63005199e8bf90510b0f9e75611e6866b)*
 - [ ] T-004 — 撰寫 `workflows/doc-sync.md` 同步工作流契約：增量 + 對帳雙模式、核心流程、變更偵測優先序、寫回目標；**明定 standalone reconcile 觸發路徑與其 commit 邊界**（無 `<task>` 時用 `docs(sync): reconcile`，或僅 stage 由使用者 commit）。
 - [ ] T-005 — 撰寫 `agent/golem-dockeeper.agent.md`：frontmatter + `<role>`/`<classification>`(Utility)/`<project_context>`/`<rules>`，`required skills: doc-sync`；格式與 preflight 細節引用 workflow/skill，守 ≤15% token 預算。
 - [ ] T-006 — 撰寫 `docs/collaborative-tools/codebase-memory-mcp.md` 能力車道契約（preflight 表、MCP 語意 `ready`、advisory 消費、降級）；小幅修改 `conventions/token-budget.md` capability-first 段落引用 doc-sync 對 codebase-memory-mcp（preflight/降級）與 graphify（advisory）。
