@@ -166,6 +166,10 @@ get_claude_lifecycle_state_path() {
     printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/claude/managed.json"
 }
 
+get_codex_lifecycle_state_path() {
+    printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/codex/managed.json"
+}
+
 write_copilot_lifecycle_state() {
     local state_json="$1"
     local state_path
@@ -192,6 +196,46 @@ write_claude_lifecycle_state() {
     mkdir -p "$(dirname "$state_path")"
     printf '%s\n' "$state_json" > "$state_path"
     echo "  [OK] Wrote Claude lifecycle state: $state_path"
+}
+
+write_codex_lifecycle_state() {
+    local state_json="$1"
+    local state_path
+    state_path="$(get_provider_managed_state_path codex)"
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would write Codex lifecycle state: $state_path"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$state_path")"
+    printf '%s\n' "$state_json" > "$state_path"
+    echo "  [OK] Wrote Codex lifecycle state: $state_path"
+}
+
+ensure_codex_marketplace_manifest() {
+    local manifest_path="$GAL_PLUGINS_ROOT/.agents/plugins/marketplace.json"
+    mkdir -p "$(dirname "$manifest_path")"
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would refresh Codex marketplace descriptor: $manifest_path" >&2
+        printf '%s\n' "$manifest_path"
+        return 0
+    fi
+
+    jq -n '{
+        name: "gal-marketplace",
+        interface: { displayName: "GAL Plugin Marketplace" },
+        plugins: [
+            {
+                name: "gal",
+                source: { source: "local", path: "./gal" },
+                policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
+                category: "Engineering"
+            }
+        ]
+    }' > "$manifest_path"
+    echo "  [OK] Refreshed Codex marketplace descriptor: $manifest_path" >&2
+    printf '%s\n' "$manifest_path"
 }
 
 refresh_copilot_host_copy() {
@@ -527,6 +571,149 @@ invoke_claude_plugin_lifecycle() {
     write_claude_lifecycle_state "$state_json"
 }
 
+invoke_codex_plugin_lifecycle() {
+    if ! $INSTALL_CODEX; then
+        return 0
+    fi
+
+    echo '  [OK] Evaluating Codex plugin lifecycle.'
+    local canonical_root package_output_root manifest_path support_json marketplace_root marketplace_name plugin_selector
+    canonical_root="$(get_gal_plugin_root gal)"
+    package_output_root="$(get_codex_plugin_package_output_root "$REPO_ROOT")"
+    manifest_path="$(get_codex_plugin_manifest_path "$canonical_root")"
+    support_json="$(get_codex_cli_lifecycle_support_json)"
+    marketplace_root="$GAL_PLUGINS_ROOT"
+    marketplace_name='gal-marketplace'
+    plugin_selector='gal@gal-marketplace'
+
+    if [[ ! -d "$canonical_root" || ! -f "$manifest_path" ]]; then
+        echo '  [WARN] Codex canonical artifact was missing; rerendering shared plugin root before marketplace registration.'
+        "$SCRIPT_DIR/build-core-plugin.sh" >/dev/null
+    fi
+
+    if [[ ! -d "$canonical_root" ]]; then
+        echo "Codex canonical root not found: $canonical_root" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$manifest_path" ]]; then
+        echo "Codex manifest not found: $manifest_path" >&2
+        exit 1
+    fi
+
+    local marketplace_manifest_path
+    marketplace_manifest_path="$(ensure_codex_marketplace_manifest)"
+
+    local cli_available=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.cliAvailable')" == 'true' ]] && cli_available=true
+    local marketplace_install_supported=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.marketplaceInstallSupported')" == 'true' ]] && marketplace_install_supported=true
+    local install_help_summary
+    install_help_summary="$(printf '%s' "$support_json" | jq -r '.installHelpSummary // empty')"
+    local lifecycle_mode
+    lifecycle_mode="$(printf '%s' "$support_json" | jq -r '.installMode')"
+
+    if ! $cli_available; then
+        echo '  [WARN] Codex CLI not found on PATH; refreshed marketplace descriptor only and recorded artifact-only lifecycle state.'
+        lifecycle_mode='artifact-only'
+    elif ! $marketplace_install_supported; then
+        echo '  [WARN] Codex CLI is present but marketplace install support was not detected; recording artifact-only lifecycle state.'
+        lifecycle_mode='artifact-only'
+    elif $DRY_RUN; then
+        echo "  [DRY RUN] Would register Codex marketplace: codex plugin marketplace add \"$marketplace_root\""
+        echo "  [DRY RUN] Would refresh Codex plugin install: codex plugin remove $plugin_selector ; codex plugin add $plugin_selector"
+    else
+        local marketplace_add_output
+        if ! marketplace_add_output="$(codex plugin marketplace add "$marketplace_root" 2>&1)"; then
+            echo '  [WARN] Codex marketplace add returned non-zero; attempting marketplace re-registration.'
+            codex plugin marketplace remove "$marketplace_name" >/dev/null 2>&1 || true
+            marketplace_add_output="$(codex plugin marketplace add "$marketplace_root" 2>&1)" || {
+                echo "Codex marketplace registration failed for $marketplace_root" >&2
+                echo "$marketplace_add_output" >&2
+                exit 1
+            }
+        fi
+        echo "  [OK] Registered Codex marketplace '$marketplace_name'."
+
+        if codex plugin remove "$plugin_selector" >/dev/null 2>&1; then
+            echo "  [OK] Removed existing Codex plugin '$plugin_selector' before refresh."
+        fi
+
+        local plugin_add_output
+        plugin_add_output="$(codex plugin add "$plugin_selector" 2>&1)" || {
+            echo "Codex plugin install failed for $plugin_selector" >&2
+            echo "$plugin_add_output" >&2
+            exit 1
+        }
+        echo "  [OK] Installed Codex plugin '$plugin_selector'."
+    fi
+
+    local state_json
+    state_json="$(jq -n \
+        --arg canonicalRoot "$canonical_root" \
+        --arg packageOutputRoot "$package_output_root" \
+        --arg installTarget "$plugin_selector" \
+        --arg manifestPath "$manifest_path" \
+        --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg status 'unprojected-artifact' \
+        --arg readSurface 'unprojected-artifact' \
+        --arg installHelpSummary "$install_help_summary" \
+        --arg mode "$lifecycle_mode" \
+        --arg marketplaceRoot "$marketplace_root" \
+        --arg marketplaceManifestPath "$marketplace_manifest_path" \
+        --arg marketplaceName "$marketplace_name" \
+        --arg sessionLoadCommand 'codex plugin marketplace add <plugins-root> ; codex plugin add gal@gal-marketplace' \
+        --arg installTemplate 'codex plugin marketplace add <plugins-root>' \
+        --arg updateTemplate 'codex plugin remove gal@gal-marketplace ; codex plugin add gal@gal-marketplace' \
+        --arg uninstallTemplate 'codex plugin remove gal@gal-marketplace ; codex plugin marketplace remove gal-marketplace' \
+        --argjson cliAvailable "$cli_available" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
+        '{
+            schemaVersion: 1,
+            provider: "codex",
+            canonicalRoot: $canonicalRoot,
+            packageOutputRoot: $packageOutputRoot,
+            projectionRoot: null,
+            installTarget: $installTarget,
+            manifestPath: $manifestPath,
+            generatedAt: $generatedAt,
+            status: $status,
+            readSurface: $readSurface,
+            cli: {
+                available: $cliAvailable,
+                validateSupported: false,
+                localArtifactInstallSupported: false,
+                marketplaceInstallSupported: $marketplaceInstallSupported,
+                installScopeSupported: false,
+                installHelpSummary: $installHelpSummary
+            },
+            validation: {
+                command: null,
+                strictPassed: false
+            },
+            lifecycle: {
+                mode: $mode,
+                stagedPluginRoot: $canonicalRoot,
+                marketplaceRoot: $marketplaceRoot,
+                marketplaceManifestPath: $marketplaceManifestPath,
+                marketplaceName: $marketplaceName,
+                installedSelector: $installTarget,
+                sessionLoadCommand: $sessionLoadCommand,
+                installCommandTemplate: $installTemplate,
+                updateCommandTemplate: $updateTemplate,
+                uninstallCommandTemplate: $uninstallTemplate,
+                pluginRemovedBeforeAdd: false
+            },
+            notes: [
+                "Codex lifecycle is independent from AGY and is routed through install-gal-plugins.sh.",
+                "GAL refreshes the local marketplace descriptor before each Codex registration so codex plugin marketplace add reads the canonical plugin root.",
+                "Codex updates are delivered by marketplace-copy semantics; the canonical .codex-plugin/plugin.json version must change on each render to satisfy version-gated refreshes."
+            ]
+        }')"
+
+    write_codex_lifecycle_state "$state_json"
+}
+
 if $UNINSTALL; then
     install_mode='source'
     if ! install_mode="$(get_configured_install_mode 2>/dev/null)"; then
@@ -540,6 +727,8 @@ if $UNINSTALL; then
         "$AGY_PLUGIN_INSTALL_TARGET" \
         "$COPILOT_PLUGIN_INSTALL_TARGET" \
         "$GAL_ROOT_COPILOT" \
+        "$GAL_GENERATED_PROVIDERS_ROOT/codex/managed.json" \
+        "$GAL_PLUGINS_ROOT/.agents/plugins/marketplace.json" \
         "$GAL_PLUGINS_ROOT" \
         "$GAL_GENERATED_MCP_ROOT" \
         "$GAL_GENERATED_XMACHINE_ROOT" \
@@ -560,7 +749,17 @@ if $UNINSTALL; then
         echo '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     fi
 
-    echo '  [OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.'
+    echo '  [OK] Install-mode uninstall owns AGY, Copilot, Codex, and Claude provider-lifecycle metadata cleanup.'
+    if $DRY_RUN; then
+        echo '  [DRY RUN] Would remove Codex plugin: codex plugin remove gal@gal-marketplace'
+        echo '  [DRY RUN] Would unregister Codex marketplace: codex plugin marketplace remove gal-marketplace'
+    elif command_exists codex; then
+        codex plugin remove 'gal@gal-marketplace' >/dev/null 2>&1 || true
+        codex plugin marketplace remove 'gal-marketplace' >/dev/null 2>&1 || true
+    else
+        echo '  [WARN] Codex CLI not found on PATH; skipping Codex plugin unregister/remove during uninstall.'
+    fi
+
     agy_shortcut_target="$(get_gal_active_provider_target agy)"
     if [ -L "$agy_shortcut_target" ] || [ -e "$agy_shortcut_target" ]; then
         safe_unlink "$agy_shortcut_target"
@@ -736,6 +935,9 @@ else
         "$SCRIPT_DIR/build-provider-plugins.sh" "${build_provider_args[@]}"
         if printf '%s' ",$primary_providers_csv," | grep -q ',copilot,'; then
             invoke_copilot_plugin_lifecycle
+        fi
+        if printf '%s' ",$primary_providers_csv," | grep -q ',codex,'; then
+            invoke_codex_plugin_lifecycle
         fi
         if printf '%s' ",$primary_providers_csv," | grep -q ',claude,'; then
             invoke_claude_plugin_lifecycle

@@ -326,6 +326,8 @@ function Test-InstallUninstallOwnership {
         $Context.AgyPluginInstallTarget,
         $Context.CopilotPluginInstallTarget,
         $Context.GalRootCopilot,
+        (Join-Path $Context.GalGeneratedProvidersRoot 'codex\managed.json'),
+        (Join-Path $Context.GalPluginsRoot '.agents\plugins\marketplace.json'),
         $Context.GalStorePluginsRoot,
         $Context.GalGeneratedMcpRoot,
         $Context.GalGeneratedXmachineRoot,
@@ -357,6 +359,56 @@ function Get-ClaudeLifecycleStatePath {
 function Get-ClaudeMarketplaceManifestPath {
     param([pscustomobject]$Context)
     return Join-Path $Context.GalPluginsRoot '.claude-plugin\marketplace.json'
+}
+
+function Get-CodexLifecycleStatePath {
+    param(
+        [pscustomobject]$Context
+    )
+
+    return Join-Path $Context.GalGeneratedProvidersRoot 'codex\managed.json'
+}
+
+function Get-CodexMarketplaceRoot {
+    param([pscustomobject]$Context)
+
+    return $Context.GalPluginsRoot
+}
+
+function Get-CodexMarketplaceManifestPath {
+    param([pscustomobject]$Context)
+
+    return Join-Path (Get-CodexMarketplaceRoot -Context $Context) '.agents\plugins\marketplace.json'
+}
+
+function Ensure-CodexMarketplaceManifest {
+    param([pscustomobject]$Context)
+
+    $manifestPath = Get-CodexMarketplaceManifestPath -Context $Context
+    $manifestDir = Split-Path -Parent $manifestPath
+    Ensure-SetupDirectories @($manifestDir)
+
+    $marketplace = [ordered]@{
+        name = 'gal-marketplace'
+        interface = [ordered]@{ displayName = 'GAL Plugin Marketplace' }
+        plugins = @(
+            [ordered]@{
+                name = 'gal'
+                source = [ordered]@{ source = 'local'; path = './gal' }
+                policy = [ordered]@{ installation = 'AVAILABLE'; authentication = 'ON_INSTALL' }
+                category = 'Engineering'
+            }
+        )
+    }
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would refresh Codex marketplace descriptor: {0}" -f $manifestPath)
+        return $manifestPath
+    }
+
+    $marketplace | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    Write-Host ("  [OK] Refreshed Codex marketplace descriptor: {0}" -f $manifestPath)
+    return $manifestPath
 }
 
 function Ensure-ClaudeMarketplaceManifest {
@@ -469,6 +521,22 @@ function Write-CopilotLifecycleState {
 
     Write-JsonOrderedMap $statePath $State
     Write-Host ("  [OK] Wrote Copilot lifecycle state: {0}" -f $statePath)
+}
+
+function Write-CodexLifecycleState {
+    param(
+        [pscustomobject]$Context,
+        [System.Collections.IDictionary]$State
+    )
+
+    $statePath = Get-CodexLifecycleStatePath -Context $Context
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would write Codex lifecycle state: {0}" -f $statePath)
+        return
+    }
+
+    Write-JsonOrderedMap $statePath $State
+    Write-Host ("  [OK] Wrote Codex lifecycle state: {0}" -f $statePath)
 }
 
 function Update-CopilotManifestVersion {
@@ -772,6 +840,132 @@ function Invoke-CopilotPluginLifecycle {
     Write-CopilotLifecycleState -Context $Context -State $state
 }
 
+function Invoke-CodexPluginLifecycle {
+    param(
+        [string]$RepoRoot,
+        [pscustomobject]$Context
+    )
+
+    if (-not $Context.InstallCodex) {
+        return
+    }
+
+    Write-Host '  [OK] Evaluating Codex plugin lifecycle.'
+    $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+    $packageOutputRoot = Get-CodexPluginPackageOutputRoot -RepoRoot $RepoRoot
+    $manifestPath = Get-CodexPluginManifestPath -PluginRoot $canonicalRoot
+    $contract = Get-CodexPluginInstallContract
+    $support = Get-CodexCliLifecycleSupport
+    $marketplaceRoot = Get-CodexMarketplaceRoot -Context $Context
+    $marketplaceName = 'gal-marketplace'
+    $pluginSelector = 'gal@gal-marketplace'
+
+    if (-not (Test-Path $canonicalRoot) -or -not (Test-Path $manifestPath)) {
+        Write-Host '  [WARN] Codex canonical artifact was missing; rerendering shared plugin root before marketplace registration.' -ForegroundColor Yellow
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -Force:$Force | Out-Null
+    }
+
+    $marketplaceManifestPath = Ensure-CodexMarketplaceManifest -Context $Context
+    $status = 'unprojected-artifact'
+
+    $state = [ordered]@{
+        schemaVersion = 1
+        provider = 'codex'
+        canonicalRoot = $canonicalRoot
+        packageOutputRoot = $packageOutputRoot
+        projectionRoot = $null
+        installTarget = $pluginSelector
+        manifestPath = $manifestPath
+        generatedAt = (Get-Date -Format 'o')
+        status = $status
+        readSurface = (Resolve-ProviderManagedReadSurface -Status $status)
+        cli = [ordered]@{
+            available = [bool]$support.cliAvailable
+            validateSupported = [bool]$support.validateSupported
+            localArtifactInstallSupported = [bool]$support.localArtifactInstallSupported
+            marketplaceInstallSupported = [bool]$support.marketplaceInstallSupported
+            installScopeSupported = [bool]$support.installScopeSupported
+            installHelpSummary = $support.installHelpSummary
+        }
+        validation = [ordered]@{
+            command = $contract.validationCommand
+            strictPassed = $false
+        }
+        lifecycle = [ordered]@{
+            mode = [string]$support.installMode
+            stagedPluginRoot = $canonicalRoot
+            marketplaceRoot = $marketplaceRoot
+            marketplaceManifestPath = $marketplaceManifestPath
+            marketplaceName = $marketplaceName
+            installedSelector = $pluginSelector
+            sessionLoadCommand = $contract.developmentLoadCommand
+            installCommandTemplate = $contract.lifecycleCommands[0]
+            updateCommandTemplate = $contract.lifecycleCommands[1]
+            uninstallCommandTemplate = $contract.lifecycleCommands[2]
+            pluginRemovedBeforeAdd = $false
+        }
+        notes = @(
+            'Codex lifecycle is independent from AGY and is routed through Install-GalPlugins.ps1.',
+            'GAL refreshes the local marketplace descriptor before each Codex registration so codex plugin marketplace add reads the canonical plugin root.',
+            'Codex updates are delivered by marketplace-copy semantics; the canonical .codex-plugin/plugin.json version must change on each render to satisfy version-gated refreshes.'
+        )
+    }
+
+    if (-not (Test-Path $canonicalRoot)) {
+        throw "Codex canonical root not found: $canonicalRoot"
+    }
+
+    if (-not (Test-Path $manifestPath)) {
+        throw "Codex manifest not found: $manifestPath"
+    }
+
+    if (-not $support.cliAvailable) {
+        Write-Host '  [WARN] Codex CLI not found on PATH; refreshed marketplace descriptor only and recorded artifact-only lifecycle state.' -ForegroundColor Yellow
+        $state['lifecycle']['mode'] = 'artifact-only'
+        Write-CodexLifecycleState -Context $Context -State $state
+        return
+    }
+
+    if (-not $support.marketplaceInstallSupported) {
+        Write-Host '  [WARN] Codex CLI is present but marketplace install support was not detected; recording artifact-only lifecycle state.' -ForegroundColor Yellow
+        $state['lifecycle']['mode'] = 'artifact-only'
+        Write-CodexLifecycleState -Context $Context -State $state
+        return
+    }
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would register Codex marketplace: codex plugin marketplace add `"{0}`"" -f $marketplaceRoot)
+        Write-Host ("  [DRY RUN] Would refresh Codex plugin install: codex plugin remove {0} ; codex plugin add {0}" -f $pluginSelector)
+        Write-CodexLifecycleState -Context $Context -State $state
+        return
+    }
+
+    $marketplaceAddOutput = (& codex plugin marketplace add $marketplaceRoot 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '  [WARN] Codex marketplace add returned non-zero; attempting marketplace re-registration.' -ForegroundColor Yellow
+        & codex plugin marketplace remove $marketplaceName 2>&1 | Out-Null
+        $marketplaceAddOutput = (& codex plugin marketplace add $marketplaceRoot 2>&1 | Out-String)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Codex marketplace registration failed for $marketplaceRoot`n$marketplaceAddOutput"
+        }
+    }
+    Write-Host ("  [OK] Registered Codex marketplace '{0}'." -f $marketplaceName)
+
+    $pluginRemoveOutput = (& codex plugin remove $pluginSelector 2>&1 | Out-String)
+    if ($LASTEXITCODE -eq 0) {
+        $state['lifecycle']['pluginRemovedBeforeAdd'] = $true
+        Write-Host ("  [OK] Removed existing Codex plugin '{0}' before refresh." -f $pluginSelector)
+    }
+
+    $pluginAddOutput = (& codex plugin add $pluginSelector 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Codex plugin install failed for $pluginSelector`n$pluginAddOutput"
+    }
+
+    Write-Host ("  [OK] Installed Codex plugin '{0}'." -f $pluginSelector)
+    Write-CodexLifecycleState -Context $Context -State $state
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
@@ -794,7 +988,19 @@ if ($Uninstall) {
         Write-Host '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     }
 
-    Write-Host '  [OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.'
+        Write-Host '  [OK] Install-mode uninstall owns AGY, Copilot, Codex, and Claude provider-lifecycle metadata cleanup.'
+        if ($DryRun) {
+            Write-Host '  [DRY RUN] Would remove Codex plugin: codex plugin remove gal@gal-marketplace'
+            Write-Host '  [DRY RUN] Would unregister Codex marketplace: codex plugin marketplace remove gal-marketplace'
+        }
+        elseif (Test-CommandAvailable 'codex') {
+            & codex plugin remove 'gal@gal-marketplace' 2>&1 | Out-Null
+            & codex plugin marketplace remove 'gal-marketplace' 2>&1 | Out-Null
+        }
+        else {
+            Write-Host '  [WARN] Codex CLI not found on PATH; skipping Codex plugin unregister/remove during uninstall.' -ForegroundColor Yellow
+        }
+
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
 
@@ -940,6 +1146,9 @@ else {
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers $primaryProviders -DryRun:$DryRun -Force:$Force
         if ($primaryProviders -contains 'copilot') {
             Invoke-CopilotPluginLifecycle -RepoRoot $RepoRoot -Context $context
+        }
+        if ($primaryProviders -contains 'codex') {
+            Invoke-CodexPluginLifecycle -RepoRoot $RepoRoot -Context $context
         }
         if ($primaryProviders -contains 'claude') {
             Invoke-ClaudePluginLifecycle -RepoRoot $RepoRoot -Context $context

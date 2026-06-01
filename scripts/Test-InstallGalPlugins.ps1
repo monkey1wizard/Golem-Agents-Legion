@@ -200,6 +200,7 @@ try {
     $managedXmachineRoot = Join-Path $testHome '.gal\generated\xmachine'
     $managedProvidersRoot = Join-Path $testHome '.gal\dist\providers'
     $copilotLifecycleStatePath = Join-Path $managedProvidersRoot 'copilot\managed.json'
+        $codexLifecycleStatePath = Join-Path $managedProvidersRoot 'codex\managed.json'
     $claudeLifecycleStatePath = Join-Path $managedProvidersRoot 'claude\managed.json'
     New-Item -ItemType Directory -Path $managedPluginStore -Force | Out-Null
     New-Item -ItemType Directory -Path $managedMcpRoot -Force | Out-Null
@@ -210,6 +211,8 @@ try {
     Set-Content -LiteralPath (Join-Path $managedXmachineRoot 'managed.json') -Value '{}' -Encoding utf8
     New-Item -ItemType Directory -Path (Split-Path -Parent $copilotLifecycleStatePath) -Force | Out-Null
     Set-Content -LiteralPath $copilotLifecycleStatePath -Value '{}' -Encoding utf8
+        New-Item -ItemType Directory -Path (Split-Path -Parent $codexLifecycleStatePath) -Force | Out-Null
+        Set-Content -LiteralPath $codexLifecycleStatePath -Value '{}' -Encoding utf8
     New-Item -ItemType Directory -Path (Split-Path -Parent $claudeLifecycleStatePath) -Force | Out-Null
     Set-Content -LiteralPath $claudeLifecycleStatePath -Value '{}' -Encoding utf8
 
@@ -228,8 +231,10 @@ try {
 
     $machineConfigBeforeUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
     $uninstallOutput = (& $uninstallScriptUnderTest -DryRun 6>&1 | Out-String)
-    Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
+    Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY, Copilot, Codex, and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove AGY plugin install target:' 'Install-mode uninstall should preview AGY plugin removal.'
+    Assert-Contains $uninstallOutput 'codex plugin remove gal@gal-marketplace' 'Install-mode uninstall should preview Codex plugin removal.'
+    Assert-Contains $uninstallOutput 'codex plugin marketplace remove gal-marketplace' 'Install-mode uninstall should preview Codex marketplace removal.'
     Assert-Contains $uninstallOutput '.copilot\installed-plugins\gal-copilot\gal' 'Install-mode uninstall should preview Copilot projection cleanup.'
     Assert-Contains $uninstallOutput '.copilot\gal' 'Install-mode uninstall should preview Copilot legacy GAL_ROOT cleanup.'
     Assert-Contains $uninstallOutput '.claude\skills\gal' 'Install-mode uninstall should preview Claude skills projection cleanup.'
@@ -372,6 +377,66 @@ try {
     }
     if ($copilotLifecycleState.status -eq 'refreshed-copy2-host' -and -not $copilotLifecycleState.lifecycle.versionBumpedTo) {
         throw 'Copilot host-copy fallback should record the bumped manifest version.'
+    }
+
+    $codexConfig = [ordered]@{
+        schemaVersion = 1
+        galRoot = $repoRoot
+        devMode = $false
+        defaultProfile = 'default'
+        profiles = [ordered]@{}
+        enabledPlugins = @()
+        disabledPlugins = @()
+        providerSelections = [ordered]@{
+            codex = [ordered]@{ enabled = $true; lane = 'primary' }
+        }
+        installMode = 'install'
+        preferredProviders = @('codex')
+        userSettings = [ordered]@{}
+    }
+    $codexConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
+
+    $codexLifecycleOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('codex') -PrimaryRuntime 'codex' -Force 6>&1 | Out-String)
+    Assert-Contains $codexLifecycleOutput '[OK] Evaluating Codex plugin lifecycle.' 'Codex install orchestration should enter the Codex lifecycle path.'
+
+    if (-not (Test-Path $codexLifecycleStatePath)) {
+        throw "Codex lifecycle install should write lifecycle state to $codexLifecycleStatePath"
+    }
+
+    $codexLifecycleState = Get-Content -LiteralPath $codexLifecycleStatePath -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($codexLifecycleState.provider -ne 'codex') {
+        throw 'Codex lifecycle state should record provider=codex.'
+    }
+    if ($codexLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
+        throw 'Codex lifecycle state should record the canonical root under ~/.gal/plugins/gal.'
+    }
+    if ($codexLifecycleState.packageOutputRoot -ne (Join-Path $testHome '.gal\dist\provider-plugins\codex\gal')) {
+        throw 'Codex lifecycle state should record the package output root under ~/.gal/dist/provider-plugins/codex/gal.'
+    }
+    if ($codexLifecycleState.installTarget -ne 'gal@gal-marketplace') {
+        throw 'Codex lifecycle state should record the plugin selector as the install target.'
+    }
+    if ($codexLifecycleState.manifestPath -ne (Join-Path $testHome '.gal\plugins\gal\.codex-plugin\plugin.json')) {
+        throw 'Codex lifecycle state should record the canonical Codex manifest path.'
+    }
+    if ($codexLifecycleState.status -ne 'unprojected-artifact') {
+        throw "Codex lifecycle state should honestly report marketplace-copy delivery as unprojected-artifact. Actual: $($codexLifecycleState.status)"
+    }
+    if ($codexLifecycleState.readSurface -ne 'unprojected-artifact') {
+        throw 'Codex lifecycle state should keep readSurface aligned to the unprojected artifact status.'
+    }
+    if ($codexLifecycleState.lifecycle.marketplaceRoot -ne (Join-Path $testHome '.gal\plugins')) {
+        throw 'Codex lifecycle state should record ~/.gal/plugins as the marketplace root.'
+    }
+    if ($codexLifecycleState.lifecycle.marketplaceManifestPath -ne (Join-Path $testHome '.gal\plugins\.agents\plugins\marketplace.json')) {
+        throw 'Codex lifecycle state should record the managed marketplace descriptor path.'
+    }
+    if ($codexLifecycleState.cli.available) {
+        Assert-Contains $codexLifecycleOutput "[OK] Registered Codex marketplace 'gal-marketplace'." 'Codex lifecycle should register the managed marketplace when Codex CLI is available.'
+        Assert-Contains $codexLifecycleOutput "[OK] Installed Codex plugin 'gal@gal-marketplace'." 'Codex lifecycle should install the GAL plugin independently of AGY.'
+    }
+    else {
+        Assert-Contains $codexLifecycleOutput 'Codex CLI not found on PATH' 'Codex lifecycle should warn when Codex CLI is unavailable.'
     }
 
     # TP-004/005/006: Desktop transformer and safe-merge via isolated subprocess call to Update-Mcp.ps1

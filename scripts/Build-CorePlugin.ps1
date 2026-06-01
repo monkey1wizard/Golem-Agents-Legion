@@ -623,53 +623,6 @@ if ($Install) {
     }
     Write-Host "  [OK] GUI-config surface: $guiConfigTarget" -ForegroundColor Green
 
-    # Surface 4: Codex marketplace descriptor + plugin install
-    Write-Host '' -ForegroundColor Cyan
-    Write-Host '=== Codex Marketplace Projection ===' -ForegroundColor Cyan
-    $pluginsRoot = Split-Path $artifactRoot -Parent  # ~/.gal/plugins
-    $codexMarketplaceDir = Join-Path $pluginsRoot '.agents\plugins'
-    $codexMarketplaceFile = Join-Path $codexMarketplaceDir 'marketplace.json'
-    New-Item -ItemType Directory -Path $codexMarketplaceDir -Force | Out-Null
-    $codexMarketplace = [ordered]@{
-        name = 'gal-marketplace'
-        interface = [ordered]@{ displayName = 'GAL Plugin Marketplace' }
-        plugins = @(
-            [ordered]@{
-                name = 'gal'
-                source = [ordered]@{ source = 'local'; path = './gal' }
-                policy = [ordered]@{ installation = 'AVAILABLE'; authentication = 'ON_INSTALL' }
-                category = 'Engineering'
-            }
-        )
-    }
-    $codexMarketplace | ConvertTo-Json -Depth 6 | Set-Content -Path $codexMarketplaceFile -Encoding UTF8
-    Write-Host "  [OK] Codex marketplace descriptor: $codexMarketplaceFile" -ForegroundColor Green
-
-    if (Test-CommandAvailable 'codex') {
-        # Register (or re-register) the GAL marketplace
-        Write-Host 'Registering gal-marketplace with codex...' -ForegroundColor Cyan
-        $regOutput = (& codex plugin marketplace add $pluginsRoot 2>&1 | Out-String)
-        if ($LASTEXITCODE -eq 0 -or $regOutput -match 'already') {
-            Write-Host '  [OK] gal-marketplace registered.' -ForegroundColor Green
-        }
-        else {
-            Write-Host ("  [WARN] codex marketplace add returned non-zero; output:`n{0}" -f $regOutput.Trim()) -ForegroundColor Yellow
-        }
-
-        # Install/upgrade gal plugin from gal-marketplace
-        Write-Host 'Installing gal plugin from gal-marketplace...' -ForegroundColor Cyan
-        $addOutput = (& codex plugin add "gal@gal-marketplace" 2>&1 | Out-String)
-        if ($LASTEXITCODE -eq 0 -or $addOutput -match 'already installed') {
-            Write-Host '  [OK] gal plugin installed from gal-marketplace.' -ForegroundColor Green
-        }
-        else {
-            Write-Host ("  [WARN] codex plugin add returned non-zero; output:`n{0}" -f $addOutput.Trim()) -ForegroundColor Yellow
-        }
-    }
-    else {
-        Write-Host '  [SKIP] codex CLI not on PATH; skipping Codex marketplace install.' -ForegroundColor Yellow
-    }
-
     # Cleanup: remove GAL-owned vestigial artifacts (whitelist only — do NOT touch ~/.antigravity* IDE dirs)
     Write-Host '' -ForegroundColor Cyan
     Write-Host '=== R-CLEANUP: GAL-owned vestigial artifacts ===' -ForegroundColor Cyan

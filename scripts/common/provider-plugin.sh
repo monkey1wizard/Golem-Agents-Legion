@@ -157,6 +157,42 @@ get_copilot_cli_lifecycle_support_json() {
         }'
 }
 
+get_codex_cli_lifecycle_support_json() {
+    local cli_available=false
+    local validate_supported=false
+    local local_artifact_install_supported=false
+    local marketplace_install_supported=false
+    local install_scope_supported=false
+    local install_help_summary=''
+
+    if command_exists codex; then
+        cli_available=true
+
+        install_help_summary="$(get_provider_cli_help_summary codex plugin add --help || true)"
+        if provider_cli_help_supports codex '(Marketplace source|marketplace)' plugin marketplace add --help; then
+            marketplace_install_supported=true
+        fi
+    fi
+
+    jq -n \
+        --argjson cliAvailable "$cli_available" \
+        --argjson validateSupported "$validate_supported" \
+        --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
+        --argjson installScopeSupported "$install_scope_supported" \
+        --arg installMode "$(resolve_provider_cli_install_mode "$cli_available" "$local_artifact_install_supported" "$marketplace_install_supported")" \
+        --arg installHelpSummary "$install_help_summary" \
+        '{
+            cliAvailable: $cliAvailable,
+            validateSupported: $validateSupported,
+            localArtifactInstallSupported: $localArtifactInstallSupported,
+            marketplaceInstallSupported: $marketplaceInstallSupported,
+            installScopeSupported: $installScopeSupported,
+            installMode: $installMode,
+            installHelpSummary: $installHelpSummary
+        }'
+}
+
 get_provider_managed_state_path() {
     local provider="$1"
     printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/$provider/managed.json"
@@ -663,6 +699,11 @@ get_copilot_plugin_package_output_root() {
     printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/copilot/gal"
 }
 
+get_codex_plugin_package_output_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/codex/gal"
+}
+
 # Backward-compatible alias for the Claude package output root.
 get_claude_plugin_artifact_root() {
     local repo_root="${1:-$REPO_ROOT}"
@@ -672,6 +713,11 @@ get_claude_plugin_artifact_root() {
 get_copilot_plugin_artifact_root() {
     local repo_root="${1:-$REPO_ROOT}"
     get_copilot_plugin_package_output_root "$repo_root"
+}
+
+get_codex_plugin_artifact_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    get_codex_plugin_package_output_root "$repo_root"
 }
 
 # Returns the Claude plugin component layout relative to the plugin root.
@@ -696,6 +742,11 @@ get_copilot_plugin_manifest_path() {
     printf '%s\n' "$plugin_root/copilot-manifest.json"
 }
 
+get_codex_plugin_manifest_path() {
+    local plugin_root="$1"
+    printf '%s\n' "$plugin_root/.codex-plugin/plugin.json"
+}
+
 get_copilot_plugin_install_contract() {
     jq -n '{
         developmentLoadCommand: "GitHub Copilot reads the projected plugin from ~/.copilot/installed-plugins/gal-copilot/gal",
@@ -714,6 +765,28 @@ get_copilot_plugin_install_contract() {
             "Copilot CLI and VS Code Copilot share the same ~/.copilot plugin surface.",
             "copilot-manifest.json must stay at plugin root so Copilot can discover commands, skills, and agents.",
             "When projection is unavailable, GAL refreshes a host copy at ~/.copilot/installed-plugins/gal-copilot/gal and bumps the manifest version to invalidate stale caches."
+        ]
+    }'
+}
+
+get_codex_plugin_install_contract() {
+    jq -n '{
+        developmentLoadCommand: "codex plugin marketplace add <plugins-root> ; codex plugin add gal@gal-marketplace",
+        validationCommand: null,
+        lifecycleCommands: [
+            "codex plugin marketplace add <plugins-root>",
+            "codex plugin remove gal@gal-marketplace ; codex plugin add gal@gal-marketplace",
+            "codex plugin remove gal@gal-marketplace ; codex plugin marketplace remove gal-marketplace"
+        ],
+        settingsScopes: {
+            shared: "~/.codex",
+            config: "~/.codex/config.toml",
+            marketplaces: "~/.codex configured marketplace sources"
+        },
+        notes: [
+            ".codex-plugin/plugin.json must stay at plugin root so Codex can resolve the plugin from the configured GAL marketplace.",
+            "GAL owns the local marketplace descriptor at ~/.gal/plugins/.agents/plugins/marketplace.json and registers ~/.gal/plugins as the Codex marketplace source.",
+            "Codex install/update flows are marketplace-copy based, so the canonical plugin version must change on each render to satisfy version-gated updates."
         ]
     }'
 }

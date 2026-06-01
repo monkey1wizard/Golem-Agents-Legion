@@ -150,6 +150,16 @@ function Get-ClaudeCliLifecycleSupport {
         -MarketplacePattern 'marketplace'
     }
 
+    function Get-CodexCliLifecycleSupport {
+        return Get-ProviderCliLifecycleSupport \
+            -CliCommandName 'codex' \
+            -InstallArguments @('plugin', 'add', '--help') \
+            -InstallScopePattern '$^' \
+            -LocalArtifactPattern '$^' \
+            -MarketplaceArguments @('plugin', 'marketplace', 'add', '--help') \
+            -MarketplacePattern '(Marketplace source|marketplace)'
+    }
+
 function Get-ProviderManagedStatePath {
     param(
         [Parameter(Mandatory)]
@@ -712,6 +722,15 @@ function Get-CopilotPluginPackageOutputRoot {
     return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\copilot\gal'
 }
 
+function Get-CodexPluginPackageOutputRoot {
+    <#
+    .SYNOPSIS
+        Returns the Codex package output root under ~/.gal/dist.
+    #>
+    param([string]$RepoRoot)
+    return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\codex\gal'
+}
+
 function Get-CopilotPluginArtifactRoot {
     <#
     .SYNOPSIS
@@ -719,6 +738,15 @@ function Get-CopilotPluginArtifactRoot {
     #>
     param([string]$RepoRoot)
     return Get-CopilotPluginPackageOutputRoot -RepoRoot $RepoRoot
+}
+
+function Get-CodexPluginArtifactRoot {
+    <#
+    .SYNOPSIS
+        Backward-compatible alias for the Codex package output root.
+    #>
+    param([string]$RepoRoot)
+    return Get-CodexPluginPackageOutputRoot -RepoRoot $RepoRoot
 }
 
 function Get-ClaudePluginArtifactRoot {
@@ -766,6 +794,16 @@ function Get-CopilotPluginManifestPath {
     return Join-Path $PluginRoot 'copilot-manifest.json'
 }
 
+function Get-CodexPluginManifestPath {
+    <#
+    .SYNOPSIS
+        Returns the manifest path for a rendered Codex plugin artifact.
+    #>
+    param([string]$PluginRoot)
+
+    return Join-Path $PluginRoot '.codex-plugin\plugin.json'
+}
+
 function Get-CopilotPluginInstallContract {
     <#
     .SYNOPSIS
@@ -789,6 +827,33 @@ function Get-CopilotPluginInstallContract {
             'Copilot CLI and VS Code Copilot share the same ~/.copilot plugin surface.',
             'copilot-manifest.json must stay at plugin root so Copilot can discover commands, skills, and agents.',
             'When projection is unavailable, GAL refreshes a host copy at ~/.copilot/installed-plugins/gal-copilot/gal and bumps the manifest version to invalidate stale caches.'
+        )
+    }
+}
+
+function Get-CodexPluginInstallContract {
+    <#
+    .SYNOPSIS
+        Returns the documented Codex plugin install contract.
+    #>
+
+    return [ordered]@{
+        developmentLoadCommand = 'codex plugin marketplace add <plugins-root> ; codex plugin add gal@gal-marketplace'
+        validationCommand = $null
+        lifecycleCommands = @(
+            'codex plugin marketplace add <plugins-root>'
+            'codex plugin remove gal@gal-marketplace ; codex plugin add gal@gal-marketplace'
+            'codex plugin remove gal@gal-marketplace ; codex plugin marketplace remove gal-marketplace'
+        )
+        settingsScopes = [ordered]@{
+            shared = '~/.codex'
+            config = '~/.codex/config.toml'
+            marketplaces = '~/.codex configured marketplace sources'
+        }
+        notes = @(
+            '.codex-plugin/plugin.json must stay at plugin root so Codex can resolve the plugin from the configured GAL marketplace.',
+            'GAL owns the local marketplace descriptor at ~/.gal/plugins/.agents/plugins/marketplace.json and registers ~/.gal/plugins as the Codex marketplace source.',
+            'Codex install/update flows are marketplace-copy based, so the canonical plugin version must change on each render to satisfy version-gated updates.'
         )
     }
 }
