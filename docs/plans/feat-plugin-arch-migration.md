@@ -4,16 +4,18 @@
 
 將 AGY、Copilot 與 Codex 統一到單一 GAL 正本根目錄 `~/.gal/plugins/gal` 下，由單一核心 Renderer 建置成一個**包含各供應商進入點標記的 superset canonical root**，使每個供應商**優先以 symlink/shortcut 連到該正本**（link-first），只有在 host 格式無法消費 link 時才退而 generate/dist 最小必需檔案。實作過程必須每個任務僅處理一個供應商，且順序固定為：AGY、Copilot、Codex。
 
-> 範圍更新（2026-05-30）：`feat-install-antigravity-claude-desktop.md` 已完成（VERIFIED），它**取代了本計畫中各供應商的安裝／投影／生命週期機制部分**。本計畫的剩餘獨特價值收斂為：**renderer 統一**（superset canonical root）+ **link-first 收掉各供應商獨立 dist 樹** + Copilot/Codex 接線。詳見「Superseded」一節。
+**範圍更新（2026-05-30）**：`feat-install-antigravity-claude-desktop.md` 已完成（VERIFIED），它**取代了本計畫中各供應商的安裝／投影／生命週期機制部分**。本計畫的剩餘獨特價值收斂為：**renderer 統一**（superset canonical root）+ **link-first 收掉各供應商獨立 dist 樹** + Copilot/Codex 接線。詳見「Superseded」一節。
 
-> 範圍更新（2026-05-31，實機盤點 + `agy` v1.0.3 實測）：發現兩件先前 plan 未涵蓋的事實——(1) **AGY 有三個獨立的 per-surface plugin store**（CLI / IDE / GUI-config），先前 plan 與安裝計畫只投影 CLI + GUI，**漏掉 IDE（`~/.gemini/antigravity-ide/plugins/`），該 surface 目前完全沒有 gal**；(2) 存在數個**未使用的殘留 folder/file**（`~/.gal/dist/provider-plugins/claude/`、空殼 `~/.antigravitycli`），應在本計畫一併清除。詳見新增的「Verified Findings (2026-05-31)」一節。AGY 任務範圍因此擴充：除 renderer 統一 + link-first 外，須補齊 IDE surface 並清理殘留。
+**範圍更新（2026-05-31，實機盤點 + `agy` v1.0.3 實測）**：發現兩件先前 plan 未涵蓋的事實——(1) **AGY 有三個獨立的 per-surface plugin store**（CLI / IDE / GUI-config），先前 plan 與安裝計畫只投影 CLI + GUI，**漏掉 IDE（`~/.gemini/antigravity-ide/plugins/`），該 surface 目前完全沒有 gal**；(2) 存在數個**未使用的殘留 folder/file**（`~/.gal/dist/provider-plugins/claude/`、空殼 `~/.antigravitycli`），應在本計畫一併清除。詳見新增的「Verified Findings (2026-05-31)」一節。AGY 任務範圍因此擴充：除 renderer 統一 + link-first 外，須補齊 IDE surface 並清理殘留。
+
+**校正（2026-06-01，Copilot/AGY link-first 實機複核）**：AGY GUI-config 的 `~/.gemini/config/plugins/gal` 可直接 symlink 到 `~/.gal/plugins/gal`，不必停在 `agy plugin install` 產生的 host-managed copy。核心 renderer 的 AGY projection 終態因此為 CLI、IDE、GUI-config 三個 surface 全部 link 到 canonical root；`agy plugin install` 只保留為歷史/host fallback，不再是 GAL source automation 的預設終態。
 
 ## Governing Principle: Link-first（最高治理原則）
 
 所有 GAL 檔案正本只存在於 `~/.gal/plugins/gal`（canonical superset root）。決策順序固定為：
 
 1. **Link**：若 host 能消費 symlink/junction，provider 的外掛目錄一律連到 `~/.gal/plugins/gal`，不另複製。
-2. **Host-managed copy**：若 host 用自己的安裝指令管理外掛庫（如 Claude Code marketplace install → `~/.claude/plugins/cache`、AGY GUI `agy plugin install` → `~/.gemini/config/plugins`），則由 host 指令從**正本**複製；GAL 不維護第二份 rendered 樹。
+2. **Host-managed copy**：若 host 用自己的安裝指令管理外掛庫且無法消費 link（如 Claude Code marketplace install → `~/.claude/plugins/cache`），則由 host 指令從**正本**複製；GAL 不維護第二份 rendered 樹。
 3. **Generate/dist（最後手段）**：只有當 host 需要與正本不同的 manifest schema 且無法 link、也無 host 安裝指令可用時，才 render 最小必需檔案，且內容主體仍指向正本。
 
 目標終態：移除 `~/.gal/dist/provider-plugins/<provider>/` 這類 GAL 自維護的第二份 rendered 樹（除作為 transient build scratch 外），讓 superset canonical root 成為唯一來源。
@@ -78,7 +80,7 @@
 - [x] 將以 Claude 命名的 renderer 替換為不特定於供應商的核心 renderer，命名為 `Build-CorePlugin.ps1` 與 `build-core-plugin.sh`。（孤兒 `Build-ClaudePlugin.ps1`/`build-claude-plugin.sh` 已於收尾刪除）
 - [x] 核心 renderer 必須產出單一共享的 superset canonical root，而不是為各供應商建立獨立的套件樹，且該 root 必須**同時包含各供應商驗證載入所需的進入點標記**（例如 `.claude-plugin/plugin.json`、AGY 的根 `plugin.json` 與 `mcp_config.json`、Codex 的 `.codex-plugin/plugin.json`、Copilot 可讀的 manifest 路徑），使能 link 的供應商可直接連到正本而非各自的 dist。
 - [x] 共享的 artifact root 必須保持對 Claude 的相容性，並加入 AGY、Copilot 與 Codex 所需的供應商標記，但不引入特定於供應商的 renderer。
-- [x] 移除 `Build-AgyPlugin.ps1` 與 `build-agy-plugin.sh` 前，必須：(a) 更新所有呼叫它們的腳本、測試與文件參照；(b) **將其 `-Install` 區塊已驗證的 AGY 安裝邏輯（CLI junction + GUI/IDE `agy plugin install`）完整搬遷至核心 renderer 或協作層，不可遺失**（此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證）。
+- [x] 移除 `Build-AgyPlugin.ps1` 與 `build-agy-plugin.sh` 前，必須：(a) 更新所有呼叫它們的腳本、測試與文件參照；(b) **將其 `-Install` 區塊已驗證的 AGY 安裝邏輯搬遷至核心 renderer 或協作層，並收斂為 CLI / IDE / GUI-config 三 surface 全部 link 到 `~/.gal/plugins/gal`**（此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證，2026-06-01 複核確認 GUI-config 可 link）。
 - [x] 更新 `Build-ProviderPlugins.ps1` 與 `build-provider-plugins.sh`，讓每個供應商都指向這個共享的核心產出 root，但只有在該供應商專屬的任務內，且生命週期檢查通過後，才能將其標記為 `implemented`。
 - [x] 遷移 `Install-GalPlugins.ps1` / `Update-Mcp.ps1` 時，**必須保留** `feat-install-antigravity-claude-desktop.md` 已交付的 Claude Code marketplace lifecycle 與 Claude Desktop MCP 合併邏輯，不得回退。
 - [x] 每個實作任務只能完成一個供應商的遷移。任務順序是固定的：首先是 AGY，接著是 Copilot，最後是 Codex。
@@ -87,24 +89,27 @@
 ## Approach
 
 ### Step 1: AGY 供應商遷移
+
 - **Provider**: 僅限 AGY
 - **已完成（由安裝計畫交付，不重做）**：AGY 的 **CLI + GUI** 安裝/投影——CLI junction（`~/.gemini/antigravity-cli/plugins/gal`）與 GUI `agy plugin install`（→ `~/.gemini/config/plugins/gal` + `import_manifest.json`）已在 `Build-AgyPlugin.ps1` 的 `-Install` 區塊實作並驗證。**注意：IDE surface 未涵蓋，屬本任務新增缺口。**
 - **剩餘範圍**：
   - (1) renderer 統一——把 Claude renderer 更名為核心 renderer，產出 **superset canonical root**，使其同時含 AGY 需要的根 `plugin.json`、`mcp_config.json`、`rules/gal.md`、`skills/`、`agents/`。**Acceptance gate**：`agy plugin validate ~/.gal/plugins/gal` 必須通過（目前因缺根 `plugin.json` 而失敗）。
   - (2) **補 IDE surface（R-AGY-IDE）**——把 gal 投影到 `~/.gemini/antigravity-ide/plugins/gal`，使 agy-ide 也能載入。以 link-first 決策：能 link 正本則 link，不行才 host-copy。
-  - (3) **link-first 收斂**——評估三個 surface（CLI junction、IDE、GUI）能否改為直接指向 `~/.gal/plugins/gal`（正本 superset）或經 `agy plugin link/install <plugin@marketplace>` 走 marketplace，藉此收掉 `~/.gal/dist/provider-plugins/agy/gal` 獨立 dist。GUI 的 `agy plugin install` 即使仍是 host-managed copy，來源也改為正本。
+  - (3) **link-first 收斂**——三個 surface（CLI junction、IDE、GUI-config）直接指向 `~/.gal/plugins/gal`（正本 superset），藉此收掉 `~/.gal/dist/provider-plugins/agy/gal` 獨立 dist。2026-06-01 實機複核確認 GUI-config 可 symlink；`agy plugin install` 不再是預設終態。
   - (4) **清理殘留（R-CLEANUP）**——刪 `~/.gal/dist/provider-plugins/claude/` 與空殼 `~/.antigravitycli`；`~/.gal/dist/provider-plugins/agy/` 待三 surface 收斂驗證後刪。
   - (5) 刪除 `Build-AgyPlugin.ps1` / `build-agy-plugin.sh`，把其 `-Install` 安裝邏輯（CLI + GUI + **新增 IDE**）搬遷至核心 renderer/協作層（不可遺失）。
 - **Files**: `scripts/Build-ClaudePlugin.ps1`, `scripts/build-claude-plugin.sh`, `scripts/Build-AgyPlugin.ps1`, `scripts/build-agy-plugin.sh`, `scripts/Build-ProviderPlugins.ps1`, `scripts/build-provider-plugins.sh`, `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh`, `scripts/Update-Skills.ps1`, `scripts/update-skills.sh`, `scripts/Update-Commands.ps1`, `scripts/update-commands.sh`, 以及 AGY 相關的測試與文件。
 - **Verify**: AGY dry run 與隔離 home 建置，證明 (a) AGY 進入點來自 superset canonical root 且 `agy plugin validate ~/.gal/plugins/gal` 通過，(b) link-first 收斂後 AGY 不再依賴獨立 dist（或明確記錄為何仍需 dist），(c) **三個 surface（CLI / IDE / GUI）皆能載入 gal**，IDE store 不再缺，(d) 舊 AGY renderer 參照已清除，(e) 安裝計畫交付的 Claude/Desktop 路徑與測試未退步，(f) 殘留 `~/.gal/dist/provider-plugins/claude/` 與 `~/.antigravitycli` 已移除，且非 GAL-owned 的 `~/.antigravity*` 編輯器目錄未被觸碰。
 
 ### Step 2: Copilot 供應商遷移
+
 - **Provider**: 僅限 Copilot
 - **Files**: `scripts/Build-ProviderPlugins.ps1`, `scripts/build-provider-plugins.sh`, `scripts/Install-GalPlugins.ps1`, `scripts/install-gal-plugins.sh`, `scripts/Test-BuildProviderPlugins.ps1`, `scripts/Test-InstallGalPlugins.ps1`, 以及 Copilot 發布與個人化文件。
 - **What**: 將 Copilot 透過其原生的外掛生命週期，與同一個核心產出的 root 進行連接。確保 manifest 介面有明確暴露 Copilot 可讀的 `agents`、`skills`、`commands` 與 `mcpServers` 路徑，而不是依賴 Claude 的後備行為。
 - **Verify**: 只有在本地路徑 install/list/update/uninstall 或已文件化的後備測試通過後，Copilot 的 dry run 才會回報使用核心 renderer 並進入 implemented 生命週期。
 
 ### Step 3: Codex 供應商遷移
+
 - **Provider**: 僅限 Codex
 - **Files**: `scripts/Build-ProviderPlugins.ps1`, `scripts/build-provider-plugins.sh`, `scripts/Install-GalPlugins.ps1`, `scripts/install-gal-plugins.sh`, `scripts/Test-BuildProviderPlugins.ps1`, `scripts/Test-InstallGalPlugins.ps1`, 可選的 Codex 市場中介資料, 以及 Codex 發布與個人化文件。
 - **What**: 加入 Codex 的 `.codex-plugin/plugin.json` 以及將指向共享核心產出 root 的市場/生命週期連接起來。除非供應商在任務中驗證了 agents，否則將 Codex 的宣稱支援項目限制在它能驗證的組件上，特別是 skills 與 MCP。
@@ -114,8 +119,8 @@
 
 - `[RENAME/MODIFY] scripts/Build-ClaudePlugin.ps1` - 變更為 `scripts/Build-CorePlugin.ps1` 並負責產出共享的核心 artifact root。
 - `[RENAME/MODIFY] scripts/build-claude-plugin.sh` - 變更為 `scripts/build-core-plugin.sh` 以維持 Bash 同等功能。
-- `[DELETE] scripts/Build-AgyPlugin.ps1` - 在 AGY 參照轉移至核心 renderer **且其 `-Install` 區塊的 AGY 安裝邏輯（CLI junction + `agy plugin install` GUI/IDE）已搬遷至核心/協作層後**才可移除。此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證，刪除前必須完整保留。
-- `[DELETE] scripts/build-agy-plugin.sh` - 在 AGY Bash 參照轉移至核心 renderer 後移除（Bash 同等需確認 `agy plugin install` 對應路徑）。
+- `[DELETE] scripts/Build-AgyPlugin.ps1` - 在 AGY 參照轉移至核心 renderer **且其 `-Install` 區塊的 AGY 安裝邏輯已搬遷並收斂為 CLI / IDE / GUI-config 三 surface 全部 link 到 canonical root 後**才可移除。此邏輯由 `feat-install-antigravity-claude-desktop.md` 新增並驗證，刪除前必須完整保留。
+- `[DELETE] scripts/build-agy-plugin.sh` - 在 AGY Bash 參照轉移至核心 renderer 後移除（Bash 同等需確認三 surface symlink 對應路徑）。
 - `[MODIFY] scripts/Build-ProviderPlugins.ps1` - 供應商的 build plan 與執行，現在每次會將單一供應商指向核心產出 root。
 - `[MODIFY] scripts/build-provider-plugins.sh` - 供應商 build plan 與執行的 Bash 版本。
 - `[MODIFY] scripts/Install-GalPlugins.ps1` 與 `scripts/install-gal-plugins.sh` - 安裝模式下的協作訊息與供應商生命週期呼叫。注意：需保留 `feat-install-antigravity-claude-desktop.md` 所新增的 `Invoke-ClaudePluginLifecycle` 與 Claude Desktop MCP 注入邏輯。
@@ -193,6 +198,7 @@
 實機盤點推翻原審查的「Missing from Plan: 修訂後無」結論：AGY 實際有三個獨立 per-surface plugin store（CLI / IDE / GUI-config），原 plan 與安裝計畫只覆蓋 CLI + GUI，**IDE surface 漏投影**。新增 R-AGY-IDE（補 IDE）與 R-CLEANUP（清 GAL-owned 殘留）兩條需求、TP-011/TP-012 兩個測試、及對應 Risk。
 
 Re-confirm 評估（2026-05-31）：
+
 - R-AGY-IDE：第三個 surface 投影是既有 junction/copy 模式的直接延伸，無新抽象或依賴；架構上與 CLI + GUI 路徑同質。**CLEAR**
 - R-CLEANUP：白名單式刪除 GAL-owned 死碼，明確排除非 GAL-owned 目錄；風險已在 Risks 節記錄。**CLEAR**
 - TP-011/TP-012：新測試涵蓋新需求，無架構影響。**CLEAR**

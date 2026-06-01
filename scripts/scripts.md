@@ -130,7 +130,8 @@ The setup script creates these symlinks:
 | `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
 | `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
 | `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
-| `~/.gal/source/` | `~/.copilot/gal/` | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | — | — |
+| `~/.gal/` | `~/.copilot/gal/` | — | — | — | — |
+| `~/.gal/source/` | — | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | — | — |
 
 All `commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 

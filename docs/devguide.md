@@ -105,7 +105,9 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | `~/.gal/plugins/gal/agents/` |
 | `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
 | `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
-| `~/.gal/source/` | `~/.copilot/gal/` | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | not required | `~/.gal/plugins/gal/` (canonical plugin tree); `~/.claude/plugins/gal/` is the provider-visible projection |
+| `~/.gal/` | `~/.copilot/gal/` | not required | not required | not required | not required |
+| `~/.gal/source/` | not required | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | not required | not required |
+| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/<marketplace>/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | marketplace/plugin projection | `~/.claude/plugins/gal/` provider-visible projection |
 
 ### Generated Runtime Files
 
@@ -175,7 +177,7 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/` and `~/.gemini/gal/` give installed command skills one stable path back to the source repo. That keeps generated command prompts small and deterministic.
+`~/.copilot/gal/` gives Copilot one stable path to GAL's machine-local state and generated output root at `~/.gal/`. `~/.gemini/gal/` remains a legacy Gemini compatibility link back to `~/.gal/source/` until the Gemini bridge is retired.
 
 For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces the old `~/.gemini/antigravity-cli/gal/` symlink as the managed install surface. The plugin is self-contained and does not require an external `GAL_ROOT` symlink; setup removes the legacy `GAL_ROOT` symlink during pre-cleanup.
 

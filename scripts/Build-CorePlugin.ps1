@@ -28,7 +28,7 @@
     When -Install is specified, projects to all AGY surfaces (link-first):
     - CLI junction:  ~/.gemini/antigravity-cli/plugins/gal  -> canonical root
     - IDE junction:  ~/.gemini/antigravity-ide/plugins/gal  -> canonical root
-    - GUI-config:    agy plugin install <canonical root>     -> host-managed copy
+    - GUI-config:    ~/.gemini/config/plugins/gal            -> canonical root
     Also removes GAL-owned vestigial artifacts (whitelist-guarded).
 #>
 
@@ -539,20 +539,20 @@ if ($Install) {
     }
     Write-Host "  [OK] IDE surface: $ideTarget" -ForegroundColor Green
 
-    # Surface 3: GUI-config — agy plugin install (host-managed copy from canonical root)
-    if (Test-CommandAvailable 'agy') {
-        Write-Host 'Installing into shared AGY config store via `agy plugin install`...' -ForegroundColor Cyan
-        $agyInstallOutput = (& agy plugin install $artifactRoot 2>&1 | Out-String)
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host '  [OK] agy plugin install succeeded (GUI-config surface).' -ForegroundColor Green
-        }
-        else {
-            Write-Host ("  [WARN] agy plugin install returned non-zero; check output:`n{0}" -f $agyInstallOutput.Trim()) -ForegroundColor Yellow
-        }
+    # Surface 3: GUI-config — ~/.gemini/config/plugins/gal -> canonical root (link-first)
+    $guiConfigPluginsDir = Join-Path $env:USERPROFILE '.gemini\config\plugins'
+    $guiConfigTarget = Join-Path $guiConfigPluginsDir 'gal'
+    Write-Host "Projecting GUI-config surface: $guiConfigTarget -> $artifactRoot" -ForegroundColor Cyan
+    if (Test-Path $guiConfigTarget) {
+        Remove-Item -LiteralPath $guiConfigTarget -Recurse -Force
     }
-    else {
-        Write-Host '  [SKIP] agy CLI not on PATH; skipping GUI-config store install.' -ForegroundColor Yellow
+    if (-not (Test-Path $guiConfigPluginsDir)) {
+        New-Item -ItemType Directory -Path $guiConfigPluginsDir -Force | Out-Null
     }
+    if (-not (New-SafeSymlink -LinkPath $guiConfigTarget -TargetPath $artifactRoot -Type 'Directory')) {
+        throw "Failed to project AGY GUI-config plugin into $guiConfigTarget"
+    }
+    Write-Host "  [OK] GUI-config surface: $guiConfigTarget" -ForegroundColor Green
 
     # Surface 4: Codex marketplace descriptor + plugin install
     Write-Host '' -ForegroundColor Cyan

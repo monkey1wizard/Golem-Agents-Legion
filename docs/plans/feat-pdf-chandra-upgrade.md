@@ -22,7 +22,7 @@
 ### 步驟 2: 更新 PDF Skill 文件
 
 - **Files**: `skills/pdf/SKILL.md`
-- **What**: 
+- **What**:
   - 移除所有關於 `pdfplumber` 與 `pytesseract` 的內容。
   - 新增 Chandra OCR 專屬段落，並說明如何使用 `chandra_extract.py` 腳本。
   - 保留 `pypdf` 與 `reportlab` 等段落。

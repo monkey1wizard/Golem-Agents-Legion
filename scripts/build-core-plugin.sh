@@ -20,7 +20,7 @@
 # When --install is specified, projects to all AGY surfaces (link-first):
 #   CLI junction:  ~/.gemini/antigravity-cli/plugins/gal  -> canonical root
 #   IDE symlink:   ~/.gemini/antigravity-ide/plugins/gal  -> canonical root
-#   GUI-config:    agy plugin install <canonical root>     (host-managed copy)
+#   GUI-config:    ~/.gemini/config/plugins/gal            -> canonical root
 # Also removes GAL-owned vestigial artifacts (whitelist-guarded).
 
 set -euo pipefail
@@ -465,17 +465,19 @@ if [[ "$INSTALL" == 'true' ]]; then
         echo "  [OK] IDE copy: $ide_target"
     fi
 
-    # Surface 3: GUI-config — agy plugin install (host-managed copy)
-    if command -v agy >/dev/null 2>&1; then
-        echo 'Installing into shared AGY config store via `agy plugin install`...'
-        if agy plugin install "$artifact_root" 2>&1; then
-            echo '  [OK] agy plugin install succeeded (GUI-config surface).'
-        else
-            echo '  [WARN] agy plugin install returned non-zero; check output.'
-        fi
-    else
-        echo '  [SKIP] agy CLI not on PATH; skipping GUI-config store install.'
+    # Surface 3: GUI-config -> canonical root
+    gui_config_plugins_dir="$HOME/.gemini/config/plugins"
+    gui_config_target="$gui_config_plugins_dir/gal"
+    echo "Projecting GUI-config surface: $gui_config_target -> $artifact_root"
+    if [[ -L "$gui_config_target" || -e "$gui_config_target" ]]; then
+        rm -rf "$gui_config_target"
     fi
+    mkdir -p "$gui_config_plugins_dir"
+    if ! safe_link "$gui_config_target" "$artifact_root"; then
+        echo "Failed to project AGY GUI-config plugin into $gui_config_target" >&2
+        exit 1
+    fi
+    echo "  [OK] GUI-config symlink: $gui_config_target"
 
     # Codex marketplace descriptor + plugin install
     echo ''
