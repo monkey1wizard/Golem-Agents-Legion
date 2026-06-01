@@ -164,12 +164,21 @@ invoke_update_skills() {
     local agent_file link_path
     for agent_file in "${agent_files[@]}"; do
         link_path="$AGENTS_TARGET/$(basename "$agent_file")"
-        if $UNINSTALL || ! $INSTALL_COPILOT; then
-            safe_unlink "$link_path"
-        else
-            safe_link "$link_path" "$agent_file"
-        fi
+        safe_unlink "$link_path"
     done
+    local active_agent_names=()
+    for agent_file in "${agent_files[@]}"; do
+        active_agent_names+=("$(basename "$agent_file")")
+    done
+    if [ -d "$AGENTS_TARGET" ]; then
+        while IFS= read -r existing_agent_link; do
+            [ -n "$existing_agent_link" ] || continue
+            agent_name="$(basename "$existing_agent_link")"
+            contains_value "$agent_name" "${active_agent_names[@]}" && continue
+            is_gal_repo_link "$existing_agent_link" || continue
+            safe_unlink "$existing_agent_link"
+        done < <(find "$AGENTS_TARGET" -maxdepth 1 -type l -name '*.agent.md' -print | LC_ALL=C sort)
+    fi
 
     echo ''
     echo "=== OpenCode Agents (${#agent_files[@]} generated subagents) ==="
@@ -216,12 +225,24 @@ invoke_update_skills() {
     for skill_dir in "${skill_dirs[@]}"; do
         skill_name="$(basename "$skill_dir")"
         link_path="$SKILLS_TARGET/$skill_name"
-        if $UNINSTALL || ! $INSTALL_COPILOT; then
-            safe_unlink "$link_path"
-        else
-            safe_link "$link_path" "$skill_dir"
-        fi
+        safe_unlink "$link_path"
     done
+    local active_copilot_skill_names=()
+    for skill_dir in "${skill_dirs[@]}"; do
+        active_copilot_skill_names+=("$(basename "$skill_dir")")
+    done
+    for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
+        active_copilot_skill_names+=("$command_skill_name")
+    done
+    if [ -d "$SKILLS_TARGET" ]; then
+        while IFS= read -r existing_skill_link; do
+            [ -n "$existing_skill_link" ] || continue
+            skill_name="$(basename "$existing_skill_link")"
+            contains_value "$skill_name" "${active_copilot_skill_names[@]}" && continue
+            is_gal_repo_link "$existing_skill_link" || continue
+            safe_unlink "$existing_skill_link"
+        done < <(find "$SKILLS_TARGET" -maxdepth 1 -type l -print | LC_ALL=C sort)
+    fi
 
     echo ''
     echo '=== AGY Plugin (skills + command skills + agents) ==='

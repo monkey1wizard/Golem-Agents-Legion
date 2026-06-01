@@ -31,6 +31,7 @@ GAL_GENERATED_MCP_FILE="$GAL_GENERATED_MCP_ROOT/managed.json"
 GAL_GENERATED_XMACHINE_FILE="$GAL_GENERATED_XMACHINE_ROOT/managed.json"
 
 COPILOT_ROOT="$HOME/.copilot"
+COPILOT_PLUGIN_INSTALL_TARGET="$COPILOT_ROOT/installed-plugins/gal-copilot/gal"
 AGENTS_TARGET="$COPILOT_ROOT/agents"
 SKILLS_TARGET="$COPILOT_ROOT/skills"
 
@@ -665,7 +666,7 @@ PY
 detect_installed_runtimes() {
     local detected=()
 
-    if is_gal_repo_link "$GAL_ROOT_COPILOT" || has_gal_repo_link_in_dir "$AGENTS_TARGET" || has_gal_repo_link_in_dir "$SKILLS_TARGET"; then
+    if [ -e "$COPILOT_PLUGIN_INSTALL_TARGET" ] || [ -f "$COPILOT_PLUGIN_INSTALL_TARGET/copilot-manifest.json" ] || [ -e "$GAL_ROOT_COPILOT" ] || has_gal_repo_link_in_dir "$AGENTS_TARGET" || has_gal_repo_link_in_dir "$SKILLS_TARGET"; then
         detected+=(copilot)
     fi
 

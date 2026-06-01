@@ -126,11 +126,14 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         Assert-True -Condition ($copilotManifest.components.skills -eq 'skills/') -Label 'TP-005: Copilot manifest explicitly exposes skills/ path'
         Assert-True -Condition ($copilotManifest.components.commands -eq 'commands/') -Label 'TP-005: Copilot manifest explicitly exposes commands/ path'
         Assert-True -Condition ($copilotManifest.components.mcpConfig -eq '.mcp.json') -Label 'TP-005: Copilot manifest explicitly exposes .mcp.json path'
+        Assert-True -Condition (-not (Test-Path (Join-Path $canonicalPluginRoot 'agents\golem-reviewer.agent.md'))) -Label 'TP-005: Copilot-visible agents/ excludes AGY .agent.md duplicates'
+        Assert-True -Condition (Test-Path (Join-Path $canonicalPluginRoot 'agy-agents\golem-reviewer.agent.md')) -Label 'TP-007: Superset canonical root contains AGY-specific agy-agents payload'
         Assert-True -Condition (Test-Path $agyRootPluginJsonPath) -Label 'TP-007: Superset canonical root contains AGY root plugin.json'
         Assert-True -Condition (Test-Path $agyMcpConfigPath) -Label 'TP-007: Superset canonical root contains AGY mcp_config.json'
         Assert-True -Condition (Test-Path $agyRulesPath) -Label 'TP-007: Superset canonical root contains AGY rules/gal.md'
         Assert-True -Condition ($pluginJson.canonicalPackage.packageId -eq 'gal-core') -Label 'TP-007: AGY root manifest preserves canonical package identity'
         Assert-True -Condition ($pluginJson.deferredCompanionPlugins.pluginId -contains 'dart-skills') -Label 'TP-007: AGY root manifest preserves deferred companion identity'
+        Assert-True -Condition (($pluginJson.agents | Where-Object { $_.name -eq 'golem-reviewer' } | Select-Object -First 1).source -eq 'agy-agents/golem-reviewer.agent.md') -Label 'TP-007: AGY root manifest points agents to agy-agents/'
 
         $claudeManifest = Get-Content -LiteralPath $claudeManifestPath -Raw | ConvertFrom-Json
 

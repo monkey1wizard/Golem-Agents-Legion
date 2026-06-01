@@ -193,14 +193,9 @@ function Invoke-UpdateCommands {
     }
 
     Write-Host ''
-    Write-Host '=== GAL command skill symlinks (Copilot + Codex) ==='
+    Write-Host '=== GAL command skill symlinks (legacy Copilot cleanup + Codex) ==='
     foreach ($commandSkill in $context.CommandSkillDirs) {
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallCopilot) {
-            Remove-SafeLink $commandSkill.CopilotTarget
-        }
-        else {
-            New-SafeSymlink $commandSkill.CopilotTarget $commandSkill.Source 'Directory' | Out-Null
-        }
+        Remove-SafeLink $commandSkill.CopilotTarget
 
         if ($script:SetupOptions.Uninstall -or -not $context.InstallCodex) {
             Remove-SafeLink $commandSkill.CodexTarget

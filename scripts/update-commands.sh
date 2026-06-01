@@ -199,18 +199,14 @@ invoke_update_commands() {
     fi
 
     echo ''
-    echo '=== GAL command skill symlinks (Copilot + Codex) ==='
+    echo '=== GAL command skill symlinks (legacy Copilot cleanup + Codex) ==='
     local copilot_target codex_target
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
         command_skill_source="$REPO_ROOT/commands/$command_skill_name"
         copilot_target="$SKILLS_TARGET/$command_skill_name"
         codex_target="$CODEX_SKILLS_TARGET/$command_skill_name"
 
-        if $UNINSTALL || ! $INSTALL_COPILOT; then
-            safe_unlink "$copilot_target"
-        else
-            safe_link "$copilot_target" "$command_skill_source"
-        fi
+        safe_unlink "$copilot_target"
 
         if $UNINSTALL || ! $INSTALL_CODEX; then
             safe_unlink "$codex_target"

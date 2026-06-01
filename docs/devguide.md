@@ -92,7 +92,7 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 
 | Runtime | Machine-layer install | Command surface | Notes |
 | --- | --- | --- | --- |
-| Copilot | `~/.copilot/agents/` and `~/.copilot/skills/` | installed command skills | supports custom agents and slash-command discovery |
+| Copilot | `~/.copilot/installed-plugins/<marketplace>/gal/` (plugin lifecycle projection) | plugin-provided agents and skills from the installed GAL package | plugin-only runtime; GAL should not project legacy source-mode links into `~/.copilot/agents/` or `~/.copilot/skills/` |
 | Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
 | Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
@@ -102,9 +102,9 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 
 | Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | not installed | `~/.gemini/antigravity-cli/plugins/gal/agents/` | not installed | `~/.gal/plugins/gal/agents/` |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
-| `commands/*/` | `~/.copilot/skills/<command>/` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
+| `agent/*.agent.md` | `~/.copilot/installed-plugins/<marketplace>/gal/agents/<name>.md` (filtered projection) | not installed | `~/.gemini/antigravity-cli/plugins/gal/agy-agents/<name>.agent.md` | not installed | `~/.gal/plugins/gal/agents/<name>.md` |
+| `skills/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
+| `commands/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/commands/<command>.md` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
 | `~/.gal/` | `~/.copilot/gal/` | not required | not required | not required | not required |
 | `~/.gal/source/` | not required | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | not required | not required |
 | `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/<marketplace>/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | marketplace/plugin projection | `~/.claude/plugins/gal/` provider-visible projection |
@@ -227,7 +227,7 @@ Shortcut policy:
 
 ### AGY Surface Projection (Implementation Status)
 
-AGY is a consumer of the canonical root, not a renderer. The provider-neutral core renderer `Build-CorePlugin` emits AGY's entry-point markers directly into `~/.gal/plugins/gal/` (the canonical content owner), and install orchestration projects that root to all three AGY surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and the Antigravity 2.0 GUI host-managed copy (`~/.gemini/config/plugins/gal` via `agy plugin install`). `~/.gal/active/agy/` is used only as a stable alias when a capability shortcut is needed. The AGY-facing markers are `plugin.json`, `skills/`, `agents/`, `rules/gal.md`, and `mcp_config.json`. The core renderer does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
+AGY is a consumer of the canonical root, not a renderer. The provider-neutral core renderer `Build-CorePlugin` emits AGY's entry-point markers directly into `~/.gal/plugins/gal/` (the canonical content owner), and install orchestration projects that root to all three AGY surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and the Antigravity 2.0 GUI host-managed copy (`~/.gemini/config/plugins/gal` via `agy plugin install`). `~/.gal/active/agy/` is used only as a stable alias when a capability shortcut is needed. The AGY-facing markers are `plugin.json`, `skills/`, `agy-agents/`, `rules/gal.md`, and `mcp_config.json`. The Copilot/Claude-facing `agents/` directory now contains only filtered `.md` agent files so Copilot `setagent` does not surface duplicate names. The core renderer does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
 
 Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
 

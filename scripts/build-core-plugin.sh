@@ -10,8 +10,8 @@
 #   .claude-plugin/plugin.json   (Claude Code plugin manifest)
 #   skills/                      (reusable skills)
 #   commands/                    (flat command markdown files)
-#   agents/<name>.md             (Claude-compatible filtered agent definitions)
-#   agents/<name>.agent.md       (AGY-compatible unfiltered agent definitions)
+#   agents/<name>.md             (Copilot/Claude-compatible filtered agent definitions)
+#   agy-agents/<name>.agent.md   (AGY-compatible unfiltered agent definitions)
 #   .mcp.json                    (portable non-secret MCP server configuration)
 #   plugin.json                  (AGY root manifest)
 #   mcp_config.json              (AGY MCP configuration)
@@ -145,7 +145,7 @@ if [[ -d "$artifact_root" ]]; then
     rm -rf "$artifact_root"
 fi
 
-mkdir -p "$artifact_root/.claude-plugin" "$artifact_root/skills" "$artifact_root/commands" "$artifact_root/agents"
+mkdir -p "$artifact_root/.claude-plugin" "$artifact_root/skills" "$artifact_root/commands" "$artifact_root/agents" "$artifact_root/agy-agents"
 
 # ---------------------------------------------------------------------------
 # CLAUDE: .claude-plugin/plugin.json
@@ -189,9 +189,8 @@ while IFS= read -r command_name; do
 done < <(printf '%s' "$package_json" | jq -r '.commandSkills[].name // empty')
 
 # ---------------------------------------------------------------------------
-# SHARED: agents/ — two formats for superset compatibility
-#   .md        = Claude-filtered (Claude Code)
-#   .agent.md  = unfiltered copy (AGY)
+# SHARED: agents/ — Copilot/Claude-readable agent definitions only
+# AGY: agy-agents/ — unfiltered AGY-specific copies kept out of Copilot's agents/
 # ---------------------------------------------------------------------------
 echo 'Rendering agents...'
 while IFS= read -r source_path; do
@@ -203,9 +202,9 @@ while IFS= read -r source_path; do
     filter_claude_agent_frontmatter "$source_path" > "$artifact_root/agents/$agent_name.md"
     echo "  -> agents/$agent_name.md (Claude)"
 
-    # AGY format: unfiltered copy, .agent.md extension
-    cp "$source_path" "$artifact_root/agents/$agent_name.agent.md"
-    echo "  -> agents/$agent_name.agent.md (AGY)"
+    # AGY format: unfiltered copy, .agent.md extension in provider-specific folder
+    cp "$source_path" "$artifact_root/agy-agents/$agent_name.agent.md"
+    echo "  -> agy-agents/$agent_name.agent.md (AGY)"
 done < <(printf '%s' "$package_json" | jq -r '.agents[].sourcePath // empty')
 
 # ---------------------------------------------------------------------------
@@ -302,8 +301,8 @@ fi
 
 agents_json='[]'
 if [[ "$(printf '%s' "$package_json" | jq '.agents | length')" -gt 0 ]]; then
-    # AGY references .agent.md format
-    agents_json="$(printf '%s' "$package_json" | jq '[.agents[] | {name: (.name | sub("\\.agent$"; "")), source: ("agents/" + (.name | sub("\\.agent$"; "")) + ".agent.md")}]')"
+    # AGY references .agent.md format from its provider-specific folder
+    agents_json="$(printf '%s' "$package_json" | jq '[.agents[] | {name: (.name | sub("\\.agent$"; "")), source: ("agy-agents/" + (.name | sub("\\.agent$"; "")) + ".agent.md")}]')"
 fi
 
 has_mcp='false'

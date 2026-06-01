@@ -122,14 +122,15 @@ The setup script creates these symlinks:
 
 | Source (repo) | Copilot Target | Gemini / Shared Target | Antigravity Target | Codex Target | OpenCode Target |
 | --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/agents/` | — | `~/.gemini/antigravity-cli/plugins/gal/agents/` | — | `~/.config/opencode/agents/*.md` |
-| `skills/*/` | `~/.copilot/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.config/opencode/skills/` |
-| `commands/gal/` | `~/.copilot/skills/gal/` | `~/.gemini/commands/gal.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal/` | `~/.codex/skills/gal/` | `~/.config/opencode/commands/gal.md` |
-| `commands/gal-init/` | `~/.copilot/skills/gal-init/` | `~/.gemini/commands/gal-init.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-init/` | `~/.codex/skills/gal-init/` | `~/.config/opencode/commands/gal-init.md` |
-| `commands/gal-status/` | `~/.copilot/skills/gal-status/` | `~/.gemini/commands/gal-status.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-status/` | `~/.codex/skills/gal-status/` | `~/.config/opencode/commands/gal-status.md` |
-| `commands/gal-whats-next/` | `~/.copilot/skills/gal-whats-next/` | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
-| `commands/gal-wrap-up/` | `~/.copilot/skills/gal-wrap-up/` | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-wrap-up/` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
-| `commands/<specialist>/` | `~/.copilot/skills/<specialist>/` | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
+| `agent/*.agent.md` | — (Copilot reads them from the installed plugin payload) | — | `~/.gemini/antigravity-cli/plugins/gal/agents/` | — | `~/.config/opencode/agents/*.md` |
+| `skills/*/` | — (Copilot reads them from the installed plugin payload) | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.config/opencode/skills/` |
+| `commands/gal/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/gal.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal/` | `~/.codex/skills/gal/` | `~/.config/opencode/commands/gal.md` |
+| `commands/gal-init/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/gal-init.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-init/` | `~/.codex/skills/gal-init/` | `~/.config/opencode/commands/gal-init.md` |
+| `commands/gal-status/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/gal-status.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-status/` | `~/.codex/skills/gal-status/` | `~/.config/opencode/commands/gal-status.md` |
+| `commands/gal-whats-next/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/gal-whats-next.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-whats-next/` | `~/.codex/skills/gal-whats-next/` | `~/.config/opencode/commands/gal-whats-next.md` |
+| `commands/gal-wrap-up/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/gal-wrap-up.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/gal-wrap-up` | `~/.codex/skills/gal-wrap-up/` | `~/.config/opencode/commands/gal-wrap-up.md` |
+| `commands/<specialist>/` | — (Copilot reads it from the installed plugin payload) | `~/.gemini/commands/<specialist>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<specialist>/` | `~/.codex/skills/<specialist>/` | `~/.config/opencode/commands/<specialist>.md` |
+| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/<marketplace>/gal/` | — | `~/.gemini/antigravity-cli/plugins/gal/` | marketplace/plugin projection | — |
 | `~/.gal/` | `~/.copilot/gal/` | — | — | — | — |
 | `~/.gal/source/` | — | `~/.gemini/gal/` (GAL_ROOT only) | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | — | — |
 
@@ -179,8 +180,8 @@ Rerun guidance:
    - `.claude-plugin/plugin.json` — Claude Code plugin manifest
    - `skills/` — reusable skills (shared by all providers)
    - `commands/` — flat command markdown files (Claude / Copilot)
-   - `agents/<name>.md` — Claude-compatible filtered agent definitions
-   - `agents/<name>.agent.md` — AGY-compatible unfiltered agent definitions
+   - `agents/<name>.md` — Copilot/Claude-compatible filtered agent definitions
+   - `agy-agents/<name>.agent.md` — AGY-compatible unfiltered agent definitions
    - `.mcp.json` — portable non-secret MCP server configuration (Claude / Copilot)
    - `plugin.json` — AGY root manifest
    - `mcp_config.json` — AGY MCP configuration

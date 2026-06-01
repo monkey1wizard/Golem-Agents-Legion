@@ -139,12 +139,13 @@ function Invoke-UpdateSkills {
     Write-Host ("=== Agents ({0} files) ===" -f $agentFiles.Count)
     foreach ($agentFile in $agentFiles) {
         $linkPath = Join-Path $context.AgentsTarget $agentFile.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallCopilot) {
-            Remove-SafeLink $linkPath
-        }
-        else {
-            New-SafeSymlink $linkPath $agentFile.FullName 'File' | Out-Null
-        }
+        Remove-SafeLink $linkPath
+    }
+    $activeAgentNames = @($agentFiles | ForEach-Object { $_.Name })
+    foreach ($existingAgentLink in Get-ChildItem $context.AgentsTarget -Filter '*.agent.md' -File -ErrorAction SilentlyContinue) {
+        if ($activeAgentNames -contains $existingAgentLink.Name) { continue }
+        if (-not (Test-GalRepoLink $existingAgentLink.FullName)) { continue }
+        Remove-SafeLink $existingAgentLink.FullName
     }
 
     Write-Host ''
@@ -184,12 +185,13 @@ function Invoke-UpdateSkills {
     Write-Host ("=== Skills ({0} directories) ===" -f $skillDirs.Count)
     foreach ($skillDir in $skillDirs) {
         $linkPath = Join-Path $context.SkillsTarget $skillDir.Name
-        if ($script:SetupOptions.Uninstall -or -not $context.InstallCopilot) {
-            Remove-SafeLink $linkPath
-        }
-        else {
-            New-SafeSymlink $linkPath $skillDir.FullName 'Directory' | Out-Null
-        }
+        Remove-SafeLink $linkPath
+    }
+    $activeCopilotSkillNames = @($skillDirs | ForEach-Object { $_.Name }) + @($context.ActiveCommandSkillNames)
+    foreach ($existingSkillLink in Get-ChildItem $context.SkillsTarget -Directory -ErrorAction SilentlyContinue) {
+        if ($activeCopilotSkillNames -contains $existingSkillLink.Name) { continue }
+        if (-not (Test-GalRepoLink $existingSkillLink.FullName)) { continue }
+        Remove-SafeLink $existingSkillLink.FullName
     }
 
     Write-Host ''

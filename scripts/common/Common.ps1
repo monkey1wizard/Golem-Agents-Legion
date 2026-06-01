@@ -84,6 +84,7 @@ function New-SetupContext {
         GalGeneratedXmachineFile = Join-Path $galGeneratedXmachineRoot 'managed.json'
 
         CopilotRoot = $copilotRoot
+        CopilotPluginInstallTarget = Join-Path $copilotRoot 'installed-plugins\gal-copilot\gal'
         AgentsTarget = Join-Path $copilotRoot 'agents'
         SkillsTarget = $skillsTarget
 
@@ -838,7 +839,9 @@ function Get-DetectedRuntimeSelection {
     $context = $script:SetupContext
     $detected = [System.Collections.Generic.List[string]]::new()
 
-    $copilotInstalled = (Test-GalRepoLink $context.GalRootCopilot) -or
+    $copilotInstalled = (Test-Path $context.CopilotPluginInstallTarget) -or
+        (Test-Path (Join-Path $context.CopilotPluginInstallTarget 'copilot-manifest.json')) -or
+        (Test-Path $context.GalRootCopilot) -or
         (Get-ChildItem $context.AgentsTarget -Filter '*.agent.md' -File -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1) -or
         (Get-ChildItem $context.SkillsTarget -Directory -ErrorAction SilentlyContinue | Where-Object { Test-GalRepoLink $_.FullName } | Select-Object -First 1)
     if ($copilotInstalled) { $detected.Add('copilot') }

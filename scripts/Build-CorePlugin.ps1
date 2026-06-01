@@ -13,8 +13,8 @@
     - .claude-plugin/plugin.json  (Claude Code plugin manifest)
     - skills/                     (reusable skills)
     - commands/                   (flat command markdown files)
-    - agents/<name>.md            (Claude-compatible filtered agent definitions)
-    - agents/<name>.agent.md      (AGY-compatible unfiltered agent definitions)
+    - agents/<name>.md            (Copilot/Claude-compatible filtered agent definitions)
+    - agy-agents/<name>.agent.md  (AGY-compatible unfiltered agent definitions)
     - .mcp.json                   (portable non-secret MCP server configuration)
     - plugin.json                 (AGY root manifest)
     - mcp_config.json             (AGY MCP configuration)
@@ -244,13 +244,14 @@ foreach ($commandSkill in $package.commandSkills) {
 }
 
 # ---------------------------------------------------------------------------
-# SHARED: agents/  — two formats for superset compatibility
-#   .md        = Claude-filtered (Claude Code consumes this)
-#   .agent.md  = unfiltered copy (AGY consumes this)
+# SHARED: agents/  — Copilot/Claude-readable agent definitions only
+# AGY: agy-agents/ — unfiltered AGY-specific copies kept out of Copilot's agents/
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering agents...' -ForegroundColor Cyan
 $agentsDir = Join-Path $artifactRoot 'agents'
+$agyAgentsDir = Join-Path $artifactRoot 'agy-agents'
 New-Item -ItemType Directory -Path $agentsDir -Force | Out-Null
+New-Item -ItemType Directory -Path $agyAgentsDir -Force | Out-Null
 foreach ($agent in $package.agents) {
     $agentName = $agent.name -replace '\.agent$', ''
 
@@ -260,10 +261,10 @@ foreach ($agent in $package.agents) {
     Set-Content -LiteralPath $claudeDestFile -Value $agentContent -Encoding UTF8
     Write-Host "  -> agents/$agentName.md (Claude)" -ForegroundColor Gray
 
-    # AGY format: unfiltered copy, .agent.md extension
-    $agyDestFile = Join-Path $agentsDir "$agentName.agent.md"
+    # AGY format: unfiltered copy, .agent.md extension in provider-specific folder
+    $agyDestFile = Join-Path $agyAgentsDir "$agentName.agent.md"
     Copy-Item -LiteralPath $agent.sourcePath -Destination $agyDestFile -Force
-    Write-Host "  -> agents/$agentName.agent.md (AGY)" -ForegroundColor Gray
+    Write-Host "  -> agy-agents/$agentName.agent.md (AGY)" -ForegroundColor Gray
 }
 
 # ---------------------------------------------------------------------------
@@ -400,7 +401,7 @@ foreach ($agent in $package.agents) {
     $agentBaseName = $agent.name -replace '\.agent$', ''
     $agyPluginJson.agents.Add([ordered]@{
         name = $agentBaseName
-        source = "agents/$($agentBaseName).agent.md"
+        source = "agy-agents/$($agentBaseName).agent.md"
     })
 }
 
