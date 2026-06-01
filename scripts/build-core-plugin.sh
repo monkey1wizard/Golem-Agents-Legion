@@ -137,14 +137,7 @@ get_rendered_plugin_version() {
             return 1
         fi
 
-        hash="$(printf '%s' "$package_json" | "$python_cmd" - <<'PY'
-import hashlib
-import sys
-
-payload = sys.stdin.read().encode('utf-8')
-print(hashlib.sha256(payload).hexdigest())
-PY
-)"
+        hash="$(printf '%s' "$package_json" | "$python_cmd" -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
     fi
 
     printf '1.0.0-%s.%s' "$timestamp" "${hash:0:8}"
