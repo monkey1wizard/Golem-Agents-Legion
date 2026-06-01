@@ -207,6 +207,6 @@
 - [x] T-004 — 更新 `conventions/token-budget.md`:記錄語言政策 — `.prompt.md` 恆英文(Token 效率);plan/research 跟隨解析鏈/`PLAN_LANGUAGE`;README/docs 跟隨 `PROJECT_LANGUAGE`。 *(e43bc1e982919bf6d081b5dd747439c06311f805)*
 - [x] T-005 — 更新 `workflows/research.md` 與 `agent/golem-researcher.agent.md`:研究報告敘述/綜整採同一解析語言、整份撰寫,引用來源標題/URL/原文片段保留原文,VERIFY 以同語言回報。 *(2d821476ce4caf04763601d0699ad2611c1f2917)*
 - [x] T-006 — 新增 `PLAN_LANGUAGE` 至 `config.example.env`(含註解、預設留空 = 自動偵測、值採 BCP-47)。確認其為 agent 直接讀取的行為設定,非 smudge/clean 佔位符。 *(4747b54d2c0354879a1bf7c05880e2701145f344)*
-- [ ] T-007 — 新增 `PROJECT_LANGUAGE` 欄位至 `templates/project.md`,並記錄 canonical/翻譯命名語意(無中綴主檔 = `PROJECT_LANGUAGE` 語言;`<name>.<lang>.md` = 翻譯)。本 repo 的 `.dev/project.md` 填入值。
+- [x] T-007 — 新增 `PROJECT_LANGUAGE` 欄位至 `templates/project.md`,並記錄 canonical/翻譯命名語意(無中綴主檔 = `PROJECT_LANGUAGE` 語言;`<name>.<lang>.md` = 翻譯)。本 repo 的 `.dev/project.md` 填入值。 *(8e2097eec500f05e48c36d1fe5c262cc27776c0d)*
 - [ ] T-008 — 更新 `docs/personalization.md` 明確說明 `PLAN_LANGUAGE` 與 `PROJECT_LANGUAGE` 的用途、存放位置與優先級;同步更新翻譯副本 `docs/personalization.zh-Hant.md`。
 - [ ] T-009 — 重新執行 `gal init`(或同步指令碼)以重新生成配接器檔案(`.github/copilot-instructions.md`、`CLAUDE.md`、`GEMINI.md`、`AGENTS.md` 以及生成的 `SKILL.md`),確認新語言指令已帶入生成輸出。
