@@ -153,6 +153,74 @@ function Test-ClaudePortableMcpValue {
     return $true
 }
 
+function Get-RenderedPluginVersion {
+    param([object]$Package)
+
+    $generatedAt = [string]$Package.metadata.generatedAt
+    $timestamp = $generatedAt -replace '[^0-9]', ''
+    if ([string]::IsNullOrWhiteSpace($timestamp)) {
+        $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+    }
+
+    $packageJson = $Package | ConvertTo-Json -Depth 20 -Compress
+    $packageBytes = [System.Text.Encoding]::UTF8.GetBytes($packageJson)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = [System.BitConverter]::ToString($sha256.ComputeHash($packageBytes)).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return "1.0.0-$timestamp.$($hash.Substring(0, 8))"
+}
+
+function New-TemporaryArtifactRoot {
+    param([string]$ArtifactRoot)
+
+    $artifactParent = Split-Path $ArtifactRoot -Parent
+    if (-not (Test-Path $artifactParent)) {
+        New-Item -ItemType Directory -Path $artifactParent -Force | Out-Null
+    }
+
+    return Join-Path $artifactParent ".gal-plugin-render-$([Guid]::NewGuid().ToString('N'))"
+}
+
+function Publish-RenderedArtifactRoot {
+    param(
+        [string]$RenderedRoot,
+        [string]$ArtifactRoot
+    )
+
+    $artifactParent = Split-Path $ArtifactRoot -Parent
+    $backupRoot = Join-Path $artifactParent ".gal-plugin-backup-$([Guid]::NewGuid().ToString('N'))"
+    $hadExistingRoot = Test-Path $ArtifactRoot
+
+    try {
+        if ($hadExistingRoot) {
+            Move-Item -LiteralPath $ArtifactRoot -Destination $backupRoot
+        }
+
+        Move-Item -LiteralPath $RenderedRoot -Destination $ArtifactRoot
+
+        if (Test-Path $backupRoot) {
+            Remove-Item -LiteralPath $backupRoot -Recurse -Force
+        }
+    }
+    catch {
+        if ($hadExistingRoot -and -not (Test-Path $ArtifactRoot) -and (Test-Path $backupRoot)) {
+            Move-Item -LiteralPath $backupRoot -Destination $ArtifactRoot
+        }
+
+        throw
+    }
+    finally {
+        if (Test-Path $RenderedRoot) {
+            Remove-Item -LiteralPath $RenderedRoot -Recurse -Force
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Resolve plugins
 # ---------------------------------------------------------------------------
@@ -186,26 +254,22 @@ Write-Host 'Common package validated successfully.' -ForegroundColor Green
 # Prepare superset canonical root
 # ---------------------------------------------------------------------------
 $artifactRoot = Get-GalPluginRoot -PluginId 'gal'
-if (Test-Path $artifactRoot) {
-    if (-not $Force) {
-        throw "Artifact root already exists: $artifactRoot. Use -Force to overwrite."
-    }
-    Remove-Item -LiteralPath $artifactRoot -Recurse -Force
-}
+$renderRoot = New-TemporaryArtifactRoot -ArtifactRoot $artifactRoot
+$pluginVersion = Get-RenderedPluginVersion -Package $package
 
-New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $renderRoot -Force | Out-Null
 
 # ---------------------------------------------------------------------------
 # CLAUDE: .claude-plugin/plugin.json
 # ---------------------------------------------------------------------------
-New-Item -ItemType Directory -Path (Join-Path $artifactRoot '.claude-plugin') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $renderRoot '.claude-plugin') -Force | Out-Null
 
 Write-Host 'Rendering .claude-plugin/plugin.json...' -ForegroundColor Cyan
 $pluginManifest = [ordered]@{
     '$schema' = 'https://json.schemastore.org/claude-code-plugin-manifest.json'
     name = 'gal'
     displayName = $package.metadata.displayName
-    version = '1.0.0'
+    version = $pluginVersion
     description = 'Golem Agents Legion plugin for Claude Code'
     author = [ordered]@{
         name = 'GAL'
@@ -215,14 +279,14 @@ $pluginManifest = [ordered]@{
     license = 'MIT'
     keywords = @('gal', 'golem-agents-legion', 'claude-code', 'plugin')
 }
-Write-JsonOrderedMap (Get-ClaudePluginManifestPath -PluginRoot $artifactRoot) $pluginManifest
+Write-JsonOrderedMap (Get-ClaudePluginManifestPath -PluginRoot $renderRoot) $pluginManifest
 Write-Host '  -> .claude-plugin/plugin.json' -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
 # SHARED: skills/
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering skills...' -ForegroundColor Cyan
-$skillsDir = Join-Path $artifactRoot 'skills'
+$skillsDir = Join-Path $renderRoot 'skills'
 New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
 foreach ($skill in $package.skills) {
     $destDir = Join-Path $skillsDir $skill.name
@@ -235,7 +299,7 @@ foreach ($skill in $package.skills) {
 # CLAUDE: commands/
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering commands...' -ForegroundColor Cyan
-$commandsDir = Join-Path $artifactRoot 'commands'
+$commandsDir = Join-Path $renderRoot 'commands'
 New-Item -ItemType Directory -Path $commandsDir -Force | Out-Null
 foreach ($commandSkill in $package.commandSkills) {
     $destFile = Join-Path $commandsDir "$($commandSkill.name).md"
@@ -248,8 +312,8 @@ foreach ($commandSkill in $package.commandSkills) {
 # AGY: agy-agents/ — unfiltered AGY-specific copies kept out of Copilot's agents/
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering agents...' -ForegroundColor Cyan
-$agentsDir = Join-Path $artifactRoot 'agents'
-$agyAgentsDir = Join-Path $artifactRoot 'agy-agents'
+$agentsDir = Join-Path $renderRoot 'agents'
+$agyAgentsDir = Join-Path $renderRoot 'agy-agents'
 New-Item -ItemType Directory -Path $agentsDir -Force | Out-Null
 New-Item -ItemType Directory -Path $agyAgentsDir -Force | Out-Null
 foreach ($agent in $package.agents) {
@@ -300,7 +364,7 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
         $claudeMcp = [ordered]@{
             mcpServers = $portableServers
         }
-        Write-JsonOrderedMap (Join-Path $artifactRoot '.mcp.json') $claudeMcp
+        Write-JsonOrderedMap (Join-Path $renderRoot '.mcp.json') $claudeMcp
         Write-Host '  -> .mcp.json' -ForegroundColor Gray
     }
 }
@@ -311,10 +375,10 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
 # skills path reference, no agents (providerCapabilities.codex.agents = false).
 # ---------------------------------------------------------------------------
 Write-Host 'Rendering .codex-plugin/plugin.json (Codex manifest)...' -ForegroundColor Cyan
-New-Item -ItemType Directory -Path (Join-Path $artifactRoot '.codex-plugin') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $renderRoot '.codex-plugin') -Force | Out-Null
 $codexPluginManifest = [ordered]@{
     name = 'gal'
-    version = '1.0.0'
+    version = $pluginVersion
     description = 'Golem Agents Legion plugin for Codex CLI'
     author = [ordered]@{ name = 'GAL' }
     homepage = 'https://github.com/leetz/Golem-Agents-Legion'
@@ -329,7 +393,7 @@ $codexPluginManifest = [ordered]@{
         category = 'Engineering'
     }
 }
-$codexPluginManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $artifactRoot '.codex-plugin\plugin.json') -Encoding UTF8
+$codexPluginManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $renderRoot '.codex-plugin\plugin.json') -Encoding UTF8
 Write-Host '  -> .codex-plugin/plugin.json' -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
@@ -342,7 +406,7 @@ Write-Host 'Rendering copilot-manifest.json...' -ForegroundColor Cyan
 $copilotManifest = [ordered]@{
     name = 'gal'
     displayName = $package.metadata.displayName
-    version = '1.0.0'
+    version = $pluginVersion
     description = 'Golem Agents Legion plugin for GitHub Copilot CLI'
     components = [ordered]@{
         agents   = 'agents/'
@@ -351,7 +415,7 @@ $copilotManifest = [ordered]@{
         mcpConfig = '.mcp.json'
     }
 }
-$copilotManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $artifactRoot 'copilot-manifest.json') -Encoding UTF8
+$copilotManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $renderRoot 'copilot-manifest.json') -Encoding UTF8
 Write-Host '  -> copilot-manifest.json' -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
@@ -361,7 +425,7 @@ Write-Host 'Rendering plugin.json (AGY root manifest)...' -ForegroundColor Cyan
 $agyPluginJson = [ordered]@{
     name = 'gal'
     displayName = $package.metadata.displayName
-    version = '1.0.0'
+    version = $pluginVersion
     generatedAt = $package.metadata.generatedAt
     description = 'Golem Agents Legion plugin for AGY CLI'
     canonicalPackage = [ordered]@{
@@ -405,7 +469,7 @@ foreach ($agent in $package.agents) {
     })
 }
 
-$agyPluginJson | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $artifactRoot 'plugin.json') -Encoding UTF8
+$agyPluginJson | ConvertTo-Json -Depth 10 | Set-Content -Path (Join-Path $renderRoot 'plugin.json') -Encoding UTF8
 Write-Host '  -> plugin.json' -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
@@ -453,7 +517,7 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
             $agyMcpConfig['inputs'] = $mcpRaw['inputs']
         }
 
-        Write-JsonOrderedMap (Join-Path $artifactRoot 'mcp_config.json') $agyMcpConfig
+        Write-JsonOrderedMap (Join-Path $renderRoot 'mcp_config.json') $agyMcpConfig
         Write-Host '  -> mcp_config.json' -ForegroundColor Gray
     }
 }
@@ -463,7 +527,7 @@ if ($package.mcpSpec -and $package.mcpSpec.canonicalSource) {
 # ---------------------------------------------------------------------------
 if ($package.instructionCorpus.sources.Count -gt 0) {
     Write-Host 'Rendering rules/gal.md...' -ForegroundColor Cyan
-    $rulesDir = Join-Path $artifactRoot 'rules'
+    $rulesDir = Join-Path $renderRoot 'rules'
     New-Item -ItemType Directory -Path $rulesDir -Force | Out-Null
 
     $corpusLines = [System.Collections.Generic.List[string]]::new()
@@ -488,6 +552,10 @@ if ($package.instructionCorpus.sources.Count -gt 0) {
     $corpusLines -join "`n" | Set-Content -Path $rulesFile -Encoding UTF8
     Write-Host '  -> rules/gal.md' -ForegroundColor Gray
 }
+
+Write-Host 'Publishing canonical root...' -ForegroundColor Cyan
+Publish-RenderedArtifactRoot -RenderedRoot $renderRoot -ArtifactRoot $artifactRoot
+Write-Host "  -> $artifactRoot" -ForegroundColor Gray
 
 # ---------------------------------------------------------------------------
 # -Install: project to all AGY surfaces (link-first) + cleanup

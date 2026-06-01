@@ -112,6 +112,80 @@ sys.stdout.write('\n'.join(result))
 PY
 }
 
+get_rendered_plugin_version() {
+    local package_json="$1"
+    local generated_at timestamp hash
+
+    generated_at="$(printf '%s' "$package_json" | jq -r '.metadata.generatedAt // empty')"
+    timestamp="$(printf '%s' "$generated_at" | tr -cd '0-9')"
+    if [[ -z "$timestamp" ]]; then
+        timestamp="$(date +%Y%m%d%H%M%S)"
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        hash="$(printf '%s' "$package_json" | sha256sum | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+        hash="$(printf '%s' "$package_json" | shasum -a 256 | awk '{print $1}')"
+    else
+        local python_cmd=''
+        if command -v python3 >/dev/null 2>&1; then
+            python_cmd='python3'
+        elif command -v python >/dev/null 2>&1; then
+            python_cmd='python'
+        else
+            echo "Missing sha256 tool and python; cannot compute rendered plugin version" >&2
+            return 1
+        fi
+
+        hash="$(printf '%s' "$package_json" | "$python_cmd" - <<'PY'
+import hashlib
+import sys
+
+payload = sys.stdin.read().encode('utf-8')
+print(hashlib.sha256(payload).hexdigest())
+PY
+)"
+    fi
+
+    printf '1.0.0-%s.%s' "$timestamp" "${hash:0:8}"
+}
+
+new_temporary_artifact_root() {
+    local artifact_root="$1"
+    local artifact_parent
+
+    artifact_parent="$(dirname "$artifact_root")"
+    mkdir -p "$artifact_parent"
+    printf '%s/.gal-plugin-render-%s-%s' "$artifact_parent" "$(date +%s)" "$$"
+}
+
+publish_rendered_artifact_root() {
+    local rendered_root="$1"
+    local artifact_root="$2"
+    local artifact_parent backup_root had_existing='false'
+
+    artifact_parent="$(dirname "$artifact_root")"
+    backup_root="$artifact_parent/.gal-plugin-backup-$(date +%s)-$$"
+
+    if [[ -d "$artifact_root" ]]; then
+        had_existing='true'
+        mv "$artifact_root" "$backup_root"
+    fi
+
+    if mv "$rendered_root" "$artifact_root"; then
+        if [[ -e "$backup_root" ]]; then
+            rm -rf "$backup_root"
+        fi
+        return 0
+    fi
+
+    if [[ "$had_existing" == 'true' && -e "$backup_root" && ! -e "$artifact_root" ]]; then
+        mv "$backup_root" "$artifact_root"
+    fi
+
+    return 1
+}
+
 # ---------------------------------------------------------------------------
 # Build and validate common package
 # ---------------------------------------------------------------------------
@@ -137,15 +211,10 @@ fi
 echo 'Common package validated successfully.'
 
 artifact_root="$(get_gal_plugin_root gal)"
-if [[ -d "$artifact_root" ]]; then
-    if [[ "$FORCE" != 'true' ]]; then
-        echo "Artifact root already exists: $artifact_root. Use --force to overwrite." >&2
-        exit 1
-    fi
-    rm -rf "$artifact_root"
-fi
+render_root="$(new_temporary_artifact_root "$artifact_root")"
+plugin_version="$(get_rendered_plugin_version "$package_json")"
 
-mkdir -p "$artifact_root/.claude-plugin" "$artifact_root/skills" "$artifact_root/commands" "$artifact_root/agents" "$artifact_root/agy-agents"
+mkdir -p "$render_root/.claude-plugin" "$render_root/skills" "$render_root/commands" "$render_root/agents" "$render_root/agy-agents"
 
 # ---------------------------------------------------------------------------
 # CLAUDE: .claude-plugin/plugin.json
@@ -155,14 +224,14 @@ jq -n '{
     "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
     name: "gal",
     displayName: "Golem Agents Legion",
-    version: "1.0.0",
+    version: $version,
     description: "Golem Agents Legion plugin for Claude Code",
     author: {name: "GAL"},
     homepage: "https://github.com/leetz/Golem-Agents-Legion",
     repository: "https://github.com/leetz/Golem-Agents-Legion",
     license: "MIT",
     keywords: ["gal", "golem-agents-legion", "claude-code", "plugin"]
-}' > "$artifact_root/.claude-plugin/plugin.json"
+}' --arg version "$plugin_version" > "$render_root/.claude-plugin/plugin.json"
 echo '  -> .claude-plugin/plugin.json'
 
 # ---------------------------------------------------------------------------
@@ -172,8 +241,8 @@ echo 'Rendering skills...'
 while IFS= read -r source_path; do
     [[ -n "$source_path" ]] || continue
     skill_name="$(basename "$(dirname "$source_path")")"
-    mkdir -p "$artifact_root/skills/$skill_name"
-    cp "$source_path" "$artifact_root/skills/$skill_name/SKILL.md"
+    mkdir -p "$render_root/skills/$skill_name"
+    cp "$source_path" "$render_root/skills/$skill_name/SKILL.md"
     echo "  -> skills/$skill_name/SKILL.md"
 done < <(printf '%s' "$package_json" | jq -r '.skills[].sourcePath // empty')
 
@@ -184,7 +253,7 @@ echo 'Rendering commands...'
 while IFS= read -r command_name; do
     [[ -n "$command_name" ]] || continue
     source_path="$(printf '%s' "$package_json" | jq -r --arg n "$command_name" '.commandSkills[] | select(.name == $n) | .sourcePath')"
-    cp "$source_path" "$artifact_root/commands/$command_name.md"
+    cp "$source_path" "$render_root/commands/$command_name.md"
     echo "  -> commands/$command_name.md"
 done < <(printf '%s' "$package_json" | jq -r '.commandSkills[].name // empty')
 
@@ -199,11 +268,11 @@ while IFS= read -r source_path; do
     agent_name="${agent_name%.agent.md}"
 
     # Claude format: filtered frontmatter, .md extension
-    filter_claude_agent_frontmatter "$source_path" > "$artifact_root/agents/$agent_name.md"
+    filter_claude_agent_frontmatter "$source_path" > "$render_root/agents/$agent_name.md"
     echo "  -> agents/$agent_name.md (Claude)"
 
     # AGY format: unfiltered copy, .agent.md extension in provider-specific folder
-    cp "$source_path" "$artifact_root/agy-agents/$agent_name.agent.md"
+    cp "$source_path" "$render_root/agy-agents/$agent_name.agent.md"
     echo "  -> agy-agents/$agent_name.agent.md (AGY)"
 done < <(printf '%s' "$package_json" | jq -r '.agents[].sourcePath // empty')
 
@@ -226,7 +295,7 @@ if [[ "$(printf '%s' "$package_json" | jq -r '.mcpSpec.canonicalSource != null')
                     }
                 ) | from_entries)
             }
-        ' "$mcp_source" > "$artifact_root/.mcp.json"
+        ' "$mcp_source" > "$render_root/.mcp.json"
         echo '  -> .mcp.json'
     fi
 fi
@@ -235,11 +304,11 @@ fi
 # CODEX: .codex-plugin/plugin.json  (Codex plugin manifest — skills only; no agents)
 # ---------------------------------------------------------------------------
 echo 'Rendering .codex-plugin/plugin.json (Codex manifest)...'
-mkdir -p "$artifact_root/.codex-plugin"
+mkdir -p "$render_root/.codex-plugin"
 display_name="$(printf '%s' "$package_json" | jq -r '.metadata.displayName')"
 jq -n \
     --arg name 'gal' \
-    --arg version '1.0.0' \
+    --arg version "$plugin_version" \
     --arg description 'Golem Agents Legion plugin for Codex CLI' \
     --arg displayName "$display_name" \
     '{
@@ -258,7 +327,7 @@ jq -n \
             developerName: "GAL",
             category: "Engineering"
         }
-    }' > "$artifact_root/.codex-plugin/plugin.json"
+    }' > "$render_root/.codex-plugin/plugin.json"
 echo '  -> .codex-plugin/plugin.json'
 
 # ---------------------------------------------------------------------------
@@ -269,7 +338,7 @@ echo 'Rendering copilot-manifest.json...'
 jq -n \
     --arg name 'gal' \
     --arg displayName 'Golem Agents Legion' \
-    --arg version '1.0.0' \
+    --arg version "$plugin_version" \
     --arg description 'Golem Agents Legion plugin for GitHub Copilot CLI' \
     '{
         name: $name,
@@ -282,7 +351,7 @@ jq -n \
             commands: "commands/",
             mcpConfig: ".mcp.json"
         }
-    }' > "$artifact_root/copilot-manifest.json"
+    }' > "$render_root/copilot-manifest.json"
 echo '  -> copilot-manifest.json'
 
 # ---------------------------------------------------------------------------
@@ -323,7 +392,7 @@ deferred_companions_json="$(printf '%s' "$package_json" | jq '.deferredCompanion
 jq -n \
     --arg name 'gal' \
     --arg displayName 'Golem Agents Legion' \
-    --arg version '1.0.0' \
+    --arg version "$plugin_version" \
     --arg generatedAt "$generated_at" \
     --arg description 'Golem Agents Legion plugin for AGY CLI' \
     --argjson canonicalPackage "$canonical_package_json" \
@@ -346,7 +415,7 @@ jq -n \
         hasMcp: $hasMcp,
         hasInstructions: $hasInstructions,
         skippedComponents: $skippedComponents
-    }' > "$artifact_root/plugin.json"
+    }' > "$render_root/plugin.json"
 echo '  -> plugin.json'
 
 # ---------------------------------------------------------------------------
@@ -387,7 +456,7 @@ if [[ -n "$mcp_spec" && -f "$mcp_spec" ]]; then
             inputs: (.inputs // null)
         } | del(.. | nulls)
     ')"
-    printf '%s\n' "$agy_mcp" > "$artifact_root/mcp_config.json"
+    printf '%s\n' "$agy_mcp" > "$render_root/mcp_config.json"
     echo '  -> mcp_config.json'
 fi
 
@@ -397,7 +466,7 @@ fi
 corpus_count="$(printf '%s' "$package_json" | jq '.instructionCorpus.sources | length')"
 if [[ "$corpus_count" -gt 0 ]]; then
     echo 'Rendering rules/gal.md...'
-    mkdir -p "$artifact_root/rules"
+    mkdir -p "$render_root/rules"
     {
         echo "# GAL Instruction Corpus"
         echo ""
@@ -414,9 +483,13 @@ if [[ "$corpus_count" -gt 0 ]]; then
             echo "---"
             echo ""
         done < <(printf '%s' "$package_json" | jq -r '.instructionCorpus.sources[] // empty')
-    } > "$artifact_root/rules/gal.md"
+    } > "$render_root/rules/gal.md"
     echo '  -> rules/gal.md'
 fi
+
+echo 'Publishing canonical root...'
+publish_rendered_artifact_root "$render_root" "$artifact_root"
+echo "  -> $artifact_root"
 
 # ---------------------------------------------------------------------------
 # --install: project to all AGY surfaces (link-first) + cleanup
