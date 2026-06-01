@@ -266,6 +266,14 @@ try {
     New-Item -ItemType Directory -Path $copilotInstallRoot -Force | Out-Null
     New-TestDirectoryLink -Path $copilotInstallTarget -Target $managedPluginStore
     New-TestDirectoryLink -Path (Join-Path $testHome '.copilot\gal') -Target (Join-Path $testHome '.gal')
+    $legacyCopilotSkillsLink = Join-Path $testHome '.copilot\skills\gal'
+    $legacyCopilotAgentLink = Join-Path $testHome '.copilot\agents\golem-reviewer.agent.md'
+    $copilotUnknownSkillFile = Join-Path $testHome '.copilot\skills\user-skill.md'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $legacyCopilotSkillsLink) -Force | Out-Null
+    New-Item -ItemType Directory -Path (Split-Path -Parent $legacyCopilotAgentLink) -Force | Out-Null
+    New-TestDirectoryLink -Path $legacyCopilotSkillsLink -Target (Join-Path $repoRoot 'skills\defuddle')
+    New-TestDirectoryLink -Path $legacyCopilotAgentLink -Target (Join-Path $repoRoot 'agent\golem-reviewer.agent.md')
+    Set-Content -LiteralPath $copilotUnknownSkillFile -Value 'user owned' -Encoding utf8
 
     $claudeSkillsRoot = Join-Path $testHome '.claude\skills'
     $claudePluginsRoot = Join-Path $testHome '.claude\plugins'
@@ -282,6 +290,9 @@ try {
     Assert-Contains $uninstallOutput 'codex plugin marketplace remove gal-marketplace' 'Install-mode uninstall should preview Codex marketplace removal.'
     Assert-Contains $uninstallOutput '.copilot\installed-plugins\gal-copilot\gal' 'Install-mode uninstall should preview Copilot projection cleanup.'
     Assert-Contains $uninstallOutput '.copilot\gal' 'Install-mode uninstall should preview Copilot legacy GAL_ROOT cleanup.'
+    Assert-Contains $uninstallOutput '.copilot\skills\gal' 'Install-mode uninstall should preview Copilot legacy GAL-owned skill-link cleanup.'
+    Assert-Contains $uninstallOutput '.copilot\agents\golem-reviewer.agent.md' 'Install-mode uninstall should preview Copilot legacy GAL-owned agent-link cleanup.'
+    Assert-NotContains $uninstallOutput '.copilot\skills\user-skill.md' 'Install-mode uninstall should not preview user-owned Copilot skill files.'
     Assert-Contains $uninstallOutput '.claude\skills\gal' 'Install-mode uninstall should preview Claude skills projection cleanup.'
     Assert-Contains $uninstallOutput '.claude\plugins\gal' 'Install-mode uninstall should preview Claude legacy projection cleanup.'
     Assert-NotContains $uninstallOutput 'claude plugin uninstall gal --scope user' 'Install-mode uninstall should no longer use Claude marketplace uninstall.'
