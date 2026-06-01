@@ -43,6 +43,17 @@ Prefer convergence over interrogation. Ask a focused question only when the plan
 
 Write or update `docs/plans/<plan-slug>.md` using `templates/plan.md`.
 
+Resolve the output language for the source plan using this precedence order:
+
+1. explicit per-invocation language directive at the top level of the user's request (for example `in zh-tw`, `in en`, or "write in English")
+2. machine-local `PLAN_LANGUAGE` from `~/.gal/config/config.local.env` (following the `WORKING_HOURS_ENABLED` precedent)
+3. auto-detect the narrative language of the user's request
+4. fallback default `en`
+
+Treat an explicit language directive as valid only when it is a top-level instruction for this invocation's output language. Do not treat the same string as a language switch when it appears inside described content, quoted examples, or requested documentation text.
+
+Write the human-readable source plan entirely in the resolved language. Keep technical identifiers, file paths, command names, code snippets, and other literal machine-facing tokens untranslated. Do not awkwardly mix English prose with the resolved language inside the same narrative section.
+
 This command may:
 
 - narrow an over-scoped plan
@@ -59,6 +70,8 @@ Do not create or mutate `.dev/plans/<plan-slug>.prompt.md` here.
 
 Read `agent/golem-architect.agent.md` and apply its review standards to the converged source plan.
 
+Write architecture review narrative in the same resolved language used for the source plan. Keep technical identifiers, file paths, command names, code snippets, and other literal machine-facing tokens untranslated.
+
 Write the architect outcome back into the source plan:
 
 - `## Review Results > ### Architecture Review`
@@ -72,9 +85,13 @@ Architect review is the mandatory deep-planning gate before `/plan-to-prompt`.
 
 If the source plan touches customer-facing flows, layout, states, components, or accessibility, run the design review lane concurrently against the source plan through the configured collaborative tool or fallback golem.
 
+Write any design-review narrative back in the same resolved language used for the source plan, while preserving literal technical identifiers and code snippets.
+
 ### Step 3c — Analyst Review (Content-Triggered)
 
 If the source plan touches business rules, pricing, permissions, notifications, onboarding, or eligibility, run the business review lane concurrently against the source plan through the configured collaborative tool or fallback golem.
+
+Write any business-review narrative back in the same resolved language used for the source plan, while preserving literal technical identifiers and code snippets.
 
 ## Step 4 — Update Repo State
 
