@@ -55,6 +55,37 @@ function Test-LinkTargetsCanonical {
     return $false
 }
 
+function Copy-TestSourceRoot {
+    param(
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [Parameter(Mandatory)][string]$DestinationRoot
+    )
+
+    $entries = @(
+        'skills',
+        'commands',
+        'agent',
+        'plugins',
+        'conventions',
+        'workflows',
+        'mcp.json',
+        'model-roles.md',
+        '.dev\project.md'
+    )
+
+    New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
+    foreach ($entry in $entries) {
+        $sourcePath = Join-Path $SourceRoot $entry
+        $destinationPath = Join-Path $DestinationRoot $entry
+        $destinationParent = Split-Path -Parent $destinationPath
+        if (-not [string]::IsNullOrWhiteSpace($destinationParent)) {
+            New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
+        }
+
+        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Recurse -Force
+    }
+}
+
     $repoRoot = Split-Path $PSScriptRoot -Parent
     $releaseMatrixPath = Join-Path $repoRoot 'docs\release-matrix.md'
 
@@ -63,8 +94,10 @@ $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
 $agyIdeTarget = Join-Path $testHome '.gemini\antigravity-ide\plugins\gal'
 $agyGuiConfigTarget = Join-Path $testHome '.gemini\config\plugins\gal'
+$mutableRepoRoot = Join-Path $testHome 'repo-copy'
 
 New-Item -ItemType Directory -Path $testHome | Out-Null
+Copy-TestSourceRoot -SourceRoot $repoRoot -DestinationRoot $mutableRepoRoot
 
 try {
     $env:USERPROFILE = $testHome
@@ -140,8 +173,8 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
 
     $resolvedJsonPath = $plan.ResolvedPluginsFile
     try {
-        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
-        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy', 'copilot', 'codex', 'claude') -Force | Out-Null
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $mutableRepoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $mutableRepoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy', 'copilot', 'codex', 'claude') -Force | Out-Null
 
         $agyLedgerPath = Join-Path $testHome '.gal\dist\providers\agy\managed.json'
         $copilotLedgerPath = Join-Path $testHome '.gal\dist\providers\copilot\managed.json'
@@ -202,13 +235,18 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         Assert-True -Condition ($claudeManifest.name -eq 'gal') -Label 'TP-002: Claude manifest preserves plugin identity'
         Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
 
-        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy') | Out-Null
+        $rerunMarker = 'T-013 agy rerun propagation marker'
+        Add-Content -LiteralPath (Join-Path $mutableRepoRoot 'skills\defuddle\SKILL.md') -Value "`n$rerunMarker`n" -Encoding utf8
+
+        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $mutableRepoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy') | Out-Null
         $agyLedgerAfterRerun = Get-Content -LiteralPath $agyLedgerPath -Raw | ConvertFrom-Json
 
         Assert-True -Condition (Test-LinkTargetsCanonical -Path (Get-AgyPluginInstallTarget) -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY CLI junction survives rerender and still targets canonical root'
         Assert-True -Condition (Test-LinkTargetsCanonical -Path $agyIdeTarget -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY IDE junction survives rerender and still targets canonical root'
         Assert-True -Condition (Test-LinkTargetsCanonical -Path $agyGuiConfigTarget -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY GUI-config junction survives rerender and still targets canonical root'
         Assert-True -Condition ($agyLedgerAfterRerun.status -eq 'linked-projection' -and $agyLedgerAfterRerun.readSurface -eq 'linked-projection') -Label 'TP-014: AGY ledger stays linked-projection after rerender'
+        Assert-True -Condition ((Get-Content -LiteralPath (Join-Path $canonicalPluginRoot 'skills\defuddle\SKILL.md') -Raw).Contains($rerunMarker)) -Label 'TP-010: canonical plugin content reflects the edited source after AGY rerun without -Force'
+        Assert-True -Condition ((Get-Content -LiteralPath (Join-Path (Get-AgyPluginInstallTarget) 'skills\defuddle\SKILL.md') -Raw).Contains($rerunMarker)) -Label 'TP-010: AGY linked projection reflects the edited source after rerun without -Force'
     }
     finally {
         if (Test-Path $resolvedJsonPath) {

@@ -51,6 +51,54 @@ function Assert-Throws {
     throw "$Message`nExpected exception containing: $Expected`nActual result: no exception"
 }
 
+function Assert-FileContains {
+    param(
+        [string]$Path,
+        [string]$Expected,
+        [string]$Message
+    )
+
+    if (-not (Test-Path $Path)) {
+        throw "$Message`nMissing file: $Path"
+    }
+
+    $content = Get-Content -LiteralPath $Path -Raw -Encoding utf8
+    if (-not $content.Contains($Expected)) {
+        throw "$Message`nExpected to find: $Expected`nFile: $Path`nActual content:`n$content"
+    }
+}
+
+function Copy-TestSourceRoot {
+    param(
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [Parameter(Mandatory)][string]$DestinationRoot
+    )
+
+    $entries = @(
+        'skills',
+        'commands',
+        'agent',
+        'plugins',
+        'conventions',
+        'workflows',
+        'mcp.json',
+        'model-roles.md',
+        '.dev\project.md'
+    )
+
+    New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
+    foreach ($entry in $entries) {
+        $sourcePath = Join-Path $SourceRoot $entry
+        $destinationPath = Join-Path $DestinationRoot $entry
+        $destinationParent = Split-Path -Parent $destinationPath
+        if (-not [string]::IsNullOrWhiteSpace($destinationParent)) {
+            New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
+        }
+
+        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Recurse -Force
+    }
+}
+
 function New-TestDirectoryLink {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -84,6 +132,9 @@ try {
 
     $galRoot = Join-Path $testHome '.gal'
     New-Item -ItemType Directory -Path $galRoot | Out-Null
+
+    $mutableRepoRoot = Join-Path $testHome 'repo-copy'
+    Copy-TestSourceRoot -SourceRoot $repoRoot -DestinationRoot $mutableRepoRoot
 
     $installStatePath = Join-Path $galRoot 'install-state.json'
     $installState = [ordered]@{
@@ -341,7 +392,7 @@ try {
     }
     $claudeConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
 
-    $claudeLifecycleOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('claude') -PrimaryRuntime 'claude' -Force 6>&1 | Out-String)
+    $claudeLifecycleOutput = (& $scriptUnderTest -RepoRoot $mutableRepoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('claude') -PrimaryRuntime 'claude' -Force 6>&1 | Out-String)
     Assert-Contains $claudeLifecycleOutput '[OK] Evaluating Claude plugin lifecycle.' 'Claude install orchestration should enter the Claude lifecycle path.'
     Assert-Contains $claudeLifecycleOutput '[OK] Wrote Claude lifecycle state:' 'Claude install orchestration should persist Claude lifecycle state.'
 
@@ -400,7 +451,7 @@ try {
     }
     $copilotConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
 
-    $copilotLifecycleOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Force 6>&1 | Out-String)
+    $copilotLifecycleOutput = (& $scriptUnderTest -RepoRoot $mutableRepoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Force 6>&1 | Out-String)
     Assert-Contains $copilotLifecycleOutput '[OK] Evaluating Copilot plugin lifecycle.' 'Copilot install orchestration should enter the Copilot lifecycle path.'
     Assert-Contains $copilotLifecycleOutput '[OK] Wrote Copilot lifecycle state:' 'Copilot install orchestration should persist Copilot lifecycle state.'
 
@@ -440,6 +491,10 @@ try {
         throw 'Copilot host-copy fallback should record the bumped manifest version.'
     }
 
+    $initialCanonicalManifest = Get-Content -LiteralPath (Join-Path $testHome '.gal\plugins\gal\copilot-manifest.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    $rerunMarker = 'T-013 rerun propagation marker'
+    Add-Content -LiteralPath (Join-Path $mutableRepoRoot 'skills\defuddle\SKILL.md') -Value "`n$rerunMarker`n" -Encoding utf8
+
     $copilotProjectionRoot = Join-Path $testHome '.copilot\installed-plugins\gal-copilot\gal'
     if (Test-Path $copilotProjectionRoot) {
         $copilotProjectionItem = Get-Item -LiteralPath $copilotProjectionRoot -Force
@@ -459,7 +514,7 @@ try {
         version = 'stale-version'
     } | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $staleCopilotManifestPath -Encoding utf8
 
-    $copilotRefreshOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Force 6>&1 | Out-String)
+    $copilotRefreshOutput = (& $scriptUnderTest -RepoRoot $mutableRepoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' 6>&1 | Out-String)
     Assert-Contains $copilotRefreshOutput '[WARN] Copilot projection link was unavailable; refreshing host copy instead.' 'Copilot rerun should force-refresh an existing host copy when link projection is unavailable.'
     Assert-Contains $copilotRefreshOutput '[OK] Refreshed Copilot host copy:' 'Copilot rerun should report host-copy refresh.'
 
@@ -479,6 +534,9 @@ try {
 
     $refreshedCopilotManifest = Get-Content -LiteralPath $staleCopilotManifestPath -Raw -Encoding utf8 | ConvertFrom-Json
     $canonicalCopilotManifest = Get-Content -LiteralPath (Join-Path $testHome '.gal\plugins\gal\copilot-manifest.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($canonicalCopilotManifest.version -eq $initialCanonicalManifest.version) {
+        throw 'Copilot rerun after a source edit should rebuild the canonical manifest version without requiring -Force.'
+    }
     if ($refreshedCopilotManifest.version -eq 'stale-version') {
         throw 'Copilot rerun should bump the host-copy manifest version instead of leaving the stale version intact.'
     }
@@ -491,6 +549,10 @@ try {
     if ($refreshedCopilotManifest.version -notlike "$($canonicalCopilotManifest.version).host*") {
         throw "Copilot rerun should rebuild from the canonical manifest before bumping the host-copy version. Actual: $($refreshedCopilotManifest.version)"
     }
+
+    Assert-FileContains -Path (Join-Path $testHome '.gal\plugins\gal\skills\defuddle\SKILL.md') -Expected $rerunMarker -Message 'Canonical plugin content should pick up the edited source on rerun without -Force.'
+    Assert-FileContains -Path (Join-Path $testHome '.claude\skills\gal\skills\defuddle\SKILL.md') -Expected $rerunMarker -Message 'Claude linked projection should reflect the edited source after rerun without -Force.'
+    Assert-FileContains -Path (Join-Path $copilotProjectionRoot 'skills\defuddle\SKILL.md') -Expected $rerunMarker -Message 'Copilot refreshed host copy should reflect the edited source after rerun without -Force.'
 
     $codexConfig = [ordered]@{
         schemaVersion = 1
