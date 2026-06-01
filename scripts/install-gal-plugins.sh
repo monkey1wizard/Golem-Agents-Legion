@@ -166,6 +166,20 @@ get_claude_lifecycle_state_path() {
     printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/claude/managed.json"
 }
 
+write_copilot_lifecycle_state() {
+    local state_json="$1"
+    local state_path
+    state_path="$(get_provider_managed_state_path copilot)"
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would write Copilot lifecycle state: $state_path"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$state_path")"
+    printf '%s\n' "$state_json" > "$state_path"
+    echo "  [OK] Wrote Copilot lifecycle state: $state_path"
+}
+
 write_claude_lifecycle_state() {
     local state_json="$1"
     local state_path
@@ -178,6 +192,175 @@ write_claude_lifecycle_state() {
     mkdir -p "$(dirname "$state_path")"
     printf '%s\n' "$state_json" > "$state_path"
     echo "  [OK] Wrote Claude lifecycle state: $state_path"
+}
+
+refresh_copilot_host_copy() {
+    local canonical_root="$1"
+    local target_path="$2"
+    local manifest_path="$target_path/copilot-manifest.json"
+
+    if $DRY_RUN; then
+        echo "  [DRY RUN] Would refresh Copilot host copy: $target_path" >&2
+        echo "  [DRY RUN] Would bump Copilot manifest version in host copy: $manifest_path" >&2
+        printf '%s\n' 'preview-host-bump'
+        return 0
+    fi
+
+    rm -rf "$target_path"
+    mkdir -p "$(dirname "$target_path")"
+    cp -R "$canonical_root" "$target_path"
+
+    run_python - "$manifest_path" <<'PY'
+import json
+import sys
+from datetime import datetime
+
+path = sys.argv[1]
+with open(path, encoding='utf-8') as f:
+    data = json.load(f)
+current = data.get('version') or '1.0.0'
+bumped = f"{current}.host{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+data['version'] = bumped
+with open(path, 'w', encoding='utf-8', newline='\n') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+print(bumped)
+PY
+}
+
+invoke_copilot_plugin_lifecycle() {
+    if ! $INSTALL_COPILOT; then
+        return 0
+    fi
+
+    echo '  [OK] Evaluating Copilot plugin lifecycle.'
+    local canonical_root package_output_root manifest_path support_json
+    canonical_root="$(get_gal_plugin_root gal)"
+    package_output_root="$(get_copilot_plugin_package_output_root "$REPO_ROOT")"
+    manifest_path="$(get_copilot_plugin_manifest_path "$canonical_root")"
+    support_json="$(get_copilot_cli_lifecycle_support_json)"
+
+    if [[ ! -d "$canonical_root" || ! -f "$manifest_path" ]]; then
+        echo '  [WARN] Copilot canonical artifact was missing; rerendering shared plugin root before lifecycle projection.'
+        "$SCRIPT_DIR/build-core-plugin.sh" >/dev/null
+    fi
+
+    if [[ ! -d "$canonical_root" ]]; then
+        echo "Copilot canonical root not found: $canonical_root" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$manifest_path" ]]; then
+        echo "Copilot manifest not found: $manifest_path" >&2
+        exit 1
+    fi
+
+    local cli_available=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.cliAvailable')" == 'true' ]] && cli_available=true
+    local local_artifact_install_supported=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.localArtifactInstallSupported')" == 'true' ]] && local_artifact_install_supported=true
+    local install_scope_supported=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.installScopeSupported')" == 'true' ]] && install_scope_supported=true
+    local marketplace_install_supported=false
+    [[ "$(printf '%s' "$support_json" | jq -r '.marketplaceInstallSupported')" == 'true' ]] && marketplace_install_supported=true
+    local install_help_summary
+    install_help_summary="$(printf '%s' "$support_json" | jq -r '.installHelpSummary // empty')"
+    local lifecycle_mode
+    lifecycle_mode="$(printf '%s' "$support_json" | jq -r '.installMode')"
+
+    if ! $cli_available; then
+        echo '  [WARN] GitHub CLI not found on PATH; projecting Copilot plugin without CLI lifecycle validation.'
+    elif ! $local_artifact_install_supported; then
+        echo '  [WARN] GitHub CLI is present but local Copilot artifact install support was not detected; keeping projection-managed lifecycle.'
+    else
+        echo '  [OK] GitHub CLI reports local Copilot artifact install support.'
+    fi
+
+    safe_unlink "$GAL_ROOT_COPILOT"
+    mkdir -p "$(dirname "$COPILOT_PLUGIN_INSTALL_TARGET")"
+
+    local refreshed_copy_to_host=false
+    local version_bumped_to=''
+    if ensure_symlink "$COPILOT_PLUGIN_INSTALL_TARGET" "$canonical_root" 'directory'; then
+        echo "  [OK] Projected Copilot plugin root: $COPILOT_PLUGIN_INSTALL_TARGET"
+    else
+        echo '  [WARN] Copilot projection link was unavailable; refreshing host copy instead.'
+        refreshed_copy_to_host=true
+        version_bumped_to="$(refresh_copilot_host_copy "$canonical_root" "$COPILOT_PLUGIN_INSTALL_TARGET")"
+        echo "  [OK] Refreshed Copilot host copy: $COPILOT_PLUGIN_INSTALL_TARGET"
+    fi
+
+    local provider_state_status='linked-projection'
+    if $refreshed_copy_to_host; then
+        provider_state_status='refreshed-copy2-host'
+    fi
+    local provider_read_surface
+    provider_read_surface="$(resolve_provider_managed_read_surface "$provider_state_status")"
+
+    local state_json
+    state_json="$(jq -n \
+        --arg canonicalRoot "$canonical_root" \
+        --arg packageOutputRoot "$package_output_root" \
+        --arg projectionRoot "$COPILOT_PLUGIN_INSTALL_TARGET" \
+        --arg installTarget "$COPILOT_PLUGIN_INSTALL_TARGET" \
+        --arg manifestPath "$manifest_path" \
+        --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg status "$provider_state_status" \
+        --arg readSurface "$provider_read_surface" \
+        --arg installHelpSummary "$install_help_summary" \
+        --arg mode "$lifecycle_mode" \
+        --arg versionBumpedTo "$version_bumped_to" \
+        --arg sessionLoadCommand 'GitHub Copilot reads the projected plugin from ~/.copilot/installed-plugins/gal-copilot/gal' \
+        --arg installTemplate 'gh copilot plugin install <plugin-root>' \
+        --arg updateTemplate 'gh copilot plugin update <plugin-id>' \
+        --arg uninstallTemplate 'gh copilot plugin uninstall <plugin-id>' \
+        --argjson cliAvailable "$cli_available" \
+        --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
+        --argjson installScopeSupported "$install_scope_supported" \
+        --argjson refreshedCopyToHost "$refreshed_copy_to_host" \
+        '{
+            schemaVersion: 1,
+            provider: "copilot",
+            canonicalRoot: $canonicalRoot,
+            packageOutputRoot: $packageOutputRoot,
+            projectionRoot: $projectionRoot,
+            installTarget: $installTarget,
+            manifestPath: $manifestPath,
+            generatedAt: $generatedAt,
+            status: $status,
+            readSurface: (if $readSurface == "" then null else $readSurface end),
+            cli: {
+                available: $cliAvailable,
+                validateSupported: false,
+                localArtifactInstallSupported: $localArtifactInstallSupported,
+                marketplaceInstallSupported: $marketplaceInstallSupported,
+                installScopeSupported: $installScopeSupported,
+                installHelpSummary: $installHelpSummary
+            },
+            validation: {
+                command: null,
+                strictPassed: false
+            },
+            lifecycle: {
+                mode: $mode,
+                stagedPluginRoot: $projectionRoot,
+                refreshedCopyToHost: $refreshedCopyToHost,
+                versionBumpedTo: (if $versionBumpedTo == "" then null else $versionBumpedTo end),
+                sessionLoadCommand: $sessionLoadCommand,
+                installCommandTemplate: $installTemplate,
+                updateCommandTemplate: $updateTemplate,
+                uninstallCommandTemplate: $uninstallTemplate
+            },
+            notes: [
+                "Copilot CLI probing is best-effort; missing gh only downgrades lifecycle metadata, not artifact projection.",
+                "Persistent install prefers a link projection at ~/.copilot/installed-plugins/gal-copilot/gal so VS Code Copilot and Copilot CLI read the same payload.",
+                "~/.copilot/gal is treated as a legacy GAL_ROOT link and is removed when GAL refreshes the Copilot projection.",
+                "When link projection is unavailable, GAL refreshes a host copy and bumps copilot-manifest.json version to avoid stale Copilot cache reuse."
+            ]
+        }')"
+
+    write_copilot_lifecycle_state "$state_json"
 }
 
 invoke_claude_plugin_lifecycle() {
@@ -355,6 +538,8 @@ if $UNINSTALL; then
     for managed_target in \
         "$INSTALL_STATE_FILE" \
         "$AGY_PLUGIN_INSTALL_TARGET" \
+        "$COPILOT_PLUGIN_INSTALL_TARGET" \
+        "$GAL_ROOT_COPILOT" \
         "$GAL_PLUGINS_ROOT" \
         "$GAL_GENERATED_MCP_ROOT" \
         "$GAL_GENERATED_XMACHINE_ROOT" \
@@ -375,7 +560,7 @@ if $UNINSTALL; then
         echo '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     fi
 
-    echo '  [OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.'
+    echo '  [OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.'
     agy_shortcut_target="$(get_gal_active_provider_target agy)"
     if [ -L "$agy_shortcut_target" ] || [ -e "$agy_shortcut_target" ]; then
         safe_unlink "$agy_shortcut_target"
@@ -394,6 +579,20 @@ if $UNINSTALL; then
         echo '  [SKIP] No AGY plugin install target to remove'
     fi
 
+    if [ -L "$COPILOT_PLUGIN_INSTALL_TARGET" ]; then
+        safe_unlink "$COPILOT_PLUGIN_INSTALL_TARGET"
+    elif [ -e "$COPILOT_PLUGIN_INSTALL_TARGET" ]; then
+        if $DRY_RUN; then
+            echo "  [DRY RUN] Would remove Copilot plugin install target: $COPILOT_PLUGIN_INSTALL_TARGET"
+        else
+            rm -rf "$COPILOT_PLUGIN_INSTALL_TARGET"
+            echo "  [REMOVED] Copilot plugin install target: $COPILOT_PLUGIN_INSTALL_TARGET"
+        fi
+    else
+        echo '  [SKIP] No Copilot plugin install target to remove'
+    fi
+
+    safe_unlink "$GAL_ROOT_COPILOT"
     safe_unlink "$CLAUDE_PLUGIN_INSTALL_TARGET"
     safe_unlink "$CLAUDE_LEGACY_PLUGIN_INSTALL_TARGET"
 
@@ -535,6 +734,9 @@ else
         $DRY_RUN && build_provider_args+=(--dry-run)
         $FORCE && build_provider_args+=(--force)
         "$SCRIPT_DIR/build-provider-plugins.sh" "${build_provider_args[@]}"
+        if printf '%s' ",$primary_providers_csv," | grep -q ',copilot,'; then
+            invoke_copilot_plugin_lifecycle
+        fi
         if printf '%s' ",$primary_providers_csv," | grep -q ',claude,'; then
             invoke_claude_plugin_lifecycle
         fi

@@ -324,6 +324,8 @@ function Test-InstallUninstallOwnership {
     $managedTargets = @(
         $Context.InstallStateFile,
         $Context.AgyPluginInstallTarget,
+        $Context.CopilotPluginInstallTarget,
+        $Context.GalRootCopilot,
         $Context.GalStorePluginsRoot,
         $Context.GalGeneratedMcpRoot,
         $Context.GalGeneratedXmachineRoot,
@@ -453,6 +455,96 @@ function Write-ClaudeLifecycleState {
     Write-Host ("  [OK] Wrote Claude lifecycle state: {0}" -f $statePath)
 }
 
+function Write-CopilotLifecycleState {
+    param(
+        [pscustomobject]$Context,
+        [System.Collections.IDictionary]$State
+    )
+
+    $statePath = Get-ProviderManagedStatePath -Provider 'copilot' -Context $Context
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would write Copilot lifecycle state: {0}" -f $statePath)
+        return
+    }
+
+    Write-JsonOrderedMap $statePath $State
+    Write-Host ("  [OK] Wrote Copilot lifecycle state: {0}" -f $statePath)
+}
+
+function Update-CopilotManifestVersion {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ManifestPath
+    )
+
+    if (-not (Test-Path $ManifestPath)) {
+        return $null
+    }
+
+    $manifest = Read-JsonOrderedMap $ManifestPath
+    if (-not $manifest) {
+        return $null
+    }
+
+    $currentVersion = [string]$manifest['version']
+    if ([string]::IsNullOrWhiteSpace($currentVersion)) {
+        $currentVersion = '1.0.0'
+    }
+
+    $bumpedVersion = '{0}.host{1}' -f $currentVersion, (Get-Date -Format 'yyyyMMddHHmmss')
+    $manifest['version'] = $bumpedVersion
+    Write-JsonOrderedMap $ManifestPath $manifest
+    return $bumpedVersion
+}
+
+function Sync-CopilotPluginProjection {
+    param(
+        [string]$CanonicalRoot,
+        [pscustomobject]$Context
+    )
+
+    Ensure-SetupDirectories @((Split-Path $Context.CopilotPluginInstallTarget -Parent))
+
+    if (-not (Test-Path $CanonicalRoot)) {
+        throw "Copilot canonical root not found for projection: $CanonicalRoot"
+    }
+
+    Remove-SafeLink $Context.GalRootCopilot
+
+    if (New-SafeSymlink $Context.CopilotPluginInstallTarget $CanonicalRoot 'Directory') {
+        return [pscustomobject]@{
+            projectionRoot = $Context.CopilotPluginInstallTarget
+            refreshedCopyToHost = $false
+            versionBumpedTo = $null
+        }
+    }
+
+    Write-Host '  [WARN] Copilot projection link was unavailable; refreshing host copy instead.' -ForegroundColor Yellow
+
+    if ($DryRun) {
+        Write-Host ("  [DRY RUN] Would refresh Copilot host copy: {0}" -f $Context.CopilotPluginInstallTarget)
+        Write-Host ("  [DRY RUN] Would bump Copilot manifest version in host copy: {0}" -f (Join-Path $Context.CopilotPluginInstallTarget 'copilot-manifest.json'))
+        return [pscustomobject]@{
+            projectionRoot = $Context.CopilotPluginInstallTarget
+            refreshedCopyToHost = $true
+            versionBumpedTo = 'preview-host-bump'
+        }
+    }
+
+    if (Test-Path $Context.CopilotPluginInstallTarget) {
+        Remove-Item -LiteralPath $Context.CopilotPluginInstallTarget -Recurse -Force
+    }
+
+    Copy-Item -LiteralPath $CanonicalRoot -Destination $Context.CopilotPluginInstallTarget -Recurse -Force
+    $bumpedVersion = Update-CopilotManifestVersion -ManifestPath (Join-Path $Context.CopilotPluginInstallTarget 'copilot-manifest.json')
+
+    return [pscustomobject]@{
+        projectionRoot = $Context.CopilotPluginInstallTarget
+        refreshedCopyToHost = $true
+        versionBumpedTo = $bumpedVersion
+    }
+}
+
 function Sync-ClaudePluginProjection {
     param(
         [string]$CanonicalRoot,
@@ -580,6 +672,106 @@ function Invoke-ClaudePluginLifecycle {
     Write-ClaudeLifecycleState -Context $Context -State $state
 }
 
+function Invoke-CopilotPluginLifecycle {
+    param(
+        [string]$RepoRoot,
+        [pscustomobject]$Context
+    )
+
+    if (-not $Context.InstallCopilot) {
+        return
+    }
+
+    Write-Host '  [OK] Evaluating Copilot plugin lifecycle.'
+    $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
+    $packageOutputRoot = Get-CopilotPluginPackageOutputRoot -RepoRoot $RepoRoot
+    $manifestPath = Get-CopilotPluginManifestPath -PluginRoot $canonicalRoot
+    $contract = Get-CopilotPluginInstallContract
+    $support = Get-CopilotCliLifecycleSupport
+
+    if (-not (Test-Path $canonicalRoot) -or -not (Test-Path $manifestPath)) {
+        Write-Host '  [WARN] Copilot canonical artifact was missing; rerendering shared plugin root before lifecycle projection.' -ForegroundColor Yellow
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -Force:$Force | Out-Null
+    }
+
+    $state = [ordered]@{
+        schemaVersion = 1
+        provider = 'copilot'
+        canonicalRoot = $canonicalRoot
+        packageOutputRoot = $packageOutputRoot
+        projectionRoot = $Context.CopilotPluginInstallTarget
+        installTarget = $Context.CopilotPluginInstallTarget
+        manifestPath = $manifestPath
+        generatedAt = (Get-Date -Format 'o')
+        status = 'linked-projection'
+        readSurface = (Resolve-ProviderManagedReadSurface -Status 'linked-projection')
+        cli = [ordered]@{
+            available = [bool]$support.cliAvailable
+            validateSupported = [bool]$support.validateSupported
+            localArtifactInstallSupported = [bool]$support.localArtifactInstallSupported
+            marketplaceInstallSupported = [bool]$support.marketplaceInstallSupported
+            installScopeSupported = [bool]$support.installScopeSupported
+            installHelpSummary = $support.installHelpSummary
+        }
+        validation = [ordered]@{
+            command = $contract.validationCommand
+            strictPassed = $false
+        }
+        lifecycle = [ordered]@{
+            mode = [string]$support.installMode
+            stagedPluginRoot = $null
+            refreshedCopyToHost = $false
+            versionBumpedTo = $null
+            sessionLoadCommand = $contract.developmentLoadCommand
+            installCommandTemplate = $contract.lifecycleCommands[0]
+            updateCommandTemplate = $contract.lifecycleCommands[1]
+            uninstallCommandTemplate = $contract.lifecycleCommands[2]
+        }
+        notes = @(
+            'Copilot CLI probing is best-effort; missing `gh` only downgrades lifecycle metadata, not artifact projection.',
+            'Persistent install prefers a link projection at ~/.copilot/installed-plugins/gal-copilot/gal so VS Code Copilot and Copilot CLI read the same payload.',
+            '~/.copilot/gal is treated as a legacy GAL_ROOT link and is removed when GAL refreshes the Copilot projection.',
+            'When link projection is unavailable, GAL refreshes a host copy and bumps copilot-manifest.json version to avoid stale Copilot cache reuse.'
+        )
+    }
+
+    if (-not (Test-Path $canonicalRoot)) {
+        throw "Copilot canonical root not found: $canonicalRoot"
+    }
+
+    if (-not (Test-Path $manifestPath)) {
+        throw "Copilot manifest not found: $manifestPath"
+    }
+
+    if (-not $support.cliAvailable) {
+        Write-Host '  [WARN] GitHub CLI not found on PATH; projecting Copilot plugin without CLI lifecycle validation.' -ForegroundColor Yellow
+    }
+    elseif (-not $support.localArtifactInstallSupported) {
+        Write-Host '  [WARN] GitHub CLI is present but local Copilot artifact install support was not detected; keeping projection-managed lifecycle.' -ForegroundColor Yellow
+    }
+    else {
+        Write-Host '  [OK] GitHub CLI reports local Copilot artifact install support.'
+    }
+
+    $projection = Sync-CopilotPluginProjection -CanonicalRoot $canonicalRoot -Context $Context
+    $state['projectionRoot'] = $projection.projectionRoot
+    $state['installTarget'] = $projection.projectionRoot
+    $state['lifecycle']['stagedPluginRoot'] = $projection.projectionRoot
+    $state['lifecycle']['refreshedCopyToHost'] = [bool]$projection.refreshedCopyToHost
+    $state['lifecycle']['versionBumpedTo'] = $projection.versionBumpedTo
+
+    if ($projection.refreshedCopyToHost) {
+        $state['status'] = Resolve-ProviderManagedStateStatus -Mode 'native-install' -LifecycleStatus 'host-copy-refreshed' -ProjectionRoot $null -RefreshedCopyToHost $true
+        $state['readSurface'] = Resolve-ProviderManagedReadSurface -Status $state['status']
+        Write-Host ("  [OK] Refreshed Copilot host copy: {0}" -f $projection.projectionRoot)
+    }
+    else {
+        Write-Host ("  [OK] Projected Copilot plugin root: {0}" -f $projection.projectionRoot)
+    }
+
+    Write-CopilotLifecycleState -Context $Context -State $state
+}
+
 Write-Host ''
 Write-Host '=== GAL install orchestration ==='
 
@@ -602,10 +794,17 @@ if ($Uninstall) {
         Write-Host '  [OK] Falling back to install-mode uninstall because GAL-managed runtime artifacts are present.'
     }
 
-    Write-Host '  [OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.'
+    Write-Host '  [OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.'
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
 
+    if (Test-SymlinkOrJunction $script:SetupContext.CopilotPluginInstallTarget) {
+        Remove-SafeLink $script:SetupContext.CopilotPluginInstallTarget
+    }
+    else {
+        Remove-GalManagedDirectory -Path $script:SetupContext.CopilotPluginInstallTarget -Label 'Copilot plugin install target'
+    }
+    Remove-SafeLink $script:SetupContext.GalRootCopilot
     Remove-SafeLink $script:SetupContext.ClaudePluginInstallTarget
     Remove-SafeLink $script:SetupContext.ClaudeLegacyPluginInstallTarget
     Remove-GalManagedDirectory -Path $script:SetupContext.GalPluginsRoot -Label 'GAL canonical plugin root'
@@ -739,6 +938,9 @@ else {
     }
     if ($primaryProviders.Count -gt 0) {
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $RepoRoot -ConfigPath $resolverConfigPath -LockfilePath $resolverLockfilePath -Providers $primaryProviders -DryRun:$DryRun -Force:$Force
+        if ($primaryProviders -contains 'copilot') {
+            Invoke-CopilotPluginLifecycle -RepoRoot $RepoRoot -Context $context
+        }
         if ($primaryProviders -contains 'claude') {
             Invoke-ClaudePluginLifecycle -RepoRoot $RepoRoot -Context $context
         }

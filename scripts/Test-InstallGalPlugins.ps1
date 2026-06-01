@@ -199,6 +199,7 @@ try {
     $managedMcpRoot = Join-Path $testHome '.gal\generated\mcp'
     $managedXmachineRoot = Join-Path $testHome '.gal\generated\xmachine'
     $managedProvidersRoot = Join-Path $testHome '.gal\dist\providers'
+    $copilotLifecycleStatePath = Join-Path $managedProvidersRoot 'copilot\managed.json'
     $claudeLifecycleStatePath = Join-Path $managedProvidersRoot 'claude\managed.json'
     New-Item -ItemType Directory -Path $managedPluginStore -Force | Out-Null
     New-Item -ItemType Directory -Path $managedMcpRoot -Force | Out-Null
@@ -207,8 +208,16 @@ try {
     Set-Content -LiteralPath (Join-Path $managedPluginStore 'managed.txt') -Value 'gal-managed' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $managedMcpRoot 'managed.json') -Value '{}' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $managedXmachineRoot 'managed.json') -Value '{}' -Encoding utf8
+    New-Item -ItemType Directory -Path (Split-Path -Parent $copilotLifecycleStatePath) -Force | Out-Null
+    Set-Content -LiteralPath $copilotLifecycleStatePath -Value '{}' -Encoding utf8
     New-Item -ItemType Directory -Path (Split-Path -Parent $claudeLifecycleStatePath) -Force | Out-Null
     Set-Content -LiteralPath $claudeLifecycleStatePath -Value '{}' -Encoding utf8
+
+    $copilotInstallRoot = Join-Path $testHome '.copilot\installed-plugins\gal-copilot'
+    $copilotInstallTarget = Join-Path $copilotInstallRoot 'gal'
+    New-Item -ItemType Directory -Path $copilotInstallRoot -Force | Out-Null
+    New-TestDirectoryLink -Path $copilotInstallTarget -Target $managedPluginStore
+    New-TestDirectoryLink -Path (Join-Path $testHome '.copilot\gal') -Target (Join-Path $testHome '.gal')
 
     $claudeSkillsRoot = Join-Path $testHome '.claude\skills'
     $claudePluginsRoot = Join-Path $testHome '.claude\plugins'
@@ -219,8 +228,10 @@ try {
 
     $machineConfigBeforeUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
     $uninstallOutput = (& $uninstallScriptUnderTest -DryRun 6>&1 | Out-String)
-    Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
+    Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY, Copilot, and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove AGY plugin install target:' 'Install-mode uninstall should preview AGY plugin removal.'
+    Assert-Contains $uninstallOutput '.copilot\installed-plugins\gal-copilot\gal' 'Install-mode uninstall should preview Copilot projection cleanup.'
+    Assert-Contains $uninstallOutput '.copilot\gal' 'Install-mode uninstall should preview Copilot legacy GAL_ROOT cleanup.'
     Assert-Contains $uninstallOutput '.claude\skills\gal' 'Install-mode uninstall should preview Claude skills projection cleanup.'
     Assert-Contains $uninstallOutput '.claude\plugins\gal' 'Install-mode uninstall should preview Claude legacy projection cleanup.'
     Assert-NotContains $uninstallOutput 'claude plugin uninstall gal --scope user' 'Install-mode uninstall should no longer use Claude marketplace uninstall.'
@@ -304,6 +315,63 @@ try {
     }
     if ($claudeLifecycleState.lifecycle.marketplaceRoot) {
         throw 'Claude lifecycle state should not keep a marketplace root after the skills-dir migration.'
+    }
+
+    $copilotConfig = [ordered]@{
+        schemaVersion = 1
+        galRoot = $repoRoot
+        devMode = $false
+        defaultProfile = 'default'
+        profiles = [ordered]@{}
+        enabledPlugins = @()
+        disabledPlugins = @()
+        providerSelections = [ordered]@{
+            copilot = [ordered]@{ enabled = $true; lane = 'primary' }
+        }
+        installMode = 'install'
+        preferredProviders = @('copilot')
+        userSettings = [ordered]@{}
+    }
+    $copilotConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $machineConfigPath -Encoding utf8
+
+    $copilotLifecycleOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Force 6>&1 | Out-String)
+    Assert-Contains $copilotLifecycleOutput '[OK] Evaluating Copilot plugin lifecycle.' 'Copilot install orchestration should enter the Copilot lifecycle path.'
+    Assert-Contains $copilotLifecycleOutput '[OK] Wrote Copilot lifecycle state:' 'Copilot install orchestration should persist Copilot lifecycle state.'
+
+    if (-not (Test-Path $copilotLifecycleStatePath)) {
+        throw "Copilot lifecycle install should write lifecycle state to $copilotLifecycleStatePath"
+    }
+
+    $copilotLifecycleState = Get-Content -LiteralPath $copilotLifecycleStatePath -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($copilotLifecycleState.provider -ne 'copilot') {
+        throw 'Copilot lifecycle state should record provider=copilot.'
+    }
+    if ($copilotLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
+        throw 'Copilot lifecycle state should record the canonical root under ~/.gal/plugins/gal.'
+    }
+    if ($copilotLifecycleState.packageOutputRoot -ne (Join-Path $testHome '.gal\dist\provider-plugins\copilot\gal')) {
+        throw 'Copilot lifecycle state should record the package output root under ~/.gal/dist/provider-plugins/copilot/gal.'
+    }
+    if ($copilotLifecycleState.projectionRoot -ne (Join-Path $testHome '.copilot\installed-plugins\gal-copilot\gal')) {
+        throw 'Copilot lifecycle state should record the provider-visible projection root.'
+    }
+    if ($copilotLifecycleState.installTarget -ne (Join-Path $testHome '.copilot\installed-plugins\gal-copilot\gal')) {
+        throw 'Copilot lifecycle state should record the install target under ~/.copilot/installed-plugins/gal-copilot/gal.'
+    }
+    if ($copilotLifecycleState.manifestPath -ne (Join-Path $testHome '.gal\plugins\gal\copilot-manifest.json')) {
+        throw 'Copilot lifecycle state should record the canonical Copilot manifest path.'
+    }
+    if ($copilotLifecycleState.status -ne 'linked-projection' -and $copilotLifecycleState.status -ne 'refreshed-copy2-host') {
+        throw "Copilot lifecycle state should record an honest shared status. Actual: $($copilotLifecycleState.status)"
+    }
+    if ($copilotLifecycleState.readSurface -ne $copilotLifecycleState.status) {
+        throw 'Copilot lifecycle state should keep readSurface aligned to the reported status.'
+    }
+    if (-not $copilotLifecycleState.cli.available) {
+        Assert-Contains $copilotLifecycleOutput 'GitHub CLI not found on PATH' 'Copilot lifecycle should warn when GitHub CLI is unavailable.'
+    }
+    if ($copilotLifecycleState.status -eq 'refreshed-copy2-host' -and -not $copilotLifecycleState.lifecycle.versionBumpedTo) {
+        throw 'Copilot host-copy fallback should record the bumped manifest version.'
     }
 
     # TP-004/005/006: Desktop transformer and safe-merge via isolated subprocess call to Update-Mcp.ps1

@@ -115,6 +115,48 @@ get_claude_cli_lifecycle_support_json() {
         }'
 }
 
+get_copilot_cli_lifecycle_support_json() {
+    local cli_available=false
+    local validate_supported=false
+    local local_artifact_install_supported=false
+    local marketplace_install_supported=false
+    local install_scope_supported=false
+    local install_help_summary=''
+
+    if command_exists gh; then
+        cli_available=true
+
+        install_help_summary="$(get_provider_cli_help_summary gh copilot plugin install --help || true)"
+        if provider_cli_help_supports gh '(--scope|scope)' copilot plugin install --help; then
+            install_scope_supported=true
+        fi
+        if provider_cli_help_supports gh '(<path>|path|directory|plugin-root|plugin path|local)' copilot plugin install --help; then
+            local_artifact_install_supported=true
+        fi
+        if provider_cli_help_supports gh 'marketplace' copilot plugin install --help; then
+            marketplace_install_supported=true
+        fi
+    fi
+
+    jq -n \
+        --argjson cliAvailable "$cli_available" \
+        --argjson validateSupported "$validate_supported" \
+        --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
+        --argjson installScopeSupported "$install_scope_supported" \
+        --arg installMode "$(resolve_provider_cli_install_mode "$cli_available" "$local_artifact_install_supported" "$marketplace_install_supported")" \
+        --arg installHelpSummary "$install_help_summary" \
+        '{
+            cliAvailable: $cliAvailable,
+            validateSupported: $validateSupported,
+            localArtifactInstallSupported: $localArtifactInstallSupported,
+            marketplaceInstallSupported: $marketplaceInstallSupported,
+            installScopeSupported: $installScopeSupported,
+            installMode: $installMode,
+            installHelpSummary: $installHelpSummary
+        }'
+}
+
 get_provider_managed_state_path() {
     local provider="$1"
     printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/$provider/managed.json"
@@ -616,10 +658,20 @@ get_claude_plugin_package_output_root() {
     printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/claude/gal"
 }
 
+get_copilot_plugin_package_output_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    printf '%s\n' "$GAL_DIST_ROOT/provider-plugins/copilot/gal"
+}
+
 # Backward-compatible alias for the Claude package output root.
 get_claude_plugin_artifact_root() {
     local repo_root="${1:-$REPO_ROOT}"
     get_claude_plugin_package_output_root "$repo_root"
+}
+
+get_copilot_plugin_artifact_root() {
+    local repo_root="${1:-$REPO_ROOT}"
+    get_copilot_plugin_package_output_root "$repo_root"
 }
 
 # Returns the Claude plugin component layout relative to the plugin root.
@@ -637,6 +689,33 @@ get_claude_plugin_component_relative_paths() {
 get_claude_plugin_manifest_path() {
     local plugin_root="$1"
     printf '%s\n' "$plugin_root/.claude-plugin/plugin.json"
+}
+
+get_copilot_plugin_manifest_path() {
+    local plugin_root="$1"
+    printf '%s\n' "$plugin_root/copilot-manifest.json"
+}
+
+get_copilot_plugin_install_contract() {
+    jq -n '{
+        developmentLoadCommand: "GitHub Copilot reads the projected plugin from ~/.copilot/installed-plugins/gal-copilot/gal",
+        validationCommand: null,
+        lifecycleCommands: [
+            "gh copilot plugin install <plugin-root>",
+            "gh copilot plugin update <plugin-id>",
+            "gh copilot plugin uninstall <plugin-id>"
+        ],
+        settingsScopes: {
+            shared: "~/.copilot",
+            cliMcp: "~/.copilot/mcp-config.json",
+            vscode: "VS Code Copilot uses the shared ~/.copilot plugin surface"
+        },
+        notes: [
+            "Copilot CLI and VS Code Copilot share the same ~/.copilot plugin surface.",
+            "copilot-manifest.json must stay at plugin root so Copilot can discover commands, skills, and agents.",
+            "When projection is unavailable, GAL refreshes a host copy at ~/.copilot/installed-plugins/gal-copilot/gal and bumps the manifest version to invalidate stale caches."
+        ]
+    }'
 }
 
 # Returns the documented Claude plugin install and validation contract.

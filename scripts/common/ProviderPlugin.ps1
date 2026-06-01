@@ -140,6 +140,16 @@ function Get-ClaudeCliLifecycleSupport {
         -MarketplacePattern 'marketplace'
 }
 
+    function Get-CopilotCliLifecycleSupport {
+        return Get-ProviderCliLifecycleSupport \
+        -CliCommandName 'gh' \
+        -InstallArguments @('copilot', 'plugin', 'install', '--help') \
+        -InstallScopePattern '(--scope|scope)' \
+        -LocalArtifactPattern '(<path>|path|directory|plugin-root|plugin path|local)' \
+        -MarketplaceArguments @('copilot', 'plugin', 'install', '--help') \
+        -MarketplacePattern 'marketplace'
+    }
+
 function Get-ProviderManagedStatePath {
     param(
         [Parameter(Mandatory)]
@@ -693,6 +703,24 @@ function Get-ClaudePluginPackageOutputRoot {
     return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\claude\gal'
 }
 
+function Get-CopilotPluginPackageOutputRoot {
+    <#
+    .SYNOPSIS
+        Returns the Copilot package output root under ~/.gal/dist.
+    #>
+    param([string]$RepoRoot)
+    return Join-Path $env:USERPROFILE '.gal\dist\provider-plugins\copilot\gal'
+}
+
+function Get-CopilotPluginArtifactRoot {
+    <#
+    .SYNOPSIS
+        Backward-compatible alias for the Copilot package output root.
+    #>
+    param([string]$RepoRoot)
+    return Get-CopilotPluginPackageOutputRoot -RepoRoot $RepoRoot
+}
+
 function Get-ClaudePluginArtifactRoot {
     <#
     .SYNOPSIS
@@ -726,6 +754,43 @@ function Get-ClaudePluginManifestPath {
 
     $componentPaths = Get-ClaudePluginComponentRelativePaths
     return Join-Path $PluginRoot $componentPaths.manifest
+}
+
+function Get-CopilotPluginManifestPath {
+    <#
+    .SYNOPSIS
+        Returns the manifest path for a rendered Copilot plugin artifact.
+    #>
+    param([string]$PluginRoot)
+
+    return Join-Path $PluginRoot 'copilot-manifest.json'
+}
+
+function Get-CopilotPluginInstallContract {
+    <#
+    .SYNOPSIS
+        Returns the documented Copilot plugin install contract.
+    #>
+
+    return [ordered]@{
+        developmentLoadCommand = 'GitHub Copilot reads the projected plugin from ~/.copilot/installed-plugins/gal-copilot/gal'
+        validationCommand = $null
+        lifecycleCommands = @(
+            'gh copilot plugin install <plugin-root>'
+            'gh copilot plugin update <plugin-id>'
+            'gh copilot plugin uninstall <plugin-id>'
+        )
+        settingsScopes = [ordered]@{
+            shared = '~/.copilot'
+            cliMcp = '~/.copilot/mcp-config.json'
+            vscode = 'VS Code Copilot uses the shared ~/.copilot plugin surface'
+        }
+        notes = @(
+            'Copilot CLI and VS Code Copilot share the same ~/.copilot plugin surface.',
+            'copilot-manifest.json must stay at plugin root so Copilot can discover commands, skills, and agents.',
+            'When projection is unavailable, GAL refreshes a host copy at ~/.copilot/installed-plugins/gal-copilot/gal and bumps the manifest version to invalidate stale caches.'
+        )
+    }
 }
 
 function Get-ClaudePluginInstallContract {
