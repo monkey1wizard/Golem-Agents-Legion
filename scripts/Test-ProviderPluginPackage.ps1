@@ -38,6 +38,12 @@ function Assert-True {
 $repoRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
 
+$missingCliSupport = Get-ProviderCliLifecycleSupport -CliCommandName 'gal-missing-cli-for-test' -ValidateArguments @('plugin', 'validate', '--help') -ValidatePattern 'Validate a plugin' -InstallArguments @('plugin', 'install', '--help') -InstallScopePattern 'Installation scope' -LocalArtifactPattern 'local path' -MarketplaceArguments @('plugin', 'marketplace', '--help') -MarketplacePattern 'marketplace'
+
+Assert-Equal -Expected $false -Actual $missingCliSupport.cliAvailable -Label 'TP-012: missing provider CLI reports unavailable'
+Assert-Equal -Expected $false -Actual $missingCliSupport.validateSupported -Label 'TP-012: missing provider CLI does not claim validation support'
+Assert-Equal -Expected 'artifact-only' -Actual $missingCliSupport.installMode -Label 'TP-012: missing provider CLI falls back to artifact-only install mode'
+
 $catalogPath = Join-Path $repoRoot 'plugins\catalog.json'
 $resolveScript = Join-Path $PSScriptRoot 'Resolve-GalCatalog.ps1'
 $configDefaultPath = Join-Path $env:TEMP 'gal-test-provider-package-default.json'

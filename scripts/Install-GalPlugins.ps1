@@ -352,60 +352,6 @@ function Get-ClaudeLifecycleStatePath {
     return Join-Path $Context.GalGeneratedProvidersRoot 'claude\managed.json'
 }
 
-function Get-ClaudeCliLifecycleSupport {
-    $support = [ordered]@{
-        cliAvailable = $false
-        validateSupported = $false
-        localArtifactInstallSupported = $false
-        marketplaceInstallSupported = $false
-        installScopeSupported = $false
-        installMode = 'artifact-only'
-        installHelpSummary = $null
-    }
-
-    if (-not (Test-CommandAvailable 'claude')) {
-        return [pscustomobject]$support
-    }
-
-    $support.cliAvailable = $true
-
-    $validateHelp = (& claude plugin validate --help 2>&1 | Out-String)
-    if ($LASTEXITCODE -eq 0 -and $validateHelp -match 'Validate a plugin') {
-        $support.validateSupported = $true
-    }
-
-    $installHelp = (& claude plugin install --help 2>&1 | Out-String)
-    if ($LASTEXITCODE -eq 0) {
-        $support.installHelpSummary = ($installHelp -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 3) -join ' '
-        if ($installHelp -match 'Installation scope: user, project, or local') {
-            $support.installScopeSupported = $true
-        }
-        if ($installHelp -match '<path>' -or $installHelp -match 'local path') {
-            $support.localArtifactInstallSupported = $true
-        }
-    }
-
-    $marketplaceHelp = (& claude plugin marketplace --help 2>&1 | Out-String)
-    if ($LASTEXITCODE -eq 0 -and $marketplaceHelp -match 'marketplace') {
-        $support.marketplaceInstallSupported = $true
-    }
-
-    $support.installMode = if ($support.localArtifactInstallSupported) {
-        'provider-native-install'
-    }
-    elseif ($support.marketplaceInstallSupported) {
-        'marketplace'
-    }
-    elseif ($support.cliAvailable) {
-        'session-load-only'
-    }
-    else {
-        'artifact-only'
-    }
-
-    return [pscustomobject]$support
-}
-
 function Get-ClaudeMarketplaceManifestPath {
     param([pscustomobject]$Context)
     return Join-Path $Context.GalPluginsRoot '.claude-plugin\marketplace.json'

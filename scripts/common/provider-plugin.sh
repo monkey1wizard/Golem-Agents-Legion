@@ -15,6 +15,106 @@ COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$(cd "$COMMON_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
+run_provider_cli_help() {
+    local cli_command_name="$1"
+    shift
+
+    "$cli_command_name" "$@" 2>&1
+}
+
+provider_cli_help_supports() {
+    local cli_command_name="$1"
+    local pattern="$2"
+    shift 2
+
+    local help_text
+    help_text="$(run_provider_cli_help "$cli_command_name" "$@")" || return 1
+    if [[ -z "$pattern" ]]; then
+        return 0
+    fi
+
+    printf '%s' "$help_text" | grep -Eq "$pattern"
+}
+
+get_provider_cli_help_summary() {
+    local cli_command_name="$1"
+    shift
+
+    local help_text
+    help_text="$(run_provider_cli_help "$cli_command_name" "$@")" || return 1
+    printf '%s' "$help_text" | awk 'NF {print}' | head -n 3 | paste -sd ' ' -
+}
+
+resolve_provider_cli_install_mode() {
+    local cli_available="$1"
+    local local_artifact_install_supported="$2"
+    local marketplace_install_supported="$3"
+
+    if [[ "$local_artifact_install_supported" == 'true' ]]; then
+        printf '%s\n' 'provider-native-install'
+        return 0
+    fi
+
+    if [[ "$marketplace_install_supported" == 'true' ]]; then
+        printf '%s\n' 'marketplace'
+        return 0
+    fi
+
+    if [[ "$cli_available" == 'true' ]]; then
+        printf '%s\n' 'session-load-only'
+        return 0
+    fi
+
+    printf '%s\n' 'artifact-only'
+}
+
+get_claude_cli_lifecycle_support_json() {
+    local cli_available=false
+    local validate_supported=false
+    local local_artifact_install_supported=false
+    local marketplace_install_supported=false
+    local install_scope_supported=false
+    local install_help_summary=''
+
+    if command_exists claude; then
+        cli_available=true
+
+        if provider_cli_help_supports claude 'Validate a plugin' plugin validate --help; then
+            validate_supported=true
+        fi
+
+        install_help_summary="$(get_provider_cli_help_summary claude plugin install --help || true)"
+        if provider_cli_help_supports claude 'Installation scope: user, project, or local' plugin install --help; then
+            install_scope_supported=true
+        fi
+        if provider_cli_help_supports claude '<path>|local path' plugin install --help; then
+            local_artifact_install_supported=true
+        fi
+
+        if provider_cli_help_supports claude 'marketplace' plugin marketplace --help; then
+            marketplace_install_supported=true
+        fi
+    fi
+
+    jq -n \
+        --argjson cliAvailable "$cli_available" \
+        --argjson validateSupported "$validate_supported" \
+        --argjson localArtifactInstallSupported "$local_artifact_install_supported" \
+        --argjson marketplaceInstallSupported "$marketplace_install_supported" \
+        --argjson installScopeSupported "$install_scope_supported" \
+        --arg installMode "$(resolve_provider_cli_install_mode "$cli_available" "$local_artifact_install_supported" "$marketplace_install_supported")" \
+        --arg installHelpSummary "$install_help_summary" \
+        '{
+            cliAvailable: $cliAvailable,
+            validateSupported: $validateSupported,
+            localArtifactInstallSupported: $localArtifactInstallSupported,
+            marketplaceInstallSupported: $marketplaceInstallSupported,
+            installScopeSupported: $installScopeSupported,
+            installMode: $installMode,
+            installHelpSummary: $installHelpSummary
+        }'
+}
+
 get_gal_core_canonical_package_schema() {
     jq -n '{
         schemaId: "gal-plugin-root-v2",

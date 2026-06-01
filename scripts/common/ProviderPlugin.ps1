@@ -16,6 +16,130 @@ if (Test-Path $commonHelpersScript) {
     . $commonHelpersScript
 }
 
+function Test-ProviderCliHelpSupport {
+    param(
+        [string]$CliCommandName,
+        [string[]]$Arguments,
+        [string]$Pattern
+    )
+
+    $helpText = (& $CliCommandName @Arguments 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Pattern)) {
+        return $true
+    }
+
+    return $helpText -match $Pattern
+}
+
+function Get-ProviderCliHelpSummary {
+    param(
+        [string]$CliCommandName,
+        [string[]]$Arguments
+    )
+
+    $helpText = (& $CliCommandName @Arguments 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+
+    return (($helpText -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 3) -join ' '
+}
+
+function Resolve-ProviderCliInstallMode {
+    param(
+        [bool]$CliAvailable,
+        [bool]$LocalArtifactInstallSupported,
+        [bool]$MarketplaceInstallSupported,
+        [string]$ProviderNativeInstallMode = 'provider-native-install',
+        [string]$MarketplaceInstallMode = 'marketplace',
+        [string]$SessionLoadOnlyMode = 'session-load-only',
+        [string]$ArtifactOnlyMode = 'artifact-only'
+    )
+
+    if ($LocalArtifactInstallSupported) {
+        return $ProviderNativeInstallMode
+    }
+
+    if ($MarketplaceInstallSupported) {
+        return $MarketplaceInstallMode
+    }
+
+    if ($CliAvailable) {
+        return $SessionLoadOnlyMode
+    }
+
+    return $ArtifactOnlyMode
+}
+
+function Get-ProviderCliLifecycleSupport {
+    param(
+        [Parameter(Mandatory)]
+        [string]$CliCommandName,
+
+        [string[]]$ValidateArguments = @(),
+        [string]$ValidatePattern,
+        [string[]]$InstallArguments = @(),
+        [string]$InstallScopePattern,
+        [string]$LocalArtifactPattern,
+        [string[]]$MarketplaceArguments = @(),
+        [string]$MarketplacePattern = 'marketplace',
+        [string]$ProviderNativeInstallMode = 'provider-native-install',
+        [string]$MarketplaceInstallMode = 'marketplace',
+        [string]$SessionLoadOnlyMode = 'session-load-only',
+        [string]$ArtifactOnlyMode = 'artifact-only'
+    )
+
+    $support = [ordered]@{
+        cliAvailable = $false
+        validateSupported = $false
+        localArtifactInstallSupported = $false
+        marketplaceInstallSupported = $false
+        installScopeSupported = $false
+        installMode = $ArtifactOnlyMode
+        installHelpSummary = $null
+    }
+
+    if (-not (Test-CommandAvailable $CliCommandName)) {
+        return [pscustomobject]$support
+    }
+
+    $support.cliAvailable = $true
+
+    if ($ValidateArguments.Count -gt 0) {
+        $support.validateSupported = Test-ProviderCliHelpSupport -CliCommandName $CliCommandName -Arguments $ValidateArguments -Pattern $ValidatePattern
+    }
+
+    if ($InstallArguments.Count -gt 0) {
+        $support.installHelpSummary = Get-ProviderCliHelpSummary -CliCommandName $CliCommandName -Arguments $InstallArguments
+        $support.installScopeSupported = Test-ProviderCliHelpSupport -CliCommandName $CliCommandName -Arguments $InstallArguments -Pattern $InstallScopePattern
+        $support.localArtifactInstallSupported = Test-ProviderCliHelpSupport -CliCommandName $CliCommandName -Arguments $InstallArguments -Pattern $LocalArtifactPattern
+    }
+
+    if ($MarketplaceArguments.Count -gt 0) {
+        $support.marketplaceInstallSupported = Test-ProviderCliHelpSupport -CliCommandName $CliCommandName -Arguments $MarketplaceArguments -Pattern $MarketplacePattern
+    }
+
+    $support.installMode = Resolve-ProviderCliInstallMode -CliAvailable $support.cliAvailable -LocalArtifactInstallSupported $support.localArtifactInstallSupported -MarketplaceInstallSupported $support.marketplaceInstallSupported -ProviderNativeInstallMode $ProviderNativeInstallMode -MarketplaceInstallMode $MarketplaceInstallMode -SessionLoadOnlyMode $SessionLoadOnlyMode -ArtifactOnlyMode $ArtifactOnlyMode
+
+    return [pscustomobject]$support
+}
+
+function Get-ClaudeCliLifecycleSupport {
+    return Get-ProviderCliLifecycleSupport \
+        -CliCommandName 'claude' \
+        -ValidateArguments @('plugin', 'validate', '--help') \
+        -ValidatePattern 'Validate a plugin' \
+        -InstallArguments @('plugin', 'install', '--help') \
+        -InstallScopePattern 'Installation scope: user, project, or local' \
+        -LocalArtifactPattern '(<path>|local path)' \
+        -MarketplaceArguments @('plugin', 'marketplace', '--help') \
+        -MarketplacePattern 'marketplace'
+}
+
 function Get-GalCoreCanonicalPackageSchema {
     <#
     .SYNOPSIS

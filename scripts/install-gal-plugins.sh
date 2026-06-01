@@ -202,46 +202,39 @@ invoke_claude_plugin_lifecycle() {
         exit 1
     fi
 
+    local support_json
+    support_json="$(get_claude_cli_lifecycle_support_json)"
+
     local cli_available=false
-    local validate_supported=false
-    local local_artifact_install_supported=false
-    local marketplace_install_supported=false
-    local install_scope_supported=false
-    local install_help_summary=''
-
-    if command_exists claude; then
+    if [[ "$(printf '%s' "$support_json" | jq -r '.cliAvailable')" == 'true' ]]; then
         cli_available=true
-        local validate_help
-        validate_help="$(claude plugin validate --help 2>&1 || true)"
-        if printf '%s' "$validate_help" | grep -q 'Validate a plugin'; then
-            validate_supported=true
-        fi
-
-        local install_help
-        install_help="$(claude plugin install --help 2>&1 || true)"
-        install_help_summary="$(printf '%s' "$install_help" | awk 'NF {print}' | head -n 3 | paste -sd ' ' -)"
-        if printf '%s' "$install_help" | grep -q 'Installation scope: user, project, or local'; then
-            install_scope_supported=true
-        fi
-        if printf '%s' "$install_help" | grep -Eq '<path>|local path'; then
-            local_artifact_install_supported=true
-        fi
-
-        local marketplace_help
-        marketplace_help="$(claude plugin marketplace --help 2>&1 || true)"
-        if printf '%s' "$marketplace_help" | grep -qi 'marketplace'; then
-            marketplace_install_supported=true
-        fi
     fi
 
-    local lifecycle_mode='artifact-only'
-    if $local_artifact_install_supported; then
-        lifecycle_mode='provider-native-install'
-    elif $marketplace_install_supported; then
-        lifecycle_mode='marketplace'
-    elif $cli_available; then
-        lifecycle_mode='session-load-only'
+    local validate_supported=false
+    if [[ "$(printf '%s' "$support_json" | jq -r '.validateSupported')" == 'true' ]]; then
+        validate_supported=true
     fi
+
+    local local_artifact_install_supported=false
+    if [[ "$(printf '%s' "$support_json" | jq -r '.localArtifactInstallSupported')" == 'true' ]]; then
+        local_artifact_install_supported=true
+    fi
+
+    local marketplace_install_supported=false
+    if [[ "$(printf '%s' "$support_json" | jq -r '.marketplaceInstallSupported')" == 'true' ]]; then
+        marketplace_install_supported=true
+    fi
+
+    local install_scope_supported=false
+    if [[ "$(printf '%s' "$support_json" | jq -r '.installScopeSupported')" == 'true' ]]; then
+        install_scope_supported=true
+    fi
+
+    local install_help_summary
+    install_help_summary="$(printf '%s' "$support_json" | jq -r '.installHelpSummary // empty')"
+
+    local lifecycle_mode
+    lifecycle_mode="$(printf '%s' "$support_json" | jq -r '.installMode')"
 
     local strict_passed=false
     if ! $cli_available; then
