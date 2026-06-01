@@ -116,8 +116,10 @@ function New-SetupContext {
         OpenCodeConfigFile = Join-Path $openCodeRoot 'opencode.json'
 
         ClaudeRoot = Join-Path $env:USERPROFILE '.claude'
+        ClaudeSkillsRoot = Join-Path $env:USERPROFILE '.claude\skills'
         ClaudePluginsRoot = Join-Path $env:USERPROFILE '.claude\plugins'
-        ClaudePluginInstallTarget = Join-Path $env:USERPROFILE '.claude\plugins\gal'
+        ClaudePluginInstallTarget = Join-Path $env:USERPROFILE '.claude\skills\gal'
+        ClaudeLegacyPluginInstallTarget = Join-Path $env:USERPROFILE '.claude\plugins\gal'
 
         AntigravityRoot = $antigravityRoot
         AntigravitySkillsTarget = Join-Path $antigravityRoot 'skills'

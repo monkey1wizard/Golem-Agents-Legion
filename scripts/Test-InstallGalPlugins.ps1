@@ -210,11 +210,20 @@ try {
     New-Item -ItemType Directory -Path (Split-Path -Parent $claudeLifecycleStatePath) -Force | Out-Null
     Set-Content -LiteralPath $claudeLifecycleStatePath -Value '{}' -Encoding utf8
 
+    $claudeSkillsRoot = Join-Path $testHome '.claude\skills'
+    $claudePluginsRoot = Join-Path $testHome '.claude\plugins'
+    New-Item -ItemType Directory -Path $claudeSkillsRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $claudePluginsRoot -Force | Out-Null
+    New-TestDirectoryLink -Path (Join-Path $claudeSkillsRoot 'gal') -Target $managedPluginStore
+    New-TestDirectoryLink -Path (Join-Path $claudePluginsRoot 'gal') -Target $managedPluginStore
+
     $machineConfigBeforeUninstall = Get-Content -LiteralPath $machineConfigPath -Raw -Encoding utf8
     $uninstallOutput = (& $uninstallScriptUnderTest -DryRun 6>&1 | Out-String)
     Assert-Contains $uninstallOutput '[OK] Install-mode uninstall owns AGY and Claude provider-lifecycle metadata cleanup.' 'Install-mode uninstall should be owned by install orchestration.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove AGY plugin install target:' 'Install-mode uninstall should preview AGY plugin removal.'
-    Assert-Contains $uninstallOutput '[DRY RUN] Would uninstall Claude plugin: claude plugin uninstall gal --scope user' 'Install-mode uninstall should preview Claude plugin uninstall.'
+    Assert-Contains $uninstallOutput '.claude\skills\gal' 'Install-mode uninstall should preview Claude skills projection cleanup.'
+    Assert-Contains $uninstallOutput '.claude\plugins\gal' 'Install-mode uninstall should preview Claude legacy projection cleanup.'
+    Assert-NotContains $uninstallOutput 'claude plugin uninstall gal --scope user' 'Install-mode uninstall should no longer use Claude marketplace uninstall.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL canonical plugin root:' 'Install-mode uninstall should preview canonical plugin-root removal.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed MCP projections:' 'Install-mode uninstall should preview GAL-managed MCP projection removal.'
     Assert-Contains $uninstallOutput '[DRY RUN] Would remove GAL-managed xmachine projections:' 'Install-mode uninstall should preview GAL-managed xmachine projection removal.'
@@ -267,16 +276,11 @@ try {
     if ($claudeLifecycleState.provider -ne 'claude') {
         throw 'Claude lifecycle state should record provider=claude.'
     }
-    if ($claudeLifecycleState.status -notin @('unprojected-artifact', 'refreshed-copy2-host')) {
+    if ($claudeLifecycleState.status -ne 'linked-projection') {
         throw "Claude lifecycle state should record an honest shared status. Actual: $($claudeLifecycleState.status)"
     }
-    if ($claudeLifecycleState.status -eq 'unsupported-lane') {
-        if ($null -ne $claudeLifecycleState.readSurface) {
-            throw 'Claude lifecycle state should leave readSurface empty when the lane is unsupported.'
-        }
-    }
-    elseif ($claudeLifecycleState.readSurface -ne $claudeLifecycleState.status) {
-        throw 'Claude lifecycle state should keep readSurface aligned to the actual read-surface vocabulary in this slice.'
+    if ($claudeLifecycleState.readSurface -ne 'linked-projection') {
+        throw 'Claude lifecycle state should record the linked projection read surface.'
     }
     if ($claudeLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
         throw 'Claude lifecycle state should record the canonical root under ~/.gal/plugins/gal.'
@@ -284,44 +288,22 @@ try {
     if ($claudeLifecycleState.packageOutputRoot -ne (Join-Path $testHome '.gal\dist\provider-plugins\claude\gal')) {
         throw 'Claude lifecycle state should record the package output root under ~/.gal/dist/provider-plugins/claude/gal.'
     }
-    if ($claudeLifecycleState.projectionRoot -ne (Join-Path $testHome '.claude\plugins\gal')) {
+    if ($claudeLifecycleState.projectionRoot -ne (Join-Path $testHome '.claude\skills\gal')) {
         throw 'Claude lifecycle state should record the provider-visible projection root.'
     }
     if ($claudeLifecycleState.cli.available -and $claudeLifecycleState.cli.validateSupported) {
         Assert-Contains $claudeLifecycleOutput '[OK] Claude plugin validation passed.' 'Claude lifecycle test should validate the artifact when Claude CLI validation is available.'
     }
 
-    $acceptedModes = @('artifact-only', 'session-load-only', 'marketplace')
+    $acceptedModes = @('artifact-only', 'session-load-only')
     if ($claudeLifecycleState.lifecycle.mode -notin $acceptedModes) {
         throw "Claude lifecycle state should record an honest lifecycle mode. Actual: $($claudeLifecycleState.lifecycle.mode)"
     }
     if ($claudeLifecycleState.cli.available -and $claudeLifecycleState.cli.validateSupported -and -not $claudeLifecycleState.validation.strictPassed) {
         throw 'Claude lifecycle state should mark strict validation passed when Claude CLI validation is available.'
     }
-    # Mode-dependent output assertions (placed after $claudeLifecycleState is set)
-    if ($claudeLifecycleState.lifecycle.mode -eq 'session-load-only') {
-        Assert-Contains $claudeLifecycleOutput '[OK] Session smoke command: claude --plugin-dir' 'Claude lifecycle test should record session-load fallback when marketplace is unavailable.'
-    }
-    elseif ($claudeLifecycleState.lifecycle.mode -eq 'marketplace') {
-        Assert-Contains $claudeLifecycleOutput "[OK] Installed Claude plugin 'gal' via marketplace" 'Claude lifecycle test should record successful marketplace install.'
-    }
-
-    # TP-002: marketplace manifest assertion
-    $marketplaceManifestPath = Join-Path $testHome '.gal\plugins\.claude-plugin\marketplace.json'
-    if ($claudeLifecycleState.lifecycle.mode -eq 'marketplace') {
-        if (-not (Test-Path $marketplaceManifestPath)) {
-            throw "Marketplace mode should produce marketplace manifest at $marketplaceManifestPath"
-        }
-        $marketplaceManifest = Get-Content -LiteralPath $marketplaceManifestPath -Raw -Encoding utf8 | ConvertFrom-Json
-        if ($marketplaceManifest.name -ne 'gal') {
-            throw "Marketplace manifest should have name=gal. Actual: $($marketplaceManifest.name)"
-        }
-        if ($marketplaceManifest.plugins[0].source -ne './gal') {
-            throw "Marketplace manifest plugin source should be './gal'. Actual: $($marketplaceManifest.plugins[0].source)"
-        }
-        if ($claudeLifecycleState.lifecycle.marketplaceRoot -ne (Join-Path $testHome '.gal\plugins')) {
-            throw "managed.json should record the correct marketplace root."
-        }
+    if ($claudeLifecycleState.lifecycle.marketplaceRoot) {
+        throw 'Claude lifecycle state should not keep a marketplace root after the skills-dir migration.'
     }
 
     # TP-004/005/006: Desktop transformer and safe-merge via isolated subprocess call to Update-Mcp.ps1

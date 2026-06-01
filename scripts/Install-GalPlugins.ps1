@@ -459,11 +459,13 @@ function Sync-ClaudePluginProjection {
         [pscustomobject]$Context
     )
 
-    Ensure-SetupDirectories @($Context.ClaudePluginsRoot)
+    Ensure-SetupDirectories @($Context.ClaudeSkillsRoot)
 
     if (-not (Test-Path $CanonicalRoot)) {
         throw "Claude canonical root not found for projection: $CanonicalRoot"
     }
+
+    Remove-SafeLink $Context.ClaudeLegacyPluginInstallTarget
 
     if (-not (New-SafeSymlink $Context.ClaudePluginInstallTarget $CanonicalRoot 'Directory')) {
         throw "Failed to project Claude plugin into $($Context.ClaudePluginInstallTarget)"
@@ -498,8 +500,8 @@ function Invoke-ClaudePluginLifecycle {
         installTarget = $Context.ClaudePluginInstallTarget
         manifestPath = $manifestPath
         generatedAt = (Get-Date -Format 'o')
-        status = 'unprojected-artifact'
-        readSurface = (Resolve-ProviderManagedReadSurface -Status 'unprojected-artifact')
+        status = 'linked-projection'
+        readSurface = (Resolve-ProviderManagedReadSurface -Status 'linked-projection')
         cli = [ordered]@{
             available = [bool]$support.cliAvailable
             validateSupported = [bool]$support.validateSupported
@@ -512,7 +514,7 @@ function Invoke-ClaudePluginLifecycle {
             strictPassed = $false
         }
         lifecycle = [ordered]@{
-            mode = [string]$support.installMode
+            mode = 'artifact-only'
             stagedPluginRoot = $null
             marketplaceRoot = $null
             marketplaceName = 'gal'
@@ -523,8 +525,8 @@ function Invoke-ClaudePluginLifecycle {
         }
         notes = @(
             'Artifact validation is supported when the local Claude CLI exposes `claude plugin validate <path>`.',
-            'Persistent install uses a local marketplace at ~/.gal/plugins/ registered via `claude plugin marketplace add`.',
-            'When marketplace install is unavailable, the supported smoke path is session loading via `claude --plugin-dir <artifact-root>`.'
+            'Persistent install projects ~/.claude/skills/gal to the canonical GAL plugin root.',
+            '~/.claude/plugins/gal is treated as a legacy location and is removed when GAL refreshes the Claude projection.'
         )
     }
 
@@ -539,6 +541,7 @@ function Invoke-ClaudePluginLifecycle {
     if (-not $support.cliAvailable) {
         Write-Host '  [WARN] Claude CLI not found on PATH; artifact is built but lifecycle validation is unavailable.' -ForegroundColor Yellow
         $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
+        Write-Host ("  [OK] Projected Claude skills root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
@@ -546,21 +549,15 @@ function Invoke-ClaudePluginLifecycle {
     if (-not $support.validateSupported) {
         Write-Host '  [WARN] Claude CLI is present but `claude plugin validate` is unavailable; recording artifact-only lifecycle status.' -ForegroundColor Yellow
         $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
+        Write-Host ("  [OK] Projected Claude skills root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
 
     if ($DryRun) {
         $state['lifecycle']['stagedPluginRoot'] = $Context.ClaudePluginInstallTarget
-        Write-Host ("  [DRY RUN] Would project Claude plugin into: {0}" -f $Context.ClaudePluginInstallTarget)
+        Write-Host ("  [DRY RUN] Would project Claude skills root into: {0}" -f $Context.ClaudePluginInstallTarget)
         Write-Host ("  [DRY RUN] Would run Claude plugin validation: claude plugin validate --strict `"{0}`"" -f $canonicalRoot)
-        if ($support.marketplaceInstallSupported) {
-            Install-ClaudePluginViaMarketplace -Context $Context -Replace:$Replace | Out-Null
-            $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
-        }
-        else {
-            Write-Host ("  [DRY RUN] Marketplace install unavailable; session smoke remains: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
-        }
         Write-ClaudeLifecycleState -Context $Context -State $state
         return
     }
@@ -571,25 +568,13 @@ function Invoke-ClaudePluginLifecycle {
     }
 
     $state['validation']['strictPassed'] = $true
+    $state['lifecycle']['mode'] = 'session-load-only'
     Write-Host '  [OK] Claude plugin validation passed.'
     $state['lifecycle']['stagedPluginRoot'] = Sync-ClaudePluginProjection -CanonicalRoot $canonicalRoot -Context $Context
-    Write-Host ("  [OK] Projected Claude plugin root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
+    Write-Host ("  [OK] Projected Claude skills root: {0}" -f $state['lifecycle']['stagedPluginRoot'])
 
-    if ($support.marketplaceInstallSupported) {
-        $marketplaceOk = Install-ClaudePluginViaMarketplace -Context $Context -Replace:$Replace
-        if ($marketplaceOk) {
-            $state['lifecycle']['mode'] = 'marketplace'
-            $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
-            $state['status'] = 'refreshed-copy2-host'
-            $state['readSurface'] = Resolve-ProviderManagedReadSurface -Status 'refreshed-copy2-host'
-        }
-    }
-    elseif ($support.localArtifactInstallSupported) {
+    if ($support.localArtifactInstallSupported) {
         Write-Host '  [OK] Claude CLI reports local artifact install support.'
-    }
-    else {
-        Write-Host '  [OK] Marketplace install unavailable; session-load fallback available.'
-        Write-Host ("  [OK] Session smoke command: claude --plugin-dir `"{0}`"" -f $canonicalRoot)
     }
 
     Write-ClaudeLifecycleState -Context $Context -State $state
@@ -621,23 +606,8 @@ if ($Uninstall) {
     Remove-GalManagedProviderShortcut -Provider 'agy'
     Remove-GalManagedDirectory -Path $script:SetupContext.AgyPluginInstallTarget -Label 'AGY plugin install target'
 
-    if (Test-CommandAvailable 'claude') {
-        if ($DryRun) {
-            Write-Host '  [DRY RUN] Would uninstall Claude plugin: claude plugin uninstall gal --scope user'
-            Write-Host '  [DRY RUN] Would remove GAL marketplace: claude plugin marketplace remove gal --scope user'
-        }
-        else {
-            & claude plugin uninstall gal --scope user 2>&1 | Out-Null
-            Write-Host '  [OK] Uninstalled Claude plugin: gal'
-            & claude plugin marketplace remove gal --scope user 2>&1 | Out-Null
-            Write-Host '  [OK] Removed GAL marketplace registration'
-        }
-    }
-    else {
-        Write-Host '  [SKIP] Claude CLI not available; skipping marketplace plugin uninstall.'
-    }
-
     Remove-SafeLink $script:SetupContext.ClaudePluginInstallTarget
+    Remove-SafeLink $script:SetupContext.ClaudeLegacyPluginInstallTarget
     Remove-GalManagedDirectory -Path $script:SetupContext.GalPluginsRoot -Label 'GAL canonical plugin root'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedMcpRoot -Label 'GAL-managed MCP projections'
     Remove-GalManagedDirectory -Path $script:SetupContext.GalGeneratedXmachineRoot -Label 'GAL-managed xmachine projections'
