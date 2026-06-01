@@ -499,7 +499,7 @@ function Invoke-ClaudePluginLifecycle {
         manifestPath = $manifestPath
         generatedAt = (Get-Date -Format 'o')
         status = 'unprojected-artifact'
-        readSurface = 'unprojected-artifact'
+        readSurface = (Resolve-ProviderManagedReadSurface -Status 'unprojected-artifact')
         cli = [ordered]@{
             available = [bool]$support.cliAvailable
             validateSupported = [bool]$support.validateSupported
@@ -581,7 +581,7 @@ function Invoke-ClaudePluginLifecycle {
             $state['lifecycle']['mode'] = 'marketplace'
             $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
             $state['status'] = 'refreshed-copy2-host'
-            $state['readSurface'] = 'refreshed-copy2-host'
+            $state['readSurface'] = Resolve-ProviderManagedReadSurface -Status 'refreshed-copy2-host'
         }
     }
     elseif ($support.localArtifactInstallSupported) {

@@ -66,6 +66,7 @@ function Write-ProviderManagedStateFromBuildPlan {
 
     $projectionRoot = if ($Plan.Provider -eq 'agy') { $Plan.InstallTarget } else { $null }
     $status = Resolve-ProviderManagedStateStatus -Mode $Plan.Mode -LifecycleStatus $Plan.LifecycleStatus -ProjectionRoot $projectionRoot
+    $readSurface = Resolve-ProviderManagedReadSurface -Status $status
     $statePath = Get-ProviderManagedStatePath -Provider $Plan.Provider -Context $Context
     $state = [ordered]@{
         schemaVersion = 1
@@ -77,7 +78,19 @@ function Write-ProviderManagedStateFromBuildPlan {
         shortcutTarget = $Plan.ShortcutTarget
         generatedAt = (Get-Date -Format 'o')
         status = $status
-        readSurface = $status
+        readSurface = $readSurface
+        cli = [ordered]@{
+            available = $false
+            validateSupported = $false
+            localArtifactInstallSupported = $false
+            marketplaceInstallSupported = $false
+            installScopeSupported = $false
+            installHelpSummary = $null
+        }
+        validation = [ordered]@{
+            command = $null
+            strictPassed = $false
+        }
         lifecycle = [ordered]@{
             mode = $Plan.Mode
             status = $Plan.LifecycleStatus

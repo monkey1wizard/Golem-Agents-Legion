@@ -96,6 +96,8 @@ write_provider_managed_state_from_build_plan() {
 
     local status
     status="$(resolve_provider_managed_state_status "$mode" "$lifecycle_status" "$projection_root")"
+    local read_surface
+    read_surface="$(resolve_provider_managed_read_surface "$status")"
     local state_path
     state_path="$(get_provider_managed_state_path "$provider")"
 
@@ -109,7 +111,7 @@ write_provider_managed_state_from_build_plan() {
         --arg shortcutTarget "$shortcut_target" \
         --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg status "$status" \
-        --arg readSurface "$status" \
+        --arg readSurface "$read_surface" \
         --arg mode "$mode" \
         --arg lifecycleStatus "$lifecycle_status" \
         '{
@@ -122,7 +124,19 @@ write_provider_managed_state_from_build_plan() {
             shortcutTarget: (if $shortcutTarget == "" then null else $shortcutTarget end),
             generatedAt: $generatedAt,
             status: $status,
-            readSurface: $readSurface,
+            readSurface: (if $readSurface == "" then null else $readSurface end),
+            cli: {
+                available: false,
+                validateSupported: false,
+                localArtifactInstallSupported: false,
+                marketplaceInstallSupported: false,
+                installScopeSupported: false,
+                installHelpSummary: null
+            },
+            validation: {
+                command: null,
+                strictPassed: false
+            },
             lifecycle: {
                 mode: $mode,
                 status: $lifecycleStatus

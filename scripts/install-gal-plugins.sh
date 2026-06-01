@@ -236,6 +236,8 @@ invoke_claude_plugin_lifecycle() {
     local lifecycle_mode
     lifecycle_mode="$(printf '%s' "$support_json" | jq -r '.installMode')"
     local provider_state_status='unprojected-artifact'
+    local provider_read_surface
+    provider_read_surface="$(resolve_provider_managed_read_surface "$provider_state_status")"
 
     local strict_passed=false
     if ! $cli_available; then
@@ -298,6 +300,7 @@ MANIFEST
                         echo "  [OK] Installed Claude plugin 'gal' via marketplace 'gal'."
                         lifecycle_mode='marketplace'
                         provider_state_status='refreshed-copy2-host'
+                        provider_read_surface="$(resolve_provider_managed_read_surface "$provider_state_status")"
                     else
                         echo "  [WARN] Failed to install Claude plugin 'gal' via marketplace." >&2
                     fi
@@ -317,7 +320,7 @@ MANIFEST
         --arg manifestPath "$manifest_path" \
         --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --arg status "$provider_state_status" \
-        --arg readSurface "$provider_state_status" \
+        --arg readSurface "$provider_read_surface" \
         --arg installHelpSummary "$install_help_summary" \
         --arg sessionLoadCommand "$session_load_command" \
         --arg installTemplate 'claude plugin install <plugin> --scope <scope>' \
@@ -341,7 +344,7 @@ MANIFEST
             manifestPath: $manifestPath,
             generatedAt: $generatedAt,
             status: $status,
-            readSurface: $readSurface,
+            readSurface: (if $readSurface == "" then null else $readSurface end),
             cli: {
                 available: $cliAvailable,
                 validateSupported: $validateSupported,

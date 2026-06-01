@@ -144,6 +144,16 @@ resolve_provider_managed_state_status() {
     printf '%s\n' 'unprojected-artifact'
 }
 
+resolve_provider_managed_read_surface() {
+    local status="$1"
+
+    if [[ "$status" == 'unsupported-lane' ]]; then
+        return 0
+    fi
+
+    printf '%s\n' "$status"
+}
+
 get_gal_core_canonical_package_schema() {
     jq -n '{
         schemaId: "gal-plugin-root-v2",

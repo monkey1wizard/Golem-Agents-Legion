@@ -270,8 +270,13 @@ try {
     if ($claudeLifecycleState.status -notin @('unprojected-artifact', 'refreshed-copy2-host')) {
         throw "Claude lifecycle state should record an honest shared status. Actual: $($claudeLifecycleState.status)"
     }
-    if ($claudeLifecycleState.readSurface -ne $claudeLifecycleState.status) {
-        throw 'Claude lifecycle state should keep readSurface aligned to the shared status vocabulary in this slice.'
+    if ($claudeLifecycleState.status -eq 'unsupported-lane') {
+        if ($null -ne $claudeLifecycleState.readSurface) {
+            throw 'Claude lifecycle state should leave readSurface empty when the lane is unsupported.'
+        }
+    }
+    elseif ($claudeLifecycleState.readSurface -ne $claudeLifecycleState.status) {
+        throw 'Claude lifecycle state should keep readSurface aligned to the actual read-surface vocabulary in this slice.'
     }
     if ($claudeLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
         throw 'Claude lifecycle state should record the canonical root under ~/.gal/plugins/gal.'

@@ -63,6 +63,8 @@ try {
     $canonicalValidation = Test-ProviderPluginPackage -Package $canonicalPackage
     $releaseMatrix = Get-Content -LiteralPath $releaseMatrixPath -Raw
 
+    Assert-True -Condition ((Resolve-ProviderManagedReadSurface -Status 'unsupported-lane') -eq $null) -Label 'TP-016: unsupported-lane does not masquerade as a read surface'
+
 Assert-True -Condition ($agyPlan.Mode -eq 'managed-shortcut') -Label 'TP-002: AGY build plan uses managed shortcut mode'
 Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Label 'TP-002: AGY shortcut target points to ~/.gal/active/agy'
 Assert-True -Condition ($copilotPlan.Mode -eq 'native-install') -Label 'TP-002: Copilot stays on native-install lane'
@@ -124,6 +126,7 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         Assert-True -Condition ($copilotLedger.status -eq 'unprojected-artifact' -and $copilotLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Copilot ledger records unprojected-artifact before native lifecycle wiring'
         Assert-True -Condition ($codexLedger.status -eq 'unprojected-artifact' -and $codexLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Codex ledger records unprojected-artifact before native lifecycle wiring'
         Assert-True -Condition ($claudeLedger.status -eq 'unprojected-artifact' -and $claudeLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Claude build ledger records unprojected-artifact before Claude lifecycle enrichment'
+        Assert-True -Condition ($agyLedger.PSObject.Properties.Name -contains 'cli' -and $agyLedger.PSObject.Properties.Name -contains 'validation') -Label 'TP-016: build-ledger shared shape includes cli and validation fields'
 
         # AGY: root plugin.json in the canonical root
         $agyRootPluginJsonPath = Join-Path $canonicalPluginRoot 'plugin.json'

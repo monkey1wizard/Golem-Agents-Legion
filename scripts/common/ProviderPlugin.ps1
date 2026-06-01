@@ -180,6 +180,18 @@ function Resolve-ProviderManagedStateStatus {
     return 'unprojected-artifact'
 }
 
+function Resolve-ProviderManagedReadSurface {
+    param(
+        [string]$Status
+    )
+
+    if ($Status -eq 'unsupported-lane') {
+        return $null
+    }
+
+    return $Status
+}
+
 function Get-GalCoreCanonicalPackageSchema {
     <#
     .SYNOPSIS
