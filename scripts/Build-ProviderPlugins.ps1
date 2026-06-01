@@ -146,20 +146,22 @@ try {
     else {
         $canonicalPluginRendered = $false
         foreach ($plan in $buildPlan) {
+            if ($plan.Renderer -ne 'Build-CorePlugin.ps1') {
+                continue
+            }
+
             if ($plan.Provider -eq 'agy') {
-                # Core renderer builds superset canonical root AND installs all 3 AGY surfaces
+                # AGY is the only lane that currently projects managed shortcuts during the build step.
                 & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
                 $canonicalPluginRendered = $true
                 Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
                 continue
             }
 
-            if ($plan.Provider -eq 'claude') {
-                if (-not $canonicalPluginRendered) {
-                    # Core renderer without -Install (Claude uses marketplace; no surface projection needed)
-                    & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
-                    $canonicalPluginRendered = $true
-                }
+            if (-not $canonicalPluginRendered) {
+                # Render the shared canonical root once for any selected native-install lane.
+                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
+                $canonicalPluginRendered = $true
             }
         }
     }

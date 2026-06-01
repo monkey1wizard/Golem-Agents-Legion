@@ -89,14 +89,14 @@ for local_provider in "${requested_providers[@]}"; do
                 exit 1
             fi
             ;;
-        claude)
+        copilot|codex|claude)
             if [[ "$canonical_plugin_rendered" != 'true' ]]; then
-                # Core renderer without --install (Claude uses marketplace; no surface projection needed)
+                # Render the shared canonical root once for any selected native-install lane.
                 "$SCRIPT_DIR/build-core-plugin.sh" "${core_args[@]}"
                 canonical_plugin_rendered=true
             fi
             ;;
-        copilot|codex|'') ;;
+        '') ;;
         *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
     esac
 done
