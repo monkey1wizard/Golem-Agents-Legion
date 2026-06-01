@@ -102,6 +102,7 @@ Validation is best-effort when no schema-capable validator is available in the c
 - The implementation task commit remains scoped to the implementation itself.
 - Doc-sync writes to NDJSON plus docs after task completion must go into a separate `docs(sync): <task>` commit.
 - Standalone reconcile may use `docs(sync): reconcile` or leave the result staged for the user to commit.
+- A no-op sync must not create an empty `docs(sync): ...` commit.
 - Doc-sync failure does not block the main task pipeline; it records the failure and stops cleanly.
 
 ## Write-Back Scope
