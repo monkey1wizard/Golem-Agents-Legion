@@ -24,6 +24,7 @@
 
 ## References
 
+- Prerequisite stabilization: [fix-install-ownership-stabilization.md](fix-install-ownership-stabilization.md) now owns the idempotent `Build-CorePlugin.*` / install-lifecycle stabilization that must land before this plan adds the Rust cargo-build hook to the renderer.
 - [Claude Code plugins](https://code.claude.com/docs/en/plugins) - plugin root `bin/` 中的 executables 在外掛啟用時加入 Bash tool 的 PATH。
 - [Claude Code plugins-reference](https://code.claude.com/docs/en/plugins-reference) - 官方規格實測（2026-06）：`bin/` 為固定慣例資料夾「Executables added to the Bash tool's PATH … invokable as bare commands while the plugin is enabled」；**`plugin.json` manifest schema 無 `bin`/`platform`/`arch`/`executable` 欄位，亦無任何跨 OS 二進位選擇機制**——多平台分發由發佈者自理。版本以 `plugin.json:version` 或（省略時）git commit SHA 解析。`${CLAUDE_PLUGIN_ROOT}` 為安裝目錄絕對路徑、更新後變動、不可寫狀態。
 - [docs/devguide.md](../devguide.md) - Claude plugin root 目前是 `~/.gal/plugins/gal/`。
@@ -58,8 +59,9 @@
 
 ### Step 3: Render Binary into the Plugin Artifact
 - **Files**: `scripts/Build-CorePlugin.ps1`、`scripts/build-core-plugin.sh`
-- **What**: GAL renderer 為**每台機器本機**產出 plugin root（非分發預編譯樹），故 render 時 `cargo build --release` 只產出**該機 OS** 的單一二進位，複製到 `bin/`：Unix 為無副檔名 `gal`（+x），Windows 為 `gal.exe`。`bin/` 依官方規格**不需在 `plugin.json` 宣告**。**不需 cross-compile / CI matrix**（每台機器各自 render 本機 OS binary）。
+- **What**: GAL renderer 為**每台機器本機**產出 plugin root（非分發預編譯樹），故 render 時 `cargo build --release` 只產出**該機 OS** 的單一二進位，複製到 `bin/`：Unix 為無副檔名 `gal`（+x），Windows 為 `gal.exe`。`bin/` 依官方規格**不需在 `plugin.json` 宣告**。**不需 cross-compile / CI matrix**（每台機器各自 render 本機 OS binary）。對 `Build-CorePlugin.*` 的改動**僅限新增此建置掛鉤**（cargo build + 複製 + Unix `chmod +x`），不重寫其既有編排語義。
 - **Verify**: 本機 render 出的 plugin 資料夾含對應本機 OS 的原生執行檔，且能被 Claude Code Bash tool 透過 PATH 直接執行。
+- **Verify（fail-loud）**: render 時若 `cargo` 不在 PATH，`Build-CorePlugin.*` 須以**清楚錯誤訊息**中止（指向 OQ-003：renderer 本機即需 Rust 工具鏈），不得產出缺 `bin/gal` 的半成品 plugin。
 
 ### Step 4: Update Documentation & Command Contracts
 - **Files**: `scripts/scripts.md`、`README.md`、`README.zh-Hant.md`、`docs/devguide.md`、`commands/gal/SKILL.template.md` 等
@@ -91,6 +93,8 @@
 | **xmachine 執行車道** | Invoke-XmachinePipeline(510)、Invoke-XmachineTask(472)、Start-xMachine(298)、Get-XmachineRemoteResult(190)…（Test-Xmachine 763 為測試） | ~1,760 核心 | **候選 E**——**部署對象不同**（遠端節點），是唯一可能正當的第二顆 bin 驅動 |
 
 **結論**：看似「檔案很多」的量體（~6.2k 行、過半）幾乎全在安裝/設定編排，而那**不是 bin 候選**。真正的 agent-runtime 確定性 bin 候選（A/B/C/D）量體小且內聚——A（doc-sync）與 D（工時）目前甚至無對應 scripts。扣除安裝/設定後，**單一 `gal` bin + 子命令完全可行**（git/cargo 承載遠多於此）。
+
+**「排除」≠「不碰」（安裝腳本邊界澄清）**：安裝/設定編排被列為**非 bin 候選**，指的是其**編排邏輯不被 Rust 原生取代**（續留 PowerShell/bash），**不**代表 Phase 1 完全不觸碰任何安裝腳本。Phase 1 仍會**修改一支** render/build 腳本——`Build-CorePlugin.*`（屬上表「安裝/設定編排」群組，588 行）——但僅為**最小整合掛鉤**：插入 `cargo build --release` 並把本機 OS 二進位複製進 plugin root 的 `bin/`。這是「放置編譯產物的接縫」，與「把安裝編排邏輯改寫成 Rust」是兩件事。判準：Phase 1 對安裝腳本的改動**只增建置掛鉤、不重寫編排語義**；任何要求改寫 symlink/junction/MCP 合併/adapter 生成語義的需求，仍受架構升級柵欄（OE-01）擋下、退回 `/deep-planning`。
 
 ### 為什麼這些要原生化（跨 runtime × OS 矩陣）
 
@@ -190,7 +194,8 @@ End-state（隨候選 A–D 原生化逐步達成）：直譯器無關、bin 不
 
 ## Risks
 
-- **編譯工具鏈依賴（已決策接受）**：dev 本機須裝 Rust。決定：接受、不提供預編譯 fallback（renderer 本機即需 cargo）。跨平台編譯複雜度已迴避（每台機器只 render 自己 OS 的 binary）。
+- **編譯工具鏈依賴（已決策接受）**：dev 本機須裝 Rust。決定：接受、不提供預編譯 fallback（renderer 本機即需 cargo）。跨平台編譯複雜度已迴避（每台機器只 render 自己 OS 的 binary）。**行為變更**：本案後 `Build-CorePlugin.*` render 將**硬性要求 cargo 在場**（先前不需）。緩解：render 時 cargo 缺席須 fail-loud（見 Step 3 Verify），避免產出缺 `bin/gal` 的半成品 plugin。
+- **安裝腳本邊界誤判（範圍蔓延變體）**：因 Phase 1 仍會修改 `Build-CorePlugin.*`，後續實作可能被誘導順手把安裝編排語義也「一起原生化/重寫」。緩解：對安裝腳本只准新增建置掛鉤（cargo build + 複製 + chmod），任何編排語義改寫一律退回 `/deep-planning`（OE-01 柵欄）。
 - **漸進式轉移同步問題**：Phase 1 仍呼叫 `scripts/`，引數傳遞寫錯會導致指令失效。緩解：`clap` 的 `TrailingVarArg` 須正確處理，並對每個轉傳指令做對照測試。
 - **候選 B 收斂閘 binize 回歸**：三面收斂閘現由 pipeline 散文 STOP 把守；binize 後 exit-code 契約若錯，可能放行已 commit 的跨檔歧異。緩解：shadow 期（見 OQ-006）。
 - **候選 B 變第二記憶層**：state 引擎若落地新狀態檔即違反 File-System Memory Contract。緩解：bin 只投影既有檔案 + 回 exit code、不落地任何新檔；readiness/路由留 AI。
@@ -203,16 +208,18 @@ End-state（隨候選 A–D 原生化逐步達成）：直譯器無關、bin 不
 ## Approval
 
 - Human approval: [pending]
-- Architect review: **APPROVE**（2026-06-01；見 `## Review Results`）。轉換範圍盤點證明 bin 候選量體小 → 單一 `gal` bin + `gal-core` 共用 crate；安裝/設定編排排除、續留 scripts。OQ-001/002/003/004/005/007 結案，OE-01 過度範圍已修正。剩 OQ-006 為 Phase-2 施工細節、不阻斷。
+- Architect review: **APPROVE**（2026-06-01，第二輪再確認；見 `## Review Results`）。轉換範圍盤點證明 bin 候選量體小 → 單一 `gal` bin + `gal-core` 共用 crate；安裝/設定編排排除、續留 scripts。第二輪複審確認「安裝腳本邊界」無範圍回歸：Phase 1 對 `Build-CorePlugin.*` 僅加 cargo 建置掛鉤、不重寫編排語義；新增 fail-loud 與「只准加掛鉤」兩護欄。OQ-001/002/003/004/005/007 結案，OE-01 過度範圍已修正。剩 OQ-006 為 Phase-2 施工細節、不阻斷。
 - Additional domain review: [not triggered]（無 customer-facing / business-rule 內容）
 
 ## Review Results
 
 ### Architecture Review
 
-#### Verdict: APPROVE（2026-06-01）
+#### Verdict: APPROVE（2026-06-01；第二輪 deep-planning 再確認）
 
 策略方向正確：控制平面向直譯器無關的編譯二進位靠攏，理由是 runtime × OS 矩陣下無普遍直譯器（非效能）。經三輪 deep-planning 收斂後無阻斷項。
+
+**第二輪再審（安裝腳本邊界）**：本輪複審聚焦「計畫是否把安裝腳本拉進範圍」之疑慮。結論：**邊界一致、無範圍回歸**。澄清點——「安裝/設定編排排除」指**編排語義不被 Rust 取代**，非「Phase 1 不碰任何安裝腳本」；Phase 1 確會修改 `Build-CorePlugin.*`（屬安裝群組）但僅新增 cargo 建置掛鉤（編譯產物放置接縫），不重寫其編排語義。此區分已寫入「安裝腳本邊界澄清」段、Step 3 Verify 與 Risks。新增兩道護欄：(1) render 時 cargo 缺席須 fail-loud；(2) 安裝腳本只准加建置掛鉤、任何編排語義改寫退回 `/deep-planning`。OE-01 柵欄續生效，verdict 維持 APPROVE。
 
 **關鍵決策依據（轉換範圍盤點）**：看似龐大的 scripts 量體（PS1 ~11.6k 行 / 32 檔）過半（~6.2k）是安裝/設定編排，而那不是 bin 候選——安裝期一次性、互動執行、直譯器必在場，bin 的直譯器無關性不適用。扣除後，真正的 agent-runtime 確定性 bin 候選（A–D）量體小且內聚。→ 單一 `gal` bin + 子命令完全可行，crate 邊界（OQ-004）因此收斂為單 bin。
 

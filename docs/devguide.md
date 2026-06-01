@@ -92,11 +92,11 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 
 | Runtime | Machine-layer install | Command surface | Notes |
 | --- | --- | --- | --- |
-| Copilot | `~/.copilot/installed-plugins/<marketplace>/gal/` (plugin lifecycle projection) | plugin-provided agents and skills from the installed GAL package | plugin-only runtime; GAL should not project legacy source-mode links into `~/.copilot/agents/` or `~/.copilot/skills/` |
+| Copilot | `~/.copilot/installed-plugins/gal-copilot/gal/` (link-first projection when possible, refreshed host copy otherwise) | plugin-provided agents and skills from the installed GAL package | plugin-only runtime; GAL should not project legacy source-mode links into `~/.copilot/agents/` or `~/.copilot/skills/`; `~/.copilot/gal/` is legacy source-mode only |
 | Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
 | Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
-| Codex CLI | `~/.codex/skills/` and shared `~/.agents/skills/` | installed named skills | uses `$skill` invocation, not custom slash commands |
-| Claude Code | `~/.gal/plugins/gal/` canonical plugin root with provider-visible projection at `~/.claude/plugins/gal/` | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root; `~/.gal/dist/` only carries package output plus managed metadata |
+| Codex CLI | provider-managed marketplace registration plus `gal@gal-marketplace` install target | installed plugin content via provider-native lifecycle | uses marketplace registration instead of repo-root skill links; GAL records lifecycle state even when the provider-managed read surface stays opaque |
+| Claude Code | `~/.gal/plugins/gal/` canonical plugin root with provider-visible projection at `~/.claude/skills/gal/` | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root; the local read surface is the skills-dir projection, not `~/.claude/plugins/gal/` |
 
 ### Layer 1.5 Install Topology
 
@@ -105,9 +105,9 @@ Naming note: upstream docs still use the full product name `Antigravity CLI` and
 | `agent/*.agent.md` | `~/.copilot/installed-plugins/<marketplace>/gal/agents/<name>.md` (filtered projection) | not installed | `~/.gemini/antigravity-cli/plugins/gal/agy-agents/<name>.agent.md` | not installed | `~/.gal/plugins/gal/agents/<name>.md` |
 | `skills/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
 | `commands/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/commands/<command>.md` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
-| `~/.gal/` | `~/.copilot/gal/` | not required | not required | not required | not required |
+| `~/.gal/` | legacy source-mode shortcut only (`~/.copilot/gal/`) | not required | not required | not required | not required |
 | `~/.gal/source/` | not required | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | not required | not required |
-| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/<marketplace>/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | marketplace/plugin projection | `~/.claude/plugins/gal/` provider-visible projection |
+| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/gal-copilot/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | provider-managed marketplace delivery from the canonical artifact | `~/.claude/skills/gal/` provider-visible projection |
 
 ### Generated Runtime Files
 
@@ -177,7 +177,7 @@ Provider-owned config still stays user-owned. GAL only takes ownership of the se
 
 ### Why `GAL_ROOT` Exists
 
-`~/.copilot/gal/` gives Copilot one stable path to GAL's machine-local state and generated output root at `~/.gal/`. `~/.gemini/gal/` remains a legacy Gemini compatibility link back to `~/.gal/source/` until the Gemini bridge is retired.
+`~/.copilot/gal/` is now a legacy source-mode shortcut that points at `~/.gal/` and is classified by the provider doctor as a cleanup candidate in install mode. `~/.gemini/gal/` remains a legacy Gemini compatibility link back to `~/.gal/source/` until the Gemini bridge is retired.
 
 For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces the old `~/.gemini/antigravity-cli/gal/` symlink as the managed install surface. The plugin is self-contained and does not require an external `GAL_ROOT` symlink; setup removes the legacy `GAL_ROOT` symlink during pre-cleanup.
 
@@ -233,14 +233,15 @@ Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directo
 
 Current implementation status:
 
-- AGY is still the only provider-native lifecycle slice verified end to end in install mode today.
-- Claude Code now has a real renderer, strict `claude plugin validate` support when the local CLI exposes it, lifecycle-state tracking, legacy projection cleanup, and session-load smoke support. Provider-native direct install, update, and uninstall are still not verified because the local CLI does not currently document local artifact install/update/uninstall.
-- Copilot CLI and Codex remain native-install target lanes in the architecture, but their concrete installer/update/uninstall flows are not implemented yet.
+- AGY, Claude, Copilot, and Codex all have concrete install-mode lifecycle slices plus per-provider `managed.json` ledgers under `~/.gal/dist/providers/`.
+- Claude Code now projects the canonical plugin root through `~/.claude/skills/gal/`, keeps lifecycle-state tracking plus legacy projection cleanup, and uses CLI validation when the local `claude` binary exposes it.
+- Copilot prefers a link-first projection at `~/.copilot/installed-plugins/gal-copilot/gal/` and falls back to `refreshed-copy2-host` with a manifest-version bump when host-copy refresh is required.
+- Codex now owns its marketplace registration/install lifecycle independently of AGY, while still recording `unprojected-artifact` when the provider-managed read surface remains opaque.
 - Bootstrap packaging, official install channels, and marketplace discoverability do not belong to this install-mode surface; they are handled by the separate bootstrap-installer planning track.
 
 ### Future Renderer Sequence
 
-After AGY and Claude renderer validation, the remaining planned renderer sequence is: Copilot CLI → Codex. Claude still has open lifecycle-verification work, but its renderer is no longer pending. No future renderer should copy the AGY layout.
+The core renderer sequence is complete for AGY, Claude, Copilot, and Codex. Remaining follow-up work lives in bootstrap packaging, binary delivery, and documentation alignment rather than adding another core-provider renderer.
 
 ## Distribution Architecture and Ownership Boundaries
 
@@ -291,7 +292,7 @@ The decisive rule is simple: upgrades may refresh the payload, the lockfile, and
 Default uninstall must stay narrower than a machine reset.
 
 - **Package-manager uninstall**: removes only the package-managed `gal` payload. It must not delete `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, or secret-bearing sources.
-- **GAL-managed uninstall**: removes GAL-owned runtime outputs that can be rebuilt, including provider-native plugin install targets that GAL owns, `~/.gal/store/plugins`, and generated projections under `~/.gal/generated/mcp`, `~/.gal/generated/xmachine`, and `~/.gal/generated/providers`.
+- **GAL-managed uninstall**: removes GAL-owned runtime outputs that can be rebuilt, including provider-native plugin install targets that GAL owns, the canonical plugin roots under `~/.gal/plugins/`, and generated projections or ledgers under `~/.gal/generated/` and `~/.gal/dist/providers/`.
 - **Preserved surfaces**: uninstall keeps the user's machine intent intact. That includes install/source mode choice, `galRoot`, `devMode`, xmachine bindings, lockfile state, explicit local overrides, and secret sources.
 - **No implicit second runtime**: uninstall must not leave behind a second GAL-managed runtime tree that the next install would treat as authoritative. Rebuildable GAL-owned runtime outputs are removed; preserved user-owned config remains as input for the next install.
 
@@ -315,7 +316,7 @@ Purge or reset is a separate destructive lane, not part of default uninstall.
 When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
 
 - **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
-- **GAL-Managed Runtime and Generated State**: `~/.gal/store/plugins`, `~/.gal/generated/mcp`, `~/.gal/generated/xmachine`, `~/.gal/generated/providers`, and provider-native plugin installations that GAL explicitly owns. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
+- **GAL-Managed Runtime and Generated State**: canonical plugin roots under `~/.gal/plugins/`, generated MCP and xmachine state, and per-provider ledgers under `~/.gal/dist/providers/`, plus provider-native plugin installations that GAL explicitly owns. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
 - **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall or default GAL-managed uninstall. Full deletion requires an explicit, destructive purge flow.
 
 During upgrade, treat `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret-bearing sources as read-preserve surfaces. The installer may read them to determine install mode, provider selection, or migration steps, but it must not replace them with defaults merely because a newer bootstrap payload was installed.
@@ -370,10 +371,10 @@ Core layout under `~/.gal/`:
 | `~/.gal/config/config.json` | user-managed machine config: personalization, plugin/profile/provider selections, `galRoot`, `devMode` |
 | `~/.gal/config/xmachine.json` | machine-local xmachine binding: node aliases, machine profiles, local overrides |
 | `~/.gal/state/plugins.lock.json` | resolved lockfile: installed sources, versions, checksums, component maps |
-| `~/.gal/store/plugins/` | GAL-managed store of canonical packages and companion plugins |
+| `~/.gal/plugins/` | GAL-managed canonical plugin roots and companion plugin content |
 | `~/.gal/generated/mcp/managed.json` | GAL-produced MCP projection, replaces repo-root `mcp.local.json` in install mode |
 | `~/.gal/generated/xmachine/managed.json` | GAL-produced xmachine projection |
-| `~/.gal/generated/providers/` | GAL-produced provider config projections |
+| `~/.gal/dist/providers/` | GAL-produced provider lifecycle ledgers and managed metadata |
 | `~/.gal/active/<provider>/` | stable shortcut targets for AI tools; consumers do not point directly at store paths |
 
 The `plugins/catalog.json` in the repo is the authoritative catalog source and metadata registry. The `~/.gal/state/plugins.lock.json` is the deterministic machine-local resolution that can be backed up, transferred, and re-resolved.

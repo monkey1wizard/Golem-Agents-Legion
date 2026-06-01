@@ -6,7 +6,8 @@ This document is a maintainer navigation map for GAL install work. It is not a s
 
 - The currently supported hands-on path in this repo is still the contributor/source path: clone GAL, run `Setup-Machine.*`, then use `/gal init` from the target repository.
 - The future end-user package path is defined by the bootstrap distribution contract, but package-manager install lanes are not shipped end to end in this repo yet.
-- The machine-local runtime content owner is `~/.gal/plugins/gal/`. Provider-visible paths such as `~/.claude/plugins/gal`, `~/.gemini/antigravity-cli/plugins/gal`, or `~/.gal/active/<provider>/` are projections or aliases.
+- The machine-local runtime content owner is `~/.gal/plugins/gal/`. Provider-visible paths such as `~/.claude/skills/gal`, `~/.copilot/installed-plugins/gal-copilot/gal`, `~/.gemini/antigravity-cli/plugins/gal`, or `~/.gal/active/<provider>/` are projections or aliases.
+- `Install-GalPlugins.* -Check` and `Setup-Machine.* -Check` are the read-only provider doctor entrypoints. They classify canonical content, projections, host-managed copies, and legacy GAL artifacts without mutating machine state.
 - Bootstrap CLI installation and provider plugin installation are separate concerns. Do not fix one by widening ownership in the other.
 
 ## Owning Surfaces
@@ -55,6 +56,7 @@ winget / Homebrew / GitHub Release payload
 - `Setup-Machine.*` is the development and packaging harness. It should mirror the install-mode rules, but it is not the final end-user package payload.
 - Package managers own only the package-managed `gal` binary payload.
 - GAL owns rebuildable runtime outputs such as provider projections, generated MCP state, generated xmachine state, and the canonical plugin root.
+- GAL also owns the per-provider ledgers under `~/.gal/dist/providers/<provider>/managed.json`; provider directories outside provable GAL-managed projections remain host-owned or user-owned.
 - Users own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources.
 - `~/.gal/dist/` is package output, conversion output, managed metadata, or dev-mode isolation. It is not the runtime source of truth.
 - Install mode must not depend on repo-root links, baked local checkout paths, or hidden `GAL_ROOT` assumptions.
