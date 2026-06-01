@@ -8,6 +8,9 @@
 #   4. update-mcp.sh
 #   5. install-gal-plugins.sh
 #
+# `--check` / `--doctor` short-circuit that chain and delegate directly to
+# install-gal-plugins.sh so the provider doctor surface stays read-only.
+#
 # The tracked repo remains the source of truth for agents, skills, commands, and MCP.
 # Copilot skills and agents stay shared, but MCP is written separately for
 # VS Code Copilot and Copilot CLI.
@@ -58,6 +61,20 @@ SETUP_INSTALL_MODE="$(get_configured_install_mode)"
 previous_bootstrap_env="${GAL_BOOTSTRAP_INSTALL-}"
 if $BOOTSTRAP_INSTALL; then
     export GAL_BOOTSTRAP_INSTALL=true
+fi
+
+if $CHECK_ONLY; then
+    echo ''
+    echo '>>> Running Install Check'
+    "$SCRIPT_DIR/install-gal-plugins.sh" --selected-runtimes "$SELECTED_RUNTIMES_CSV" --primary-runtime "$PRIMARY_RUNTIME" --check
+    if [ -n "$previous_bootstrap_env" ]; then
+        export GAL_BOOTSTRAP_INSTALL="$previous_bootstrap_env"
+    else
+        unset GAL_BOOTSTRAP_INSTALL
+    fi
+    echo ''
+    echo 'Check complete. No changes made.'
+    exit 0
 fi
 
 # --- AGY legacy pre-cleanup ---

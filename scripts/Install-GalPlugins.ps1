@@ -1061,7 +1061,7 @@ function Invoke-GalProviderDoctor {
     }
 
     Write-Host 'USER-OWNED-UNKNOWN:'
-    $unknownItems = Get-CopilotDoctorUnknownItems -Context $Context
+    $unknownItems = @(Get-CopilotDoctorUnknownItems -Context $Context)
     if ($unknownItems.Count -gt 0) {
         foreach ($unknownItem in $unknownItems) {
             Write-Host ("  [INFO] {0} — user-owned or unknown Copilot artifact" -f $unknownItem)

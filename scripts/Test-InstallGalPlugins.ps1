@@ -135,6 +135,11 @@ try {
     Assert-Contains $checkOutput '.copilot\custom-user-note.txt' 'Doctor check should preserve visibility into user-owned unknown Copilot files.'
     Assert-Contains $checkOutput 'host copy diverges from canonical' 'Doctor check should report stale Copilot host copies.'
 
+    $setupCheckOutput = (& $setupScriptUnderTest -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Check 6>&1 | Out-String)
+    Assert-Contains $setupCheckOutput '=== GAL provider doctor ===' 'Setup-Machine -Check should delegate to the install doctor surface.'
+    Assert-NotContains $setupCheckOutput '>>> Running Personalization' 'Setup-Machine -Check should bypass the normal concern chain.'
+    Assert-NotContains $setupCheckOutput 'Would seed machine config' 'Setup-Machine -Check should keep the doctor path read-only.'
+
     if (Test-Path $legacyCopilotGalRoot) {
         Remove-Item -LiteralPath $legacyCopilotGalRoot -Force
     }

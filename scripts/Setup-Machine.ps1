@@ -38,6 +38,7 @@
     .\scripts\Setup-Machine.ps1
     .\scripts\Setup-Machine.ps1 -Replace
     .\scripts\Setup-Machine.ps1 -DryRun
+    .\scripts\Setup-Machine.ps1 -Check
     .\scripts\Setup-Machine.ps1 -Reconfigure
     .\scripts\Setup-Machine.ps1 -Uninstall
     .\scripts\Setup-Machine.ps1 -Uninstall -Purge -DryRun
@@ -50,6 +51,7 @@ param(
     [switch]$ConfirmPurge,
     [switch]$Replace,
     [switch]$DryRun,
+    [switch]$Check,
     [switch]$Reconfigure,
     [switch]$BootstrapInstall,
     [string[]]$SelectedRuntimes,
@@ -90,9 +92,26 @@ if ($BootstrapInstall) {
     $env:GAL_BOOTSTRAP_INSTALL = '1'
 }
 
-$context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep
+$context = Initialize-SetupSession -EntryScriptPath $MyInvocation.MyCommand.Path -Uninstall:$Uninstall -Replace:$Replace -DryRun:$DryRun -Reconfigure:$Reconfigure -SelectedRuntimes $SelectedRuntimes -PrimaryRuntime $PrimaryRuntime -EnsureRipgrep:(!$Check)
 $context | Add-Member -NotePropertyName BootstrapInstall -NotePropertyValue $BootstrapInstall.IsPresent -Force
 $installMode = Get-ConfiguredInstallMode -Context $context -BootstrapInstall:$BootstrapInstall
+
+if ($Check) {
+    Write-Host ''
+    Write-Host '>>> Running Install Check'
+    & (Join-Path $PSScriptRoot 'Install-GalPlugins.ps1') -RepoRoot $context.RepoRoot -SelectedRuntimes @($context.SelectedRuntimes) -PrimaryRuntime $context.PrimaryRuntime -Check
+
+    if ($null -eq $previousBootstrapEnv) {
+        Remove-Item Env:GAL_BOOTSTRAP_INSTALL -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:GAL_BOOTSTRAP_INSTALL = $previousBootstrapEnv
+    }
+
+    Write-Host ''
+    Write-Host 'Check complete. No changes made.'
+    return
+}
 
 # --- AGY legacy pre-cleanup ---
 # Remove all GAL-managed AGY legacy surfaces before any concern script runs.

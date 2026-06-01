@@ -315,6 +315,7 @@ parse_setup_args() {
     CONFIRM_PURGE=false
     REPLACE=false
     DRY_RUN=false
+    CHECK_ONLY=false
     RECONFIGURE=false
     SELECTED_RUNTIMES_CSV=""
     PRIMARY_RUNTIME=""
@@ -327,6 +328,7 @@ parse_setup_args() {
             --bootstrap-install) BOOTSTRAP_INSTALL=true ;;
             --replace) REPLACE=true ;;
             --dry-run) DRY_RUN=true ;;
+            --check|--doctor) CHECK_ONLY=true ;;
             --reconfigure) RECONFIGURE=true ;;
             --selected-runtimes)
                 shift
