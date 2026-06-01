@@ -48,6 +48,12 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 
 - Always get today's date first, then use that date when querying for the latest information or other time-sensitive context.
 
+## Project Language
+
+- `PROJECT_LANGUAGE`: `en`
+- Canonical docs use the main filename with no language infix (for example `README.md`).
+- Translation copies use `<name>.<lang>.md` (for example `README.zh-Hant.md`).
+
 ## Protected Paths
 
 - `commands/` — changing the public command surface affects every runtime.

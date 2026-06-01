@@ -43,6 +43,12 @@ If this is a Godot C# repo, record the split explicitly:
 
 - [Constraint 1] — [reason]
 
+## Project Language
+
+- `PROJECT_LANGUAGE`: [BCP-47 tag for the canonical documentation language, e.g. `en`, `zh-TW`]
+- Canonical docs use the main filename with no language infix (for example `README.md`).
+- Translation copies use `<name>.<lang>.md` (for example `README.zh-Hant.md`).
+
 ## Protected Paths
 
 - [path/or/file] — [why touching this should force a return to /deep-planning before implementation continues]
