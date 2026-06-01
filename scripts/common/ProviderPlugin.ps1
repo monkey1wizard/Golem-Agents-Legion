@@ -140,6 +140,46 @@ function Get-ClaudeCliLifecycleSupport {
         -MarketplacePattern 'marketplace'
 }
 
+function Get-ProviderManagedStatePath {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Provider,
+        [pscustomobject]$Context
+    )
+
+    $providersRoot = if ($null -ne $Context -and $Context.PSObject.Properties.Name -contains 'GalGeneratedProvidersRoot') {
+        $Context.GalGeneratedProvidersRoot
+    }
+    else {
+        Join-Path (Get-GalUserHome) '.gal\dist\providers'
+    }
+
+    return Join-Path $providersRoot ("{0}\managed.json" -f $Provider)
+}
+
+function Resolve-ProviderManagedStateStatus {
+    param(
+        [string]$Mode,
+        [string]$LifecycleStatus,
+        [string]$ProjectionRoot,
+        [bool]$RefreshedCopyToHost = $false
+    )
+
+    if ($RefreshedCopyToHost) {
+        return 'refreshed-copy2-host'
+    }
+
+    if ($LifecycleStatus -eq 'unsupported-lane') {
+        return 'unsupported-lane'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ProjectionRoot) -or $Mode -eq 'managed-shortcut') {
+        return 'linked-projection'
+    }
+
+    return 'unprojected-artifact'
+}
+
 function Get-GalCoreCanonicalPackageSchema {
     <#
     .SYNOPSIS

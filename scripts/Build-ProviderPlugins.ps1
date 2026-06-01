@@ -57,6 +57,46 @@ function Set-ProviderShortcutTarget {
     }
 }
 
+function Write-ProviderManagedStateFromBuildPlan {
+    param(
+        [pscustomobject]$Plan,
+        [pscustomobject]$Context,
+        [bool]$DryRunMode
+    )
+
+    $projectionRoot = if ($Plan.Provider -eq 'agy') { $Plan.InstallTarget } else { $null }
+    $status = Resolve-ProviderManagedStateStatus -Mode $Plan.Mode -LifecycleStatus $Plan.LifecycleStatus -ProjectionRoot $projectionRoot
+    $statePath = Get-ProviderManagedStatePath -Provider $Plan.Provider -Context $Context
+    $state = [ordered]@{
+        schemaVersion = 1
+        provider = $Plan.Provider
+        canonicalRoot = $Plan.CanonicalRoot
+        packageOutputRoot = $Plan.PackageOutputRoot
+        projectionRoot = $projectionRoot
+        installTarget = $Plan.InstallTarget
+        shortcutTarget = $Plan.ShortcutTarget
+        generatedAt = (Get-Date -Format 'o')
+        status = $status
+        readSurface = $status
+        lifecycle = [ordered]@{
+            mode = $Plan.Mode
+            status = $Plan.LifecycleStatus
+        }
+        notes = @(
+            'Base provider ledger written from the provider build plan.',
+            'Later lifecycle-specific tasks may enrich this file with provider-native validation and install details.'
+        )
+    }
+
+    if ($DryRunMode) {
+        Write-Host ("[DRY RUN] Would write {0} managed state: {1}" -f $Plan.Provider, $statePath)
+        return
+    }
+
+    Write-JsonOrderedMap $statePath $state
+    Write-Host ("[OK] Wrote {0} managed state: {1}" -f $Plan.Provider, $statePath)
+}
+
 $resolverScript = Join-Path $PSScriptRoot 'Resolve-GalCatalog.ps1'
 if (-not (Test-Path $resolverScript)) {
     throw "Catalog resolver not found: $resolverScript"
@@ -163,6 +203,10 @@ try {
                 & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
                 $canonicalPluginRendered = $true
             }
+        }
+
+        foreach ($plan in $buildPlan) {
+            Write-ProviderManagedStateFromBuildPlan -Plan $plan -Context $script:SetupContext -DryRunMode:$false
         }
     }
 

@@ -115,6 +115,35 @@ get_claude_cli_lifecycle_support_json() {
         }'
 }
 
+get_provider_managed_state_path() {
+    local provider="$1"
+    printf '%s\n' "$GAL_GENERATED_PROVIDERS_ROOT/$provider/managed.json"
+}
+
+resolve_provider_managed_state_status() {
+    local mode="$1"
+    local lifecycle_status="$2"
+    local projection_root="${3:-}"
+    local refreshed_copy_to_host="${4:-false}"
+
+    if [[ "$refreshed_copy_to_host" == 'true' ]]; then
+        printf '%s\n' 'refreshed-copy2-host'
+        return 0
+    fi
+
+    if [[ "$lifecycle_status" == 'unsupported-lane' ]]; then
+        printf '%s\n' 'unsupported-lane'
+        return 0
+    fi
+
+    if [[ -n "$projection_root" || "$mode" == 'managed-shortcut' ]]; then
+        printf '%s\n' 'linked-projection'
+        return 0
+    fi
+
+    printf '%s\n' 'unprojected-artifact'
+}
+
 get_gal_core_canonical_package_schema() {
     jq -n '{
         schemaId: "gal-plugin-root-v2",

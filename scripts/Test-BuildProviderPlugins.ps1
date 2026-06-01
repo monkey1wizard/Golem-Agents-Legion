@@ -104,6 +104,26 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
     $resolvedJsonPath = $plan.ResolvedPluginsFile
     try {
         & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $repoRoot -ResolvedPluginsFile $resolvedJsonPath -Force | Out-Null
+        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy', 'copilot', 'codex', 'claude') -Force | Out-Null
+
+        $agyLedgerPath = Join-Path $testHome '.gal\dist\providers\agy\managed.json'
+        $copilotLedgerPath = Join-Path $testHome '.gal\dist\providers\copilot\managed.json'
+        $codexLedgerPath = Join-Path $testHome '.gal\dist\providers\codex\managed.json'
+        $claudeLedgerPath = Join-Path $testHome '.gal\dist\providers\claude\managed.json'
+
+        $agyLedger = Get-Content -LiteralPath $agyLedgerPath -Raw | ConvertFrom-Json
+        $copilotLedger = Get-Content -LiteralPath $copilotLedgerPath -Raw | ConvertFrom-Json
+        $codexLedger = Get-Content -LiteralPath $codexLedgerPath -Raw | ConvertFrom-Json
+        $claudeLedger = Get-Content -LiteralPath $claudeLedgerPath -Raw | ConvertFrom-Json
+
+        Assert-True -Condition (Test-Path $agyLedgerPath) -Label 'TP-016: AGY build step writes managed.json ledger'
+        Assert-True -Condition (Test-Path $copilotLedgerPath) -Label 'TP-016: Copilot build step writes managed.json ledger'
+        Assert-True -Condition (Test-Path $codexLedgerPath) -Label 'TP-016: Codex build step writes managed.json ledger'
+        Assert-True -Condition (Test-Path $claudeLedgerPath) -Label 'TP-016: Claude build step writes managed.json ledger'
+        Assert-True -Condition ($agyLedger.status -eq 'linked-projection' -and $agyLedger.readSurface -eq 'linked-projection') -Label 'TP-016: AGY ledger records linked-projection read surface'
+        Assert-True -Condition ($copilotLedger.status -eq 'unprojected-artifact' -and $copilotLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Copilot ledger records unprojected-artifact before native lifecycle wiring'
+        Assert-True -Condition ($codexLedger.status -eq 'unprojected-artifact' -and $codexLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Codex ledger records unprojected-artifact before native lifecycle wiring'
+        Assert-True -Condition ($claudeLedger.status -eq 'unprojected-artifact' -and $claudeLedger.readSurface -eq 'unprojected-artifact') -Label 'TP-016: Claude build ledger records unprojected-artifact before Claude lifecycle enrichment'
 
         # AGY: root plugin.json in the canonical root
         $agyRootPluginJsonPath = Join-Path $canonicalPluginRoot 'plugin.json'

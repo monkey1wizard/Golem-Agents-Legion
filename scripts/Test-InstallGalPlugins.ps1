@@ -258,9 +258,6 @@ try {
     $claudeLifecycleOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('claude') -PrimaryRuntime 'claude' -Force 6>&1 | Out-String)
     Assert-Contains $claudeLifecycleOutput '[OK] Evaluating Claude plugin lifecycle.' 'Claude install orchestration should enter the Claude lifecycle path.'
     Assert-Contains $claudeLifecycleOutput '[OK] Wrote Claude lifecycle state:' 'Claude install orchestration should persist Claude lifecycle state.'
-    if (Get-Command claude -ErrorAction SilentlyContinue) {
-        Assert-Contains $claudeLifecycleOutput '[OK] Claude plugin validation passed.' 'Claude lifecycle test should validate the artifact when Claude CLI is available.'
-    }
 
     if (-not (Test-Path $claudeLifecycleStatePath)) {
         throw "Claude lifecycle install should write lifecycle state to $claudeLifecycleStatePath"
@@ -269,6 +266,12 @@ try {
     $claudeLifecycleState = Get-Content -LiteralPath $claudeLifecycleStatePath -Raw -Encoding utf8 | ConvertFrom-Json
     if ($claudeLifecycleState.provider -ne 'claude') {
         throw 'Claude lifecycle state should record provider=claude.'
+    }
+    if ($claudeLifecycleState.status -notin @('unprojected-artifact', 'refreshed-copy2-host')) {
+        throw "Claude lifecycle state should record an honest shared status. Actual: $($claudeLifecycleState.status)"
+    }
+    if ($claudeLifecycleState.readSurface -ne $claudeLifecycleState.status) {
+        throw 'Claude lifecycle state should keep readSurface aligned to the shared status vocabulary in this slice.'
     }
     if ($claudeLifecycleState.canonicalRoot -ne (Join-Path $testHome '.gal\plugins\gal')) {
         throw 'Claude lifecycle state should record the canonical root under ~/.gal/plugins/gal.'
@@ -279,21 +282,23 @@ try {
     if ($claudeLifecycleState.projectionRoot -ne (Join-Path $testHome '.claude\plugins\gal')) {
         throw 'Claude lifecycle state should record the provider-visible projection root.'
     }
-    $acceptedModes = @('session-load-only', 'marketplace')
+    if ($claudeLifecycleState.cli.available -and $claudeLifecycleState.cli.validateSupported) {
+        Assert-Contains $claudeLifecycleOutput '[OK] Claude plugin validation passed.' 'Claude lifecycle test should validate the artifact when Claude CLI validation is available.'
+    }
+
+    $acceptedModes = @('artifact-only', 'session-load-only', 'marketplace')
     if ($claudeLifecycleState.lifecycle.mode -notin $acceptedModes) {
-        throw "Claude lifecycle state should record session-load-only or marketplace mode. Actual: $($claudeLifecycleState.lifecycle.mode)"
+        throw "Claude lifecycle state should record an honest lifecycle mode. Actual: $($claudeLifecycleState.lifecycle.mode)"
     }
     if ($claudeLifecycleState.cli.available -and $claudeLifecycleState.cli.validateSupported -and -not $claudeLifecycleState.validation.strictPassed) {
         throw 'Claude lifecycle state should mark strict validation passed when Claude CLI validation is available.'
     }
     # Mode-dependent output assertions (placed after $claudeLifecycleState is set)
-    if (Get-Command claude -ErrorAction SilentlyContinue) {
-        if ($claudeLifecycleState.lifecycle.mode -eq 'session-load-only') {
-            Assert-Contains $claudeLifecycleOutput '[OK] Session smoke command: claude --plugin-dir' 'Claude lifecycle test should record session-load fallback when marketplace is unavailable.'
-        }
-        elseif ($claudeLifecycleState.lifecycle.mode -eq 'marketplace') {
-            Assert-Contains $claudeLifecycleOutput "[OK] Installed Claude plugin 'gal' via marketplace" 'Claude lifecycle test should record successful marketplace install.'
-        }
+    if ($claudeLifecycleState.lifecycle.mode -eq 'session-load-only') {
+        Assert-Contains $claudeLifecycleOutput '[OK] Session smoke command: claude --plugin-dir' 'Claude lifecycle test should record session-load fallback when marketplace is unavailable.'
+    }
+    elseif ($claudeLifecycleState.lifecycle.mode -eq 'marketplace') {
+        Assert-Contains $claudeLifecycleOutput "[OK] Installed Claude plugin 'gal' via marketplace" 'Claude lifecycle test should record successful marketplace install.'
     }
 
     # TP-002: marketplace manifest assertion

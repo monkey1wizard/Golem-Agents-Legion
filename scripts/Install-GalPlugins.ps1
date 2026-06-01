@@ -443,7 +443,7 @@ function Write-ClaudeLifecycleState {
         [System.Collections.IDictionary]$State
     )
 
-    $statePath = Get-ClaudeLifecycleStatePath -Context $Context
+    $statePath = Get-ProviderManagedStatePath -Provider 'claude' -Context $Context
     if ($DryRun) {
         Write-Host ("  [DRY RUN] Would write Claude lifecycle state: {0}" -f $statePath)
         return
@@ -498,6 +498,8 @@ function Invoke-ClaudePluginLifecycle {
         installTarget = $Context.ClaudePluginInstallTarget
         manifestPath = $manifestPath
         generatedAt = (Get-Date -Format 'o')
+        status = 'unprojected-artifact'
+        readSurface = 'unprojected-artifact'
         cli = [ordered]@{
             available = [bool]$support.cliAvailable
             validateSupported = [bool]$support.validateSupported
@@ -578,6 +580,8 @@ function Invoke-ClaudePluginLifecycle {
         if ($marketplaceOk) {
             $state['lifecycle']['mode'] = 'marketplace'
             $state['lifecycle']['marketplaceRoot'] = $Context.GalPluginsRoot
+            $state['status'] = 'refreshed-copy2-host'
+            $state['readSurface'] = 'refreshed-copy2-host'
         }
     }
     elseif ($support.localArtifactInstallSupported) {
