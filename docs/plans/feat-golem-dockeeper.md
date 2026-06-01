@@ -266,7 +266,7 @@ Pending.
 
 ## Tasks
 
-- [ ] T-001 — 撰寫 `docs/structure/structure-map.schema.json`：雙軸節點 JSON Schema（共用欄位 `id`/`axis`/`kind`/`syncStatus`/`lastSynced`/`lastSyncedRef` + `axis` 條件式必填：code 軸 `path`/`layer`/`docs`，doc 軸 `headingLevel`/`title`/`codeRefs`）。
+- [x] T-001 — 撰寫 `docs/structure/structure-map.schema.json`：雙軸節點 JSON Schema（共用欄位 `id`/`axis`/`kind`/`syncStatus`/`lastSynced`/`lastSyncedRef` + `axis` 條件式必填：code 軸 `path`/`layer`/`docs`，doc 軸 `headingLevel`/`title`/`codeRefs`）。 *(0442856b72f7d0e354740bee2443606c6ecd7dbc)*
 - [ ] T-002 — 建立 `templates/structure-map.template.ndjson` 範本與 `docs/structure/structure-map.ndjson` 首版骨架；行序先 `axis` 再 `id`、key 排序穩定，每行通過 T-001 schema。
 - [ ] T-003 — 建立 `skills/doc-sync/SKILL.md`：NDJSON 逐行讀寫/局部更新、schema 盡力驗證（機會性）、變更偵測來源優先序與降級、新鮮度規則、節點生命週期（`git diff -M`）、commit 邊界、待辦清單與樹視圖投影渲染。
 - [ ] T-004 — 撰寫 `workflows/doc-sync.md` 同步工作流契約：增量 + 對帳雙模式、核心流程、變更偵測優先序、寫回目標；**明定 standalone reconcile 觸發路徑與其 commit 邊界**（無 `<task>` 時用 `docs(sync): reconcile`，或僅 stage 由使用者 commit）。
