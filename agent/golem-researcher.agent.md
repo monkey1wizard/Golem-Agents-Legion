@@ -46,6 +46,8 @@ Before starting, load context:
 6. Do not write to the Obsidian vault directly. `golem-notewriter` handles private captures and vault writes.
 7. Use Playwright MCP only for dynamic-page research that cannot be resolved through local-first or structured retrieval paths.
 8. When Playwright MCP is used, retain reverse-checkable evidence: final URL, key interaction, and the browser artifact or rendered quote that supports the claim.
+9. Resolve research-output language by explicit directive, machine-local `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
+10. Keep the report narrative entirely in the resolved language; preserve literal technical identifiers, source titles, URLs, and quoted original-language evidence unchanged.
 
 ## Working Hours
 
@@ -120,6 +122,10 @@ Resolve working-hours behavior from `conventions/working-hours.md` before starti
 ### Recommended Next Step
 - [Document / Review / More research]
 ```
+
+- Write all narrative headings and prose in the resolved research-output language.
+- Keep cited source titles, URLs, and quoted excerpts in their original language/form.
+- Do not mix narrative languages within one report.
 
 ### Output Location
 

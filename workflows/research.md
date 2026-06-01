@@ -22,6 +22,9 @@ This workflow is **independent of the Coding Flow**. It can run in parallel with
 5. **CROSS-REVIEW is about source-to-source consistency**. It is not a substitute for architecture, business, or design review.
 6. **Playwright MCP is a dynamic-page aid, not a research default**. Use it only after local-first and structured retrieval paths cannot answer the question.
 7. **Browser-backed research must preserve reverse-checkable evidence**. Record the URL, the interaction performed, and the artifact or observation that supports the claim.
+8. **Research narrative follows one resolved output language**. Resolve it by explicit directive, machine-local `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
+9. **Keep the report fully in the resolved language**. Do not mix prose languages inside one research document, except for literal technical identifiers and preserved source material.
+10. **Preserve citations in their original form**. Source titles, URLs, quoted snippets, and other directly cited original-language material stay unchanged even when the report narrative is translated.
 
 ## State Machine
 
@@ -91,7 +94,7 @@ No active research. Waiting for a research question or topic.
   - Use an **independent model** to reverse-check every cited reference.
   - Confirm that each cited source exists and that the cited claim is supported by the source.
   - Remove or mark any dead, fabricated, or unsupported reference.
-  - Produce an explicit verification summary for the final document.
+  - Produce an explicit verification summary for the final document in the same resolved language as the research narrative.
 - **Golem**: independent verifier model
 - **Exit**: All retained references are verified, or unresolved items are explicitly marked.
 
@@ -99,12 +102,14 @@ No active research. Waiting for a research question or topic.
 
 - **Entry**: Research complete and references verified.
 - **Actions**:
+  - Resolve the report language by explicit directive, machine-local `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
   - Determine output destination:
     - **Repo-appropriate** → `docs/research/<slug>.md` (stays in the code repo)
     - **Private capture** → `<OBSIDIAN_PRIVATE_RESEARCH_DIR>` via notewriter (non-repo path, user-owned notes)
     - **Reusable insight** → curated vault knowledge locations via notewriter (requires `start-implementation`)
     - **No durable write** → return the verified brief to the user without storing it
-  - Write the output following the appropriate format.
+  - Write the output following the appropriate format, using the resolved language for narrative sections throughout the document.
+  - Preserve source titles, URLs, and quoted original-language evidence exactly as cited.
   - Include a reference verification section or equivalent evidence note.
   - For vault writes, notewriter handles routing, naming, and either Guide-aware or generic Obsidian compliance.
 - **Exit**: Output written and confirmed.
