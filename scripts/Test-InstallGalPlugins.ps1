@@ -379,6 +379,58 @@ try {
         throw 'Copilot host-copy fallback should record the bumped manifest version.'
     }
 
+    $copilotProjectionRoot = Join-Path $testHome '.copilot\installed-plugins\gal-copilot\gal'
+    if (Test-Path $copilotProjectionRoot) {
+        $copilotProjectionItem = Get-Item -LiteralPath $copilotProjectionRoot -Force
+        if (($copilotProjectionItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            $copilotProjectionItem.Delete()
+        }
+        else {
+            Remove-Item -LiteralPath $copilotProjectionRoot -Recurse -Force
+        }
+    }
+
+    New-Item -ItemType Directory -Path $copilotProjectionRoot -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $copilotProjectionRoot 'stale-marker.txt') -Value 'stale host copy' -Encoding utf8
+    $staleCopilotManifestPath = Join-Path $copilotProjectionRoot 'copilot-manifest.json'
+    ([ordered]@{
+        name = 'gal'
+        version = 'stale-version'
+    } | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $staleCopilotManifestPath -Encoding utf8
+
+    $copilotRefreshOutput = (& $scriptUnderTest -RepoRoot $repoRoot -ConfigPath $machineConfigPath -LockfilePath $pluginsLockPath -SelectedRuntimes @('copilot') -PrimaryRuntime 'copilot' -Force 6>&1 | Out-String)
+    Assert-Contains $copilotRefreshOutput '[WARN] Copilot projection link was unavailable; refreshing host copy instead.' 'Copilot rerun should force-refresh an existing host copy when link projection is unavailable.'
+    Assert-Contains $copilotRefreshOutput '[OK] Refreshed Copilot host copy:' 'Copilot rerun should report host-copy refresh.'
+
+    $copilotRefreshState = Get-Content -LiteralPath $copilotLifecycleStatePath -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($copilotRefreshState.status -ne 'refreshed-copy2-host') {
+        throw "Copilot rerun should honestly report refreshed-copy2-host when an existing host copy is replaced. Actual: $($copilotRefreshState.status)"
+    }
+    if (-not $copilotRefreshState.lifecycle.refreshedCopyToHost) {
+        throw 'Copilot rerun should record lifecycle.refreshedCopyToHost=true when replacing a host copy.'
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$copilotRefreshState.lifecycle.versionBumpedTo)) {
+        throw 'Copilot rerun should record the bumped manifest version when replacing a host copy.'
+    }
+    if (Test-Path (Join-Path $copilotProjectionRoot 'stale-marker.txt')) {
+        throw 'Copilot rerun should replace stale host-copy contents instead of preserving them.'
+    }
+
+    $refreshedCopilotManifest = Get-Content -LiteralPath $staleCopilotManifestPath -Raw -Encoding utf8 | ConvertFrom-Json
+    $canonicalCopilotManifest = Get-Content -LiteralPath (Join-Path $testHome '.gal\plugins\gal\copilot-manifest.json') -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($refreshedCopilotManifest.version -eq 'stale-version') {
+        throw 'Copilot rerun should bump the host-copy manifest version instead of leaving the stale version intact.'
+    }
+    if ($refreshedCopilotManifest.version -ne $copilotRefreshState.lifecycle.versionBumpedTo) {
+        throw 'Copilot rerun should keep the lifecycle versionBumpedTo field aligned with the refreshed host-copy manifest.'
+    }
+    if ($refreshedCopilotManifest.version -notlike '*.host*') {
+        throw "Copilot rerun should append a host refresh suffix to the refreshed host-copy version. Actual: $($refreshedCopilotManifest.version)"
+    }
+    if ($refreshedCopilotManifest.version -notlike "$($canonicalCopilotManifest.version).host*") {
+        throw "Copilot rerun should rebuild from the canonical manifest before bumping the host-copy version. Actual: $($refreshedCopilotManifest.version)"
+    }
+
     $codexConfig = [ordered]@{
         schemaVersion = 1
         galRoot = $repoRoot
