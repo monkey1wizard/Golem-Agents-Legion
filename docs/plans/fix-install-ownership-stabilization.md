@@ -391,7 +391,7 @@ Not triggered — CLI/install 工具，無 customer-facing layout / states / com
 
 - [x] T-001 — `Build-CorePlugin.*` 冪等原子重渲染：移除「已存在即 throw」守衛，改 render-to-temp → 同 canonical 路徑替換（path-stable 保 junction/symlink）；plugin `version` 改內容雜湊/時間戳取代寫死 `1.0.0`。*(7bfb0929765ac5e8a7860b7ea607de563627915b)*（Step 1；R-PROP-001/008；RC-1/RC-6）
 - [x] T-002 — `Build-ProviderPlugins.*` + `Install-GalPlugins.*` 接統一脊柱：渲染迴圈對**所有**選定 provider 進投影/刷新分支（補 copilot/codex、解除 Codex 對 AGY 寄生）；未選 claude/agy 時正本仍須渲染。*(56a171d003c3376392fecee926f616d3c62e6e90)*（Step 2；R-PROP-004；RC-3/RC-4）
-- [ ] T-003 — provider-neutral capability-probe helper：把 Claude `Get-ClaudeCliLifecycleSupport` 抽到 `scripts/common/ProviderPlugin.*`，供 Copilot/Codex 共用並導出 install mode。（Step 3；R-PROP-003）
+- [x] T-003 — provider-neutral capability-probe helper：把 Claude `Get-ClaudeCliLifecycleSupport` 抽到 `scripts/common/ProviderPlugin.*`，供 Copilot/Codex 共用並導出 install mode。*(4878e44f5841ae516b8b12aebdeddec81b0696c2)*（Step 3；R-PROP-003）
 - [ ] T-004 — Lifecycle Status Vocabulary + ledger：為每個啟用 provider 寫 `~/.gal/dist/providers/<provider>/managed.json`（共用形狀 + `readSurface`），status 取 4 態。（Step 5；R-OWN-002/003；R-PROP-003）
 - [ ] T-005 — Claude 改 skills-dir 活載入：投影 `~/.claude/skills/gal` → 正本（link-first 就地），退役 marketplace-copy 本地安裝、`~/.claude/plugins/gal` junction 降 legacy；readSurface=`linked-projection`。（Step 4 Claude；R-PROP-002/006/008；IV-2）
 - [ ] T-006 — AGY 投影刷新驗證：冪等重渲染後三面 junction 存活（path-stable）；ledger readSurface=`linked-projection`。（Step 4 AGY）
