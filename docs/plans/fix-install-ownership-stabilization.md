@@ -399,7 +399,7 @@ Not triggered — CLI/install 工具，無 customer-facing layout / states / com
 - [x] T-008 — Codex lifecycle（probe-first）：解除 AGY 寄生，獨立 marketplace descriptor 註冊 + `plugin add`/update/uninstall；版本閘套 R-PROP-008。*(9a3b245aea2dd6619d8dca9f2b9032faef8ce11f)*（Step 3/4 Codex；IV-3）
 - [x] T-009 — host-copy 強制刷新：update 對 host-copy provider 不因「已安裝」早退，重新複製 + bump version。（Step 4；R-PROP-002；RC-5；`e91032fa126af974d276048e61a963f8c639dd93`）
 - [x] T-010 — Doctor（`Install-GalPlugins.* -Doctor`/`-Check`）：read-only 分類 canonical/expected projection/host-managed/legacy GAL/unknown + 走味偵測（正本落後 source、host-copy 分歧、version 未變）；`~/.copilot/gal` 標 LEGACY；永不刪檔。（Step 6；R-PROP-005；R-OWN-004；`f3890668fc5b99fa2af84d9f83d3cc33b4b249f3`）
-- [ ] T-011 — 保守 cleanup gates：僅移除可證明 GAL-owned legacy（含 source-mode `~/.copilot/gal`，憑 symlink target/GAL marker/known path/ledger）；預設 uninstall 保 intent、purge 明確；source/install 路徑分離。（Step 7；R-OWN-005/006）
+- [x] T-011 — 保守 cleanup gates：僅移除可證明 GAL-owned legacy（含 source-mode `~/.copilot/gal`，憑 symlink target/GAL marker/known path/ledger）；預設 uninstall 保 intent、purge 明確；source/install 路徑分離。（Step 7；R-OWN-005/006；`4d7afd86d8207a70a5654cff7af10852fbba8de3`）
 - [ ] T-012 — 統一 install/update/uninstall 動詞面 + `Setup-Machine.*` 窄範圍 update 語義 wiring（受保護，已 fence 授權）；scripts.md 對齊。（Step 8）
 - [ ] T-013 — 真實重跑傳播回歸測試（`Test-InstallGalPlugins.*` + `Test-BuildProviderPlugins.*` + bash 對等）：持久化隔離 home、模擬改 source、**不帶 `-Force`** 重跑 update，逐 provider 讀取面驗證；含 host-copy 強制刷新與 version 變更。（R-PROP-007；RC-7）
 - [ ] T-014 — Docs + 跨計畫邊界：`installation-topology.md`/`devguide.md`/`scripts.md` 所有權與 lifecycle 措辭對齊；**人類核准後**於 `plugin-bin-migration.md` 加一行 prerequisite 交叉連結。（Step 9；R-OWN-007/008）
