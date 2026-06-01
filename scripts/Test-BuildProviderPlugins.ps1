@@ -49,7 +49,6 @@ try {
     $codexPlan = $plan.BuildPlan | Where-Object Provider -eq 'codex' | Select-Object -First 1
     $claudePlan = $plan.BuildPlan | Where-Object Provider -eq 'claude' | Select-Object -First 1
 
-    $agyPackageOutputRoot = Join-Path $testHome '.gal\dist\provider-plugins\agy\gal'
     $canonicalPluginRoot = Join-Path $testHome '.gal\plugins\gal'
     $claudeArtifactRoot = Join-Path $testHome '.gal\plugins\gal'
     $claudeManifestPath = Join-Path $claudeArtifactRoot '.claude-plugin/plugin.json'
@@ -69,13 +68,13 @@ Assert-True -Condition ($agyPlan.ShortcutTarget -like '*\.gal\active\agy') -Labe
 Assert-True -Condition ($copilotPlan.Mode -eq 'native-install') -Label 'TP-002: Copilot stays on native-install lane'
 Assert-True -Condition ($null -eq $copilotPlan.ShortcutTarget) -Label 'TP-002: Copilot does not get a managed shortcut target'
 Assert-True -Condition ($copilotPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-005: Copilot build plan uses the core renderer'
-Assert-True -Condition ($copilotPlan.LifecycleStatus -eq 'implemented') -Label 'TP-005: Copilot lifecycle is implemented after T-002'
+Assert-True -Condition ($copilotPlan.LifecycleStatus -eq 'artifact-rendered-install-deferred') -Label 'TP-005: Copilot lifecycle honestly reports artifact-rendered/install-deferred after T-002'
 Assert-True -Condition ($copilotPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-005: Copilot build plan canonical root is the superset plugin root'
 Assert-True -Condition ($copilotPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-005: Copilot build plan package output root is the canonical root'
 Assert-True -Condition ($codexPlan.Mode -eq 'native-install') -Label 'TP-002: Codex stays on native-install lane'
 Assert-True -Condition ($null -eq $codexPlan.ShortcutTarget) -Label 'TP-002: Codex does not get a managed shortcut target'
 Assert-True -Condition ($codexPlan.Renderer -eq 'Build-CorePlugin.ps1') -Label 'TP-006: Codex build plan uses the core renderer'
-Assert-True -Condition ($codexPlan.LifecycleStatus -eq 'implemented') -Label 'TP-006: Codex lifecycle is implemented after T-003'
+Assert-True -Condition ($codexPlan.LifecycleStatus -eq 'artifact-rendered-install-deferred') -Label 'TP-006: Codex lifecycle honestly reports artifact-rendered/install-deferred before its native lane is wired'
 Assert-True -Condition ($codexPlan.CanonicalRoot -eq $canonicalPluginRoot) -Label 'TP-006: Codex build plan canonical root is the superset plugin root'
 Assert-True -Condition ($codexPlan.PackageOutputRoot -eq $canonicalPluginRoot) -Label 'TP-006: Codex build plan package output root is the canonical root'
 Assert-True -Condition ($claudePlan.Mode -eq 'native-install') -Label 'TP-002: Claude remains the baseline native-install lane'

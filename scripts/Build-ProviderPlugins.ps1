@@ -98,7 +98,7 @@ foreach ($provider in $Providers) {
                 PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
                 InstallTarget = 'provider-managed via gh copilot plugin install <canonical-root>'
                 ShortcutTarget = $null
-                LifecycleStatus = 'implemented'
+                LifecycleStatus = 'artifact-rendered-install-deferred'
             })
         }
         'codex' {
@@ -110,7 +110,7 @@ foreach ($provider in $Providers) {
                 PackageOutputRoot = Get-GalPluginRoot -PluginId 'gal'
                 InstallTarget = 'provider-managed via codex plugin marketplace add + codex plugin add gal@gal-marketplace'
                 ShortcutTarget = $null
-                LifecycleStatus = 'implemented'
+                LifecycleStatus = 'artifact-rendered-install-deferred'
             })
         }
         'claude' {

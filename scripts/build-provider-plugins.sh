@@ -61,8 +61,8 @@ if [[ "$DRY_RUN" == 'true' ]]; then
     for local_provider in "${requested_providers[@]}"; do
         case "$local_provider" in
             agy) echo "[agy] mode=managed-shortcut renderer=build-core-plugin.sh shortcut=$(get_gal_active_provider_target agy) lifecycle=implemented" ;;
-            copilot) echo "[copilot] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=implemented" ;;
-            codex) echo "[codex] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=implemented" ;;
+            copilot) echo "[copilot] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
+            codex) echo "[codex] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
             claude) echo "[claude] mode=native-install renderer=build-core-plugin.sh shortcut=none lifecycle=artifact-rendered-install-deferred" ;;
             '') ;;
             *) echo "Unsupported provider: $local_provider" >&2; exit 1 ;;
