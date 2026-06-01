@@ -170,6 +170,14 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 - 將機密、絕對路徑和機器專用的值放入 `~/.gal/config/config.local.env`。
 - 不要將本機的值寫入被 Git 追蹤的文件、命令範本或原始程式碼檔中。
 
+文件語言設定遵循同一個擁有權切分：
+
+- `PLAN_LANGUAGE` 放在 `~/.gal/config/config.local.env`。它是可選的 machine-local 設定，用來決定 `docs/plans/*.md` 與 `docs/research/*.md` 在目前請求沒有明確語言指示時的預設輸出語言。
+- plan 與 research 敘述的解析順序為：明確指示、`PLAN_LANGUAGE`、依提示語言自動偵測，最後回退到 `en`。
+- `PROJECT_LANGUAGE` 放在被追蹤的專案中繼資料裡（契約在 `templates/project.md`，本 repo 的實際值在 `.dev/project.md`）。它控制 `README.md` 與 `docs/` 下無語言後綴主檔的 canonical 語言。
+- 翻譯副本使用 `<name>.<lang>.md` 命名，例如 `README.zh-Hant.md`；它們不會重新定義專案的 canonical 文件語言。
+- `.dev/plans/*.prompt.md` 與這兩者分離：execution prompt 一律維持英文，以維持 cross-model 穩定性與 token 效率。
+
 ### 2a. 命令技能的本機覆寫 (Command skill local overlays)
 
 如果你想為特定的命令技能（command skill）加入要在 `Setup-Machine` 之後依然保留的機器本機自訂內容，請建立 `commands/<command>/SKILL.local.md`。

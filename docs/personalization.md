@@ -211,6 +211,14 @@ Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when mi
 - Put secrets, absolute paths, and machine-specific values in `~/.gal/config/config.local.env`.
 - Do not write local values into tracked docs, command templates, or source files.
 
+Documentation language settings follow the same ownership split:
+
+- `PLAN_LANGUAGE` lives in `~/.gal/config/config.local.env`. It is machine-local, optional, and controls the default output language for `docs/plans/*.md` and `docs/research/*.md` when there is no explicit directive in the current request.
+- Resolution order for plan and research narrative is: explicit directive, `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
+- `PROJECT_LANGUAGE` lives in tracked project metadata (`templates/project.md` for the contract, `.dev/project.md` for the instantiated repo value). It controls the canonical language for main docs such as `README.md` and non-suffixed files under `docs/`.
+- Translation copies use `<name>.<lang>.md` naming such as `README.zh-Hant.md`; they do not redefine the project's canonical documentation language.
+- `.dev/plans/*.prompt.md` is separate from both settings: execution prompts stay English-only for cross-model stability and token efficiency.
+
 ### 2a. Command skill local overlays
 
 If you want a machine-local customization for a specific command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`.
