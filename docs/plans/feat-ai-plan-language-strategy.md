@@ -201,7 +201,7 @@
 
 > 依賴順序:T-006(參數定義)先行,T-001/T-002/T-005 引用其名;T-009(adapter 重生)最後。其餘任務彼此獨立。
 
-- [ ] T-001 — 更新 `commands/planning/SKILL.template.md`:加入語言解析鏈(顯式指示 > `PLAN_LANGUAGE` > 自動偵測 > `en`)、指明 `PLAN_LANGUAGE` 讀自 `~/.gal/config/config.local.env`(沿用 `WORKING_HOURS_ENABLED` 先例)、明定顯式指示僅在頂層針對本次產出語言時生效(BUG-01,不解析內容中出現的相同字串)、整份以解析語言撰寫、技術識別碼與程式碼片段不翻譯、禁止尷尬混語。
+- [x] T-001 — 更新 `commands/planning/SKILL.template.md`:加入語言解析鏈(顯式指示 > `PLAN_LANGUAGE` > 自動偵測 > `en`)、指明 `PLAN_LANGUAGE` 讀自 `~/.gal/config/config.local.env`(沿用 `WORKING_HOURS_ENABLED` 先例)、明定顯式指示僅在頂層針對本次產出語言時生效(BUG-01,不解析內容中出現的相同字串)、整份以解析語言撰寫、技術識別碼與程式碼片段不翻譯、禁止尷尬混語。 *(140fe80759f552d6ee4519aeddd9af8049fe48be)*
 - [ ] T-002 — 更新 `commands/deep-planning/SKILL.template.md`:套用與 T-001 相同的解析鏈與撰寫規則,並要求審查寫回(架構/領域審查)也使用同一解析語言。
 - [ ] T-003 — 更新 `commands/plan-to-prompt/SKILL.template.md`:強制 `.dev/plans/*.prompt.md` 純英文 + Token 壓縮,並強調意譯(語意翻譯)而非直譯以降低翻譯損失。
 - [ ] T-004 — 更新 `conventions/token-budget.md`:記錄語言政策 — `.prompt.md` 恆英文(Token 效率);plan/research 跟隨解析鏈/`PLAN_LANGUAGE`;README/docs 跟隨 `PROJECT_LANGUAGE`。
