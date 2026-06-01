@@ -275,6 +275,7 @@ Before using any optional capability lane (CLI tool, MCP server, xmachine work n
 - If the lane is `not-applicable` or `unavailable`, use the documented fallback without surfacing a tool-install request.
 - If the lane is `available-but-needs-init` or `available-but-not-ready`, degrade silently to the documented non-tool path.
 - Only route into the capability when status is `ready`.
+- For doc-sync specifically, keep `git diff` as the mandatory base; treat `docs/collaborative-tools/graphify.md` and `docs/collaborative-tools/codebase-memory-mcp.md` as advisory-only capability contracts.
 
 ### Bounded Command Output
 

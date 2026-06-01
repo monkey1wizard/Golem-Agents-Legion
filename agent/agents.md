@@ -8,10 +8,10 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | Classification | How It Is Activated | Agents |
 | --- | --- | --- |
 | **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, reviewer, verifier |
-| **Utility** | Callable at any tier | debugger, notewriter |
+| **Utility** | Callable at any tier | debugger, notewriter, dockeeper |
 | **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, security, releaser |
 
-## Why GAL Uses 12 Agents
+## Why GAL Uses 13 Agents
 
 GAL keeps these roles separate on purpose.
 
@@ -34,6 +34,7 @@ GAL keeps these roles separate on purpose.
 | [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
 | [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation with internal freeze discipline |
 | [golem-notewriter](golem-notewriter.agent.md) | Utility | Any time | Obsidian writes, private captures, diary, shutdown ritual, and knowledge extraction |
+| [golem-dockeeper](golem-dockeeper.agent.md) | Utility | Pipeline closeout, reconcile, or direct drift audit | Maintain the doc structure map, detect stale docs, and coordinate doc sync |
 | [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE code-review-level security audit with plan write-back |
 | [golem-releaser](golem-releaser.agent.md) | Domain | Direct release prep / deploy / doc sync | Release prep, deploy orchestration, and documentation sync |
 
