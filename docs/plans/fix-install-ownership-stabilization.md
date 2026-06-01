@@ -394,7 +394,7 @@ Not triggered — CLI/install 工具，無 customer-facing layout / states / com
 - [x] T-003 — provider-neutral capability-probe helper：把 Claude `Get-ClaudeCliLifecycleSupport` 抽到 `scripts/common/ProviderPlugin.*`，供 Copilot/Codex 共用並導出 install mode。*(4878e44f5841ae516b8b12aebdeddec81b0696c2)*（Step 3；R-PROP-003）
 - [x] T-004 — Lifecycle Status Vocabulary + ledger：為每個啟用 provider 寫 `~/.gal/dist/providers/<provider>/managed.json`（共用形狀 + `readSurface`），status 取 4 態。*(16c4608a152d1445b12805ae3de128afe047f046)*（Step 5；R-OWN-002/003；R-PROP-003）
 - [x] T-005 — Claude 改 skills-dir 活載入：投影 `~/.claude/skills/gal` → 正本（link-first 就地），退役 marketplace-copy 本地安裝、`~/.claude/plugins/gal` junction 降 legacy；readSurface=`linked-projection`。*(2637cf17eaee4a0ad43fd5e12d0fd77684d16ccc)*（Step 4 Claude；R-PROP-002/006/008；IV-2）
-- [ ] T-006 — AGY 投影刷新驗證：冪等重渲染後三面 junction 存活（path-stable）；ledger readSurface=`linked-projection`。（Step 4 AGY）
+- [x] T-006 — AGY 投影刷新驗證：冪等重渲染後三面 junction 存活（path-stable）；ledger readSurface=`linked-projection`。*(6c5196eec194a28475cfa59031ba8f972694d2ec)*（Step 4 AGY）
 - [ ] T-007 — Copilot lifecycle（probe-first）：CLI install/update/uninstall；link-first `~/.copilot/installed-plugins/gal-copilot/gal` → 正本，否則 `refreshed-copy2-host` + bump version；VS Code Copilot 併入 `.copilot` 面刷新。（Step 3/4 Copilot；IV-1）
 - [ ] T-008 — Codex lifecycle（probe-first）：解除 AGY 寄生，獨立 marketplace descriptor 註冊 + `plugin add`/update/uninstall；版本閘套 R-PROP-008。（Step 3/4 Codex；IV-3）
 - [ ] T-009 — host-copy 強制刷新：update 對 host-copy provider 不因「已安裝」早退，重新複製 + bump version。（Step 4；R-PROP-002；RC-5）
