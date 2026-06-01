@@ -60,6 +60,12 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 
 - Always get today's date first, then use that date when querying for the latest information or other time-sensitive context.
 
+## Project Language
+
+- `PROJECT_LANGUAGE`: `en`
+- Canonical docs use the main filename with no language infix (for example `README.md`).
+- Translation copies use `<name>.<lang>.md` (for example `README.zh-Hant.md`).
+
 ## Protected Paths
 
 - `commands/` — changing the public command surface affects every runtime.
@@ -237,6 +243,14 @@ docs/ (permanent, low token cost to reference)
 ## Token Discipline
 
 These rules apply to all agents and runtimes. Follow them during exploration, implementation, testing, review, and debugging.
+
+### Language Policy By Artifact
+
+Keep language choice aligned to the artifact's owner and reader:
+
+- `.dev/plans/*.prompt.md` stays English-only because execution prompts are machine-readable work files optimized for cross-model stability and token efficiency.
+- `docs/plans/*.md` and `docs/research/*.md` follow the per-invocation resolution chain: explicit directive, machine-local `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
+- Canonical README and formal `docs/*.md` files without a language infix follow project-level `PROJECT_LANGUAGE`; `<name>.<lang>.md` files are translation copies rather than canonical docs.
 
 ### Generated-Artifact Exclusion
 
