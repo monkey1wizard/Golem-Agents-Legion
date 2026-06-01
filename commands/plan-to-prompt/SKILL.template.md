@@ -88,6 +88,7 @@ This is the shared mutable execution work file consumed by control-plane chat, /
 ### Prompt Creation Rules
 
 - Copy the stable planning content from the source plan by **semantic mapping**, not by mirroring the source plan's heading layout.
+- When the source plan is not in English, translate by **meaning**, not by literal phrasing. Preserve intent, constraints, and decision logic while rewriting for concise execution-oriented English.
 - If the source plan uses non-standard headings (e.g. `## Context`, `## Scope`, `## Delivery Strategy`, `## Steps`), map their content into the correct sections above. Typical mappings:
   - `## Context` / `## Delivery Strategy` → `## Approach`
   - `## Scope — In-Scope` → `## Requirements` + `## Approach`
@@ -120,7 +121,9 @@ Review Retry Count: 0
 
 ### Language Rule
 
-The execution prompt is a **machine-readable work file** and must be entirely in **English**. All section headers, scaffold text, status markers, and content prose must be in English. When the source plan is in a non-English language, **translate** content while creating the prompt. Do not produce mixed-language output.
+The execution prompt is a **machine-readable work file** and must be entirely in **English**. All section headers, scaffold text, status markers, and content prose must be in English. When the source plan is in a non-English language, translate content into concise execution-oriented English by **meaning translation**, not literal translation. Do not produce mixed-language output.
+
+Use aggressive token compression because the prompt is written for AI consumption, not human readability. Prefer compact wording, direct imperatives, short labels, and deduplicated phrasing while preserving the full behavioral contract needed for execution.
 
 ### Scope Guard
 
