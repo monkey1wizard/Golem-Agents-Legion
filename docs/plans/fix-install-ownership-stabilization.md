@@ -396,7 +396,7 @@ Not triggered — CLI/install 工具，無 customer-facing layout / states / com
 - [x] T-005 — Claude 改 skills-dir 活載入：投影 `~/.claude/skills/gal` → 正本（link-first 就地），退役 marketplace-copy 本地安裝、`~/.claude/plugins/gal` junction 降 legacy；readSurface=`linked-projection`。*(2637cf17eaee4a0ad43fd5e12d0fd77684d16ccc)*（Step 4 Claude；R-PROP-002/006/008；IV-2）
 - [x] T-006 — AGY 投影刷新驗證：冪等重渲染後三面 junction 存活（path-stable）；ledger readSurface=`linked-projection`。*(6c5196eec194a28475cfa59031ba8f972694d2ec)*（Step 4 AGY）
 - [x] T-007 — Copilot lifecycle（probe-first）：CLI install/update/uninstall；link-first `~/.copilot/installed-plugins/gal-copilot/gal` → 正本，否則 `refreshed-copy2-host` + bump version；VS Code Copilot 併入 `.copilot` 面刷新。*(bd24e9a1e32d913dc7562aa6dc3206ab8ff17b5e)*（Step 3/4 Copilot；IV-1）
-- [ ] T-008 — Codex lifecycle（probe-first）：解除 AGY 寄生，獨立 marketplace descriptor 註冊 + `plugin add`/update/uninstall；版本閘套 R-PROP-008。（Step 3/4 Codex；IV-3）
+- [x] T-008 — Codex lifecycle（probe-first）：解除 AGY 寄生，獨立 marketplace descriptor 註冊 + `plugin add`/update/uninstall；版本閘套 R-PROP-008。*(9a3b245aea2dd6619d8dca9f2b9032faef8ce11f)*（Step 3/4 Codex；IV-3）
 - [ ] T-009 — host-copy 強制刷新：update 對 host-copy provider 不因「已安裝」早退，重新複製 + bump version。（Step 4；R-PROP-002；RC-5）
 - [ ] T-010 — Doctor（`Install-GalPlugins.* -Doctor`/`-Check`）：read-only 分類 canonical/expected projection/host-managed/legacy GAL/unknown + 走味偵測（正本落後 source、host-copy 分歧、version 未變）；`~/.copilot/gal` 標 LEGACY；永不刪檔。（Step 6；R-PROP-005；R-OWN-004）
 - [ ] T-011 — 保守 cleanup gates：僅移除可證明 GAL-owned legacy（含 source-mode `~/.copilot/gal`，憑 symlink target/GAL marker/known path/ledger）；預設 uninstall 保 intent、purge 明確；source/install 路徑分離。（Step 7；R-OWN-005/006）
