@@ -22,12 +22,47 @@ function Assert-True {
     }
 }
 
-$repoRoot = Split-Path $PSScriptRoot -Parent
-$releaseMatrixPath = Join-Path $repoRoot 'docs\release-matrix.md'
+function Test-LinkTargetsCanonical {
+    param(
+        [string]$Path,
+        [string]$ExpectedTarget
+    )
+
+    if (-not (Test-Path $Path)) {
+        return $false
+    }
+
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $item) {
+        return $false
+    }
+
+    $isReparsePoint = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+    if (-not $isReparsePoint) {
+        return $false
+    }
+
+    foreach ($target in @($item.Target)) {
+        if ([string]::IsNullOrWhiteSpace([string]$target)) {
+            continue
+        }
+
+        if (([string]$target).Replace('/', '\') -eq $ExpectedTarget.Replace('/', '\')) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+    $repoRoot = Split-Path $PSScriptRoot -Parent
+    $releaseMatrixPath = Join-Path $repoRoot 'docs\release-matrix.md'
 
 $testHome = Join-Path $env:TEMP ("gal-test-provider-build-{0}" -f [System.Guid]::NewGuid().ToString('N'))
 $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
+$agyIdeTarget = Join-Path $testHome '.gemini\antigravity-ide\plugins\gal'
+$agyGuiConfigTarget = Join-Path $testHome '.gemini\config\plugins\gal'
 
 New-Item -ItemType Directory -Path $testHome | Out-Null
 
@@ -166,6 +201,14 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         Assert-True -Condition (Test-Path $claudeMcpPath) -Label 'TP-003: Claude artifact contains plugin-root MCP config'
         Assert-True -Condition ($claudeManifest.name -eq 'gal') -Label 'TP-002: Claude manifest preserves plugin identity'
         Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
+
+        & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $repoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy') | Out-Null
+        $agyLedgerAfterRerun = Get-Content -LiteralPath $agyLedgerPath -Raw | ConvertFrom-Json
+
+        Assert-True -Condition (Test-LinkTargetsCanonical -Path (Get-AgyPluginInstallTarget) -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY CLI junction survives rerender and still targets canonical root'
+        Assert-True -Condition (Test-LinkTargetsCanonical -Path $agyIdeTarget -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY IDE junction survives rerender and still targets canonical root'
+        Assert-True -Condition (Test-LinkTargetsCanonical -Path $agyGuiConfigTarget -ExpectedTarget $canonicalPluginRoot) -Label 'TP-014: AGY GUI-config junction survives rerender and still targets canonical root'
+        Assert-True -Condition ($agyLedgerAfterRerun.status -eq 'linked-projection' -and $agyLedgerAfterRerun.readSurface -eq 'linked-projection') -Label 'TP-014: AGY ledger stays linked-projection after rerender'
     }
     finally {
         if (Test-Path $resolvedJsonPath) {
