@@ -65,6 +65,8 @@ The upgrade boundary is already narrowed even before official package-manager di
 
 Bootstrap packaging, official end-user install channels, marketplace discoverability, and release-lineage wording are now owned by the separate bootstrap-installer plan. Until that work lands, treat this README's clone-and-setup flow as the current supported path for humans following the repo directly.
 
+Maintainers tracing install ownership should start with [docs/installation-topology.md](docs/installation-topology.md), which maps the owning docs and scripts without duplicating the install contract.
+
 ## Install, Fallbacks, and Migration
 
 GAL's intended end-user distribution contract is now defined, even though the contributor checkout path above remains the currently implemented hands-on setup flow in this repo.

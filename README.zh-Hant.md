@@ -59,6 +59,8 @@ GAL 在機器本機的安裝拓撲也只有一個 canonical plugin root：`~/.ga
 
 bootstrap 打包、官方終端使用者安裝通道、marketplace discoverability 與 release lineage 文案，現在改由獨立的 bootstrap-installer plan 負責。在那份工作完成前，請把本 README 中的 clone + setup 流程視為目前直接跟隨 repo 使用時的支援路徑。
 
+若你是在追 install ownership 或準備修改安裝相關程式，請先看 [docs/installation-topology.md](docs/installation-topology.md)。它只做導覽，不複製 install 契約。
+
 ## 範例：用 GAL 跑完一個功能的生命週期
 
 **情境：如何在專案中新增一個 JWT 登入功能？**
