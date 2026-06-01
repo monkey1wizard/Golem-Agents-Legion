@@ -41,6 +41,17 @@ Treat `/deep-planning` as the architect-reviewed planning pass when the plan nee
 
 Write or update `docs/plans/<plan-slug>.md` using `templates/plan.md`.
 
+Resolve the output language for the source plan using this precedence order:
+
+1. explicit per-invocation language directive at the top level of the user's request (for example `in zh-tw`, `in en`, or "write in English")
+2. machine-local `PLAN_LANGUAGE` from `~/.gal/config/config.local.env` (following the `WORKING_HOURS_ENABLED` precedent)
+3. auto-detect the narrative language of the user's request
+4. fallback default `en`
+
+Treat an explicit language directive as valid only when it is a top-level instruction for this invocation's output language. Do not treat the same string as a language switch when it appears inside described content, quoted examples, or requested documentation text.
+
+Write the human-readable source plan entirely in the resolved language. Keep technical identifiers, file paths, command names, code snippets, and other literal machine-facing tokens untranslated. Do not awkwardly mix English prose with the resolved language inside the same narrative section.
+
 The source plan is the human-readable plan document for:
 
 - goal and rationale
