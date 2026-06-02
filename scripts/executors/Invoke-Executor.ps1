@@ -44,8 +44,8 @@ $scriptRoot = $PSScriptRoot
 # Helper: kill the whole process tree and all descendants on Windows
 # ---------------------------------------------------------------------------
 function Stop-ProcessTree {
-    param([int]$Pid)
-    & taskkill /T /F /PID $Pid 2>$null | Out-Null
+    param([int]$TargetPid)
+    & taskkill /T /F /PID $TargetPid 2>$null | Out-Null
 }
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ function Wait-ProcessWithTimeout {
     $completed = $Process.WaitForExit($TimeoutMs)
 
     if (-not $completed) {
-        Stop-ProcessTree -Pid $Process.Id
+        Stop-ProcessTree -TargetPid $Process.Id
         $null = [System.Threading.Tasks.Task]::WhenAll($stdoutTask, $stderrTask)
         return $false, '', ''
     }
@@ -126,7 +126,7 @@ if ($Executor -eq 'sleep') {
 
     $completed = $sleepProc.WaitForExit($timeoutMs)
     if (-not $completed) {
-        Stop-ProcessTree -Pid $sleepProc.Id
+        Stop-ProcessTree -TargetPid $sleepProc.Id
         $null = [System.Threading.Tasks.Task]::WhenAll($stdoutTask, $stderrTask)
         exit 2
     }
@@ -140,7 +140,7 @@ if ($Executor -eq 'sleep') {
 # ---------------------------------------------------------------------------
 $adapterPath = Join-Path $scriptRoot "$Executor.ps1"
 if (-not (Test-Path $adapterPath)) {
-    Write-Error "Executor '$Executor': no adapter found at '$adapterPath'"
+    [Console]::Error.WriteLine("Invoke-Executor: executor '$Executor' not found — no adapter at '$adapterPath'")
     exit 2
 }
 
@@ -155,7 +155,7 @@ $proc.StandardInput.Close()
 $waited, $stdout, $stderr = Wait-ProcessWithTimeout -Process $proc -TimeoutMs $timeoutMs
 
 if (-not $waited) {
-    Write-Error "Executor '$Executor' timed out after $TimeoutMinutes min; process tree killed."
+    [Console]::Error.WriteLine("Invoke-Executor: executor '$Executor' timed out after $TimeoutMinutes min — process tree killed.")
     exit 2
 }
 
