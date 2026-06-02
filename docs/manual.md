@@ -1,181 +1,38 @@
-# Personalization
+> 🌐 **English** · [繁體中文](i18n/zh-Hant/manual.zh-Hant.md)
 
-This document holds the machine-local details that do not belong on the README front page: placeholders, runtime selection, model routing, MCP overrides, Obsidian routing, working-hours settings, and when to rerun setup.
+# GAL User Manual
 
-## Runtime Selection
+Everything for running GAL on your machine: runtime selection, configuration and placeholders, model routing, MCP overrides, Obsidian routing, working hours, headless executor routing, and the backup / uninstall boundaries.
 
-The machine installer now persists runtime selection in `~/.gal/install-state.json`.
+This manual owns **how you operate GAL**. The architecture behind it (codebase + `~/.gal/` structure, distribution, release lineage, provider packaging) lives once in the [developer guide](devguide.md) and is not repeated here.
 
-- `selectedRuntimes` records which machine-layer targets GAL should manage.
-- `primaryRuntime` records which runtime should be treated as your default entry point.
-- The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Primary runtime affects defaults and summaries, not the underlying source content.
+## Overview
 
-Antigravity CLI (AGY) is the primary Google terminal runtime for GAL. GAL installs into AGY by linking each AGY surface to the shared superset canonical root at `~/.gal/plugins/gal/`, which carries skills, agents, rules, and MCP config. The canonical root is rendered by the provider-neutral core renderer `Build-CorePlugin` (one renderer for all providers, not a per-provider renderer). AGY's CLI and IDE surfaces are junctions to that canonical root; the Antigravity 2.0 GUI surface is a host-managed copy installed via `agy plugin install` from the same canonical root. `Update-Personalization` keeps the integration conservative, does not mutate user-owned global Antigravity rule files, and does not create repo-local `.agents` content.
+GAL runs in one of two modes, controlled by `~/.gal/config/config.json`:
 
-Use setup again with `-Reconfigure` on Windows or `--reconfigure` on macOS/Linux if you want to change the selected runtimes or primary runtime.
+- **Install mode** — for end users. No repo clone. The `gal` CLI manages its own `~/.gal/` runtime home.
+- **Source mode** — for GAL contributors. A local clone plus `galRoot` + `devMode` for live overrides and repo-skill mounting.
 
-The machine setup surface is now split by concern on both Windows and macOS/Linux:
+In both modes `~/.gal/plugins/gal/` is the canonical plugin root; provider-visible targets and `~/.gal/active/<provider>/` are projections, not content owners. For the full mode contract, `~/.gal/` layout, and ownership boundaries see [developer guide → Install Mode vs Source Mode](devguide.md#install-mode-vs-source-mode) and [→ .gal Data Structure](devguide.md#gal-data-structure).
 
-- `scripts/Setup-Machine.ps1` runs the full sequence
-- `scripts/Update-Personalization.ps1` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `Build-CorePlugin`), and local config seeding
-- `scripts/Update-Skills.ps1` refreshes agents, Antigravity plugin skills (via `Build-CorePlugin`), remaining shared skill links, and GAL root links
-- `scripts/Update-Commands.ps1` refreshes baked command skills, Antigravity plugin command skills (via `Build-CorePlugin`), remaining Gemini native command files, and Claude legacy cleanup state
-- `scripts/Update-Mcp.ps1` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
-- `scripts/setup-machine.sh` runs the full sequence
-- `scripts/update-personalization.sh` refreshes install-state, legacy Gemini settings bridges and `gal-context.md`, Antigravity plugin integration (renders `rules/gal.md` via `build-core-plugin.sh`), and local config seeding
-- `scripts/update-skills.sh` refreshes agents, Antigravity plugin skills (via `build-core-plugin.sh`), remaining shared skill links, and GAL root links
-- `scripts/update-commands.sh` refreshes baked command skills, Antigravity plugin command skills (via `build-core-plugin.sh`), remaining Gemini native command files, and Claude legacy cleanup state
-- `scripts/update-mcp.sh` refreshes runtime MCP config from the tracked manifest, including Antigravity plugin-root `mcp_config.json`
+To switch modes: set `installMode` to `install` or `source` in `~/.gal/config/config.json` (in source mode also set `galRoot` and optionally `devMode`), then rerun `Setup-Machine`.
 
-## Install Mode vs Source Mode
+## First-Time Setup
 
-GAL supports two operational modes controlled by `~/.gal/config/config.json`:
+### Runtime Selection
 
-- **Install mode** — for end users who just want to use GAL. You don't need to clone the repo. Install via `winget` (Windows) or `homebrew` (macOS/Linux), and GAL manages its own `~/.gal/` runtime home. AGY already supports the full provider-native lifecycle without a source checkout. Claude now supports plugin artifact rendering, strict validation when the local CLI exposes it, lifecycle-state tracking, and session-load smoke without a source checkout, but direct provider-native install is still capability-dependent and not yet a verified default lane. Broader install-mode defaults remain gated on the remaining provider smoke guards.
+The machine installer persists runtime selection in `~/.gal/install-state.json`:
 
-- **Source mode** — for GAL contributors. Keep a local clone of the GAL repo, set `galRoot` in `~/.gal/config/config.json` to that path, and enable `devMode`. This gives you live local overrides, direct repo-skill mounting, and the ability to test changes without packaging.
+- `selectedRuntimes` — which machine-layer targets GAL should manage.
+- `primaryRuntime` — your default entry point (affects defaults and summaries only).
 
-In both modes, `~/.gal/plugins/gal/` is the canonical plugin root. Provider-visible targets such as `~/.claude/plugins/gal` and stable aliases such as `~/.gal/active/<provider>/` are projections or shortcuts, not content owners. `~/.gal/dist/` is reserved for package output, managed metadata, conversion output, and dev-mode `~/.gal/dist/commits/` isolation; it is not the runtime source of truth.
+The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Antigravity CLI (AGY) is the primary Google terminal runtime; GAL links each AGY surface to the canonical root at `~/.gal/plugins/gal/`. Use setup again with `-Reconfigure` (Windows) or `--reconfigure` (macOS/Linux) to change selected or primary runtimes.
 
-### `~/.gal/` Directory Layout
+The machine setup surface is split by concern; the full-sequence entry points are `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh`, with `Update-Personalization`, `Update-Skills`, `Update-Commands`, and `Update-Mcp` (and their `.sh` peers) for single-concern refreshes. See [When To Rerun Setup](#when-to-rerun-setup).
 
-```text
-~/.gal/
-|-- active/
-|   |-- agy/                    # stable provider alias when a capability shortcut is needed
-|   `-- opencode/               # stable bridge-lane alias when enabled
-|-- config/
-|   |-- config.json             # machine intent: installMode, galRoot, plugins, runtime selection overrides
-|   |-- config.local.env        # machine-local env values and secrets
-|   |-- mcp.local.json          # local MCP overrides
-|   |-- model-roles.local.md    # local model-role mapping overrides
-|   `-- xmachine.json           # machine-local xmachine node definitions
-|-- dist/
-|   |-- commits/                # dev-mode isolated GAL change output; never the runtime source of truth
-|   |-- provider-plugins/
-|   |   `-- agy/
-|   |       `-- gal/            # AGY package output / conversion output
-|   `-- providers/
-|       `-- claude/
-|           `-- managed.json    # Claude lifecycle metadata: canonicalRoot, projectionRoot, installTarget, packageOutputRoot
-|-- generated/
-|   |-- mcp/
-|   |   `-- managed.json        # GAL-managed MCP projection state
-|   `-- xmachine/
-|       `-- managed.json        # GAL-managed xmachine projection state
-|-- install-state.json          # selectedRuntimes and primaryRuntime
-|-- plugins/
-|   `-- gal/                    # canonical GAL plugin root
-|       |-- .claude-plugin/
-|       |   `-- plugin.json     # Claude manifest under the canonical root
-|       |-- .mcp.json           # portable GAL-managed Claude MCP config
-|       |-- agents/
-|       |-- commands/
-|       `-- skills/
-|-- source/                     # source-mode bridge roots used by repo-linked workflows
-`-- state/
-  `-- plugins.lock.json       # resolved plugin catalog state
-```
+### Configuration & Placeholders
 
-Read it as ownership, not just path listing: `plugins/gal` owns the canonical runtime content, `dist/` owns rebuildable package and metadata output, `active/` owns stable aliases, and `config/` plus `state/` carry machine intent.
-
-To switch modes:
-
-- Set `installMode` to `install` or `source` in `~/.gal/config/config.json`.
-- In source mode, also set `galRoot` to your local GAL repo path and optionally enable `devMode`.
-- Rerun `Setup-Machine` after switching.
-
-### Bootstrap First Launch
-
-For package-managed installs, first launch is intentionally install-mode-first:
-
-- If `~/.gal/config/config.json` does not exist yet, the bootstrap path seeds `installMode=install`, keeps `devMode=false`, and does not require `galRoot`.
-- That first launch creates or reuses `~/.gal/`, resolves the default profile into `~/.gal/state/plugins.lock.json`, and refreshes provider projections plus any `~/.gal/active/<provider>/` targets needed by install mode.
-- Source mode is an explicit opt-in for contributors. Switch only after you set `installMode=source`, set `galRoot`, and rerun setup.
-
-This means the installed `gal` package path can stay install-mode-first for end users, while the repo-owned `Setup-Machine` scripts remain a contributor and packaging harness that mirrors the same branching rules. Contributors still have a clear path back to repo-root development mode.
-
-### Upgrade Boundaries
-
-When GAL is refreshed through a future package-manager upgrade, a provider-native direct-update lane, or a manual archive replacement, the machine-local rule stays the same:
-
-- the payload may be replaced and GAL-managed generated state may be refreshed
-- `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret sources remain user-owned and must be preserved
-- an upgrade must not silently switch `installMode`, clear `galRoot`, or turn `devMode` on or off unless you edit the config yourself
-
-In other words, upgrades may refresh GAL-managed runtime outputs, but they must preserve your machine intent.
-
-### Uninstall And Purge Boundaries
-
-Default uninstall is not a reset button.
-
-- package-manager uninstall removes the packaged `gal` binary only
-- GAL-managed uninstall removes rebuildable GAL-owned runtime outputs such as provider-native plugin installs owned by GAL, `~/.gal/store/plugins`, and generated projections under `~/.gal/generated/`
-- `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources remain user-owned and must be preserved
-
-If you want a true reset, use the explicit purge/reset lane such as `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`. Default uninstall must never silently delete the preserved surfaces above.
-
-### Backup And Migration
-
-When you move GAL to a new machine, preserve the machine-local intent rather than the rebuildable payload:
-
-- back up `~/.gal/config/config.json`
-- back up `~/.gal/config/xmachine.json`
-- back up `~/.gal/state/plugins.lock.json`
-- back up explicit local overrides and any secret sources your local setup depends on
-
-You do not need to carry forward package-managed `gal` binaries, provider plugin install trees, `~/.gal/store/plugins`, or `~/.gal/generated/` projections. Reinstall GAL first, restore the backed-up machine-intent files, then rerun setup or bootstrap refresh so GAL can rebuild the managed runtime outputs.
-
-### Channel Lag And Non-Guarantees
-
-Machine-local settings do not change GAL's release-channel contract. Follow `README.md` and `docs/release-matrix.md` for the user-facing lag, fallback, and non-guarantee policy. The machine-local implication is narrower: preserve your machine-intent files so you can reinstall or refresh the managed payload later without losing local state.
-
-### Distribution Architecture and Ownership Boundaries
-
-GAL explicitly separates how the CLI is installed from how the provider plugins are distributed and managed:
-
-- **Bootstrap Installer Distribution**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases handle the installation of the `gal` executable binary. They own the **package-managed payload**.
-- **Install-Mode Plugin Distribution**: GAL owns the plugin catalog (`plugins/catalog.json`) and resolves it into `~/.gal/state/plugins.lock.json` to manage provider-native plugin installations (e.g., Claude, AGY, Copilot).
-- **GAL-Managed Runtime and Generated State**: GAL manages content under `~/.gal/store/` and `~/.gal/generated/`. These are safe to rebuild or reinstall.
-- **User-Owned Config and State**: You own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secrets. Package managers must **never** delete these during uninstalls. A full destructive cleanup requires an explicit purge flow.
-
-## Companion Plugins and Support Tiers
-
-GAL keeps `gal-core` small: the control plane, golem agents, core workflows, essential conventions, and a small set of GAL-owned skills. Everything else is an external companion plugin you opt into.
-
-**Support tiers** tell you who maintains the content:
-
-| Tier | Maintained by | Auto-update | Example |
-| --- | --- | --- | --- |
-| `official-gal` | GAL repo / release artifacts | yes, via GAL releases | `gal-core` |
-| `curated-upstream` | external upstream repo; GAL locks the version | controlled, per lockfile pin | `dart-lang/skills` |
-| `mirrored` | external upstream, managed mirror by GAL | no unversioned copies | upstream that needs a managed cache |
-| `forked` | fork owner (GAL or user) | manual, with fork base tracking | a patched fork of an upstream skill |
-| `local` | you, for source-mode overrides only | never shared | `file://` local path |
-
-**Default profile**: the initial `default` profile only installs `gal-core`. All companion plugins are opt-in. Enable them through named profiles (e.g., `dart`, `flutter`, `dotnet`) or explicit plugin selection in `~/.gal/config/config.json`.
-
-**Known companion candidates** (all `curated-upstream`, all opt-in):
-
-- `dart-lang/skills` — Dart
-- `flutter/skills` — Flutter
-- `dotnet/skills` — .NET / C#
-- `anthropics/skills` — Claude ecosystem
-- `samber/cc-skills-golang` — Go
-- `twostraws/swift-agent-skills` — Swift
-- `kepano/obsidian-skills` — Obsidian
-- `actionbook/rust-skills` — Rust
-
-Game asset, Godot, and GStack framework skills remain in `gal-core` (GAL-owned, not external companion) unless confirmed otherwise.
-
-Your plugin selections, profiles, and resolver output live in:
-
-- `~/.gal/config/config.json` — what you want to install
-- `~/.gal/state/plugins.lock.json` — what is actually resolved and locked
-
-Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when migrating machines. Package-managed payloads, provider plugin install trees, and `~/.gal/generated/` content can be rebuilt by reinstalling.
-
-## Placeholders You May Need To Fill
+Machine-local values live in `~/.gal/config/config.local.env` (secrets, absolute paths, machine-specific values). Never write local values into tracked docs, command templates, or source files.
 
 | Placeholder | Meaning | Common use |
 | --- | --- | --- |
@@ -188,59 +45,57 @@ Back up `~/.gal/config/config.json` and `~/.gal/state/plugins.lock.json` when mi
 | `<OBSIDIAN_SCRATCH_DIR>` | vault-relative directory for quick scratch logs | notewriter diary mode |
 | `<OBSIDIAN_ARCHIVE_DIR>` | vault-relative directory for diary archives | notewriter diary mode |
 | `<RESEARCH_DEFAULT_DEST>` | default durable destination for research output | `repo`, `private`, `knowledge`, or `none` |
-| `<WORKING_HOURS_ENABLED>` | whether working-hours enforcement is active on this machine | opt-in wrap-up and hard-stop enforcement |
-| `<WORKDAY_START>` | start of the preferred workday in `HH:MM` | Working Hours schedule |
-| `<WORKDAY_END>` | end of the preferred workday in `HH:MM` | After Hours boundary |
-| `<WRAP_UP_TIME>` | Wrap-up Time in `HH:MM` | shutdown-window behavior |
-| `<HARD_STOP_TIME>` | Hard Stop in `HH:MM` | stop-work behavior |
+| `<WORKING_HOURS_ENABLED>` | whether working-hours enforcement is active | opt-in wrap-up and hard-stop enforcement |
+| `<WORKDAY_START>` / `<WORKDAY_END>` | preferred workday in `HH:MM` | Working Hours schedule / After Hours boundary |
+| `<WRAP_UP_TIME>` / `<HARD_STOP_TIME>` | wrap-up and hard-stop in `HH:MM` | shutdown-window / stop-work behavior |
 | `<LOCAL_SEARCH_PROJECT>` | clone path for the local search project | local-first and knowledge-management skills |
-| `<GAL_ROOT>` | path to local GAL repo clone (source mode only) | source mode contributor workflow |
+| `<GAL_ROOT>` | path to local GAL repo clone (source mode only) | source-mode contributor workflow |
 | `<TEMP_DIR>` | temp output directory | PDF and file-processing workflows |
 | `<MCP_FILESYSTEM_PATHS>` | allowed root paths for the filesystem MCP server | MCP manifest merge |
-| `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP manifest merge (materialized into `~/.gal/generated/mcp/managed.json`) |
+| `<CONTEXT7_API_KEY>` | Context7 API key for runtimes that require it | MCP merge (materialized into `~/.gal/generated/mcp/managed.json`) |
 
-## Common Personalization Steps
+### Companion Plugins
 
-### 1. Model routing
+GAL keeps `gal-core` small (control plane, golem agents, core workflows, essential conventions, a small set of GAL-owned skills). Everything else is an opt-in external companion plugin. The `default` profile installs only `gal-core`; enable companions through named profiles or explicit plugin selection in `~/.gal/config/config.json`.
+
+| Tier | Maintained by | Auto-update | Example |
+| --- | --- | --- | --- |
+| `official-gal` | GAL repo / release artifacts | yes, via GAL releases | `gal-core` |
+| `curated-upstream` | external upstream; GAL locks the version | controlled, per lockfile pin | `dart-lang/skills` |
+| `mirrored` | external upstream, managed mirror by GAL | no unversioned copies | upstream needing a managed cache |
+| `forked` | fork owner (GAL or user) | manual, with fork base tracking | a patched fork of an upstream skill |
+| `local` | you, source-mode overrides only | never shared | `file://` local path |
+
+Known companion candidates (all `curated-upstream`, opt-in): `dart-lang/skills`, `flutter/skills`, `dotnet/skills`, `anthropics/skills`, `samber/cc-skills-golang`, `twostraws/swift-agent-skills`, `kepano/obsidian-skills`, `actionbook/rust-skills`. Your selections live in `~/.gal/config/config.json`; the resolved set is in `~/.gal/state/plugins.lock.json`.
+
+## Personalization
+
+### Model Routing
 
 - Copy `model-roles.example.md` into `~/.gal/config/model-roles.local.md`.
 - Change provider and model mappings only in `~/.gal/config/model-roles.local.md`.
 
-### 2. Local secrets and paths
+### Local Secrets, Paths, and Doc Language
 
-- Put secrets, absolute paths, and machine-specific values in `~/.gal/config/config.local.env`.
-- Do not write local values into tracked docs, command templates, or source files.
+Put secrets, absolute paths, and machine-specific values in `~/.gal/config/config.local.env`. Documentation language follows the same ownership split:
 
-Documentation language settings follow the same ownership split:
+- `PLAN_LANGUAGE` (in `config.local.env`) is machine-local and optional; it sets the default output language for `docs/plans/*.md` and `docs/research/*.md` when no explicit directive is given. Resolution: explicit directive → `PLAN_LANGUAGE` → prompt-language auto-detect → fallback `en`.
+- `PROJECT_LANGUAGE` (tracked project metadata) controls the canonical language for main docs.
+- Translations live under `docs/i18n/<lang>/` as `<name>.<lang>.md` (see [developer guide → Documentation Conventions](devguide.md#documentation-conventions)).
+- `.dev/plans/*.prompt.md` stays English-only for cross-model stability.
 
-- `PLAN_LANGUAGE` lives in `~/.gal/config/config.local.env`. It is machine-local, optional, and controls the default output language for `docs/plans/*.md` and `docs/research/*.md` when there is no explicit directive in the current request.
-- Resolution order for plan and research narrative is: explicit directive, `PLAN_LANGUAGE`, prompt-language auto-detect, then fallback `en`.
-- `PROJECT_LANGUAGE` lives in tracked project metadata (`templates/project.md` for the contract, `.dev/project.md` for the instantiated repo value). It controls the canonical language for main docs such as `README.md` and non-suffixed files under `docs/`.
-- Translation copies use `<name>.<lang>.md` naming such as `README.zh-Hant.md`; they do not redefine the project's canonical documentation language.
-- `.dev/plans/*.prompt.md` is separate from both settings: execution prompts stay English-only for cross-model stability and token efficiency.
+### Command Skill Local Overlays
 
-### 2a. Command skill local overlays
+For a machine-local customization of a command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`:
 
-If you want a machine-local customization for a specific command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`.
+- It is gitignored and treated as user-owned machine-local input.
+- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md`.
+- Do not edit `commands/<command>/SKILL.md` directly — it is generated and will be replaced.
+- Keep `SKILL.local.md` to additional instruction content only; no second frontmatter block.
 
-- `SKILL.local.md` is gitignored and treated as user-owned machine-local input.
-- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md` before regenerating the baked command outputs that still feed Gemini compatibility and Claude plugin packaging inputs.
-- Do not edit `commands/<command>/SKILL.md` directly. It remains a generated file and will be replaced on the next setup run.
-- Keep `SKILL.local.md` to additional instruction content only. Do not add a second frontmatter block.
+### Obsidian Routing
 
-### 2b. Obsidian routing
-
-Obsidian support is machine-local and optional. GAL separates repo-owned state from user-owned notes:
-
-- GAL's Obsidian automation now uses the built-in `obsidian` CLI, not the old Local REST API MCP bridge.
-- Repo-owned research stays in `docs/research/` by default.
-- Private captures and reusable knowledge can route into your Obsidian vault when `OBSIDIAN_VAULT` is configured.
-- If you want GAL to follow your own library rules, set `OBSIDIAN_GUIDE_PATH` and leave `OBSIDIAN_GUIDE_MODE=auto` or force `guide`.
-- If you do not keep a personal guide, leave `OBSIDIAN_GUIDE_PATH` empty or set `OBSIDIAN_GUIDE_MODE=generic`.
-
-Vault-relative paths should not include the vault root and should not end with a trailing slash.
-
-Recommended defaults:
+Obsidian support is machine-local and optional. GAL separates repo-owned state from user-owned notes; its Obsidian automation uses the built-in `obsidian` CLI. Repo-owned research stays in `docs/research/` by default; private captures and reusable knowledge route into your vault when `OBSIDIAN_VAULT` is configured. Set `OBSIDIAN_GUIDE_PATH` (with `OBSIDIAN_GUIDE_MODE=auto` or `guide`) to follow your own library rules; leave it empty or use `generic` otherwise. Vault-relative paths exclude the vault root and have no trailing slash.
 
 | Setting | Typical value |
 | --- | --- |
@@ -251,29 +106,19 @@ Recommended defaults:
 | `OBSIDIAN_ARCHIVE_DIR` | `/Archives/Work_Journal` |
 | `RESEARCH_DEFAULT_DEST` | `repo` |
 
-### 2c. Working Hours
+### Working Hours
 
-Working-hours enforcement is disabled by default. If you want GAL to respect your own workday boundary, configure it in `~/.gal/config/config.local.env`:
+Working-hours enforcement is disabled by default. To respect your own workday boundary, configure in `~/.gal/config/config.local.env`: `WORKING_HOURS_ENABLED=false` keeps it off; `WORKDAY_START`/`WORKDAY_END` describe your window; `WRAP_UP_TIME` starts reminders and the shutdown window; `HARD_STOP_TIME` is where agents refuse further work. These are machine-local preferences, not tracked repo policy.
 
-- `WORKING_HOURS_ENABLED=false` keeps all working-hours logic off.
-- `WORKDAY_START` and `WORKDAY_END` describe your preferred work window.
-- `WRAP_UP_TIME` starts reminders and shutdown-window behavior.
-- `HARD_STOP_TIME` defines the point where agents refuse further work.
+### xmachine Node Config
 
-These values are machine-local preferences, not tracked repo policy.
-
-### 2d. xmachine node config
-
-xmachine node definitions are machine-local and live in `~/.gal/config/xmachine.json`.
+xmachine node definitions are machine-local in `~/.gal/config/xmachine.json`:
 
 - Copy `xmachine.config.example.json` into `~/.gal/config/xmachine.json`.
-- Define each work node under the top-level `nodes` object.
-- Use the node alias as the key and set at least `target` and `repoPath`.
-- Add `runtimeRepoPath` when the remote GAL runtime checkout lives in a different path from the target repo checkout.
-- Add `repoMappings` when one work node hosts multiple target repositories and you want GAL to resolve the remote repo automatically from the current local repo name.
-- Keep SSH targets and repo paths in `~/.gal/config/xmachine.json`, not in `~/.gal/config/config.local.env`.
-
-Example:
+- Define each work node under the top-level `nodes` object, keyed by node alias, with at least `target` and `repoPath`.
+- Add `runtimeRepoPath` when the remote GAL runtime checkout differs from the target repo checkout.
+- Add `repoMappings` when one node hosts multiple target repositories.
+- Keep SSH targets and repo paths here, not in `config.local.env`.
 
 ```json
 {
@@ -293,43 +138,25 @@ Example:
 }
 ```
 
-In this example, GAL can keep using the same `mac-mini` node alias while routing `Golem-Agents-Legion` and `local-ai-tools` to different remote checkouts.
+`scripts/Test-Xmachine.ps1` reads `~/.gal/config/xmachine.json` directly, so editing the canonical file does not require rerunning setup.
 
-`scripts/Test-Xmachine.ps1` reads `~/.gal/config/xmachine.json` directly, with repo-root fallback kept only as a warned migration path, so editing the canonical file does not require rerunning setup.
+### MCP Overrides
 
-### 3. MCP overrides
+Keep the tracked GAL source in `mcp.json`; put machine-specific MCP differences in `~/.gal/config/mcp.local.json`. Project- or database-specific MCP servers usually belong in `mcp.local.json`, not the tracked manifest.
 
-- Keep the tracked GAL source in `../mcp.json`.
-- Put machine-specific MCP differences in `~/.gal/config/mcp.local.json`.
-
-Project-specific or database-specific MCP servers should usually live in `~/.gal/config/mcp.local.json`, not the tracked `mcp.json`. This matters for Postgres because one machine may work across many repos, and one repo may talk to multiple databases.
-
-For Playwright MCP, keep the tracked `mcp.json` entry conservative and machine-agnostic. Put local-only browser behavior in `~/.gal/config/mcp.local.json`: headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP connections, and other stateful browser settings.
-
-Example local-only Playwright override:
+For Playwright MCP, keep the tracked entry conservative and machine-agnostic; put local-only browser behavior (headed mode, viewport/device emulation, storage-state paths, output dirs, persistent profiles, extension/CDP wiring) in `mcp.local.json`. A local override replaces the full `args` list, so keep the safe defaults you still want (`--isolated`, `--headless`):
 
 ```json
 {
   "servers": {
     "playwright": {
-      "args": [
-        "-y",
-        "@playwright/mcp@latest",
-        "--isolated",
-        "--headless",
-        "--storage-state",
-        "${PLAYWRIGHT_MCP_STORAGE_STATE}",
-        "--output-dir",
-        "${PLAYWRIGHT_MCP_OUTPUT_DIR}"
-      ]
+      "args": ["-y", "@playwright/mcp@latest", "--isolated", "--headless",
+        "--storage-state", "${PLAYWRIGHT_MCP_STORAGE_STATE}",
+        "--output-dir", "${PLAYWRIGHT_MCP_OUTPUT_DIR}"]
     }
   }
 }
 ```
-
-This override replaces the full `args` list for `playwright`, so keep the inherited safe defaults you still want, such as `--isolated` and `--headless`. `command` and `type` continue to come from the tracked entry through the normal deep-merge behavior.
-
-Keep those env vars in `~/.gal/config/config.local.env`, and keep the referenced files/directories outside tracked repo paths. Do not commit storage-state files, persistent browser profiles, browser output artifacts, or any secret-like local files.
 
 Example for two Postgres databases on one machine:
 
@@ -337,144 +164,24 @@ Example for two Postgres databases on one machine:
 {
   "servers": {
     "postgres-app": {
-      "type": "stdio",
-      "command": "uvx",
+      "type": "stdio", "command": "uvx",
       "args": ["postgres-mcp", "--access-mode=restricted"],
-      "env": {
-        "DATABASE_URI": "${POSTGRES_MCP_APP_URI}"
-      }
+      "env": { "DATABASE_URI": "${POSTGRES_MCP_APP_URI}" }
     },
     "postgres-analytics": {
-      "type": "stdio",
-      "command": "uvx",
+      "type": "stdio", "command": "uvx",
       "args": ["postgres-mcp", "--access-mode=restricted"],
-      "env": {
-        "DATABASE_URI": "${POSTGRES_MCP_ANALYTICS_URI}"
-      }
+      "env": { "DATABASE_URI": "${POSTGRES_MCP_ANALYTICS_URI}" }
     }
   }
 }
 ```
 
-Then add matching variables to `~/.gal/config/config.local.env` with any names you want. `Update-Mcp.ps1` and `update-mcp.sh` already merge all local server names and resolve arbitrary `${ENV_VAR}` placeholders from `~/.gal/config/config.local.env`.
+Add matching variables to `~/.gal/config/config.local.env`; `Update-Mcp.*` merges all local server names and resolves arbitrary `${ENV_VAR}` placeholders. Installed runtime MCP configs stay user-owned: VS Code user `mcp.json`, AGY plugin-root `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`, Codex `config.toml` `[mcp_servers.*]`, Claude user-scope via `claude mcp`. Reruns overwrite only GAL-managed server names and preserve unrelated user entries. Do not commit storage-state files, persistent profiles, browser artifacts, or secret-like local files.
 
-### 4. Runtime-owned config
+### Headless Executor Routing
 
-The installed runtime configs remain user-owned even when GAL refreshes GAL-managed entries.
-
-| Runtime | Typical MCP config location |
-| --- | --- | |
-| VS Code | user `mcp.json` |
-| Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` (plugin-root) |
-| Codex CLI | `config.toml` under `[mcp_servers.*]` |
-| Claude Code | user-scope MCP entries managed through `claude mcp` |
-
-GAL now treats `mcp.json` plus `~/.gal/config/mcp.local.json` as the MCP source of truth. Rerunning `Update-Mcp.ps1` or `update-mcp.sh` overwrites only GAL-managed server names for supported runtimes and preserves unrelated user-defined entries. For AGY, GAL-managed MCP lands in the plugin-root `mcp_config.json` at `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries. Gemini legacy compatibility remains installed for commands or context, and reruns remove the GAL-managed Gemini MCP entries previously written into `settings.json`.
-
-## When To Rerun Setup
-
-Run setup again when any of these change:
-
-- `~/.gal/config/config.local.env`
-- `mcp.json`
-- `~/.gal/config/mcp.local.json`
-- any `commands/*/SKILL.local.md`
-- `~/.gal/install-state.json`
-- Obsidian routing paths or Guide mode
-- working-hours settings
-- model routing or runtime install locations
-- GAL command or skill installation
-
-`~/.gal/config/xmachine.json` is read directly by the xmachine scripts and does not require a setup rerun.
-
-Use the narrower concern script when only one concern changed:
-
-- `scripts/Update-Personalization.ps1` after editing runtime bridges, `~/.gal/config/config.local.env`, or `~/.gal/config/model-roles.local.md`
-- `scripts/Update-Skills.ps1` after changing `agent/` or `skills/`
-- `scripts/Update-Commands.ps1` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
-- `scripts/Update-Mcp.ps1` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`
-- `scripts/update-personalization.sh` after editing runtime bridges, `~/.gal/config/config.local.env`, or `~/.gal/config/model-roles.local.md`
-- `scripts/update-skills.sh` after changing `agent/` or `skills/`
-- `scripts/update-commands.sh` after changing `commands/*/SKILL.template.md` or `commands/*/SKILL.local.md`
-- `scripts/update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`
-
-If you changed source-of-truth content that feeds repo-local generated adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`, rerun `scripts/Sync-DevContext.ps1` or `scripts/sync-dev-context.sh`. `Update-Mcp` does not regenerate those adapter files.
-
-Windows:
-
-```powershell
-./scripts/Setup-Machine.ps1
-./scripts/Setup-Machine.ps1 -Reconfigure
-./scripts/Update-Personalization.ps1
-./scripts/Update-Skills.ps1
-./scripts/Update-Commands.ps1
-./scripts/Update-Mcp.ps1
-```
-
-macOS/Linux:
-
-```bash
-./scripts/setup-machine.sh
-./scripts/setup-machine.sh --reconfigure
-./scripts/update-personalization.sh
-./scripts/update-skills.sh
-./scripts/update-commands.sh
-./scripts/update-mcp.sh
-```
-
-## Provider Plugin Packaging
-
-GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth. A single provider-neutral core renderer (`Build-CorePlugin` / `build-core-plugin.sh`) renders one superset canonical root at `~/.gal/plugins/gal/` that carries every provider's entry-point markers. There is no per-provider renderer; providers link to the canonical root (link-first) and only fall back to a host-managed copy or generated files when a host cannot consume a link.
-
-### Common Base
-
-The common package model carries metadata, reusable skills, command skills (as skill bundles), a canonical MCP spec, an instruction corpus, and optional agents with capability flags. It explicitly excludes:
-
-- Provider-specific output paths
-- Resolved machine-local secrets or paths
-- `runtimeScripts` or plugin-root `scripts/`
-- `gal-results/`
-- Hooks (deferred from v1)
-
-### AGY Surface Projection
-
-AGY is not a renderer; it is a consumer of the canonical root. The core renderer emits AGY's entry-point markers directly into `~/.gal/plugins/gal/`, and install orchestration projects that canonical root to all three AGY surfaces:
-
-- CLI (`~/.gemini/antigravity-cli/plugins/gal`) — junction to the canonical root
-- IDE (`~/.gemini/antigravity-ide/plugins/gal`) — junction to the canonical root
-- Desktop GUI 2.0 (`~/.gemini/config/plugins/gal` + `import_manifest.json`) — host-managed copy installed via `agy plugin install` from the canonical root
-
-`~/.gal/active/agy/` remains available only as a stable alias when a capability shortcut is required. The AGY-facing markers in the canonical root are:
-
-- `plugin.json` — manifest with stable `name: gal`
-- `skills/` — reusable skills and command skills
-- `agents/` — agent definitions
-- `rules/gal.md` — combined instruction corpus
-- `mcp_config.json` — MCP server configuration (plugin-root)
-
-Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
-
-### Gemini Migration Lane
-
-Gemini CLI is not a separate renderer. It is an AGY migration/compatibility lane. Existing Gemini-specific cleanup and bridge logic stays in the install-orchestration/collaboration layer; it does not enter the provider-neutral substrate.
-
-### Provider Coverage
-
-All four providers — Claude, AGY, Copilot, and Codex — are wired to the single core renderer and the shared canonical root. Each provider exposes its own entry-point markers in that root (`.claude-plugin/plugin.json`, AGY `plugin.json` + `mcp_config.json`, `copilot-manifest.json`, `.codex-plugin/plugin.json`) without a provider-specific renderer. No provider maintains a second rendered tree.
-
-## Headless Executor Routing
-
-GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI on the local machine instead of running them in the conversation loop. Configure this in `~/.gal/config/executor-routing.ndjson`.
-
-### Setup
-
-Run `Update-Personalization.ps1` once to seed the example file:
-
-```powershell
-.\scripts\Update-Personalization.ps1
-```
-
-This copies `executor-routing.example.ndjson` (repo root) to `~/.gal/config/executor-routing.ndjson`. Edit the local copy to map roles to your preferred CLIs:
+GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.ndjson`. Run `Update-Personalization.*` once to seed `executor-routing.example.ndjson` into the local copy, then map roles:
 
 ```jsonl
 {"role":"CODER","executor":"claude"}
@@ -483,33 +190,62 @@ This copies `executor-routing.example.ndjson` (repo root) to `~/.gal/config/exec
 {"role":"VERIFIER","executor":"claude"}
 ```
 
-Valid executor values: `claude`, `opencode`, `agy`. Omit a role to keep it in the conversation loop. Delete or remove the file to disable routing entirely (falls back to `--- GAL DISPATCH ---`).
+Valid executors: `claude`, `opencode`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing. Verify with `scripts/executors/Test-Executor.ps1` (availability) and `Test-ExecutorReceipt.ps1` (acted on a spec).
 
-### Verifying the setup
+> ⚠️ **SECURITY WARNING — bypass-permission.** Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code) or equivalent, granting **full trust** over the local filesystem and terminal — equivalent to no sandbox. Enable executor routing only on machines and in environments you fully trust, and never when the repo or agent contracts come from untrusted sources. The spec forbids the secondary CLI from running `git commit`/`git push`, but that is an instruction, not a technical enforcement.
 
-```powershell
-# Smoke test (checks availability + exit code)
-.\scripts\executors\Test-Executor.ps1 -Executor claude
+## Machine Operations
 
-# Receipt proof (confirms CLI actually received and acted on a spec)
-.\scripts\executors\Test-ExecutorReceipt.ps1 -Executor claude
+### When To Rerun Setup
+
+Rerun setup when any of these change: `~/.gal/config/config.local.env`, `mcp.json`, `~/.gal/config/mcp.local.json`, any `commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
+
+Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `model-roles.local.md`), `Update-Skills` (`agent/`, `skills/`), `Update-Commands` (`commands/*/SKILL.*`), `Update-Mcp` (`mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
+
+```bash
+# Windows                         # macOS / Linux
+./scripts/Setup-Machine.ps1        ./scripts/setup-machine.sh
+./scripts/Setup-Machine.ps1 -Reconfigure
+./scripts/Update-Personalization.ps1 ./scripts/update-personalization.sh
+./scripts/Update-Skills.ps1          ./scripts/update-skills.sh
+./scripts/Update-Commands.ps1        ./scripts/update-commands.sh
+./scripts/Update-Mcp.ps1             ./scripts/update-mcp.sh
 ```
 
-### ⚠️ SECURITY WARNING — bypass-permission
+### Backup & Migration
 
-Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code) or equivalent. This grants the secondary CLI **full trust** over the local filesystem and terminal — equivalent to running without any sandbox. A malicious or flawed agent contract could cause unintended file deletions, edits, or arbitrary command execution.
+When moving GAL to a new machine, preserve machine intent, not the rebuildable payload. Back up:
 
-**Enable executor routing only on machines and in environments you fully trust.** Do not enable it when the repo or agent contracts come from untrusted sources. The spec explicitly forbids the secondary CLI from running `git commit` or `git push`, but this is an instruction, not a technical enforcement.
+- `~/.gal/config/config.json`
+- `~/.gal/config/xmachine.json`
+- `~/.gal/state/plugins.lock.json`
+- explicit local overrides and any secret sources your setup depends on
+
+You do not need to carry forward package-managed `gal` binaries, provider plugin install trees, or `~/.gal/generated/` projections. Reinstall GAL, restore the backed-up files, then rerun setup / bootstrap refresh so GAL rebuilds the managed runtime outputs. Upgrades may refresh the payload and GAL-managed generated state but must preserve your machine intent — they must not silently switch `installMode`, clear `galRoot`, or toggle `devMode`.
+
+### Uninstall & Purge
+
+Default uninstall is not a reset button:
+
+- **Package-manager uninstall** removes the packaged `gal` binary only.
+- **GAL-managed uninstall** removes rebuildable GAL-owned outputs (GAL-owned provider plugin installs, canonical plugin roots under `~/.gal/plugins/`, generated projections under `~/.gal/generated/`).
+- `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources stay user-owned and are preserved.
+
+For a true reset, use the explicit purge lane — `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`. Default uninstall must never silently delete the preserved surfaces.
+
+## Install Status & Channels
+
+Machine-local settings do not change GAL's release-channel contract. Which runtimes support install today, the canonical release lineage, marketplace matrix, lag windows, and fallback policy are owned by [README → Install Status](../README.md#install-status) and [developer guide → Release Artifact Matrix](devguide.md#release-artifact-matrix). The machine-local implication is narrow: preserve your machine-intent files so you can reinstall or refresh the managed payload later without losing local state.
 
 ## Responsibility Boundary
 
 - Methodology and durable contracts stay in tracked repo files.
 - Machine-local values stay in `*.local.*` files or runtime-owned config.
-- Collaborative-tool availability belongs to machine-local setup and personalization. Collaborative-tool readiness belongs to workflow preflight through [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
+- Collaborative-tool availability is machine-local setup; readiness is workflow preflight via [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
 - If a setting would create cross-machine drift, first ask whether it belongs in a source file instead of a local override.
 
 ## Read Next
 
-- [../README.md](../README.md) for the main user entry point.
-- [devguide.md](devguide.md) for maintainer-facing setup and runtime topology.
-- [../scripts/scripts.md](../scripts/scripts.md) for the script inventory.
+- [../README.md](../README.md) — the map and what GAL is.
+- [devguide.md](devguide.md) — maintainer-facing architecture, distribution, and runtime topology.
+- [../scripts/scripts.md](../scripts/scripts.md) — the script inventory.
