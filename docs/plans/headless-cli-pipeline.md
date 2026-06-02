@@ -277,7 +277,7 @@
 - [x] T-001 — 建立 `executor-routing.example.ndjson`（repo root，每行 `{"role":"CODER","executor":"claude"}`）；在 `scripts/Update-Personalization.ps1` 新增播種區塊（比照 `config.example.env`/`model-roles.example.md`），把範例複製到 `~/.gal/config/executor-routing.ndjson`（無 `.local` 中綴）；在 `scripts/common/Common.ps1` 新增 `Read-ExecutorRouting`（比照 `Resolve-XmachineConfigRecord` 以 `Get-GalUserHome` 解析正規路徑 → hashtable，缺檔回 `$null`，malformed 行 try-catch 跳過）與「階段→角色」對照（implement→CODER、test→TESTER、review→REVIEWER、verify→VERIFIER）。
 - [x] T-002 — CLI 無頭語法 spike：實測確認 Claude Code / OpenCode / Antigravity CLI（agy）的無頭呼叫式與 stdin 餵入行為，記錄為 T-004~006 依據。不寫產品碼。
 - [x] T-003 — 建立 `scripts/executors/Invoke-Executor.ps1` 本機統一入口：`-Executor`、`-TaskSpecPath`、`-WorkDir`、`-TimeoutMinutes`（**無 `-Transport`**）。Exit 0/1/2。內建 echo mock。spec 經 stdin 餵入。逾時用 `taskkill /T` 或 Job object 回收整個行程樹。
-- [ ] T-004 — 建立 `scripts/executors/claude.ps1`：`Get-Command claude` 檢查；依 T-002 語法以 stdin 餵 spec 呼叫 claude（bypass-permission）；權威結果＝就地寫回、stdout 僅訊號；逾時/不存在回 Exit 2。
+- [x] T-004 — 建立 `scripts/executors/claude.ps1`：`Get-Command claude` 檢查；依 T-002 語法以 stdin 餵 spec 呼叫 claude（bypass-permission）；權威結果＝就地寫回、stdout 僅訊號；逾時/不存在回 Exit 2。
 - [ ] T-005 — 建立 `scripts/executors/opencode.ps1`：依 T-002 語法呼叫 OpenCode（非互動自動核准）；可用性檢查與逾時同 T-004。
 - [ ] T-006 — 建立 `scripts/executors/agy.ps1`：依 T-002 語法呼叫 Antigravity CLI（agy，非互動自動核准）；可用性檢查與逾時同 T-004。
 - [ ] T-007 — 建立 `scripts/common/New-TaskSpec.ps1`：從 `.dev/plans/<slug>.prompt.md` 提取指定 T-NNN 的目標、受影響檔案、git branch/HEAD、寫回路徑指示、Agent 合約路徑；慣例提示**重用 `Get-PipelineDispatchMetadata` 的 CONVENTION_HINTS**；spec 內**明令次級 CLI 不得 git commit/push**；輸出 `.dev/task-specs/T-NNN-<phase>.md`（< 5KB）；含 Pipeline 結束清理。
