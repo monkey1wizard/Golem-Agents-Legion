@@ -998,4 +998,3 @@ function Get-PipelinePhaseRole {
 
     return $map[$Phase.ToLower()]
 }
-}
