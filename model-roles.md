@@ -62,3 +62,5 @@ Research workflow note: `/gal research` and `/gal deep-research` have their own 
 
 Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
 with your own machines, models, and tools. The local file is git-ignored.
+
+> **Headless executor routing**: this Markdown table is human reference only. The pipeline's machine-read source for per-role CLI assignment is `~/.gal/config/executor-routing.ndjson`. See [docs/personalization.md — Headless Executor Routing](docs/personalization.md#headless-executor-routing) to configure it.

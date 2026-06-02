@@ -41,6 +41,21 @@ Reviewer work should be higher-level than tester work when possible.
 | `gemma3:latest` | General, multilingual |
 | `mistral:latest` | Fast general purpose |
 
+## Headless Executor Routing
+
+This Markdown table is human reference only. The pipeline reads per-role CLI assignments from `~/.gal/config/executor-routing.ndjson` (seeded by `Update-Personalization.ps1`). Keep the two in sync when you update role assignments.
+
+Example `executor-routing.ndjson`:
+
+```jsonl
+{"role":"CODER","executor":"claude"}
+{"role":"TESTER","executor":"opencode"}
+{"role":"REVIEWER","executor":"claude"}
+{"role":"VERIFIER","executor":"claude"}
+```
+
+Valid executor values: `claude`, `opencode`, `agy`. See [docs/personalization.md — Headless Executor Routing](docs/personalization.md#headless-executor-routing) for setup and security details.
+
 ## Migration Examples
 
 When you switch to a new tool, update the mapping table:

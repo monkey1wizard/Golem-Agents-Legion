@@ -462,6 +462,45 @@ Gemini CLI is not a separate renderer. It is an AGY migration/compatibility lane
 
 All four providers — Claude, AGY, Copilot, and Codex — are wired to the single core renderer and the shared canonical root. Each provider exposes its own entry-point markers in that root (`.claude-plugin/plugin.json`, AGY `plugin.json` + `mcp_config.json`, `copilot-manifest.json`, `.codex-plugin/plugin.json`) without a provider-specific renderer. No provider maintains a second rendered tree.
 
+## Headless Executor Routing
+
+GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI on the local machine instead of running them in the conversation loop. Configure this in `~/.gal/config/executor-routing.ndjson`.
+
+### Setup
+
+Run `Update-Personalization.ps1` once to seed the example file:
+
+```powershell
+.\scripts\Update-Personalization.ps1
+```
+
+This copies `executor-routing.example.ndjson` (repo root) to `~/.gal/config/executor-routing.ndjson`. Edit the local copy to map roles to your preferred CLIs:
+
+```jsonl
+{"role":"CODER","executor":"claude"}
+{"role":"TESTER","executor":"opencode"}
+{"role":"REVIEWER","executor":"claude"}
+{"role":"VERIFIER","executor":"claude"}
+```
+
+Valid executor values: `claude`, `opencode`, `agy`. Omit a role to keep it in the conversation loop. Delete or remove the file to disable routing entirely (falls back to `--- GAL DISPATCH ---`).
+
+### Verifying the setup
+
+```powershell
+# Smoke test (checks availability + exit code)
+.\scripts\executors\Test-Executor.ps1 -Executor claude
+
+# Receipt proof (confirms CLI actually received and acted on a spec)
+.\scripts\executors\Test-ExecutorReceipt.ps1 -Executor claude
+```
+
+### ⚠️ SECURITY WARNING — bypass-permission
+
+Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code) or equivalent. This grants the secondary CLI **full trust** over the local filesystem and terminal — equivalent to running without any sandbox. A malicious or flawed agent contract could cause unintended file deletions, edits, or arbitrary command execution.
+
+**Enable executor routing only on machines and in environments you fully trust.** Do not enable it when the repo or agent contracts come from untrusted sources. The spec explicitly forbids the secondary CLI from running `git commit` or `git push`, but this is an instruction, not a technical enforcement.
+
 ## Responsibility Boundary
 
 - Methodology and durable contracts stay in tracked repo files.
