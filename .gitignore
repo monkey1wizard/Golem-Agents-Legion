@@ -37,3 +37,4 @@ gal-results/
 
 # Generated provider plugin artifacts
 dist/
+cache/

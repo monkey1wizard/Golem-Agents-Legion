@@ -1,4 +1,4 @@
-# Graph Workflow 與 Blender MCP 檢查
+# Blender MCP
 
 這份文件整理了本 repo 目前 `blender-mcp` 的安裝檢查結果、正確設定方式，以及在 GAL 工作流內的建議使用順序。
 

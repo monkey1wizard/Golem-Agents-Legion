@@ -26,7 +26,7 @@
 
   Security note: --dangerously-skip-permissions grants the secondary CLI full
   filesystem and terminal access. Enable only in a trusted local environment.
-  See docs/personalization.md for the bypass-permission warning.
+  See docs/manual.md for the bypass-permission warning.
 #>
 param(
     [string]$WorkDir = $PWD.Path

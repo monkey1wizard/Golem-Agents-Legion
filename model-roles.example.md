@@ -54,7 +54,7 @@ Example `executor-routing.ndjson`:
 {"role":"VERIFIER","executor":"claude"}
 ```
 
-Valid executor values: `claude`, `opencode`, `agy`. See [docs/personalization.md — Headless Executor Routing](docs/personalization.md#headless-executor-routing) for setup and security details.
+Valid executor values: `claude`, `opencode`, `agy`. See [docs/manual.md — Headless Executor Routing](docs/manual.md#headless-executor-routing) for setup and security details.
 
 ## Migration Examples
 

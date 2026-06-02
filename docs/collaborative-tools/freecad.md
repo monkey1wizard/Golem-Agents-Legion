@@ -253,7 +253,7 @@ Give the agent this sequence:
 
 - `~/.gal/config/mcp.local.json`
 - `scripts/Setup-Machine.ps1`
-- `docs/graphworkflow.md`
+- `docs/collaborative-tools/blender-mcp.md`
 - `M6OnePieceSpanner.FCStd`
 - `M6OnePieceSpanner.step`
 - `M6OnePieceSpanner.stl`

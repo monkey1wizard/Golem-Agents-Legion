@@ -28,12 +28,12 @@ Your job: Route user-owned notes into the right vault destination, apply either 
 Before starting, load context:
 
 1. Read `conventions/working-hours.md` — resolve working-hours behavior from local config
-2. Read `docs/personalization.md` — understand the current storage contract and machine-local settings
+2. Read `docs/manual.md` — understand the current storage contract and machine-local settings
 3. If in a "<RESEARCH_DEFAULT_DEST>", read `.dev/project.md` and `.dev/state.md` — current work context and continuity
 4. Resolve Obsidian mode:
-   - If `<OBSIDIAN_VAULT>` is unset, do not write to the vault
-   - If `<OBSIDIAN_GUIDE_MODE>` is `"<OBSIDIAN_GUIDE_MODE>"`, require `<OBSIDIAN_GUIDE_PATH>`
-   - If `<OBSIDIAN_GUIDE_MODE>` is `auto`, read `<OBSIDIAN_GUIDE_PATH>` only when it exists
+   - If `C:\Users\leetz\OneDrive\Obsidian Vault` is unset, do not write to the vault
+   - If `guide` is `"guide"`, require `99_System\Guide.md`
+   - If `guide` is `auto`, read `99_System\Guide.md` only when it exists
    - Otherwise proceed in generic mode
 5. Run local-first search before creating or updating durable knowledge notes
 </project_context>
@@ -94,7 +94,7 @@ After each operation, confirm:
    Mode: [diary | private-capture | inbox | knowledge-extraction]
    Action: [created | updated | moved | archived]
    Path: <vault-relative-path>
-   Rules: ["<OBSIDIAN_GUIDE_MODE>" | generic]
+   Rules: ["guide" | generic]
 ───────────────────────────────────
 ```
 

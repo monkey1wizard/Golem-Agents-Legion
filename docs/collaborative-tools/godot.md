@@ -73,4 +73,4 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 ## 相關文件
 
 - [readme](../readme.zh-Hant.md) — GAL 是什麼
-- [美術工作流](graphworkflow.md) — AI-first 遊戲美術指南
+- [美術工作流](graphics-workflow.md) — AI-first 遊戲美術指南
