@@ -1,27 +1,27 @@
-# Godot 模組
+# Godot Module
 
-Godot C# 工具鏈設定與官方文件索引的一站式參考。
+One-stop reference for the Godot C# toolchain setup and the index of official documentation.
 
-## 工具鏈總覽
+## Toolchain Overview
 
-| 工具 | MCP / Runtime | 用途 |
+| Tool | MCP / Runtime | Purpose |
 | --- | --- | --- |
-| Godot CLI | 內建 | Build、import、export、CI 自動化 |
-| `godot-mcp` | `puntogris/godot-mcp` | 啟動 editor、執行專案、抓 debug 輸出 |
-| `better-godot-mcp` | `kevinwallace/better-godot-mcp` | 不啟動 editor 直接改 scene / resource |
-| `godot4-runtime-mcp` | `AarushShintre/godot4-runtime-mcp` | 檢查 live nodes、signals、logs、runtime state |
-| VS Code + Godot Extension | — | 編輯 C# gameplay code、SceneTree 瀏覽 |
+| Godot CLI | built-in | build, import, export, CI automation |
+| `godot-mcp` | `puntogris/godot-mcp` | launch the editor, run the project, capture debug output |
+| `better-godot-mcp` | `kevinwallace/better-godot-mcp` | edit scenes / resources directly without launching the editor |
+| `godot4-runtime-mcp` | `AarushShintre/godot4-runtime-mcp` | inspect live nodes, signals, logs, and runtime state |
+| VS Code + Godot Extension | — | edit C# gameplay code, browse the SceneTree |
 
-## 工具怎麼選
+## Choosing a Tool
 
-按責任分工使用：
+Use each tool by responsibility:
 
-- **build、import、export、CI 自動化** → Godot CLI
-- **啟動 editor、執行專案、抓 debug 輸出** → `godot-mcp`
-- **不啟動 editor 直接改 scene / resource** → `better-godot-mcp`
-- **檢查 live nodes、signals、logs、runtime state** → `godot4-runtime-mcp`
+- **build, import, export, CI automation** → Godot CLI
+- **launch the editor, run the project, capture debug output** → `godot-mcp`
+- **edit scenes / resources directly without launching the editor** → `better-godot-mcp`
+- **inspect live nodes, signals, logs, runtime state** → `godot4-runtime-mcp`
 
-## Godot CLI 範例
+## Godot CLI Examples
 
 ```bash
 godot --headless --path <project> --build-solutions
@@ -31,46 +31,46 @@ godot --path <project> -e
 godot --path <project>
 ```
 
-## 重要限制：Runtime 版本分離
+## Key Constraint: Runtime Version Separation
 
-Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
+Godot game code and GAL's external tools have different compatibility targets:
 
-- **Godot runtime code** — 應維持在專案實際支援的版本，通常是 `.NET 8 / C# 12`
-- **外部工具和 MCP server** — 可以使用較新的 runtime，因為 Godot 不會載入它們
+- **Godot runtime code** — should stay on the version the project actually supports, usually `.NET 8 / C# 12`.
+- **External tools and MCP servers** — may use a newer runtime, because Godot does not load them.
 
-寫 gameplay code 時，以 `conventions/csharp.md` 中的 Godot runtime section 為準。
+When writing gameplay code, defer to the Godot runtime section in `conventions/csharp.md`.
 
-## 偵測 Godot 專案
+## Detecting a Godot Project
 
-初始化 `.dev/project.md` 時，以下特徵是 Godot codebase 的強力證據：
+When initializing `.dev/project.md`, the following signals are strong evidence of a Godot codebase:
 
-- `project.godot` 存在於 repo root 或 app root
-- 旁邊或巢狀有 `*.csproj` 用於 C# gameplay code
-- `export_presets.cfg`、`.tscn`、`.tres`、`.res`、`addons/` 出現在同一棵專案樹中
+- `project.godot` exists at the repo root or app root
+- one or more `*.csproj` files alongside or nested for C# gameplay code
+- `export_presets.cfg`, `.tscn`, `.tres`, `.res`, or `addons/` appear in the same project tree
 
-## 官方文件索引
+## Official Documentation Index
 
-以下是 GAL 應首先信任的官方文件來源。
+These are the official documentation sources GAL should trust first.
 
-| 主題 | 來源 |
+| Topic | Source |
 | --- | --- |
-| Godot C# 基礎 | [Godot C# Basics](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html) |
-| C# API 差異 | [Godot C# API Differences](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_differences.html) |
-| C# 匯出屬性 | [Godot C# Exports](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_exports.html) |
-| C# 全域 class | [Godot C# Global Classes](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_global_classes.html) |
-| C# 信號 | [Godot C# Signals](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_signals.html) |
+| Godot C# basics | [Godot C# Basics](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html) |
+| C# API differences | [Godot C# API Differences](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_differences.html) |
+| C# exports | [Godot C# Exports](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_exports.html) |
+| C# global classes | [Godot C# Global Classes](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_global_classes.html) |
+| C# signals | [Godot C# Signals](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_signals.html) |
 | C# Variant | [Godot C# Variant](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_variant.html) |
-| C# 集合 | [Godot C# Collections](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_collections.html) |
-| C# 風格指南 | [Godot C# Style Guide](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_style_guide.html) |
+| C# collections | [Godot C# Collections](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_collections.html) |
+| C# style guide | [Godot C# Style Guide](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_style_guide.html) |
 
-### 權威順序
+### Authority Order
 
-1. 官方工具文件
-2. 官方 API 或 command-line 參考
-3. MCP server 文件（用於理解 wrapper 能力邊界）
-4. 社群教學（僅在官方文件缺失時使用）
+1. Official tool documentation
+2. Official API or command-line reference
+3. MCP server documentation (to understand the wrapper's capability boundary)
+4. Community tutorials (only when official documentation is missing)
 
-## 相關文件
+## Related Documents
 
-- [readme](../readme.zh-Hant.md) — GAL 是什麼
-- [美術工作流](graphics-workflow.md) — AI-first 遊戲美術指南
+- [README](../../README.md) — what GAL is
+- [graphics-workflow](graphics-workflow.md) — the AI-first game art guide

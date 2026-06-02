@@ -1,3 +1,11 @@
+---
+source: README.md
+lang: zh-Hant
+source_commit: PENDING
+translated_at: 2026-06-02
+status: stale
+---
+
 # Golem Agents Legion (GAL)
 
 [English](README.md) | 繁體中文

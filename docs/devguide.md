@@ -934,7 +934,46 @@ Known navigation/ownership drift to watch when editing install or release docs:
 
 ### Documentation Conventions
 
-> Authored in the conventions pass (plan task T-009). This section owns the file-naming convention (`-mcp` suffix policy, skill-name alignment, the single-`README.md` rule) and the multi-language translation policy (`docs/i18n/<lang>/<name>.<lang>.md` layout, translatable allowlist, and the front-matter freshness mechanism). See [i18n/guide.md](i18n/guide.md) for the on-location translator signpost.
+This section is the authoritative naming and translation policy for `docs/`. The on-location translator signpost is [i18n/guide.md](i18n/guide.md); it points back here and must not duplicate this policy.
+
+#### File Naming
+
+- **`README.md` is reserved for the single repo-root README.** No other file in the repo may be named `README.md`. A sub-area entry/index doc uses `guide.md` (a curated signpost) or `index.md` (a generated or listing index) instead.
+- **Tool/capability docs** under `docs/collaborative-tools/` use the `-mcp` suffix only when the doc is specifically about an MCP server (`blender-mcp.md`, `playwright-mcp.md`, `codebase-memory-mcp.md`). A workflow or methodology doc does not take the suffix (`graphics-workflow.md`, `godot.md`).
+- **Skill-aligned docs** match the skill name they support: `docs/collaborative-tools/graphics-workflow.md` supports the `graphics-workflow` skill.
+- No two unrelated docs may share the same basename.
+
+#### Multi-Language Translation Policy
+
+The policy is designed so both the set of translated docs and the set of languages can grow without churn.
+
+- **Canonical = English**, at the main filename in its normal location (`README.md`, `docs/manual.md`). Canonical docs are never moved for translation.
+- **Translations live under `docs/i18n/<lang>/`** and are named `<name>.<lang>.md`. The folder *and* the filename both carry the language — a deliberate redundancy so a translation file is self-describing out of context, and so the basename is never bare `README.md` (honoring the single-README rule).
+- **Mirror-path rule**: root `README.md` → `docs/i18n/<lang>/README.<lang>.md`; `docs/X.md` → `docs/i18n/<lang>/X.<lang>.md` (sub-paths such as `collaborative-tools/` are preserved). The canonical doc's top carries a language-switch link to each translation, and each translation links back.
+- **Translatable allowlist** (not "every doc"): currently `README` and `docs/manual.md`, plus a small number of tool docs added on demand. Adding a doc or a language is one entry in `docs/i18n/` — coverage grows visibly and stays bounded. Known near-term language: `ja`.
+- **EN-only by default**: maintainer/contract docs — this guide, `collaborative-tools/*` contracts, `research/`, and `plans/` — are not in the allowlist and are not translated.
+- `<lang>` tags follow the existing convention in use (e.g. `zh-Hant`, `ja`).
+
+#### Translation Freshness
+
+Every translation under `docs/i18n/` carries YAML front-matter so drift against its English source is visible rather than silent:
+
+```yaml
+---
+source: README.md          # repo-relative path to the canonical source
+lang: zh-Hant
+source_commit: <hash>      # the source commit this translation is in sync with; PENDING until stamped
+translated_at: 2026-06-02
+status: current | stale     # human hint; the check recomputes from source_commit
+---
+```
+
+`scripts/Test-TranslationFreshness.ps1` (or `scripts/test-translation-freshness.sh`) scans `docs/i18n/`, compares `source_commit` against `git log -1 --format=%H -- <source>`, and reports each `(doc, lang)` as `current`, `stale` (hash differs, missing, or a non-hash placeholder like `PENDING`), or `missing` (an allowlisted pair with no translation). It is report-only and scales linearly with languages and docs — it does not extend the structure-map schema.
+
+Operational notes:
+
+- Because GAL commits are authored by a human after review, a freshly synced translation is stamped `PENDING` until the maintainer records the real source commit after committing; the check surfaces those as `stale` so they are not forgotten.
+- A translation flagged `status: stale` is knowingly behind its English source. Such files are excluded from the hard repo-wide broken-link gate — the freshness check owns them — until they are re-translated and re-stamped.
 
 ### Token Discipline
 

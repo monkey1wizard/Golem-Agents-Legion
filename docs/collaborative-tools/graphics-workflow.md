@@ -1,120 +1,120 @@
-# 美術工作流
+# Game Art Workflow
 
-AI-first 遊戲美術產線的完整指南。涵蓋四條產線路線、MCP 工具堆疊與官方文件索引。
+A complete guide to the AI-first game art pipeline. Covers the four pipeline routes, the MCP tool stack, and the official documentation index.
 
-## 核心原則
+## Core Principles
 
-1. 從資產產線出發，不是從工具出發
-2. ComfyUI 是所有產線的預設生成入口
-3. 每條產線必須產出具體的輸出包，而非中間物件
-4. 3D 產線以 Blender 為中心，除非明確新增其他免費工具
+1. Start from the asset pipeline, not from the tool.
+2. ComfyUI is the default generation entry point for every pipeline.
+3. Each pipeline must produce a concrete output package, not an intermediate object.
+4. The 3D pipeline is Blender-centered unless another free tool is explicitly added.
 
-## 四條產線
+## The Four Pipelines
 
-### 2D 概念與插畫
-
-```text
-ComfyUI → GIMP → 最終遊戲素材
-```
-
-1. 在 ComfyUI 中生成方向性參考或受控變體
-2. 選出偏好的方向
-3. 在 GIMP 中清理邊緣、alpha、圖層與色彩平衡
-4. 匯出最終遊戲可用圖像
-
-**輸出合約**：最終 PNG 或 WebP、透明或實色背景、變體命名、prompt 與 seed metadata
-
-### Sprite 與像素資產
+### 2D Concept and Illustration
 
 ```text
-ComfyUI → Aseprite → 最終 sprite 或 spritesheet
+ComfyUI → GIMP → final game asset
 ```
 
-1. 在 ComfyUI 中生成概念或輪廓方向
-2. 降低視覺複雜度
-3. 在 Aseprite 中重建與清理
-4. 匯出 sprite、動畫或 spritesheet 包
+1. Generate directional references or controlled variants in ComfyUI.
+2. Choose the preferred direction.
+3. Clean up edges, alpha, layers, and color balance in GIMP.
+4. Export the final game-ready image.
 
-**輸出合約**：來源 `.aseprite` 或 `.ase`、最終 sprite PNG 或 spritesheet、色板定義（適用時）、frame 尺寸與 sheet 佈局
+**Output contract**: final PNG or WebP, transparent or solid background, variant naming, prompt and seed metadata.
 
-### UI、Icon 與 HUD
+### Sprite and Pixel Assets
 
 ```text
-ComfyUI → Figma → Inkscape → 最終匯出
+ComfyUI → Aseprite → final sprite or spritesheet
 ```
 
-1. 在 ComfyUI 中生成視覺方向
-2. 在 Figma 中建立元件狀態與佈局
-3. 需要 deterministic SVG 清理或匯出時使用 Inkscape
-4. 匯出指定目標尺寸用於遊戲整合
+1. Generate concept or silhouette directions in ComfyUI.
+2. Reduce visual complexity.
+3. Rebuild and clean up in Aseprite.
+4. Export the sprite, animation, or spritesheet package.
 
-**輸出合約**：SVG 與 PNG 匯出、狀態變體（default / hover / selected / disabled / warning）、穩定元件命名、佈局或間距備注
+**Output contract**: source `.aseprite` or `.ase`, final sprite PNG or spritesheet, palette definition (when applicable), frame size and sheet layout.
 
-### 3D 資產
+### UI, Icon, and HUD
 
 ```text
-ComfyUI → Blender → 預覽渲染與匯出
+ComfyUI → Figma → Inkscape → final export
 ```
 
-1. 在 ComfyUI 中生成 reference sheet 或材質方向
-2. 在 Blender 中建模、快速迭代、場景組裝、baking、預覽渲染與匯出
-3. 產出預覽渲染與匯出
+1. Generate visual direction in ComfyUI.
+2. Build component states and layout in Figma.
+3. Use Inkscape when deterministic SVG cleanup or export is needed.
+4. Export at the target sizes for game integration.
 
-**輸出合約**：概念或 reference sheet、來源 scene 檔案、預覽渲染、texture 輸出或 reference package、匯出目標（FBX / GLB / OBJ 或 engine-ready mesh package）
+**Output contract**: SVG and PNG exports, state variants (default / hover / selected / disabled / warning), stable component naming, layout or spacing notes.
 
-## MCP 工具堆疊
+### 3D Assets
 
-| 產線 | 工具 | MCP / Runtime | 備注 |
+```text
+ComfyUI → Blender → preview render and export
+```
+
+1. Generate a reference sheet or material direction in ComfyUI.
+2. Model, iterate quickly, assemble scenes, bake, preview-render, and export in Blender.
+3. Produce the preview render and export.
+
+**Output contract**: concept or reference sheet, source scene file, preview render, texture output or reference package, export target (FBX / GLB / OBJ or an engine-ready mesh package).
+
+## MCP Tool Stack
+
+| Pipeline | Tool | MCP / Runtime | Notes |
 | --- | --- | --- | --- |
-| 生成 | ComfyUI | `joenorton/comfyui-mcp-server` | 預設本地生成伺服器 |
-| 2D 清理 | GIMP | `maorcc/gimp-mcp` | GIMP 3.0 API bridge |
-| 像素資產 | Aseprite | `willibrandon/pixel-mcp` | Sprite、動畫與 spritesheet 工作流 |
-| UI 佈局 | Figma | `grab/cursor-talk-to-figma-mcp` | UI 與元件工作流 |
-| 向量清理 | Inkscape | `grumpydevorg/inkscape-mcps` | CLI + DOM 操作 |
-| 3D 一般 | Blender | `ahujasid/blender-mcp` | 預設 3D 工作流 |
+| Generation | ComfyUI | `joenorton/comfyui-mcp-server` | default local generation server |
+| 2D cleanup | GIMP | `maorcc/gimp-mcp` | GIMP 3.0 API bridge |
+| Pixel assets | Aseprite | `willibrandon/pixel-mcp` | sprite, animation, and spritesheet workflows |
+| UI layout | Figma | `grab/cursor-talk-to-figma-mcp` | UI and component workflows |
+| Vector cleanup | Inkscape | `grumpydevorg/inkscape-mcps` | CLI + DOM operations |
+| 3D general | Blender | `ahujasid/blender-mcp` | default 3D workflow |
 
-### 決策樹
+### Decision Tree
 
 ```text
-需要生成資產方向或受控變體？ → ComfyUI
-需要光柵清理或合成？         → GIMP MCP
-需要像素生產或 spritesheet？  → pixel-mcp
-需要 UI 佈局或 HUD 合成？    → Figma MCP
-需要 deterministic SVG 清理？ → Inkscape MCP
-需要一般 3D 建模和預覽渲染？  → Blender MCP
+Need to generate asset direction or controlled variants? → ComfyUI
+Need raster cleanup or compositing?                       → GIMP MCP
+Need pixel production or a spritesheet?                    → pixel-mcp
+Need UI layout or HUD compositing?                         → Figma MCP
+Need deterministic SVG cleanup?                            → Inkscape MCP
+Need general 3D modeling and preview render?               → Blender MCP
 ```
 
-## 跨工具交接規則
+## Cross-Tool Handoff Rules
 
-- 交接的是檔案，不是抽象意圖。每條產線應留下具體的輸出檔案給下一個工具
-- 當第二個工具會繼續編輯時，偏好 lossless 中間輸出
-- 保持命名 deterministic，讓後續匯出或打包步驟能識別所選資產
-- 在可行時保存風格參考、seeds、prompt 變體和核可方向備注
+- Hand off files, not abstract intent. Each pipeline should leave a concrete output file for the next tool.
+- Prefer lossless intermediate output when a second tool will keep editing.
+- Keep naming deterministic so later export or packaging steps can identify the chosen assets.
+- When practical, preserve style references, seeds, prompt variants, and approved-direction notes.
 
-## 官方文件索引
+## Official Documentation Index
 
-| 主題 | 來源 |
+| Topic | Source |
 | --- | --- |
-| Blender 命令列 | [Blender Manual - Command Line Arguments](https://docs.blender.org/manual/en/latest/advanced/command_line/arguments.html) |
+| Blender command line | [Blender Manual - Command Line Arguments](https://docs.blender.org/manual/en/latest/advanced/command_line/arguments.html) |
 | Blender Python API | [Blender Python API](https://docs.blender.org/api/current/) |
-| GIMP 腳本與外掛 | [GIMP Documentation](https://docs.gimp.org/) |
+| GIMP scripting and plugins | [GIMP Documentation](https://docs.gimp.org/) |
 | Inkscape CLI | [Inkscape Man Page](https://inkscape.org/doc/inkscape-man.html) |
-| Figma 開發者文件 | [Figma Developers](https://www.figma.com/developers) |
-| Aseprite 文件 | [Aseprite Docs](https://www.aseprite.org/docs/) |
-| ComfyUI 專案 | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) |
+| Figma developer docs | [Figma Developers](https://www.figma.com/developers) |
+| Aseprite docs | [Aseprite Docs](https://www.aseprite.org/docs/) |
+| ComfyUI project | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) |
 
-### 權威順序
+### Authority Order
 
-1. 官方工具文件
-2. 官方 API 或 command-line 參考
-3. MCP server 文件（理解 wrapper 能力邊界）
-4. 社群教學（僅在官方文件缺失時使用）
+1. Official tool documentation
+2. Official API or command-line reference
+3. MCP server documentation (to understand the wrapper's capability boundary)
+4. Community tutorials (only when official documentation is missing)
 
-### ComfyUI 知識邊界
+### ComfyUI Knowledge Boundary
 
-ComfyUI 是 workflow 引擎，不是單一藝術方法論。依賴 ComfyUI 用於 workflow orchestration、parameter exposure、batch variation、image refinement、seed 與 style 一致性。不要把 ComfyUI 輸出預設為 production-ready——它們是下游產線工具的輸入。
+ComfyUI is a workflow engine, not a single art methodology. Rely on ComfyUI for workflow orchestration, parameter exposure, batch variation, image refinement, and seed/style consistency. Do not assume ComfyUI output is production-ready — it is input for the downstream pipeline tools.
 
-## 延後的工具
+## Deferred Tools
 
-- **Krita** — 延後，因為 ComfyUI + GIMP 已涵蓋初期 2D 需求
-- **Pixelle** — 延後，除非雲端模式或無 GPU 操作成為必要
+- **Krita** — deferred, because ComfyUI + GIMP already cover early 2D needs.
+- **Pixelle** — deferred, unless cloud mode or GPU-less operation becomes necessary.

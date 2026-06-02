@@ -352,17 +352,17 @@ Rationale：
 
 **Slice 3 — 內容改寫（最高風險，以 completed plans 為事實來源）**
 
-- [ ] T-006 — README ≤400 壓縮地圖：語言切換 head、Quick Start(plugin)/Dev Mode/Install Status(deferred)/Distribution&Migration、How GAL Works compact 表委派 `commands.md`/`agents.md`/`workflows`、Files&Storage 標註 tree、Learn More；`docs/i18n/zh-Hant/README.zh-Hant.md` 鏡像。
-- [ ] T-007 — `manual.md` 內容改寫為 plugin 模式操作手冊（First-Time Setup / Daily Use / Machine Ops 含 backup·migration·uninstall / Install Status），吸收 README 移入操作、委派架構給 devguide；`manual.zh-Hant.md` 鏡像。
-- [ ] T-008 — `godot.md`/`graphics-workflow.md` 補 EN canonical（由 zh 翻譯，留原位）；原 zh → `docs/i18n/zh-Hant/collaborative-tools/<name>.zh-Hant.md` + 新鮮度 front-matter。
+- [x] T-006 — README ≤400 壓縮地圖：語言切換 head、Quick Start(plugin)/Dev Mode/Install Status(deferred)/Distribution&Migration、How GAL Works compact 表委派 `commands.md`/`agents.md`/`workflows`、Files&Storage 標註 tree、Learn More；`docs/i18n/zh-Hant/README.zh-Hant.md` 鏡像。
+- [x] T-007 — `manual.md` 內容改寫為 plugin 模式操作手冊（First-Time Setup / Daily Use / Machine Ops 含 backup·migration·uninstall / Install Status），吸收 README 移入操作、委派架構給 devguide；`manual.zh-Hant.md` 鏡像。
+- [x] T-008 — `godot.md`/`graphics-workflow.md` 補 EN canonical（由 zh 翻譯，留原位）；原 zh → `docs/i18n/zh-Hant/collaborative-tools/<name>.zh-Hant.md` + 新鮮度 front-matter。
 
 **Slice 4 — 索引/慣例/結構**
 
-- [ ] T-009 — devguide `Documentation Conventions` 節：命名慣例（`-mcp`、技能名對齊、`README.md` 唯一 R5）+ 多語言翻譯政策（allowlist、`docs/i18n/<lang>/<name>.<lang>.md`、鏡像規則）+ 新鮮度機制描述。
-- [ ] T-010 — 新增 `docs/i18n/guide.md`（薄路標：用途+範例+語言清單+加語言步驟+front-matter 模板+連回 devguide，不複製政策）；可選 `docs/index.md` 索引。
-- [ ] T-011 — 翻譯新鮮度：為每個 `docs/i18n/**` 翻譯加 front-matter（`source`/`lang`/`source_commit`/`translated_at`）+ 建 check（掃 i18n、比對 source commit，報 `(doc,lang)=current|stale|missing`；遵雙 runtime PS/Bash 慣例）。
-- [ ] T-012 — `.dev/project.md`：更新 Source Documents 索引（全 docs、`manual` 取代 personalization、無 topology/release-matrix）+ Project Language 慣例改 `docs/i18n/<lang>/<name>.<lang>.md`。
-- [ ] T-013 — `docs/structure/structure-map.ndjson` 重掃：為每個 `docs/**/*.md`（含 i18n）產 doc-axis `doc-section` 節點、真實 `syncStatus`、排序穩定，未動行 byte 保留。
+- [x] T-009 — devguide `Documentation Conventions` 節：命名慣例（`-mcp`、技能名對齊、`README.md` 唯一 R5）+ 多語言翻譯政策（allowlist、`docs/i18n/<lang>/<name>.<lang>.md`、鏡像規則）+ 新鮮度機制描述。
+- [x] T-010 — 新增 `docs/i18n/guide.md`（薄路標：用途+範例+語言清單+加語言步驟+front-matter 模板+連回 devguide，不複製政策）；可選 `docs/index.md` 索引。
+- [x] T-011 — 翻譯新鮮度：為每個 `docs/i18n/**` 翻譯加 front-matter（`source`/`lang`/`source_commit`/`translated_at`）+ 建 check（掃 i18n、比對 source commit，報 `(doc,lang)=current|stale|missing`；遵雙 runtime PS/Bash 慣例）。
+- [x] T-012 — `.dev/project.md`：更新 Source Documents 索引（全 docs、`manual` 取代 personalization、無 topology/release-matrix）+ Project Language 慣例改 `docs/i18n/<lang>/<name>.<lang>.md`。
+- [x] T-013 — `docs/structure/structure-map.ndjson` 重掃：為每個 `docs/**/*.md`（含 i18n）產 doc-axis `doc-section` 節點、真實 `syncStatus`、排序穩定，未動行 byte 保留。
 
 **Slice 5 — 轉接器重生（最後）**
 

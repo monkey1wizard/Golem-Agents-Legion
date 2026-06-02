@@ -1,3 +1,11 @@
+---
+source: docs/manual.md
+lang: zh-Hant
+source_commit: PENDING
+translated_at: 2026-06-02
+status: stale
+---
+
 # 個人化設定 (Personalization)
 
 這份文件保存了不適合放在 README 首頁的機器本機（machine-local）詳細資訊：佔位符（placeholders）、執行環境選擇（runtime selection）、模型路由（model routing）、MCP 覆寫、Obsidian 路由、工作時間設定（working-hours settings）以及何時該重新執行 setup。

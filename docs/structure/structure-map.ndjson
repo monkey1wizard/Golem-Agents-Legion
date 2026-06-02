@@ -1,6 +1,6 @@
-{"axis":"code","docs":["README.md#golem-agents"],"id":"agent/agents.md","kind":"file","lastSynced":"2026-06-01","lastSyncedRef":null,"layer":"source-contracts","path":"agent/agents.md","syncStatus":"ok"}
-{"axis":"code","docs":["README.md#commands"],"id":"commands/commands.md","kind":"file","lastSynced":"2026-06-01","lastSyncedRef":null,"layer":"source-contracts","path":"commands/commands.md","syncStatus":"ok"}
-{"axis":"code","docs":["README.md#development-workflow"],"id":"workflows/coding.md","kind":"file","lastSynced":"2026-06-01","lastSyncedRef":null,"layer":"source-contracts","path":"workflows/coding.md","syncStatus":"ok"}
-{"axis":"doc","codeRefs":["commands/commands.md"],"headingLevel":2,"id":"README.md#commands","kind":"doc-section","lastSynced":"2026-06-01","lastSyncedRef":null,"syncStatus":"ok","title":"Commands"}
-{"axis":"doc","codeRefs":["workflows/coding.md"],"headingLevel":2,"id":"README.md#development-workflow","kind":"doc-section","lastSynced":"2026-06-01","lastSyncedRef":null,"syncStatus":"ok","title":"Development Workflow"}
-{"axis":"doc","codeRefs":["agent/agents.md"],"headingLevel":2,"id":"README.md#golem-agents","kind":"doc-section","lastSynced":"2026-06-01","lastSyncedRef":null,"syncStatus":"ok","title":"Golem Agents"}
+{"axis":"code","docs":["README.md#golem-agents"],"id":"agent/agents.md","kind":"file","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","layer":"source-contracts","path":"agent/agents.md","syncStatus":"ok"}
+{"axis":"code","docs":["README.md#commands"],"id":"commands/commands.md","kind":"file","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","layer":"source-contracts","path":"commands/commands.md","syncStatus":"ok"}
+{"axis":"code","docs":["README.md#how-gal-works"],"id":"workflows/coding.md","kind":"file","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","layer":"source-contracts","path":"workflows/coding.md","syncStatus":"ok"}
+{"axis":"doc","codeRefs":["commands/commands.md"],"headingLevel":3,"id":"README.md#commands","kind":"doc-section","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","syncStatus":"ok","title":"Commands"}
+{"axis":"doc","codeRefs":["agent/agents.md"],"headingLevel":3,"id":"README.md#golem-agents","kind":"doc-section","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","syncStatus":"ok","title":"Golem Agents"}
+{"axis":"doc","codeRefs":["workflows/coding.md"],"headingLevel":2,"id":"README.md#how-gal-works","kind":"doc-section","lastSynced":"2026-06-02","lastSyncedRef":"ceb0295","syncStatus":"ok","title":"How GAL Works"}

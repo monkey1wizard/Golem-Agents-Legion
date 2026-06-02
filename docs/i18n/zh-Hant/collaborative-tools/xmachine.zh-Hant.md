@@ -1,3 +1,11 @@
+---
+source: docs/collaborative-tools/xmachine.md
+lang: zh-Hant
+source_commit: PENDING
+translated_at: 2026-06-02
+status: current
+---
+
 # xmachine 協作執行契約
 
 xmachine 是 GAL 的一項可選執行工具，能夠將範圍明確的任務從主要的控制節點（control node）卸載到可透過 SSH 存取的工作節點（work node）。它的運作不會修改 GAL 的控制平面（control plane）、儲存庫擁有的狀態模型（repo-owned state model）或 patch-first 的收斂規則。
