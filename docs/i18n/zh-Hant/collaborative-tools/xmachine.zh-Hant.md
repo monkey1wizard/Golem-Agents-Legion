@@ -3,7 +3,7 @@ source: docs/collaborative-tools/xmachine.md
 lang: zh-Hant
 source_commit: PENDING
 translated_at: 2026-06-02
-status: current
+status: stale
 ---
 
 # xmachine 協作執行契約

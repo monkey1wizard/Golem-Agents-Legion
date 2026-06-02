@@ -63,8 +63,8 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 ## Project Language
 
 - `PROJECT_LANGUAGE`: `en`
-- Canonical docs use the main filename with no language infix (for example `README.md`).
-- Translation copies use `<name>.<lang>.md` (for example `README.zh-Hant.md`).
+- Canonical docs use the main filename with no language infix (for example `README.md`), in their normal location.
+- Translations live under `docs/i18n/<lang>/` as `<name>.<lang>.md` (for example `docs/i18n/zh-Hant/README.zh-Hant.md`), mirroring the canonical path. `README.md` is reserved for the single repo-root README. Full policy: `docs/devguide.md#documentation-conventions`.
 
 ## Protected Paths
 
@@ -85,16 +85,22 @@ Portable source-of-truth repository. Tracked contracts live in `commands/`, `ski
 
 | Path | Type | Notes |
 | --- | --- | --- |
-| `README.md` | README | |
-| `docs/collaborative-tools/xmachine.md` | docs | |
-| `docs/personalization.md` | docs | |
-| `docs/devguide.md` | docs | |
-| `docs/collaborative-tools/graphworkflow.md` | docs | |
-| `docs/collaborative-tools/gstack.md` | docs | |
-| `docs/collaborative-tools/godot.md` | docs | |
+| `README.md` | README | compressed map; depth delegated to manual/devguide/contracts |
+| `docs/manual.md` | docs | user operations handbook (was `personalization.md`) |
+| `docs/devguide.md` | docs | maintainer guide; absorbed installation-topology + release-matrix |
+| `docs/i18n/guide.md` | docs | EN-only signpost for the translations tree |
+| `docs/collaborative-tools/checking-contract.md` | docs | shared preflight contract |
 | `docs/collaborative-tools/graphify.md` | docs | |
-| `docs/collaborative-tools/checking-contract.md` | docs | |
+| `docs/collaborative-tools/graphify-execution-guide.md` | docs | step-by-step graphify guide (split pending, R14) |
+| `docs/collaborative-tools/playwright-mcp.md` | docs | |
+| `docs/collaborative-tools/codebase-memory-mcp.md` | docs | |
+| `docs/collaborative-tools/blender-mcp.md` | docs | was root `graphworkflow.md` |
 | `docs/collaborative-tools/opencli.md` | docs | |
+| `docs/collaborative-tools/gstack.md` | docs | |
+| `docs/collaborative-tools/xmachine.md` | docs | |
+| `docs/collaborative-tools/godot.md` | docs | EN canonical (zh copy under `docs/i18n/`) |
+| `docs/collaborative-tools/graphics-workflow.md` | docs | was `graphworkflow.md`; EN canonical (zh copy under `docs/i18n/`) |
+| `docs/collaborative-tools/freecad.md` | docs | |
 
 | Document | Path | Last Verified |
 | --- | --- | --- |
@@ -649,3 +655,5 @@ Research workflow note: `/gal research` and `/gal deep-research` have their own 
 
 Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
 with your own machines, models, and tools. The local file is git-ignored.
+
+> **Headless executor routing**: this Markdown table is human reference only. The pipeline's machine-read source for per-role CLI assignment is `~/.gal/config/executor-routing.ndjson`. See [docs/manual.md — Headless Executor Routing](docs/manual.md#headless-executor-routing) to configure it.

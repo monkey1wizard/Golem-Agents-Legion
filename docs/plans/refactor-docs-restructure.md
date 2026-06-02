@@ -366,5 +366,5 @@ Rationale：
 
 **Slice 5 — 轉接器重生（最後）**
 
-- [ ] T-014 — 跑 `Sync-DevContext` 重生 `CLAUDE/GEMINI/AGENTS/copilot`（衍生物，不手改）。
-- [ ] T-015 — 全 repo 相對連結 + section-anchor 檢查（涵蓋 `docs/i18n/**`），修正所有斷連（MISS-03 收尾）。
+- [x] T-014 — 跑 `Sync-DevContext` 重生 `CLAUDE/GEMINI/AGENTS/copilot`（衍生物，不手改）。
+- [x] T-015 — 全 repo 相對連結 + section-anchor 檢查（涵蓋 `docs/i18n/**`），修正所有斷連（MISS-03 收尾）。
