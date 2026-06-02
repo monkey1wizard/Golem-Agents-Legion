@@ -231,4 +231,4 @@ Rerun guidance:
 
 The renderer relies on `scripts/common/ProviderPlugin.ps1` and `scripts/common/provider-plugin.sh` for the provider-neutral substrate. The common model contains no provider-specific paths, no resolved local secrets, and no runtime scripts. It explicitly records skipped components (`hooks`, `runtimeScripts`) so unsupported features are documented rather than silently omitted.
 
-See [docs/installation-topology.md](../docs/installation-topology.md) for the architecture-level explanation behind this runtime layout.
+See [docs/devguide.md](../docs/devguide.md) for the architecture-level explanation behind this runtime layout.

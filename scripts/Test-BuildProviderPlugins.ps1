@@ -87,7 +87,7 @@ function Copy-TestSourceRoot {
 }
 
     $repoRoot = Split-Path $PSScriptRoot -Parent
-    $releaseMatrixPath = Join-Path $repoRoot 'docs\release-matrix.md'
+    $releaseMatrixPath = Join-Path $repoRoot 'docs\devguide.md'
 
 $testHome = Join-Path $env:TEMP ("gal-test-provider-build-{0}" -f [System.Guid]::NewGuid().ToString('N'))
 $originalUserProfile = $env:USERPROFILE

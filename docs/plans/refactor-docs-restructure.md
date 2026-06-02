@@ -341,14 +341,14 @@ Rationale：
 
 **Slice 1 — 安全改名/移動（機械、低風險）**
 
-- [ ] T-001 — P1 去重：root `graphworkflow.md` → `collaborative-tools/blender-mcp.md`（H1 改 `Blender MCP`）；`collaborative-tools/graphworkflow.md` → `graphics-workflow.md`；更新全 repo 參照。
-- [ ] T-002 — P2 合併：`docs/xmachine/examples/` → `collaborative-tools/examples/`；移除空的 `docs/xmachine/`；更新參照。
-- [ ] T-003 — 改名/遷移（純機械）：`personalization.md`→`docs/manual.md`（僅改 stem）；建 `docs/i18n/zh-Hant/` 並遷入 `README.zh-Hant.md`、`personalization.zh-Hant.md`→`manual.zh-Hant.md`、`xmachine.zh-Hant.md`→`collaborative-tools/xmachine.zh-Hant.md`；更新所有 `personalization*`/翻譯參照。
+- [x] T-001 — P1 去重：root `graphworkflow.md` → `collaborative-tools/blender-mcp.md`（H1 改 `Blender MCP`）；`collaborative-tools/graphworkflow.md` → `graphics-workflow.md`；更新全 repo 參照。
+- [x] T-002 — P2 合併：`docs/xmachine/examples/` → `collaborative-tools/examples/`；移除空的 `docs/xmachine/`；更新參照。
+- [x] T-003 — 改名/遷移（純機械）：`personalization.md`→`docs/manual.md`（僅改 stem）；建 `docs/i18n/zh-Hant/` 並遷入 `README.zh-Hant.md`、`personalization.zh-Hant.md`→`manual.zh-Hant.md`、`xmachine.zh-Hant.md`→`collaborative-tools/xmachine.zh-Hant.md`；更新所有 `personalization*`/翻譯參照。
 
 **Slice 2 — devguide 合併（結構）**
 
-- [ ] T-004 — devguide 6-H2 重構：前置標註版 `Codebase`/`.gal` tree（吸收 Start-By-Finding-Layer / Where-Info-Belongs / Owning-Surfaces / Runtime-File-Schemas）、合併重疊節、刪 Quick Reference、dev-mode 連回 README；吸收 `installation-topology.md` 五塊後**刪原檔**。
-- [ ] T-005 — `release-matrix.md` 九節去編號 → devguide `Release Artifact Matrix`；**刪原檔**；section-anchor 重映（`release-matrix.md#…`/`installation-topology.md#…` → `devguide.md#…`）。
+- [x] T-004 — devguide 6-H2 重構：前置標註版 `Codebase`/`.gal` tree（吸收 Start-By-Finding-Layer / Where-Info-Belongs / Owning-Surfaces / Runtime-File-Schemas）、合併重疊節、刪 Quick Reference、dev-mode 連回 README；吸收 `installation-topology.md` 五塊後**刪原檔**。
+- [x] T-005 — `release-matrix.md` 九節去編號 → devguide `Release Artifact Matrix`；**刪原檔**；section-anchor 重映（`release-matrix.md#…`/`installation-topology.md#…` → `devguide.md#…`）。
 
 **Slice 3 — 內容改寫（最高風險，以 completed plans 為事實來源）**
 

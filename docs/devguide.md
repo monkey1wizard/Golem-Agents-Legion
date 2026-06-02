@@ -2,324 +2,11 @@
 
 This document is maintainer navigation, not a second specification. Use it to decide which layer you are changing, which source files own that layer, and which rules you must not break.
 
-## Start By Finding The Right Layer
+## Overview & Dev Setup
 
-| If you are changing... | Ask first... | Read these source files |
-| --- | --- | --- |
-| `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
-| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../commands/commands.md](../commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
-| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | [installation-topology.md](installation-topology.md), [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/Update-*.ps1`, `scripts/setup-machine.sh`, `scripts/update-*.sh` |
-| templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
-| xmachine execution behavior | is this part of the main workflow or an execution-plane extension? | [collaborative-tools/xmachine.md](collaborative-tools/xmachine.md), xmachine scripts under `scripts/` |
-| Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [collaborative-tools/godot.md](collaborative-tools/godot.md), [collaborative-tools/graphics-workflow.md](collaborative-tools/graphics-workflow.md) |
+To set up GAL for working on GAL itself (clone + `Setup-Machine`), see the **[Dev Mode section in the README](../README.md#dev-mode)**. This guide does not repeat the dev-mode enablement steps; it assumes you already have a source-mode checkout.
 
-If you cannot tell which layer you are touching, stop and resolve that first. Most broken refactors in GAL come from mixing README, docs, templates, scripts, and command contracts in one change.
-
-## Non-Negotiable Rules
-
-### 1. Markdown owns the durable contract
-
-- Methodology, rules, and contracts live in tracked Markdown and source files.
-- Generated adapters, baked command files, and runtime configs are outputs, not source inputs.
-
-### 2. `/gal` only solves control-plane problems
-
-- `/gal` should not wrap a second copy of tester, reviewer, designer, security, debugger, or releaser work.
-- Execution-stage specialist behavior belongs in agents.
-- Planning commands can run directly because they are still part of the public command surface.
-
-### 3. Repo-local state is the ownership boundary
-
-- `.dev/`, `docs/plans/`, `docs/designs/`, and similar repo-local files are the shared working state.
-- Do not move GAL's core state back into user-global storage.
-
-### 4. Missing tools must not look like success
-
-- GAL uses skill-level routing, not one repo-wide CLI-first or MCP-first rule.
-- Each external-tool skill should define a preferred path, a fallback path, and a no-tool behavior.
-
-### 5. Do not optimize one runtime by breaking portability
-
-- If a change makes Copilot, Antigravity, and Codex diverge in contract or file flow, it is usually the wrong change.
-- README, docs, templates, and setup scripts should preserve cross-runtime parity first.
-
-### 6. Navigation docs must not become a second spec
-
-- If a document exists to help humans find the real source, keep it short and directional.
-- Summaries are useful. Duplicate contracts are not.
-
-### 7. Collaborative-tool routing belongs to the workflow layer
-
-- Do not make an agent silently switch personas or contracts because a collaborative tool was detected.
-- The workflow decides the collaborative tool first, then the tool writes back into the same repo-owned files.
-
-The shared preflight model lives in [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
-
-## Bootstrap Distribution Documentation Ownership
-
-When you change bootstrap installer behavior or release policy, keep the document roles separate:
-
-- `README.md` explains the user-facing install paths, manual fallback, backup and migration guidance, uninstall boundaries, lag expectations, and non-guarantees.
-- `docs/release-matrix.md` owns the detailed canonical release lineage, marketplace matrix, submission rules, lag windows, and fallback copy.
-- `docs/personalization.md` owns the machine-local restore boundary: what the user carries forward, what GAL regenerates, and how install mode versus source mode affect migration.
-
-Do not duplicate the full release matrix in this guide. Point maintainers to the owning docs, then keep this file focused on layer boundaries and the rules that must not drift.
-
-Bootstrap-distribution guardrails:
-
-- GitHub Releases is the canonical version source.
-- `winget`, `homebrew`, and provider marketplace entries must all map back to that same release lineage.
-- Package-manager uninstall and GAL-managed uninstall must preserve user-owned machine intent.
-- Provider marketplaces remain discoverability-first until provider-native direct install, update, and uninstall are verified end to end; renderer-only or validation-only progress is not enough.
-- Lag between downstream channels is expected; the user-facing fallback remains GitHub Releases.
-
-## Runtime Topology For Setup Work
-
-This section absorbs the setup topology that maintainers need when changing `Setup-Machine`, the `Update-*` scripts, command installation, or MCP wiring.
-
-### Four Runtime Layers
-
-| Layer | Location | Purpose |
-| --- | --- | --- |
-| Layer 1 | the GAL repo | main methodology source |
-| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.gemini/antigravity-cli/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
-| Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
-| Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
-
-Naming note: upstream docs still use the full product name `Antigravity CLI` and the path segment `antigravity-cli`, but Google also exposes `AGY CLI` as the short name. In GAL-owned helper and function names, prefer `Agy` or `agy` for internal identifiers; keep `Antigravity CLI` and `antigravity-cli` for user-facing labels, runtime keys, and upstream-owned paths.
-
-### Cross-Runtime Surface
-
-| Runtime | Machine-layer install | Command surface | Notes |
-| --- | --- | --- | --- |
-| Copilot | `~/.copilot/installed-plugins/gal-copilot/gal/` (link-first projection when possible, refreshed host copy otherwise) | plugin-provided agents and skills from the installed GAL package | plugin-only runtime; GAL should not project legacy source-mode links into `~/.copilot/agents/` or `~/.copilot/skills/`; `~/.copilot/gal/` is legacy source-mode only |
-| Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
-| Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
-| Codex CLI | provider-managed marketplace registration plus `gal@gal-marketplace` install target | installed plugin content via provider-native lifecycle | uses marketplace registration instead of repo-root skill links; GAL records lifecycle state even when the provider-managed read surface stays opaque |
-| Claude Code | `~/.gal/plugins/gal/` canonical plugin root with provider-visible projection at `~/.claude/skills/gal/` | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root; the local read surface is the skills-dir projection, not `~/.claude/plugins/gal/` |
-
-### Layer 1.5 Install Topology
-
-| Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
-| --- | --- | --- | --- | --- | --- |
-| `agent/*.agent.md` | `~/.copilot/installed-plugins/<marketplace>/gal/agents/<name>.md` (filtered projection) | not installed | `~/.gemini/antigravity-cli/plugins/gal/agy-agents/<name>.agent.md` | not installed | `~/.gal/plugins/gal/agents/<name>.md` |
-| `skills/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
-| `commands/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/commands/<command>.md` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
-| `~/.gal/` | legacy source-mode shortcut only (`~/.copilot/gal/`) | not required | not required | not required | not required |
-| `~/.gal/source/` | not required | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | not required | not required |
-| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/gal-copilot/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | provider-managed marketplace delivery from the canonical artifact | `~/.claude/skills/gal/` provider-visible projection |
-
-### Generated Runtime Files
-
-| Generated file | Why it exists |
-| --- | --- |
-| `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
-| `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
-| `~/.gal/plugins/gal/.claude-plugin/plugin.json` | Claude plugin manifest living under the canonical plugin root for validation, install, and plugin manager metadata |
-| `~/.gal/plugins/gal/.mcp.json` | Claude plugin MCP configuration containing only portable GAL-managed entries |
-| `~/.gal/dist/providers/claude/managed.json` | Claude lifecycle metadata recording `canonicalRoot`, `projectionRoot`, `installTarget`, and `packageOutputRoot` |
-| `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
-
-### Archived Gemini CLI Surfaces
-
-These are the remaining Gemini CLI compatibility surfaces that still exist on purpose. Treat them as archived bridges to be retired gradually as AGY reaches parity. Do not expand them unless the change is explicitly about keeping Gemini compatibility working during that transition.
-
-| Archived surface | Owning files | Why it still exists | Expected retirement path |
-| --- | --- | --- | --- |
-| Gemini runtime selection, path constants, and install-state detection | `scripts/common/Common.ps1`, `scripts/common/common.sh` | Setup still needs to detect and manage Gemini-specific compatibility outputs such as `~/.gemini/commands/`, `~/.gemini/settings.json`, `~/.gemini/gal-context.md`, and `~/.gemini/gal/`. | Remove once no GAL-managed Gemini install target remains. |
-| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
-| Gemini shared-skill context bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
-| Gemini settings.json bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
-| Gemini `GAL_ROOT` link and legacy skill cleanup | `scripts/Update-Skills.ps1`, `scripts/update-skills.sh` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
-| Legacy Gemini MCP cleanup | `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh` | Gemini is no longer the MCP owner, but GAL still removes old Gemini MCP entries from `~/.gemini/settings.json` so AGY MCP ownership stays clean. | Remove after legacy Gemini MCP residue no longer exists in supported installs. |
-| `GEMINI.md` generated adapter filename | `scripts/Sync-DevContext.ps1`, `scripts/sync-dev-context.sh`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` | The repo still emits `GEMINI.md` as a Google-runtime compatibility adapter filename even though AGY is the primary Google CLI runtime. | Rename or remove only when Google-runtime consumers no longer depend on the `GEMINI.md` carrier. |
-| xmachine Gemini headless execution lane | `scripts/Start-xMachine.ps1`, `scripts/Start-xMachine.sh` | xmachine remote execution still invokes Gemini CLI headlessly and maps Gemini exit codes. | Replace when xmachine is migrated to AGY or another runtime end-to-end. |
-
-If you are removing one of these archived surfaces, also audit the matching maintainer guidance in [../scripts/scripts.md](../scripts/scripts.md), [personalization.md](personalization.md), and [personalization.zh-Hant.md](personalization.zh-Hant.md) so the docs stop describing a retired bridge.
-
-### Install-State
-
-The installer persists machine-local runtime selection in `~/.gal/install-state.json`.
-
-- `selectedRuntimes` controls which machine-layer targets GAL should manage.
-- `primaryRuntime` controls defaults and summaries only.
-- The tracked GAL repo remains the primary source for agents, skills, and commands.
-
-### MCP Management
-
-The MCP manifest is a separate install concern from skills.
-
-| File | Scope | Role |
-| --- | --- | --- |
-| `mcp.json` | tracked | single GAL MCP source of truth |
-| `~/.gal/config/mcp.local.json` | local only | machine-specific overrides and enablement |
-| `~/.gal/config/config.local.env` | local only | secrets and local values referenced by the manifest |
-| `~/.gal/config/xmachine.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
-
-The merged MCP manifest is centered on `servers` and may also include optional top-level `inputs` when a runtime supports prompt-backed values such as a PAT entry.
-
-For Playwright MCP specifically:
-
-- Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
-- Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `~/.gal/config/mcp.local.json`.
-- Put secret-like paths or environment-backed local values referenced by those overrides in `~/.gal/config/config.local.env`.
-- Do not track browser artifacts, storage-state files, persistent profile directories, or secret files in the repo.
-
-`Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
-
-- VS Code: overwrite tracked server entries inside user `mcp.json`
-- Antigravity CLI: write GAL-managed MCP to plugin-root `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` under `mcpServers`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries
-- JSON-based runtime bridges also preserve managed top-level `inputs` entries by input `id` when the merged manifest includes them.
-- Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
-- Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
-
-Provider-owned config still stays user-owned. GAL only takes ownership of the server names declared in the tracked manifest, preserves unrelated user-defined entries, and removes the GAL-managed legacy Gemini MCP names previously written into `settings.json`.
-
-### Why `GAL_ROOT` Exists
-
-`~/.copilot/gal/` is now a legacy source-mode shortcut that points at `~/.gal/` and is classified by the provider doctor as a cleanup candidate in install mode. `~/.gemini/gal/` remains a legacy Gemini compatibility link back to `~/.gal/source/` until the Gemini bridge is retired.
-
-For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces the old `~/.gemini/antigravity-cli/gal/` symlink as the managed install surface. The plugin is self-contained and does not require an external `GAL_ROOT` symlink; setup removes the legacy `GAL_ROOT` symlink during pre-cleanup.
-
-## Provider Plugin Packaging
-
-GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth; each provider plugin is a generated artifact rendered by a provider-specific renderer.
-
-The runtime content owner for GAL's plugin-shaped providers is `~/.gal/plugins/gal/`. `~/.gal/dist/` is intentionally downgraded to package output, conversion output, managed provider metadata, and dev-mode `~/.gal/dist/commits/` isolation. Provider-visible targets and active shortcuts may point at the canonical root or a documented projection, but they do not become a second source of truth.
-
-### Common Package Model
-
-The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provider-plugin.sh`) carries:
-
-| Field | Source | Shared across all four providers? |
-| --- | --- | --- |
-| `metadata` | repo name, display name, version diagnostics, generation timestamp | conceptually yes |
-| `skills` | `skills/<name>/SKILL.md` | yes |
-| `commandSkills` | `commands/*/SKILL.md` | yes, as skill bundles |
-| `mcpSpec` | `mcp.json` plus `~/.gal/config/mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
-| `instructionCorpus` | `.dev/project.md`, required conventions, workflows, `model-roles.md`, generated indexes | content yes, path no |
-| `agents` | `agent/*.agent.md` | optional; projected to three of four providers |
-
-The common model explicitly excludes: provider-specific output paths, resolved machine-local secrets or paths, `runtimeScripts`, plugin-root `scripts/`, `gal-results/`, and hooks (deferred from v1).
-
-### Provider Lane Policy
-
-GAL targets are classified by provider-native install capability, not by a uniform renderer model.
-
-| Lane | Platform | Role | Success criteria |
-| --- | --- | --- | --- |
-| Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / capability-sensitive lifecycle target | strict artifact validation plus session-load smoke are implemented; direct install, update, and uninstall remain contingent on documented provider-native CLI support |
-| Primary install target (near-parity) | Copilot CLI | Claude-compatible structure; `agents/`, `skills/`, `hooks.json`, `.mcp.json`, `lsp.json` share the same directory conventions as Claude | `/plugin install`, marketplace, GitHub/Git URL/local path; directory layout already aligns with Claude, no shortcut needed |
-| Primary install target | Codex | Claude baseline mapped renderer / marketplace target | `codex plugin install`, documented marketplace / cache install path, some components readable natively |
-| Primary install target (shortcut) | AGY CLI / Antigravity CLI | Claude baseline mapped renderer + catalog-aware install target | provider-native plugin staging / install, or capability shortcut pointing to `~/.gal/active/agy/`; no repo-root shortcut dependency |
-| Migration lane | Gemini CLI | legacy cleanup and compatibility only | not a fifth renderer; only cleanup or migration of existing GAL-managed Gemini surfaces |
-| Bridge lane | OpenCode | deferred independent bridge plan | can read catalog/lockfile, mount `~/.gal/active/opencode/` capability shortcut, but does not promise primary install parity |
-| Deferred / unsupported | other runtimes | out of scope | no documented install or skill discovery pathway |
-
-Shortcut policy:
-
-- Claude-compatible canonical package is the single source of truth.
-- Copilot CLI can consume Claude-compatible structure natively and does not need a shortcut.
-- AGY CLI and OpenCode, lacking native `plugin install` CLI, may use `~/.gal/active/<provider>/` as GAL-managed stable targets for capability-level shortcut redirection.
-- Install mode forbids repo-root shortcuts, baked source paths, and hidden `GAL_ROOT` dependencies.
-- Capability-level links in install mode must only point to `~/.gal/active/<provider>/` or its GAL-managed projection; source mode may point to user-specified local overrides.
-- Bridge lane must not imply primary provider-native install parity to users.
-
-### AGY Surface Projection (Implementation Status)
-
-AGY is a consumer of the canonical root, not a renderer. The provider-neutral core renderer `Build-CorePlugin` emits AGY's entry-point markers directly into `~/.gal/plugins/gal/` (the canonical content owner), and install orchestration projects that root to all three AGY surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and the Antigravity 2.0 GUI host-managed copy (`~/.gemini/config/plugins/gal` via `agy plugin install`). `~/.gal/active/agy/` is used only as a stable alias when a capability shortcut is needed. The AGY-facing markers are `plugin.json`, `skills/`, `agy-agents/`, `rules/gal.md`, and `mcp_config.json`. The Copilot/Claude-facing `agents/` directory now contains only filtered `.md` agent files so Copilot `setagent` does not surface duplicate names. The core renderer does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
-
-Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
-
-Current implementation status:
-
-- AGY, Claude, Copilot, and Codex all have concrete install-mode lifecycle slices plus per-provider `managed.json` ledgers under `~/.gal/dist/providers/`.
-- Claude Code now projects the canonical plugin root through `~/.claude/skills/gal/`, keeps lifecycle-state tracking plus legacy projection cleanup, and uses CLI validation when the local `claude` binary exposes it.
-- Copilot prefers a link-first projection at `~/.copilot/installed-plugins/gal-copilot/gal/` and falls back to `refreshed-copy2-host` with a manifest-version bump when host-copy refresh is required.
-- Codex now owns its marketplace registration/install lifecycle independently of AGY, while still recording `unprojected-artifact` when the provider-managed read surface remains opaque.
-- Bootstrap packaging, official install channels, and marketplace discoverability do not belong to this install-mode surface; they are handled by the separate bootstrap-installer planning track.
-
-### Future Renderer Sequence
-
-The core renderer sequence is complete for AGY, Claude, Copilot, and Codex. Remaining follow-up work lives in bootstrap packaging, binary delivery, and documentation alignment rather than adding another core-provider renderer.
-
-## Distribution Architecture and Ownership Boundaries
-
-GAL explicitly separates how the CLI is installed (Bootstrap Installer) from how provider plugins are managed (Install-Mode Plugin Distribution). This boundary ensures that package managers do not overwrite user data and that GAL plugins can update independently of the CLI payload.
-
-### 1. Bootstrap Installer Distribution
-
-- **What it is**: How the GAL CLI (`gal` executable) gets onto the user's machine.
-- **Channels**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases `.zip` / `.tar.gz` (manual fallbacks). See [docs/release-matrix.md](release-matrix.md) for the exact artifact lineage.
-- **Ownership**: The package manager owns the **package-managed payload** (the single executable binary). It handles upgrades and removals of the CLI itself, but it must **never** manage or delete `~/.gal/` contents.
-
-### Bootstrap Runtime Contract
-
-After the package-managed `gal` binary is on disk, the first launch contract is:
-
-1. Expose a runnable `gal` CLI from the package-managed install location.
-2. Detect whether `~/.gal/config/config.json` already exists.
-3. If no machine config exists, seed a minimal install-mode config and create the managed runtime roots under `~/.gal/`.
-4. Resolve the default profile into `~/.gal/state/plugins.lock.json`.
-5. Render provider-native projections under `~/.gal/generated/` and any required stable targets under `~/.gal/active/<provider>/`.
-6. Hand off to install mode by default for bootstrap installs; source mode only begins after the user explicitly sets `installMode=source` plus `galRoot` and `devMode`.
-
-The canonical end-user bootstrap contract must work without a cloned repo. Repo-local workflow state such as `.dev/`, `docs/plans/`, or repo-root skill links is never a first-launch requirement for the installed package payload. The repo-owned `Setup-Machine.*` scripts are the development and packaging harness that should mirror the same install-mode-first branching and `~/.gal/` ownership rules, but they are not themselves the final end-user package payload.
-
-### First-Launch Branching Rules
-
-The install-mode/source-mode split happens only after GAL has a machine config to read:
-
-- **Bootstrap install with no existing machine config**: seed `installMode=install`, leave contributor-only repo bindings disabled, and build provider-native projections from `~/.gal/`.
-- **Existing machine config with `installMode=install`**: reuse `~/.gal/` and refresh lockfile plus projections without creating repo-root links.
-- **Existing machine config with `installMode=source`**: reuse the explicit `galRoot` and `devMode` settings, then allow contributor-only source links and local overrides.
-
-This keeps package-managed first launch safe for end users while preserving an explicit contributor path.
-
-### Upgrade Contract
-
-Bootstrap upgrades must rerun the same install-mode-first contract without widening ownership.
-
-- **`winget upgrade` / `brew upgrade`**: replace only the package-managed `gal` binary, then let the refreshed CLI re-enter the bootstrap runtime contract. The refresh may regenerate `~/.gal/generated/`, refresh provider projections, and update `~/.gal/state/plugins.lock.json` when the resolved profile changes, but it must not overwrite `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, or secret sources.
-- **Provider-native direct-install or direct-update lanes**: if a marketplace lane is later verified to support canonical install and update, that lane still behaves like a bootstrap payload upgrade rather than a runtime reset. It may replace the packaged GAL payload and re-run GAL-managed projection refresh, but it must preserve user-owned config and keep install mode versus source mode unchanged unless the user edits machine config explicitly.
-- **Manual archive refresh**: replacing the extracted `gal` binary from a GitHub Releases `.zip` or `.tar.gz` is allowed only as a payload swap. Users may rerun the bootstrap entrypoint afterward to refresh lockfile and generated projections, but manual archive updates must not delete or reset existing `~/.gal/config/*`, xmachine bindings, local overrides, or secrets.
-- **Schema or runtime migrations**: when an upgrade needs to evolve GAL-managed runtime state, migrations must be additive or explicitly reversible. They may rewrite GAL-owned generated or cached state, but they must not silently migrate user-owned config into a new location or clear values that the user would need to reconstruct manually.
-
-The decisive rule is simple: upgrades may refresh the payload, the lockfile, and GAL-managed generated state, but they must preserve the user's machine intent.
-
-### Uninstall Contract
-
-Default uninstall must stay narrower than a machine reset.
-
-- **Package-manager uninstall**: removes only the package-managed `gal` payload. It must not delete `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, or secret-bearing sources.
-- **GAL-managed uninstall**: removes GAL-owned runtime outputs that can be rebuilt, including provider-native plugin install targets that GAL owns, the canonical plugin roots under `~/.gal/plugins/`, and generated projections or ledgers under `~/.gal/generated/` and `~/.gal/dist/providers/`.
-- **Preserved surfaces**: uninstall keeps the user's machine intent intact. That includes install/source mode choice, `galRoot`, `devMode`, xmachine bindings, lockfile state, explicit local overrides, and secret sources.
-- **No implicit second runtime**: uninstall must not leave behind a second GAL-managed runtime tree that the next install would treat as authoritative. Rebuildable GAL-owned runtime outputs are removed; preserved user-owned config remains as input for the next install.
-
-### Purge And Reset Boundary
-
-Purge or reset is a separate destructive lane, not part of default uninstall.
-
-- The explicit purge entrypoint is `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`, and it must remain opt-in, visible, and dry-runnable before destructive execution.
-- Purge/reset may remove preserved machine-local intent such as `config.json`, `xmachine.json`, lockfile state, local overrides, install-state metadata, and secret-bearing generated surfaces, but only after an explicit destructive confirmation step.
-- Neither package-manager uninstall nor default GAL-managed uninstall may simulate purge/reset by deleting preserved surfaces automatically.
-- The practical rule is simple: uninstall removes what GAL can safely rebuild; purge/reset removes what the user would otherwise need to carry forward.
-
-### 2. Install-Mode Plugin Distribution
-
-- **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
-- **Channels**: Provider-native marketplaces, driven by the `plugins/catalog.json` and resolved into `~/.gal/state/plugins.lock.json`.
-- **Ownership**: GAL owns the plugin catalog and resolution. It manages provider-specific installation paths and the `~/.gal/` plugin store.
-
-### 3. State Ownership Boundaries in `~/.gal/`
-
-When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
-
-- **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
-- **GAL-Managed Runtime and Generated State**: canonical plugin roots under `~/.gal/plugins/`, generated MCP and xmachine state, and per-provider ledgers under `~/.gal/dist/providers/`, plus provider-native plugin installations that GAL explicitly owns. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
-- **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall or default GAL-managed uninstall. Full deletion requires an explicit, destructive purge flow.
-
-During upgrade, treat `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret-bearing sources as read-preserve surfaces. The installer may read them to determine install mode, provider selection, or migration steps, but it must not replace them with defaults merely because a newer bootstrap payload was installed.
+If you cannot tell which layer you are touching, stop and resolve that first. Most broken refactors in GAL come from mixing README, docs, templates, scripts, and command contracts in one change. The `Codebase & Runtime Structure` section below is the map; the `Making Changes` section is the procedure.
 
 ## Install Mode vs Source Mode
 
@@ -339,53 +26,95 @@ Key rules:
 - `GAL_SKILLS` is no longer part of the config surface; existing values are only migration input.
 - `context7ApiKey`, once rendered into `~/.gal/generated/mcp/managed.json`, is machine-local secret-bearing state — never tracked or shared.
 
-## Plugin Support Tiers
+## Codebase & Runtime Structure
 
-| Tier | Content source | GAL responsibility | Update strategy |
-| --- | --- | --- | --- |
-| `official-gal` | GAL repo / GAL release artifact | GAL maintains content, testing, installation, and regression | updated directly by GAL releases |
-| `curated-upstream` | external upstream (e.g. `dart-lang/skills`) | GAL verifies metadata, provider compatibility, default profile, and lockfile; content maintained by upstream | updated per lockfile pin; manual or controlled updates allowed |
-| `mirrored` | managed mirror of external upstream | GAL responsible for provenance, license, checksum, and mirror drift | no unversioned copies; updates require drift check |
-| `forked` | fork maintained by GAL or user | fork owner responsible for divergence and fixes | must record fork base, diff policy, and update strategy |
-| `local` | `file://` or local path override | source mode / contributor override only | does not enter shareable lockfile; recorded as machine-local override |
+This section is the single map of where everything lives. The two annotated trees below replace the old separate "find the right layer", "where information belongs", and "owning surfaces" sections — each node carries its purpose, layer, and owner.
 
-Default profile: initial `default` profile installs only `gal-core`. All companion plugins are opt-in through named profiles or explicit plugin selection.
-
-## Catalog and Lockfile Architecture
-
-GAL is a catalog + lockfile orchestrator, not a universal plugin runtime.
+### Codebase Data Structure
 
 ```text
-plugins/catalog.json
-  → ~/.gal/state/plugins.lock.json
-  → resolved plugin set
-  → provider-native install spec
-  → Claude-compatible canonical package
-  → provider-specific installer / renderer / shortcut mapping
+Golem-Agents-Legion/
+├── commands/        public /gal command surface · source contract · changing it affects every runtime   [protected]
+├── conventions/     portable rules all golems follow · source contract                                   [protected]
+├── workflows/       workflow contracts (coding, doc-sync, research) · source contract                     [protected]
+├── templates/       durable repo-state templates · changing them reshapes every initialized repo          [protected]
+├── agent/           golem agent contracts (*.agent.md) + agents.md index · source contract
+├── skills/          skill bodies (skills/<name>/SKILL.md) · source contract
+├── scripts/         PowerShell + Bash runtime: setup, install, build, sync · some protected*
+├── plugins/         catalog.json + provider plugin packaging
+├── docs/            documentation
+│   ├── manual.md            user operations manual (canonical EN)
+│   ├── devguide.md          this file — maintainer guide
+│   ├── collaborative-tools/ one capability/tool contract per file (+ examples/)
+│   ├── i18n/<lang>/         all translations (mirror layout, <name>.<lang>.md)
+│   ├── plans/               source plans (human-readable, transient)
+│   ├── research/            research outputs
+│   └── structure/           dockeeper NDJSON structure map + schema
+└── .dev/            repo working state
+    ├── project.md           compressed project summary + Source Documents index
+    ├── state.md             active plans index + session continuity
+    └── plans/*.prompt.md     execution work files (mutable task memory)
 ```
 
-Core layout under `~/.gal/`:
+\* Protected scripts: `Sync-DevContext.*`, `Setup-Machine.*` and their setup-orchestration peers. Touching any protected path requires an architect-reviewed plan before implementation.
 
-| Path | Purpose |
+### Where Information Belongs
+
+| Information type | Right home |
 | --- | --- |
-| `~/.gal/config/config.json` | user-managed machine config: personalization, plugin/profile/provider selections, `galRoot`, `devMode` |
-| `~/.gal/config/xmachine.json` | machine-local xmachine binding: node aliases, machine profiles, local overrides |
-| `~/.gal/state/plugins.lock.json` | resolved lockfile: installed sources, versions, checksums, component maps |
-| `~/.gal/plugins/` | GAL-managed canonical plugin roots and companion plugin content |
-| `~/.gal/generated/mcp/managed.json` | GAL-produced MCP projection, replaces repo-root `mcp.local.json` in install mode |
-| `~/.gal/generated/xmachine/managed.json` | GAL-produced xmachine projection |
-| `~/.gal/dist/providers/` | GAL-produced provider lifecycle ledgers and managed metadata |
-| `~/.gal/active/<provider>/` | stable shortcut targets for AI tools; consumers do not point directly at store paths |
+| durable methodology and contracts | tracked source docs and source files |
+| repo working context | `.dev/project.md` and `.dev/state.md` in the target repo |
+| human-readable feature plan | `docs/plans/<plan-slug>.md` |
+| machine-readable execution work file | `.dev/plans/<plan-slug>.prompt.md` |
+| temporary session continuity | `### Handoff Notes` plus `.dev/state.md` |
+| machine-local xmachine node config | `~/.gal/config/xmachine.json` |
 
-The `plugins/catalog.json` in the repo is the authoritative catalog source and metadata registry. The `~/.gal/state/plugins.lock.json` is the deterministic machine-local resolution that can be backed up, transferred, and re-resolved.
+If a completed plan contains knowledge that should survive, extract it back into a durable source file instead of leaving the plan as hidden long-term documentation.
 
-Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `dotnet/skills`, `anthropics/skills`, `samber/cc-skills-golang`, `twostraws/swift-agent-skills`, `kepano/obsidian-skills`, `actionbook/rust-skills` — all `curated-upstream`, all opt-in.
+### Owning Surfaces (which source files own what)
 
-## Runtime File Schemas
+| If you are changing... | Ask first... | Read these source files |
+| --- | --- | --- |
+| `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
+| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../commands/commands.md](../commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
+| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/Update-*.ps1`, `scripts/setup-machine.sh`, `scripts/update-*.sh` |
+| templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
+| user-facing install copy | who owns the words users read? | [../README.md](../README.md), [manual.md](manual.md), `Release Artifact Matrix` below |
+| machine-local restore, mode switching, backup | which doc owns the user's machine intent? | [manual.md](manual.md), this guide |
+| release channel lineage | where is the canonical release contract? | `Release Artifact Matrix` below, [../README.md](../README.md) |
+| xmachine execution behavior | is this part of the main workflow or an execution-plane extension? | [collaborative-tools/xmachine.md](collaborative-tools/xmachine.md), xmachine scripts under `scripts/` |
+| Godot or graphics workflows | is this repo-wide methodology or a module-specific lane? | [collaborative-tools/godot.md](collaborative-tools/godot.md), [collaborative-tools/graphics-workflow.md](collaborative-tools/graphics-workflow.md) |
 
-This section defines the structure, required fields, optional fields, secret boundaries, precedence rules, and drift metadata for the four authoritative `~/.gal/` runtime files.
+### .gal Data Structure
 
-### `~/.gal/config/config.json` — User-Managed Machine Config
+```text
+~/.gal/                          machine-local runtime root (never the source of truth)
+├── config/                      USER-OWNED machine intent — preserved across upgrade/uninstall
+│   ├── config.json              machine config: personalization, profiles, galRoot, devMode, installMode
+│   ├── mcp.local.json           machine-specific MCP overrides and enablement
+│   ├── config.local.env         secrets and local values referenced by the manifest
+│   └── xmachine.json            xmachine node aliases / machine profiles / local overrides
+├── state/
+│   └── plugins.lock.json        USER-OWNED resolved lockfile (deterministic, backup-safe)
+├── plugins/gal/                 GAL-MANAGED canonical plugin root — the runtime content owner
+├── generated/                   GAL-PRODUCED projections, rebuildable
+│   ├── mcp/managed.json         resolved MCP (SECRET-BEARING, machine-local, never shared)
+│   ├── xmachine/managed.json    resolved xmachine projection (non-secret)
+│   └── providers/               provider projections
+├── dist/                        package/conversion output, provider ledgers, dev-mode isolation
+│   └── providers/<provider>/managed.json   provider lifecycle ledger
+└── active/<provider>/           stable shortcut targets for AI tools (consumers never point at store paths)
+```
+
+Provider-visible projections live outside `~/.gal/` (e.g. `~/.claude/skills/gal`, `~/.copilot/installed-plugins/gal-copilot/gal`, `~/.gemini/antigravity-cli/plugins/gal`) and are aliases of the canonical root, not second sources of truth.
+
+The four authoritative runtime files have explicit schemas below.
+
+### Runtime File Schemas
+
+This subsection defines the structure, required fields, optional fields, secret boundaries, precedence rules, and drift metadata for the four authoritative `~/.gal/` runtime files.
+
+#### `~/.gal/config/config.json` — User-Managed Machine Config
 
 Concentrates personalization, plugin/profile/provider selections, install/source mode, and `galRoot`/`devMode` in one user-owned file. This file is designed to be backed up and transferred between machines.
 
@@ -429,7 +158,7 @@ Concentrates personalization, plugin/profile/provider selections, install/source
 
 **Excluded fields**: `GAL_SKILLS` is intentionally removed. Existing values are migration input only and must not appear in the final schema.
 
-### `~/.gal/state/plugins.lock.json` — Resolved Lockfile
+#### `~/.gal/state/plugins.lock.json` — Resolved Lockfile
 
 Deterministic machine-local resolution produced by the resolver from `plugins/catalog.json` and `~/.gal/config/config.json`. Designed to be backed up, transferred, and re-resolved.
 
@@ -456,7 +185,7 @@ Each resolved plugin entry carries:
 
 **Drift detection metadata**: each plugin entry includes `resolvedChecksum` compared against catalog `checksumPolicy`. When the lockfile checksum differs from the catalog policy's expected value, the resolver must flag drift. Local overrides (source mode only) are recorded in `~/.gal/config/xmachine.json`, not in the lockfile.
 
-### `~/.gal/config/xmachine.json` — Machine-Local Xmachine Binding
+#### `~/.gal/config/xmachine.json` — Machine-Local Xmachine Binding
 
 Machine-local binding file for xmachine routing. Not a team-shared configuration.
 
@@ -472,7 +201,7 @@ Machine-local binding file for xmachine routing. Not a team-shared configuration
 
 **Secret boundary**: `xmachine.json` may contain SSH targets and repo paths. Treat as machine-local and do not share.
 
-### `~/.gal/generated/mcp/managed.json` — GAL-Produced MCP Projection
+#### `~/.gal/generated/mcp/managed.json` — GAL-Produced MCP Projection
 
 Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `mcp.json` + `~/.gal/config/mcp.local.json` boundary info with machine-local values resolved.
 
@@ -502,7 +231,7 @@ Generated file owned by GAL that replaces repo-root `mcp.local.json` in install 
 - `mcpFilesystemPaths` appears only when filesystem MCP is present in the resolved set; otherwise omitted.
 - No runtime placeholder resolution is required — all values are fully materialized.
 
-### Schema Precedence Chain
+#### Schema Precedence Chain
 
 ```text
 plugins/catalog.json (repo-tracked, authoritative catalog source)
@@ -518,29 +247,634 @@ plugins/catalog.json (repo-tracked, authoritative catalog source)
 
 `~/.gal/config/xmachine.json` is an independent leaf — it does not feed into the resolver chain but controls xmachine routing and local overrides for source mode.
 
-## Common Change Entry Points
+### Catalog and Lockfile Architecture
 
-### Changing `/gal` or alias behavior
+GAL is a catalog + lockfile orchestrator, not a universal plugin runtime.
+
+```text
+plugins/catalog.json
+  → ~/.gal/state/plugins.lock.json
+  → resolved plugin set
+  → provider-native install spec
+  → Claude-compatible canonical package
+  → provider-specific installer / renderer / shortcut mapping
+```
+
+Core layout under `~/.gal/`:
+
+| Path | Purpose |
+| --- | --- |
+| `~/.gal/config/config.json` | user-managed machine config: personalization, plugin/profile/provider selections, `galRoot`, `devMode` |
+| `~/.gal/config/xmachine.json` | machine-local xmachine binding: node aliases, machine profiles, local overrides |
+| `~/.gal/state/plugins.lock.json` | resolved lockfile: installed sources, versions, checksums, component maps |
+| `~/.gal/plugins/` | GAL-managed canonical plugin roots and companion plugin content |
+| `~/.gal/generated/mcp/managed.json` | GAL-produced MCP projection, replaces repo-root `mcp.local.json` in install mode |
+| `~/.gal/generated/xmachine/managed.json` | GAL-produced xmachine projection |
+| `~/.gal/dist/providers/` | GAL-produced provider lifecycle ledgers and managed metadata |
+| `~/.gal/active/<provider>/` | stable shortcut targets for AI tools; consumers do not point directly at store paths |
+
+The `plugins/catalog.json` in the repo is the authoritative catalog source and metadata registry. The `~/.gal/state/plugins.lock.json` is the deterministic machine-local resolution that can be backed up, transferred, and re-resolved.
+
+Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `dotnet/skills`, `anthropics/skills`, `samber/cc-skills-golang`, `twostraws/swift-agent-skills`, `kepano/obsidian-skills`, `actionbook/rust-skills` — all `curated-upstream`, all opt-in.
+
+## Distribution & Release Architecture
+
+### Runtime / Setup Flow
+
+This subsection absorbs the setup topology that maintainers need when changing `Setup-Machine`, the `Update-*` scripts, command installation, or MCP wiring. The high-level flows:
+
+```text
+Contributor/source path:
+GAL checkout
+  → Setup-Machine.*
+  → Update-Personalization / Update-Skills / Update-Commands / Update-Mcp
+  → Install-GalPlugins.*
+  → Build-ProviderPlugins.*
+  → Build-CorePlugin.*
+  → ~/.gal/plugins/gal/ plus provider projections
+
+Target repo bootstrap:
+target repo cwd
+  → gal init
+  → Init-Repo.*
+  → Sync-DevContext.*
+  → .dev/ plus generated adapters
+
+Future package-managed path:
+winget / Homebrew / GitHub Release payload
+  → gal binary first launch
+  → install-mode runtime contract
+  → ~/.gal/ runtime roots and provider projections
+```
+
+#### Four Runtime Layers
+
+| Layer | Location | Purpose |
+| --- | --- | --- |
+| Layer 1 | the GAL repo | main methodology source |
+| Layer 1.5 | tool config directories such as `~/.copilot/`, `~/.gemini/`, `~/.gemini/antigravity-cli/`, `~/.codex/`, `~/.claude/`, plus `~/.gal/install-state.json` | installed skills, generated commands, runtime-facing symlinks, and machine-local runtime selection |
+| Layer 2 | `<target-repo>/.dev/` | per-repo working context and state |
+| Layer 3 | generated adapter files in the target repo | shared instructions and runtime-specific shims |
+
+Naming note: upstream docs still use the full product name `Antigravity CLI` and the path segment `antigravity-cli`, but Google also exposes `AGY CLI` as the short name. In GAL-owned helper and function names, prefer `Agy` or `agy` for internal identifiers; keep `Antigravity CLI` and `antigravity-cli` for user-facing labels, runtime keys, and upstream-owned paths.
+
+#### Cross-Runtime Surface
+
+| Runtime | Machine-layer install | Command surface | Notes |
+| --- | --- | --- | --- |
+| Copilot | `~/.copilot/installed-plugins/gal-copilot/gal/` (link-first projection when possible, refreshed host copy otherwise) | plugin-provided agents and skills from the installed GAL package | plugin-only runtime; GAL should not project legacy source-mode links into `~/.copilot/agents/` or `~/.copilot/skills/`; `~/.copilot/gal/` is legacy source-mode only |
+| Antigravity CLI | `~/.gemini/antigravity-cli/plugins/gal/` (plugin-root) | installed named skills via plugin | primary Google CLI runtime; installs as a provider plugin at `~/.gemini/antigravity-cli/plugins/gal/` carrying skills, agents, rules, and MCP config as a self-contained tree; AGY is renderer 1 on the common package model, not the architecture itself |
+| Gemini CLI | `~/.gemini/commands/`, `~/.gemini/gal-context.md`, `~/.gemini/settings.json`, and `~/.gemini/gal/` | generated native command files plus compatibility bridges | archived compatibility runtime; keep only the remaining surfaces listed below until AGY fully replaces them |
+| Codex CLI | provider-managed marketplace registration plus `gal@gal-marketplace` install target | installed plugin content via provider-native lifecycle | uses marketplace registration instead of repo-root skill links; GAL records lifecycle state even when the provider-managed read surface stays opaque |
+| Claude Code | `~/.gal/plugins/gal/` canonical plugin root with provider-visible projection at `~/.claude/skills/gal/` | namespaced plugin skills and commands from plugin root | only `.claude-plugin/plugin.json` belongs inside `.claude-plugin/`; `skills/`, `commands/`, `agents/`, and `.mcp.json` stay at plugin root; the local read surface is the skills-dir projection, not `~/.claude/plugins/gal/` |
+
+#### Layer 1.5 Install Topology
+
+| Source in repo | Copilot target | Gemini target | Antigravity target | Codex target | Claude target |
+| --- | --- | --- | --- | --- | --- |
+| `agent/*.agent.md` | `~/.copilot/installed-plugins/<marketplace>/gal/agents/<name>.md` (filtered projection) | not installed | `~/.gemini/antigravity-cli/plugins/gal/agy-agents/<name>.agent.md` | not installed | `~/.gal/plugins/gal/agents/<name>.md` |
+| `skills/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/skills/` | imported from repo paths via `~/.gemini/gal-context.md` | `~/.gemini/antigravity-cli/plugins/gal/skills/` | `~/.agents/skills/` | `~/.gal/plugins/gal/skills/` |
+| `commands/*/` | `~/.copilot/installed-plugins/<marketplace>/gal/commands/<command>.md` | `~/.gemini/commands/<command>.toml` | `~/.gemini/antigravity-cli/plugins/gal/skills/<command>/` | `~/.codex/skills/<command>/` | `~/.gal/plugins/gal/commands/<command>.md` |
+| `~/.gal/` | legacy source-mode shortcut only (`~/.copilot/gal/`) | not required | not required | not required | not required |
+| `~/.gal/source/` | not required | `~/.gemini/gal/` | `~/.gemini/antigravity-cli/gal/` (legacy GAL_ROOT only) | not required | not required |
+| `~/.gal/plugins/gal/` | `~/.copilot/installed-plugins/gal-copilot/gal/` (plugin lifecycle projection) | not required | `~/.gemini/antigravity-cli/plugins/gal/` (plugin tree) | provider-managed marketplace delivery from the canonical artifact | `~/.claude/skills/gal/` provider-visible projection |
+
+#### Generated Runtime Files
+
+| Generated file | Why it exists |
+| --- | --- |
+| `commands/*/SKILL.md` | baked command prompt with absolute `GAL_ROOT` plus any gitignored `SKILL.local.md` overlay |
+| `~/.gemini/commands/*.toml` | Gemini-native command surface generated from the baked command skill |
+| `~/.gal/plugins/gal/.claude-plugin/plugin.json` | Claude plugin manifest living under the canonical plugin root for validation, install, and plugin manager metadata |
+| `~/.gal/plugins/gal/.mcp.json` | Claude plugin MCP configuration containing only portable GAL-managed entries |
+| `~/.gal/dist/providers/claude/managed.json` | Claude lifecycle metadata recording `canonicalRoot`, `projectionRoot`, `installTarget`, and `packageOutputRoot` |
+| `~/.gemini/gal-context.md` | reusable shared skill imports for Gemini |
+
+#### Archived Gemini CLI Surfaces
+
+These are the remaining Gemini CLI compatibility surfaces that still exist on purpose. Treat them as archived bridges to be retired gradually as AGY reaches parity. Do not expand them unless the change is explicitly about keeping Gemini compatibility working during that transition.
+
+| Archived surface | Owning files | Why it still exists | Expected retirement path |
+| --- | --- | --- | --- |
+| Gemini runtime selection, path constants, and install-state detection | `scripts/common/Common.ps1`, `scripts/common/common.sh` | Setup still needs to detect and manage Gemini-specific compatibility outputs such as `~/.gemini/commands/`, `~/.gemini/settings.json`, `~/.gemini/gal-context.md`, and `~/.gemini/gal/`. | Remove once no GAL-managed Gemini install target remains. |
+| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
+| Gemini shared-skill context bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
+| Gemini settings.json bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
+| Gemini `GAL_ROOT` link and legacy skill cleanup | `scripts/Update-Skills.ps1`, `scripts/update-skills.sh` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
+| Legacy Gemini MCP cleanup | `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh` | Gemini is no longer the MCP owner, but GAL still removes old Gemini MCP entries from `~/.gemini/settings.json` so AGY MCP ownership stays clean. | Remove after legacy Gemini MCP residue no longer exists in supported installs. |
+| `GEMINI.md` generated adapter filename | `scripts/Sync-DevContext.ps1`, `scripts/sync-dev-context.sh`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` | The repo still emits `GEMINI.md` as a Google-runtime compatibility adapter filename even though AGY is the primary Google CLI runtime. | Rename or remove only when Google-runtime consumers no longer depend on the `GEMINI.md` carrier. |
+| xmachine Gemini headless execution lane | `scripts/Start-xMachine.ps1`, `scripts/Start-xMachine.sh` | xmachine remote execution still invokes Gemini CLI headlessly and maps Gemini exit codes. | Replace when xmachine is migrated to AGY or another runtime end-to-end. |
+
+If you are removing one of these archived surfaces, also audit the matching maintainer guidance in [../scripts/scripts.md](../scripts/scripts.md) and [manual.md](manual.md) so the docs stop describing a retired bridge.
+
+#### Install-State
+
+The installer persists machine-local runtime selection in `~/.gal/install-state.json`.
+
+- `selectedRuntimes` controls which machine-layer targets GAL should manage.
+- `primaryRuntime` controls defaults and summaries only.
+- The tracked GAL repo remains the primary source for agents, skills, and commands.
+
+#### MCP Management
+
+The MCP manifest is a separate install concern from skills.
+
+| File | Scope | Role |
+| --- | --- | --- |
+| `mcp.json` | tracked | single GAL MCP source of truth |
+| `~/.gal/config/mcp.local.json` | local only | machine-specific overrides and enablement |
+| `~/.gal/config/config.local.env` | local only | secrets and local values referenced by the manifest |
+| `~/.gal/config/xmachine.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
+
+The merged MCP manifest is centered on `servers` and may also include optional top-level `inputs` when a runtime supports prompt-backed values such as a PAT entry.
+
+For Playwright MCP specifically:
+
+- Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
+- Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `~/.gal/config/mcp.local.json`.
+- Put secret-like paths or environment-backed local values referenced by those overrides in `~/.gal/config/config.local.env`.
+- Do not track browser artifacts, storage-state files, persistent profile directories, or secret files in the repo.
+
+`Update-Mcp.ps1` and `update-mcp.sh` use the tracked manifest as the source of truth for GAL-managed server names:
+
+- VS Code: overwrite tracked server entries inside user `mcp.json`
+- Antigravity CLI: write GAL-managed MCP to plugin-root `~/.gemini/antigravity-cli/plugins/gal/mcp_config.json` under `mcpServers`; the global `~/.gemini/antigravity-cli/mcp_config.json` is only touched for legacy cleanup of old GAL-managed entries
+- JSON-based runtime bridges also preserve managed top-level `inputs` entries by input `id` when the merged manifest includes them.
+- Codex CLI: regenerate tracked `[mcp_servers.*]` sections inside `config.toml`
+- Claude Code: remove and re-add tracked user-scope servers through the `claude mcp` CLI
+
+Provider-owned config still stays user-owned. GAL only takes ownership of the server names declared in the tracked manifest, preserves unrelated user-defined entries, and removes the GAL-managed legacy Gemini MCP names previously written into `settings.json`.
+
+#### Why `GAL_ROOT` Exists
+
+`~/.copilot/gal/` is now a legacy source-mode shortcut that points at `~/.gal/` and is classified by the provider doctor as a cleanup candidate in install mode. `~/.gemini/gal/` remains a legacy Gemini compatibility link back to `~/.gal/source/` until the Gemini bridge is retired.
+
+For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces the old `~/.gemini/antigravity-cli/gal/` symlink as the managed install surface. The plugin is self-contained and does not require an external `GAL_ROOT` symlink; setup removes the legacy `GAL_ROOT` symlink during pre-cleanup.
+
+### Ownership Boundaries
+
+GAL explicitly separates how the CLI is installed (Bootstrap Installer) from how provider plugins are managed (Install-Mode Plugin Distribution). This boundary ensures that package managers do not overwrite user data and that GAL plugins can update independently of the CLI payload.
+
+- `Setup-Machine.*` is the development and packaging harness. It should mirror the install-mode rules, but it is not the final end-user package payload.
+- Package managers own only the package-managed `gal` binary payload.
+- GAL owns rebuildable runtime outputs such as provider projections, generated MCP state, generated xmachine state, and the canonical plugin root.
+- GAL also owns the per-provider ledgers under `~/.gal/dist/providers/<provider>/managed.json`; provider directories outside provable GAL-managed projections remain host-owned or user-owned.
+- Users own `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources.
+- `~/.gal/dist/` is package output, conversion output, managed metadata, or dev-mode isolation. It is not the runtime source of truth.
+- Install mode must not depend on repo-root links, baked local checkout paths, or hidden `GAL_ROOT` assumptions.
+
+#### Bootstrap Installer Distribution
+
+- **What it is**: How the GAL CLI (`gal` executable) gets onto the user's machine.
+- **Channels**: `winget` (Windows), `homebrew` (macOS/Linux), and GitHub Releases `.zip` / `.tar.gz` (manual fallbacks). See the [Release Artifact Matrix](#release-artifact-matrix) below for the exact artifact lineage.
+- **Ownership**: The package manager owns the **package-managed payload** (the single executable binary). It handles upgrades and removals of the CLI itself, but it must **never** manage or delete `~/.gal/` contents.
+
+#### Bootstrap Runtime Contract
+
+After the package-managed `gal` binary is on disk, the first launch contract is:
+
+1. Expose a runnable `gal` CLI from the package-managed install location.
+2. Detect whether `~/.gal/config/config.json` already exists.
+3. If no machine config exists, seed a minimal install-mode config and create the managed runtime roots under `~/.gal/`.
+4. Resolve the default profile into `~/.gal/state/plugins.lock.json`.
+5. Render provider-native projections under `~/.gal/generated/` and any required stable targets under `~/.gal/active/<provider>/`.
+6. Hand off to install mode by default for bootstrap installs; source mode only begins after the user explicitly sets `installMode=source` plus `galRoot` and `devMode`.
+
+The canonical end-user bootstrap contract must work without a cloned repo. Repo-local workflow state such as `.dev/`, `docs/plans/`, or repo-root skill links is never a first-launch requirement for the installed package payload. The repo-owned `Setup-Machine.*` scripts are the development and packaging harness that should mirror the same install-mode-first branching and `~/.gal/` ownership rules, but they are not themselves the final end-user package payload.
+
+#### First-Launch Branching Rules
+
+The install-mode/source-mode split happens only after GAL has a machine config to read:
+
+- **Bootstrap install with no existing machine config**: seed `installMode=install`, leave contributor-only repo bindings disabled, and build provider-native projections from `~/.gal/`.
+- **Existing machine config with `installMode=install`**: reuse `~/.gal/` and refresh lockfile plus projections without creating repo-root links.
+- **Existing machine config with `installMode=source`**: reuse the explicit `galRoot` and `devMode` settings, then allow contributor-only source links and local overrides.
+
+This keeps package-managed first launch safe for end users while preserving an explicit contributor path.
+
+#### Upgrade Contract
+
+Bootstrap upgrades must rerun the same install-mode-first contract without widening ownership.
+
+- **`winget upgrade` / `brew upgrade`**: replace only the package-managed `gal` binary, then let the refreshed CLI re-enter the bootstrap runtime contract. The refresh may regenerate `~/.gal/generated/`, refresh provider projections, and update `~/.gal/state/plugins.lock.json` when the resolved profile changes, but it must not overwrite `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, or secret sources.
+- **Provider-native direct-install or direct-update lanes**: if a marketplace lane is later verified to support canonical install and update, that lane still behaves like a bootstrap payload upgrade rather than a runtime reset. It may replace the packaged GAL payload and re-run GAL-managed projection refresh, but it must preserve user-owned config and keep install mode versus source mode unchanged unless the user edits machine config explicitly.
+- **Manual archive refresh**: replacing the extracted `gal` binary from a GitHub Releases `.zip` or `.tar.gz` is allowed only as a payload swap. Users may rerun the bootstrap entrypoint afterward to refresh lockfile and generated projections, but manual archive updates must not delete or reset existing `~/.gal/config/*`, xmachine bindings, local overrides, or secrets.
+- **Schema or runtime migrations**: when an upgrade needs to evolve GAL-managed runtime state, migrations must be additive or explicitly reversible. They may rewrite GAL-owned generated or cached state, but they must not silently migrate user-owned config into a new location or clear values that the user would need to reconstruct manually.
+
+The decisive rule is simple: upgrades may refresh the payload, the lockfile, and GAL-managed generated state, but they must preserve the user's machine intent.
+
+#### Uninstall Contract
+
+Default uninstall must stay narrower than a machine reset.
+
+- **Package-manager uninstall**: removes only the package-managed `gal` payload. It must not delete `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, or secret-bearing sources.
+- **GAL-managed uninstall**: removes GAL-owned runtime outputs that can be rebuilt, including provider-native plugin install targets that GAL owns, the canonical plugin roots under `~/.gal/plugins/`, and generated projections or ledgers under `~/.gal/generated/` and `~/.gal/dist/providers/`.
+- **Preserved surfaces**: uninstall keeps the user's machine intent intact. That includes install/source mode choice, `galRoot`, `devMode`, xmachine bindings, lockfile state, explicit local overrides, and secret sources.
+- **No implicit second runtime**: uninstall must not leave behind a second GAL-managed runtime tree that the next install would treat as authoritative. Rebuildable GAL-owned runtime outputs are removed; preserved user-owned config remains as input for the next install.
+
+#### Purge And Reset Boundary
+
+Purge or reset is a separate destructive lane, not part of default uninstall.
+
+- The explicit purge entrypoint is `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`, and it must remain opt-in, visible, and dry-runnable before destructive execution.
+- Purge/reset may remove preserved machine-local intent such as `config.json`, `xmachine.json`, lockfile state, local overrides, install-state metadata, and secret-bearing generated surfaces, but only after an explicit destructive confirmation step.
+- Neither package-manager uninstall nor default GAL-managed uninstall may simulate purge/reset by deleting preserved surfaces automatically.
+- The practical rule is simple: uninstall removes what GAL can safely rebuild; purge/reset removes what the user would otherwise need to carry forward.
+
+#### Install-Mode Plugin Distribution
+
+- **What it is**: How provider-native plugins (like Claude, AGY, Copilot plugins) are resolved, installed, and updated.
+- **Channels**: Provider-native marketplaces, driven by the `plugins/catalog.json` and resolved into `~/.gal/state/plugins.lock.json`.
+- **Ownership**: GAL owns the plugin catalog and resolution. It manages provider-specific installation paths and the `~/.gal/` plugin store.
+
+#### State Ownership Boundaries in `~/.gal/`
+
+When a package manager uninstalls or upgrades the GAL CLI, it must respect these boundaries:
+
+- **Package-Managed Payload**: The `gal` binary. Owned by `winget` / `homebrew`. Can be safely deleted during uninstall.
+- **GAL-Managed Runtime and Generated State**: canonical plugin roots under `~/.gal/plugins/`, generated MCP and xmachine state, and per-provider ledgers under `~/.gal/dist/providers/`, plus provider-native plugin installations that GAL explicitly owns. These can be safely regenerated or reinstalled if the CLI is rebuilt on a new machine. They are removed during a GAL-managed uninstall.
+- **User-Owned Config and State**: `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit user-authored local overrides, and secrets. Owned by the user. Must be preserved during any package-manager uninstall or default GAL-managed uninstall. Full deletion requires an explicit, destructive purge flow.
+
+During upgrade, treat `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, explicit local overrides, and secret-bearing sources as read-preserve surfaces. The installer may read them to determine install mode, provider selection, or migration steps, but it must not replace them with defaults merely because a newer bootstrap payload was installed.
+
+### Provider Plugin Packaging
+
+GAL uses a provider-neutral plugin package model. Source contracts in the repo are the single source of truth; each provider plugin is a generated artifact rendered by a provider-specific renderer.
+
+The runtime content owner for GAL's plugin-shaped providers is `~/.gal/plugins/gal/`. `~/.gal/dist/` is intentionally downgraded to package output, conversion output, managed provider metadata, and dev-mode `~/.gal/dist/commits/` isolation. Provider-visible targets and active shortcuts may point at the canonical root or a documented projection, but they do not become a second source of truth.
+
+#### Common Package Model
+
+The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provider-plugin.sh`) carries:
+
+| Field | Source | Shared across all four providers? |
+| --- | --- | --- |
+| `metadata` | repo name, display name, version diagnostics, generation timestamp | conceptually yes |
+| `skills` | `skills/<name>/SKILL.md` | yes |
+| `commandSkills` | `commands/*/SKILL.md` | yes, as skill bundles |
+| `mcpSpec` | `mcp.json` plus `~/.gal/config/mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
+| `instructionCorpus` | `.dev/project.md`, required conventions, workflows, `model-roles.md`, generated indexes | content yes, path no |
+| `agents` | `agent/*.agent.md` | optional; projected to three of four providers |
+
+The common model explicitly excludes: provider-specific output paths, resolved machine-local secrets or paths, `runtimeScripts`, plugin-root `scripts/`, `gal-results/`, and hooks (deferred from v1).
+
+#### Provider Lane Policy
+
+GAL targets are classified by provider-native install capability, not by a uniform renderer model.
+
+| Lane | Platform | Role | Success criteria |
+| --- | --- | --- | --- |
+| Primary install target (canonical) | Claude Code | canonical schema / canonical renderer / capability-sensitive lifecycle target | strict artifact validation plus session-load smoke are implemented; direct install, update, and uninstall remain contingent on documented provider-native CLI support |
+| Primary install target (near-parity) | Copilot CLI | Claude-compatible structure; `agents/`, `skills/`, `hooks.json`, `.mcp.json`, `lsp.json` share the same directory conventions as Claude | `/plugin install`, marketplace, GitHub/Git URL/local path; directory layout already aligns with Claude, no shortcut needed |
+| Primary install target | Codex | Claude baseline mapped renderer / marketplace target | `codex plugin install`, documented marketplace / cache install path, some components readable natively |
+| Primary install target (shortcut) | AGY CLI / Antigravity CLI | Claude baseline mapped renderer + catalog-aware install target | provider-native plugin staging / install, or capability shortcut pointing to `~/.gal/active/agy/`; no repo-root shortcut dependency |
+| Migration lane | Gemini CLI | legacy cleanup and compatibility only | not a fifth renderer; only cleanup or migration of existing GAL-managed Gemini surfaces |
+| Bridge lane | OpenCode | deferred independent bridge plan | can read catalog/lockfile, mount `~/.gal/active/opencode/` capability shortcut, but does not promise primary install parity |
+| Deferred / unsupported | other runtimes | out of scope | no documented install or skill discovery pathway |
+
+Shortcut policy:
+
+- Claude-compatible canonical package is the single source of truth.
+- Copilot CLI can consume Claude-compatible structure natively and does not need a shortcut.
+- AGY CLI and OpenCode, lacking native `plugin install` CLI, may use `~/.gal/active/<provider>/` as GAL-managed stable targets for capability-level shortcut redirection.
+- Install mode forbids repo-root shortcuts, baked source paths, and hidden `GAL_ROOT` dependencies.
+- Capability-level links in install mode must only point to `~/.gal/active/<provider>/` or its GAL-managed projection; source mode may point to user-specified local overrides.
+- Bridge lane must not imply primary provider-native install parity to users.
+
+#### AGY Surface Projection (Implementation Status)
+
+AGY is a consumer of the canonical root, not a renderer. The provider-neutral core renderer `Build-CorePlugin` emits AGY's entry-point markers directly into `~/.gal/plugins/gal/` (the canonical content owner), and install orchestration projects that root to all three AGY surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and the Antigravity 2.0 GUI host-managed copy (`~/.gemini/config/plugins/gal` via `agy plugin install`). `~/.gal/active/agy/` is used only as a stable alias when a capability shortcut is needed. The AGY-facing markers are `plugin.json`, `skills/`, `agy-agents/`, `rules/gal.md`, and `mcp_config.json`. The Copilot/Claude-facing `agents/` directory now contains only filtered `.md` agent files so Copilot `setagent` does not surface duplicate names. The core renderer does not generate `hooks.json`, `scripts/`, marketplace metadata, provider stubs, or `gal-results/`.
+
+Setup/reinstall removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before re-projecting the clean canonical root. The earlier per-provider AGY dist tree (`~/.gal/dist/provider-plugins/agy/gal/`) has been retired now that all three surfaces resolve to the canonical root.
+
+Current implementation status:
+
+- AGY, Claude, Copilot, and Codex all have concrete install-mode lifecycle slices plus per-provider `managed.json` ledgers under `~/.gal/dist/providers/`.
+- Claude Code now projects the canonical plugin root through `~/.claude/skills/gal/`, keeps lifecycle-state tracking plus legacy projection cleanup, and uses CLI validation when the local `claude` binary exposes it.
+- Copilot prefers a link-first projection at `~/.copilot/installed-plugins/gal-copilot/gal/` and falls back to `refreshed-copy2-host` with a manifest-version bump when host-copy refresh is required.
+- Codex now owns its marketplace registration/install lifecycle independently of AGY, while still recording `unprojected-artifact` when the provider-managed read surface remains opaque.
+- Bootstrap packaging, official install channels, and marketplace discoverability do not belong to this install-mode surface; they are handled by the separate bootstrap-installer planning track.
+
+#### Future Renderer Sequence
+
+The core renderer sequence is complete for AGY, Claude, Copilot, and Codex. Remaining follow-up work lives in bootstrap packaging, binary delivery, and documentation alignment rather than adding another core-provider renderer.
+
+### Plugin Support Tiers
+
+| Tier | Content source | GAL responsibility | Update strategy |
+| --- | --- | --- | --- |
+| `official-gal` | GAL repo / GAL release artifact | GAL maintains content, testing, installation, and regression | updated directly by GAL releases |
+| `curated-upstream` | external upstream (e.g. `dart-lang/skills`) | GAL verifies metadata, provider compatibility, default profile, and lockfile; content maintained by upstream | updated per lockfile pin; manual or controlled updates allowed |
+| `mirrored` | managed mirror of external upstream | GAL responsible for provenance, license, checksum, and mirror drift | no unversioned copies; updates require drift check |
+| `forked` | fork maintained by GAL or user | fork owner responsible for divergence and fixes | must record fork base, diff policy, and update strategy |
+| `local` | `file://` or local path override | source mode / contributor override only | does not enter shareable lockfile; recorded as machine-local override |
+
+Default profile: initial `default` profile installs only `gal-core`. All companion plugins are opt-in through named profiles or explicit plugin selection.
+
+### Bootstrap Distribution Documentation Ownership
+
+When you change bootstrap installer behavior or release policy, keep the document roles separate:
+
+- `README.md` explains the user-facing install paths (the compressed map): plugin/install path, dev mode, install status, and where to go for detail.
+- `manual.md` owns the machine-local restore boundary and detailed user operations: what the user carries forward, what GAL regenerates, backup/migration/uninstall steps, and how install mode versus source mode affect migration.
+- The [Release Artifact Matrix](#release-artifact-matrix) section below owns the detailed canonical release lineage, marketplace matrix, submission rules, lag windows, and fallback copy.
+
+Do not duplicate the full release matrix elsewhere. Point readers to the owning home, then keep each file focused on its single job.
+
+Bootstrap-distribution guardrails:
+
+- GitHub Releases is the canonical version source.
+- `winget`, `homebrew`, and provider marketplace entries must all map back to that same release lineage.
+- Package-manager uninstall and GAL-managed uninstall must preserve user-owned machine intent.
+- Provider marketplaces remain discoverability-first until provider-native direct install, update, and uninstall are verified end to end; renderer-only or validation-only progress is not enough.
+- Lag between downstream channels is expected; the user-facing fallback remains GitHub Releases.
+
+### Release Artifact Matrix
+
+This section defines the canonical release lineage for the `gal` CLI package-managed payload and the downstream publication contract for `winget`, Homebrew, and manual fallback archives.
+
+GitHub Releases is the single source of truth. Every supported install channel must consume the same versioned single-binary lineage, and every fallback archive must wrap the exact canonical binary for that platform plus `LICENSE` only.
+
+#### Canonical Asset Naming
+
+Release tag placeholder: `<version>` means the exact GitHub Release tag, for example `v1.2.3`.
+
+For every release, publish these canonical binary assets directly on GitHub Releases:
+
+| OS | Architecture | Canonical binary asset | Supported install command | Downstream consumer |
+| --- | --- | --- | --- | --- |
+| Windows | x64 | `gal-<version>-windows-x64.exe` | `winget install Monkey1Wizard.GAL` | `winget`, manual download |
+| Windows | arm64 | `gal-<version>-windows-arm64.exe` | `winget install Monkey1Wizard.GAL` | `winget`, manual download |
+| macOS | x64 | `gal-<version>-darwin-x64` | `brew install monkey1wizard/tap/gal` | Homebrew, manual download |
+| macOS | arm64 | `gal-<version>-darwin-arm64` | `brew install monkey1wizard/tap/gal` | Homebrew, manual download |
+| Linux | x64 | `gal-<version>-linux-x64` | `brew install monkey1wizard/tap/gal` | Homebrew, manual download |
+| Linux | arm64 | `gal-<version>-linux-arm64` | `brew install monkey1wizard/tap/gal` | Homebrew, manual download |
+
+Rules:
+
+1. The canonical binary asset name must include the exact release tag and target platform/architecture.
+2. Manual fallback archives must contain the same canonical binary filename shown above, not a renamed generic `gal` placeholder.
+3. Package managers may rename the installed file to `gal` in the target `bin/` directory during installation, but they may not invent a second binary lineage.
+
+#### Fallback Archive Contract
+
+Fallback archives exist for manual install and locked-down environments that cannot use `winget` or Homebrew.
+
+Archive contents are strictly limited to the platform's canonical binary asset plus `LICENSE`.
+
+| Target | Archive asset | Required contents |
+| --- | --- | --- |
+| Windows x64 | `gal-<version>-windows-x64.zip` | `gal-<version>-windows-x64.exe`, `LICENSE` |
+| Windows arm64 | `gal-<version>-windows-arm64.zip` | `gal-<version>-windows-arm64.exe`, `LICENSE` |
+| macOS x64 | `gal-<version>-darwin-x64.tar.gz` | `gal-<version>-darwin-x64`, `LICENSE` |
+| macOS arm64 | `gal-<version>-darwin-arm64.tar.gz` | `gal-<version>-darwin-arm64`, `LICENSE` |
+| Linux x64 | `gal-<version>-linux-x64.tar.gz` | `gal-<version>-linux-x64`, `LICENSE` |
+| Linux arm64 | `gal-<version>-linux-arm64.tar.gz` | `gal-<version>-linux-arm64`, `LICENSE` |
+
+Excluded from all archives:
+
+- `~/.gal/` directory structures or presets
+- default `config.json` files
+- pre-resolved plugin lockfiles
+- repository-local state such as `.dev/`, `docs/`, `commands/`, or `skills/`
+
+The bootstrap binary owns first-run initialization of `~/.gal/`; release artifacts do not pre-seed that runtime state.
+
+Release packaging also does not define GAL's runtime source of truth. The machine-local canonical plugin root remains `~/.gal/plugins/gal/`, while `~/.gal/dist/` is reserved for package output, managed metadata, conversion output, and dev-mode `~/.gal/dist/commits/` isolation.
+
+#### Required Release Metadata and Provenance
+
+Every canonical release must publish the following companion files:
+
+| File | Requirement | Purpose |
+| --- | --- | --- |
+| `checksums.txt` | required | SHA-256 hashes for every canonical binary and fallback archive asset |
+| `checksums.txt.sig` | required | Signature over `checksums.txt` using the project's chosen signing system (GPG or sigstore) |
+| `artifact-manifest.json` | required | Machine-readable mapping of release tag, asset names, sha256 values, platform, architecture, and source build provenance |
+| `LICENSE` | required | MIT license text included alongside artifacts and inside fallback archives |
+
+`artifact-manifest.json` must record, at minimum: `version`, `publishedAt`, `assets[]`, `assets[].name`, `assets[].platform`, `assets[].architecture`, `assets[].sha256`, `assets[].kind` with `binary` or `archive`, and `assets[].contains` for archive assets.
+
+#### Package Manager Publication Spec
+
+Package managers are downstream consumers of GitHub Releases. They do not build from source and they do not own `~/.gal/`.
+
+**Winget publication spec** — canonical publication target:
+
+| Field | Required value or rule |
+| --- | --- |
+| `PackageIdentifier` | `Monkey1Wizard.GAL` |
+| `PackageName` | `GAL` |
+| `Moniker` | `gal` |
+| `Publisher` | `monkey1wizard` |
+| `License` | `MIT` |
+| `PackageVersion` | exact GitHub Release tag without rewriting semantics |
+| `Commands` | must expose `gal` |
+| `Installers` | one row per supported Windows architecture |
+| `InstallerUrl` | must point to the matching GitHub Release archive asset |
+| `InstallerSha256` | must match `checksums.txt` for that archive asset |
+
+Submission rules: (1) `winget` must consume `gal-<version>-windows-x64.zip` and `gal-<version>-windows-arm64.zip` from GitHub Releases. (2) The manifest must not trigger a source build, download a repo snapshot, or inject bootstrap state into `~/.gal/`. (3) If `winget` review lags the GitHub Release, the manifest description must keep GitHub Releases as the canonical fallback.
+
+**Homebrew publication spec** — canonical publication target:
+
+| Field | Required value or rule |
+| --- | --- |
+| Tap | `monkey1wizard/tap` |
+| Formula name | `gal` |
+| `desc` | must describe GAL as the bootstrap CLI |
+| `homepage` | GitHub repository URL |
+| `version` | exact GitHub Release tag |
+| `license` | `MIT` |
+| `url` | platform-specific GitHub Release archive asset |
+| `sha256` | must match `checksums.txt` for that archive asset |
+| `def install` | must install the canonical archived binary as `bin/gal` |
+| `test do` | must execute `gal --version` or equivalent lightweight version check |
+
+Submission rules: (1) Homebrew must consume the `.tar.gz` archive matching the current platform and architecture. (2) The formula must rename the archived canonical binary to `gal` only at install time via `bin.install`. (3) The formula must not synthesize extra files under `~/.gal/`, and it must not treat generated runtime state as part of the package payload.
+
+#### Release Governance and Drift Policy
+
+**Canonical version source**: The GitHub Releases page for `monkey1wizard/golem-agents-legion` is the sole canonical version source. All package-manager manifests and provider-marketplace entries are downstream wrappers over that same lineage.
+
+**Publish order**: (1) Build the canonical binaries and fallback archives. (2) Publish the GitHub Release with binaries, archives, `checksums.txt`, `checksums.txt.sig`, and `artifact-manifest.json`. (3) Update `winget` and Homebrew manifests to the new release assets and hashes. (4) Update provider-marketplace metadata or wrappers after package-manager publication is queued.
+
+**Lag tolerance** — accepted downstream lag windows:
+
+| Channel | Target window from GitHub Release publication | Escalation point |
+| --- | --- | --- |
+| `winget` | within 1 business day | more than 3 business days behind canonical release |
+| Homebrew | within 1 business day | more than 3 business days behind canonical release |
+| Provider marketplaces | best effort within 3 business days | more than 5 business days behind canonical release |
+
+GAL does not guarantee same-day parity across every downstream channel. If a downstream channel is outside its target window, GitHub Releases remains the official fallback and the lag must be called out in channel copy.
+
+**Verification commands** — run these checks for every release:
+
+| Check | Command | Expected result |
+| --- | --- | --- |
+| Windows package metadata | `winget show --id Monkey1Wizard.GAL --exact` | reported version matches the current canonical release tag |
+| Homebrew metadata | `brew info monkey1wizard/tap/gal` | reported version matches the current canonical release tag |
+| PowerShell packaging dry run | `pwsh -File scripts/Package-ReleaseArtifacts.ps1 -SourceBinary <path> -Version <version> -TargetPlatform windows -TargetArch x64 -OutputDir <dir>` | emits versioned archive and binary names matching this matrix |
+| POSIX packaging dry run | `bash scripts/package-release-artifacts.sh --source-binary <path> --version <version> --target-platform linux --target-arch x64 --output-dir <dir>` | emits versioned archive and binary names matching this matrix |
+| Release hash audit | compare `checksums.txt` with `artifact-manifest.json` | every published asset appears once with the same SHA-256 |
+
+**Fallback messaging**: every downstream channel that may lag must carry this guidance verbatim or with only minor style edits:
+
+> If this channel is behind the latest canonical GAL release because of review or publish latency, install the newest version directly from GitHub Releases.
+
+#### Claude Marketplace Baseline
+
+Provider marketplaces are downstream wrappers over the canonical GitHub Release lineage. They are official discoverability surfaces by default, and they may only be promoted to direct-install lanes after the provider-native lifecycle is verified against the same canonical package lineage.
+
+Claude Code is the canonical marketplace baseline because GAL's provider-neutral package schema is already defined as Claude-compatible.
+
+Current verification state (updated 2026-05-30):
+
+- the canonical package schema uses `canonicalProvider = "claude"`
+- the plugin catalog already marks `gal-core` as a `canonical-package` for `claude`, `copilot`, `codex`, and `agy`
+- the concrete Claude renderer now exists in `Build-ProviderPlugins.ps1`, and the current PowerShell validation surface has passed artifact build, strict `claude plugin validate`, lifecycle-state write-back, and legacy cleanup checks
+- **local marketplace install is now verified**: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal --scope user` installs `gal@gal` v1.0.0 at user scope; `claude plugin uninstall gal` and `claude plugin marketplace remove gal` are verified for uninstall; plugin cache at `~/.claude/plugins/cache/gal/gal/1.0.0/` is populated with all components (agents, commands, skills, .mcp.json); settings registered in `~/.claude/settings.json` under `extraKnownMarketplaces` and `enabledPlugins`
+
+Claude direct-install conditions (local dev mode with local marketplace source) are now met. The remaining gate before claiming Phase 2 public-marketplace direct install is condition 4: public GitHub Release tag visible through the public community marketplace entry.
+
+| Provider | Baseline role | Current classification | Entry metadata requirement | Install action | Fallback copy |
+| --- | --- | --- | --- | --- | --- |
+| Claude Code | canonical schema baseline | **local-install verified** (local marketplace); public marketplace discoverability-only pending Phase 2 GitHub release + community marketplace submission | Must identify GAL as the canonical plugin package baseline, expose the current GitHub Release version, and state that local marketplace install is verified | Local: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal`; Phase 2: `/plugin install gal@claude-community` after community submission | Must carry the standard lag fallback message and point to GitHub Releases as canonical source |
+
+Claude submission contract: (1) Marketplace display name `GAL`. (2) Publisher/source lineage points to `monkey1wizard/golem-agents-legion` as the canonical source. (3) Version source shows the exact GitHub Release tag; no Claude-only version stream. (4) Installability label `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end, even if renderer output and strict validation already pass. (5) The marketplace wrapper must describe or point to the same Claude-compatible canonical package lineage; it must not describe a second package shape. (6) If Claude review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+Promotion gate for Claude direct install — reclassify from discoverability-only to direct-install only after all are true: (1) a Claude renderer and strict validation lane exist in `Build-ProviderPlugins.ps1` and `Install-GalPlugins.ps1`, with the rendered artifact tracked through lifecycle state; (2) the rendered artifact can be installed through a documented Claude provider-native lifecycle against the canonical package lineage, not only session-load smoke; (3) update and uninstall behavior are verified against that same provider-native lifecycle while preserving the bootstrap ownership boundaries; (4) release and marketplace metadata prove the same GitHub Release tag is visible through both GitHub Releases and the Claude marketplace entry.
+
+#### Codex and Copilot Marketplace Publication Matrix
+
+After the Claude baseline is established, downstream provider marketplaces must still map back to the same canonical package lineage and GitHub Release tag. Codex and Copilot entries are allowed to use provider-specific wrappers or submission metadata, but they must not introduce provider-only package shapes, provider-only version streams, or direct-install claims ahead of lifecycle verification.
+
+| Provider | Current classification | Direct-install eligibility | Submission artifact rule | Fallback-link policy |
+| --- | --- | --- | --- | --- |
+| Codex | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
+| Copilot | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
+
+The Codex marketplace entry must use these rules:
+
+1. Marketplace display name: `GAL`.
+2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
+3. Version source: show the exact GitHub Release tag; do not create a Codex-only version stream.
+4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
+5. Submission artifact rule: the Codex wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
+6. Lag policy: if Codex review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+The Copilot marketplace entry must use these rules:
+
+1. Marketplace display name: `GAL`.
+2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
+3. Version source: show the exact GitHub Release tag; do not create a Copilot-only version stream.
+4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
+5. Submission artifact rule: the Copilot wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
+6. Lag policy: if Copilot review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
+
+Promotion gate for Codex and Copilot direct install — reclassify only after all are true: (1) a provider-specific renderer exists in `Build-ProviderPlugins.ps1` instead of `not-yet-implemented`; (2) the rendered artifact installs through the documented provider-native lifecycle against the canonical package lineage; (3) update and uninstall behavior preserve the bootstrap ownership boundaries; (4) release and marketplace metadata prove the same GitHub Release tag is visible through GitHub Releases and the provider marketplace entry.
+
+#### AI Tool Integration Status
+
+This subsection records the verified integration status across Claude Code, Claude Desktop, and Antigravity CLI as of 2026-05-30. It is the single-place capability reference for all three targets (capability honesty).
+
+| Target | GAL provider | Install mechanism | Loadable components | Status |
+| --- | --- | --- | --- | --- |
+| **Claude Code (CLI)** | `claude` | `claude plugin marketplace add ~/.gal/plugins` + `claude plugin install gal` — or `claude --plugin-dir ~/.gal/plugins/gal` for dev/session load | agents / skills / commands / MCP (complete) | ✓ **verified** (local marketplace, 2026-05-30) |
+| **Claude Desktop (GUI)** | MCP-only special target (not a plugin provider) | Safe-merge into `claude_desktop_config.json` via `Update-Mcp.ps1` → `Update-ClaudeDesktopMcpConfig`; Phase 2: `.mcpb` desktop extension | **MCP servers only** — agents/skills/commands are NOT supported | ✓ **verified** (4 Phase-1 servers injected, 2026-05-30) |
+| **Antigravity CLI** | `agy` | `Install-GalPlugins.ps1 -SelectedRuntimes antigravity` → managed shortcut `~/.gemini/antigravity-cli/plugins/gal → ~/.gal/plugins/gal` | plugin.json / mcp_config.json / skills / agents / rules (complete) | ⚠ **not yet installed** on this machine (P2; architecture verified via dry-run) |
+
+Claude Desktop is an MCP-only host. It **cannot** load GAL agents, skills, or commands. Phase 1 (verified 2026-05-30) injects only no-auth stdio servers: `chrome-devtools`, `firebase-mcp-server`, `markitdown`, `playwright`. Phase 1 excludes auth-required or HTTP-remote servers (`github`, `microsoftdocs`, `context7`) — these may be added via Connectors/Integrations UI or a future `.mcpb` extension (Phase 2). Safety properties: idempotent safe-merge (user-owned servers never modified), timestamped backup before every write, `~/.gal/dist/providers/claude-desktop/managed.json` ledger records GAL-written keys (uninstall only removes ledger entries), no secret placeholders ever written.
+
+Antigravity CLI (`agy` v1.0.2) is available; GAL plugin install at `~/.gemini/antigravity-cli/plugins/gal` is P2. When installed it uses a managed shortcut from the AGY plugin path to the canonical root `~/.gal/plugins/gal`, so canonical-root updates reflect without reinstall. Antigravity's MCP config uses `serverUrl` (not `url`) for HTTP servers; `Update-Mcp.ps1` `ConvertTo-AgyMcpConfig` already handles this.
+
+Promotion gates for public marketplace listing: Claude Code — GitHub Release tag published + `/plugin marketplace add anthropics/claude-plugins-community` + `/plugin install gal@claude-community` tested; Claude Desktop — `.mcpb` packaging verified and submitted to the Desktop extension gallery; Antigravity — GAL plugin installed and verified, `agy inspect` confirms component load.
+
+#### Raw PowerShell and Shell Convenience Installer Policy
+
+Raw PowerShell or shell installers such as `irm ... | iex` and `curl ... | sh` are convenience entrypoints only. They are not canonical install channels, they do not define an independent package shape, and they must not become the only supported way to get GAL onto a machine.
+
+Policy rules: (1) the canonical version source remains GitHub Releases — a raw installer must resolve or point to the exact canonical release tag and per-platform asset instead of an ad hoc payload from a branch, repo checkout, or alternate host; (2) it may fetch or redirect only to the exact GitHub Releases fallback archive or binary for the current platform, and must not wrap a second payload layout or install extra unmanaged runtime content; (3) it must describe itself as a convenience or bootstrap fallback, not the primary or canonical distribution model; (4) it must preserve the same ownership boundaries as every other bootstrap lane (install or replace the bootstrap payload only, then let GAL manage `~/.gal/`); (5) it must not bypass release governance by pulling unpublished assets, mutable branch heads, or provider-specific payload variants.
+
+User-facing copy rules — every raw installer entrypoint must make clear: it is a convenience wrapper over the canonical release lineage; `winget`, `homebrew`, and GitHub Releases remain the official install channels; it may lag or be redirected as release policy changes; it does not redefine uninstall, purge, or migration behavior.
+
+Acceptance gate — do not present a raw command as an official install surface until: (1) it resolves only to canonical GitHub Release metadata and the exact GitHub Releases payload for the current platform; (2) the fetched/delegated payload matches the documented per-platform single-binary lineage; (3) it does not create a second update, uninstall, or support policy; (4) README and release docs describe it as a convenience fallback rather than a primary distribution lane.
+
+## Making Changes
+
+### Rules & Fences
+
+#### 1. Markdown owns the durable contract
+
+- Methodology, rules, and contracts live in tracked Markdown and source files.
+- Generated adapters, baked command files, and runtime configs are outputs, not source inputs.
+
+#### 2. `/gal` only solves control-plane problems
+
+- `/gal` should not wrap a second copy of tester, reviewer, designer, security, debugger, or releaser work.
+- Execution-stage specialist behavior belongs in agents.
+- Planning commands can run directly because they are still part of the public command surface.
+
+#### 3. Repo-local state is the ownership boundary
+
+- `.dev/`, `docs/plans/`, `docs/designs/`, and similar repo-local files are the shared working state.
+- Do not move GAL's core state back into user-global storage.
+
+#### 4. Missing tools must not look like success
+
+- GAL uses skill-level routing, not one repo-wide CLI-first or MCP-first rule.
+- Each external-tool skill should define a preferred path, a fallback path, and a no-tool behavior.
+
+#### 5. Do not optimize one runtime by breaking portability
+
+- If a change makes Copilot, Antigravity, and Codex diverge in contract or file flow, it is usually the wrong change.
+- README, docs, templates, and setup scripts should preserve cross-runtime parity first.
+
+#### 6. Navigation docs must not become a second spec
+
+- If a document exists to help humans find the real source, keep it short and directional.
+- Summaries are useful. Duplicate contracts are not.
+
+#### 7. Collaborative-tool routing belongs to the workflow layer
+
+- Do not make an agent silently switch personas or contracts because a collaborative tool was detected.
+- The workflow decides the collaborative tool first, then the tool writes back into the same repo-owned files.
+
+The shared preflight model lives in [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md).
+
+### Before Editing Install
+
+1. Decide which concern is changing: bootstrap payload, machine setup, provider plugin lifecycle, repo init, generated adapters, or documentation copy.
+2. Read the primary owner from the `Owning Surfaces` table above, then read only the directly called scripts or docs for that concern.
+3. Check source mode and install mode separately. A fix for contributor setup may be wrong for package-managed first launch.
+4. Preserve user-owned machine intent during upgrade and default uninstall.
+5. If the change affects public install wording, update English and the translated copies under `docs/i18n/<lang>/` together, or explicitly mark the translation drift.
+6. Run the narrowest install tests that cover the changed lane. For provider packaging, start with `Test-BuildProviderPlugins.ps1` and `Test-InstallGalPlugins.ps1`.
+
+### Common Change Entry Points
+
+#### Changing `/gal` or alias behavior
 
 1. Read [../commands/commands.md](../commands/commands.md).
 2. Check whether the change is contract-level behavior or only install/runtime presentation.
 3. If it affects generated command files, inspect the setup scripts and the relevant `commands/*/SKILL.template.md`.
 
-### Adding or changing a planning command
+#### Adding or changing a planning command
 
 1. Place it in the right family via [../commands/commands.md](../commands/commands.md).
 2. Update the owning prompt in `commands/<command>/SKILL.template.md`.
 3. Confirm the write-back target fits the existing plan sections and workflow state machine.
 4. If it changes optional collaborative-tool semantics, also update [collaborative-tools/gstack.md](collaborative-tools/gstack.md) and [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) when shared preflight behavior changes.
 
-### Adding or changing an execution specialist
+#### Adding or changing an execution specialist
 
 1. Update the owning prompt in `agent/<golem>.agent.md`.
 2. Confirm the write-back target fits the existing plan sections and workflow lifecycle.
 3. Update [../agent/agents.md](../agent/agents.md), [../commands/commands.md](../commands/commands.md), and any README sections that route users to that specialist.
 4. Do not reintroduce the behavior as a standalone public command unless it is truly control-plane or planning work.
 
-### Changing setup, installation, or MCP merge
+#### Changing setup, installation, or MCP merge
 
 1. Read [../scripts/scripts.md](../scripts/scripts.md).
 2. Decide which concern owns the change first: `Update-Personalization`, `Update-Skills`, `Update-Commands`, `Update-Mcp`, or the top-level orchestrator.
@@ -548,26 +882,26 @@ plugins/catalog.json (repo-tracked, authoritative catalog source)
 4. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
 5. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
 
-### Refreshing MCP vs. Regenerating Adapters
+#### Refreshing MCP vs. Regenerating Adapters
 
 - Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`. This refreshes runtime MCP config only.
 - Run `Sync-DevContext.ps1` or `sync-dev-context.sh` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
 - Run `Setup-Machine.ps1` or `setup-machine.sh` when you need the full concern stack refreshed in one pass.
 
-### Refactoring docs themselves
+#### Refactoring docs themselves
 
 1. Make sure each doc has one clear job.
 2. If another source file already owns the contract, summarize it and link out instead of copying it.
 3. If you remove content from one reader entry point, give it a clear new landing page.
 
-## Adding A New CLI Runtime
+### Adding A New CLI Runtime
 
 1. Decide whether the CLI has a machine-layer config directory that GAL can target.
 2. Decide whether its repo-facing instruction file can reuse `AGENTS.md` or needs another generated adapter.
 3. If the runtime supports native commands, generate them from the same shared command templates instead of building a second workflow source. If it does not, install the same baked command skills into the runtime's supported skill surface.
 4. Add any config-merge bridge only if the runtime has a stable, user-owned config file that can safely accept additive changes.
 
-## Verify Setup Changes
+### Verify & Self-Check
 
 After changing install or setup logic, verify at least these points:
 
@@ -579,22 +913,7 @@ After changing install or setup logic, verify at least these points:
 - shared skill directories contain reusable skills only, not duplicated command aliases
 - MCP reruns update tracked server entries correctly without clobbering unrelated provider-owned config
 
-## Where Information Belongs
-
-| Information type | Right home |
-| --- | --- |
-| durable methodology and contracts | tracked source docs and source files |
-| repo working context | `.dev/project.md` and `.dev/state.md` in the target repo |
-| human-readable feature plan | `docs/plans/<plan-slug>.md` |
-| machine-readable execution work file | `.dev/plans/<plan-slug>.prompt.md` |
-| temporary session continuity | `### Handoff Notes` plus `.dev/state.md` |
-| machine-local xmachine node config | `~/.gal/config/xmachine.json` |
-
-If a completed plan contains knowledge that should survive, extract it back into a durable source file instead of leaving the plan as hidden long-term documentation.
-
-## Self-Check
-
-Before you finish a maintainer change, ask:
+Before you finish a maintainer change, also ask:
 
 - Did I create a second source of truth?
 - Does `/gal` still only solve control-plane problems?
@@ -604,37 +923,32 @@ Before you finish a maintainer change, ask:
 - Did I keep collaborative-tool routing at the workflow layer?
 - Do README, `commands/commands.md`, and this guide still have distinct jobs?
 
-## Suggested Reading Order
+### Drift Queue
 
-| Reader | Suggested order |
-| --- | --- |
-| first-time GAL maintainer | this guide → [../commands/commands.md](../commands/commands.md) → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing command behavior | [../commands/commands.md](../commands/commands.md) → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing setup | this guide → [../scripts/scripts.md](../scripts/scripts.md) |
-| maintainer changing workflow semantics | [../commands/commands.md](../commands/commands.md) → [collaborative-tools/gstack.md](collaborative-tools/gstack.md) → [../workflows/coding.md](../workflows/coding.md) |
+Known navigation/ownership drift to watch when editing install or release docs:
 
-## Related Files
+- Provider lifecycle status claims are split across docs and scripts. Before changing public claims for Claude, Copilot, or Codex, compare [../README.md](../README.md), this guide, [../scripts/scripts.md](../scripts/scripts.md), [../scripts/Build-ProviderPlugins.ps1](../scripts/Build-ProviderPlugins.ps1), [../scripts/Install-GalPlugins.ps1](../scripts/Install-GalPlugins.ps1), and the latest verified plan [plans/feat-plugin-arch-migration.md](plans/feat-plugin-arch-migration.md).
+- When a translated copy under `docs/i18n/<lang>/` falls behind its canonical source, the translation freshness check flags it; resync before changing public install status claims.
 
-- [../README.md](../README.md) for the primary user entry point.
-- [collaborative-tools/checking-contract.md](collaborative-tools/checking-contract.md) for shared collaborative-tool preflight behavior.
-- [collaborative-tools/gstack.md](collaborative-tools/gstack.md) for optional collaborative-tool behavior.
-- [../commands/commands.md](../commands/commands.md) for the control-plane contract and runtime surface.
-- [../scripts/scripts.md](../scripts/scripts.md) for the script inventory and setup behavior.
-- [../templates/templates.md](../templates/templates.md) for template ownership.
+## Conventions
 
-## Token Discipline
+### Documentation Conventions
+
+> Authored in the conventions pass (plan task T-009). This section owns the file-naming convention (`-mcp` suffix policy, skill-name alignment, the single-`README.md` rule) and the multi-language translation policy (`docs/i18n/<lang>/<name>.<lang>.md` layout, translatable allowlist, and the front-matter freshness mechanism). See [i18n/guide.md](i18n/guide.md) for the on-location translator signpost.
+
+### Token Discipline
 
 These rules apply to all maintainer and agent work in this repo. The full policy lives in [../conventions/token-budget.md](../conventions/token-budget.md). The developer-facing summary is here.
 
-### Generated-Artifact Exclusion
+#### Generated-Artifact Exclusion
 
 Do not read generated adapters (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, `.github/copilot-instructions.md`) or build outputs (`bin/`, `obj/`) unless the current task is explicitly about auditing those generated files. They are large, frequently regenerated, and contain no information not already in their source templates.
 
-### Directed Exploration
+#### Directed Exploration
 
 Before reading any file, confirm it is named in the current task or is a direct dependency of a task-named file. Stop reading when you have the information needed. Do not load the full codebase as a cold-start step.
 
-### Failure-Focused Output
+#### Failure-Focused Output
 
 When running builds or tests, emit:
 
@@ -644,7 +958,7 @@ When running builds or tests, emit:
 
 Store full logs on disk when needed; retrieve specific lines selectively rather than piping entire logs into context.
 
-### Context-Pressure Recovery
+#### Context-Pressure Recovery
 
 When context is near the limit during an active task:
 
