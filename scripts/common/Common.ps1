@@ -961,3 +961,41 @@ function Ensure-SetupDirectories([string[]]$Directories) {
         }
     }
 }
+
+function Read-ExecutorRouting {
+    $canonicalPath = Join-Path (Get-GalUserHome) '.gal\config\executor-routing.ndjson'
+    if (-not (Test-Path $canonicalPath)) {
+        return $null
+    }
+
+    $routing = @{}
+    foreach ($line in (Get-Content $canonicalPath -Encoding UTF8)) {
+        $line = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        try {
+            $obj = $line | ConvertFrom-Json
+            if ($obj.role -and $obj.executor) {
+                $routing[[string]$obj.role] = [string]$obj.executor
+            }
+        }
+        catch { continue }
+    }
+
+    return $routing
+}
+
+function Get-PipelinePhaseRole {
+    param(
+        [Parameter(Mandatory)][string]$Phase
+    )
+
+    $map = @{
+        'implement' = 'CODER'
+        'test'      = 'TESTER'
+        'review'    = 'REVIEWER'
+        'verify'    = 'VERIFIER'
+    }
+
+    return $map[$Phase.ToLower()]
+}
+}

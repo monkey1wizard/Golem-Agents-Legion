@@ -1,0 +1,4 @@
+{"role":"CODER","executor":"claude"}
+{"role":"TESTER","executor":"claude"}
+{"role":"REVIEWER","executor":"opencode"}
+{"role":"VERIFIER","executor":"claude"}

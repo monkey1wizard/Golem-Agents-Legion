@@ -254,6 +254,24 @@ function Invoke-UpdatePersonalization {
         Write-Host "  [SKIP] $localRoles already exists"
     }
 
+    $exampleRouting = Join-Path $context.RepoRoot 'executor-routing.example.ndjson'
+    $localRouting = Join-Path $context.GalConfigRoot 'executor-routing.ndjson'
+
+    if (-not (Test-Path $localRouting)) {
+        if (Test-Path $exampleRouting) {
+            New-Item -ItemType Directory -Path $context.GalConfigRoot -Force | Out-Null
+            Copy-Item $exampleRouting $localRouting
+            Write-Host "  [OK] Created $localRouting from executor-routing.example.ndjson"
+            Write-Host "  [ACTION REQUIRED] Edit $localRouting to map roles to your preferred executors" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host '  [WARN] executor-routing.example.ndjson not found — skipping' -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "  [SKIP] $localRouting already exists"
+    }
+
     Push-Location $context.RepoRoot
     try {
         git config filter.gal-config.smudge 'bash scripts/gal-smudge.sh'
