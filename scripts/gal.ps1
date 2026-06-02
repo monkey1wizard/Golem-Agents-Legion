@@ -873,6 +873,57 @@ switch ($Command) {
                 $dispatchFields['WORK_NODE'] = $xmachineContext.WorkNode
             }
 
+            # --- Headless executor OFFLOAD (T-008) ---
+            # When executor routing resolves for the current phase+role, emit an OFFLOAD block
+            # instead of the regular text dispatch. Dispatch itself does not spawn the process.
+            # Falls through to regular Write-Dispatch when routing is absent or spec generation fails.
+            if ($pipelineContext.Requested -and -not $xmachineContext.Requested -and $pipelineContext.TaskScope) {
+                $phaseRole = Get-PipelinePhaseRole -Phase $pipelineContext.Phase
+                $routing   = Read-ExecutorRouting
+                $executor  = if ($routing -and $phaseRole) { $routing[$phaseRole] } else { $null }
+
+                if (-not [string]::IsNullOrWhiteSpace($executor)) {
+                    $promptPath = $dispatchFields['ACTIVE_EXECUTION_PROMPT']
+                    if ([string]::IsNullOrWhiteSpace($promptPath)) {
+                        $promptPath = (Get-StateContext).ActivePlanPath
+                    }
+                    $conventionHints = $dispatchFields['CONVENTION_HINTS']
+
+                    $specScriptPath = Join-Path $scriptRoot 'common\New-TaskSpec.ps1'
+                    $specArgs = @('-TaskScope', $pipelineContext.TaskScope, '-Phase', $pipelineContext.Phase)
+                    if (-not [string]::IsNullOrWhiteSpace($promptPath)) {
+                        $specArgs += @('-PromptPath', $promptPath)
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($conventionHints)) {
+                        $specArgs += @('-ConventionHints', $conventionHints)
+                    }
+
+                    $specPath = $null
+                    try {
+                        $specPath = & pwsh -NonInteractive -File $specScriptPath @specArgs 2>$null |
+                            Select-Object -Last 1
+                    } catch { $specPath = $null }
+
+                    if (-not [string]::IsNullOrWhiteSpace($specPath) -and (Test-Path $specPath)) {
+                        $invokerPath = Join-Path $scriptRoot 'executors\Invoke-Executor.ps1'
+                        Write-Dispatch ([ordered]@{
+                            COMMAND         = 'offload'
+                            OFFLOAD         = 'headless-executor'
+                            DISPATCH_MODE   = 'offload'
+                            EXECUTOR        = $executor
+                            ROLE            = $phaseRole
+                            PIPELINE_PHASE  = $pipelineContext.Phase
+                            TASK_SCOPE      = $pipelineContext.TaskScope
+                            TASK_SPEC       = $specPath
+                            ACTION          = "Run: & '$invokerPath' -Executor $executor -TaskSpecPath '$specPath' -Wait . Exit 0 -> verify write-back in execution prompt ($promptPath); confirm the expected phase section was written before marking stage complete. Exit 2 -> executor unavailable or timed out; fall back to role-playing the $phaseRole golem in this conversation."
+                            ON_COMPLETE     = "Record in execution prompt: Dispatch: offload(executor=$executor, receipt=<ok|no-receipt>, exit=<n>)."
+                            BYPASS_PERMISSION_WARNING = 'SECURITY: headless executor runs with --dangerously-skip-permissions. Full trust of secondary CLI filesystem access. Enable only in a trusted local environment.'
+                        })
+                        break
+                    }
+                }
+            }
+
             Write-Dispatch $dispatchFields
             break
         }
