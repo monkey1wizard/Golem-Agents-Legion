@@ -278,8 +278,8 @@
 - [x] T-002 — CLI 無頭語法 spike：實測確認 Claude Code / OpenCode / Antigravity CLI（agy）的無頭呼叫式與 stdin 餵入行為，記錄為 T-004~006 依據。不寫產品碼。
 - [x] T-003 — 建立 `scripts/executors/Invoke-Executor.ps1` 本機統一入口：`-Executor`、`-TaskSpecPath`、`-WorkDir`、`-TimeoutMinutes`（**無 `-Transport`**）。Exit 0/1/2。內建 echo mock。spec 經 stdin 餵入。逾時用 `taskkill /T` 或 Job object 回收整個行程樹。
 - [x] T-004 — 建立 `scripts/executors/claude.ps1`：`Get-Command claude` 檢查；依 T-002 語法以 stdin 餵 spec 呼叫 claude（bypass-permission）；權威結果＝就地寫回、stdout 僅訊號；逾時/不存在回 Exit 2。
-- [ ] T-005 — 建立 `scripts/executors/opencode.ps1`：依 T-002 語法呼叫 OpenCode（非互動自動核准）；可用性檢查與逾時同 T-004。
-- [ ] T-006 — 建立 `scripts/executors/agy.ps1`：依 T-002 語法呼叫 Antigravity CLI（agy，非互動自動核准）；可用性檢查與逾時同 T-004。
+- [x] T-005 — 建立 `scripts/executors/opencode.ps1`：依 T-002 語法呼叫 OpenCode（非互動自動核准）；可用性檢查與逾時同 T-004。
+- [x] T-006 — 建立 `scripts/executors/agy.ps1`：依 T-002 語法呼叫 Antigravity CLI（agy，非互動自動核准）；可用性檢查與逾時同 T-004。
 - [ ] T-007 — 建立 `scripts/common/New-TaskSpec.ps1`：從 `.dev/plans/<slug>.prompt.md` 提取指定 T-NNN 的目標、受影響檔案、git branch/HEAD、寫回路徑指示、Agent 合約路徑；慣例提示**重用 `Get-PipelineDispatchMetadata` 的 CONVENTION_HINTS**；spec 內**明令次級 CLI 不得 git commit/push**；輸出 `.dev/task-specs/T-NNN-<phase>.md`（< 5KB）；含 Pipeline 結束清理。
 - [ ] T-008 — 修改 `scripts/gal.ps1`：在 `--pipeline-phase` 路徑用「階段→角色」+ `Read-ExecutorRouting` 解析 executor。解析到 → 輸出 **OFFLOAD 區塊**指示對話 AI 執行 `Invoke-Executor.ps1 -Executor <cli> -TaskSpecPath <spec> -Wait`（標明 exit 0→驗證寫回、exit 2→退回扮演）；**dispatch 不自行 spawn**。無 routing/無對應 executor → 維持現有文字分派。
 - [ ] T-009 — 修改 `commands/gal-pipeline/SKILL.template.md`（**受保護路徑**）：在 `### Same-Runtime Fallback Contract` 後、`### Runtime Step-Budget Preflight` 前新增 `### Headless Executor Dispatch` 段：OFFLOAD 觸發與降級語義；**OFFLOAD 成功時 orchestrator 改為驗證寫回、不自扮演 golem，exit 2 才扮演**；**次級 CLI 不得跨越 commit 邊界，commit 由 orchestrator 持有**；bypass-permission 醒目安全警告；Task Spec 暫態性質。
