@@ -192,7 +192,7 @@ get_gal_active_provider_target() {
 
 gal_root_is_usable() {
     local root="$1"
-    [ -n "$root" ] && [ -d "$root" ] && [ -d "$root/commands" ] && [ -d "$root/scripts" ] && [ -d "$root/skills" ] && [ -d "$root/agent" ] && [ -d "$root/templates" ]
+    [ -n "$root" ] && [ -d "$root" ] && [ -d "$root/commands" ] && [ -d "$root/skills" ] && [ -d "$root/agent" ]
 }
 
 resolve_install_mode() {
@@ -229,7 +229,7 @@ with open(sys.argv[1], encoding='utf-8') as handle:
 if 'devMode' in data or 'galRoot' in data:
     dev_mode = bool(data.get('devMode', False))
     gal_root = str(data.get('galRoot') or '').strip()
-    print('source' if dev_mode and gal_root and any([__import__('os').path.isdir(gal_root), __import__('os').path.isdir(gal_root + '/commands'), __import__('os').path.isdir(gal_root + '/scripts'), __import__('os').path.isdir(gal_root + '/skills'), __import__('os').path.isdir(gal_root + '/agent'), __import__('os').path.isdir(gal_root + '/templates')]) else 'install')
+    print('source' if dev_mode and gal_root and all([__import__('os').path.isdir(gal_root + '/commands'), __import__('os').path.isdir(gal_root + '/skills'), __import__('os').path.isdir(gal_root + '/agent')]) else 'install')
     raise SystemExit(0)
 
 mode = str(data.get('installMode') or 'source').strip()

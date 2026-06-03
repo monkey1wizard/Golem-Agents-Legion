@@ -302,7 +302,7 @@ P0 各 step 之間無功能相依，可任意順序或平行。唯一例外：`B
 
 ## Approval
 
-- Human approval: [pending]
+- Human approval: [approved at 2026-06-03]
 - Architect review: [REVISE → 收斂中。OE-01/OE-02/BUG-01(步驟層)/BUG-02/失敗恢復已於切片解決；OQ-001..005 已決議。仍待 `/refining-plan`：R-004 措辭、PS/Bash 對等 TP、doctor exit-code 契約、產 ## Tasks/## Test Plan。完成後重跑 architect gate 轉 CLEAR。詳見 ## Review Results > ### Architecture Review]
 - Security review: [required before implementation — install/update/uninstall, package-manager payload, release signing, provider projections, and path cleanup affect trust boundaries]
 - Additional domain review: [release review required before package-manager publication]
@@ -329,7 +329,7 @@ P0 各 step 之間無功能相依，可任意順序或平行。唯一例外：`B
 
 #### Bug Surface
 
-- **[BUG-01] 高] config/path 雙解析漂移**：R-004 要 Rust「解析 machine config」，Step 3 的 scripts 也各自解析 machine config 與 path。若兩邊都 parse，兩個真相來源必然漂移（Rust 認為 selected providers = A，script 自行重算 = B）。**修正**：明定單一 owner——Phase 1 由 **scripts 續持有** config/path 真相，Rust 只傳「使用者意圖（子命令 + flags）」與不重算的透明 passthrough；Rust **不得** parse machine config 內容。R-004 的「解析 machine config」職責應改述為「呼叫 script 取得已解析 config 摘要」。未澄清前 Step 1-2 不可實作。
+- **[BUG-01] 高 config/path 雙解析漂移**：R-004 要 Rust「解析 machine config」，Step 3 的 scripts 也各自解析 machine config 與 path。若兩邊都 parse，兩個真相來源必然漂移（Rust 認為 selected providers = A，script 自行重算 = B）。**修正**：明定單一 owner——Phase 1 由 **scripts 續持有** config/path 真相，Rust 只傳「使用者意圖（子命令 + flags）」與不重算的透明 passthrough；Rust **不得** parse machine config 內容。R-004 的「解析 machine config」職責應改述為「呼叫 script 取得已解析 config 摘要」。未澄清前 Step 1-2 不可實作。
 - **[BUG-02] 已解** release signing：OQ-001 鎖定 **cosign keyless**。P2-1 用 CI OIDC 簽 `checksums.txt`，P4-1/R-014 doctor 以 `cosign verify-blob` 驗。Security review 只確認 CI 信任設定（允許的 workflow identity + Rekor），非 blocking 工具選擇。
 - **[BUG-03] 中 AGY 三 surface link-first 的部分失敗原子性**：Step 4 要對 CLI/IDE/GUI-config 三個 store 投影並盡量 symlink。Windows symlink/junction 權限差異（Risks 已點名）會造成「三投影中一兩個成功」的半收斂——比目前「CLI 完全缺失」更難診斷。**修正**：Step 4 須定義三投影為一個交易：全成功或全回滾＋寫 ledger 標記降級面，doctor（Step 11）必須能逐 surface 報 link/host-copy/missing，而非只報 plugin root 是否存在。
 - **[BUG-04] 中 `completed` terminal-state 與 commit-msg 修復共用「內容關鍵字 ≠ 證據」教訓**：Step 12 的 `Invoke-Executor` exit-0-記-completed 與 Step 8 的 commit-msg keyword-hijack 是**同一類 bug**：把弱訊號（exit code / diff 內文字樣）當成強證據（寫回驗證 / 實際 rename）。建議在 plan 層級把「terminal/decision state 必須由結構性證據而非關鍵字或 exit code 推導」列為一條跨 step 的 invariant，避免 reviewer 各 step 重複發現。

@@ -14,4 +14,15 @@ if ($bootstrap -ne 'install') {
     throw "Expected install mode for bootstrap install, got '$bootstrap'"
 }
 
+$minimalRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gal-root-authority-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path (Join-Path $minimalRoot 'commands') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $minimalRoot 'agent') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $minimalRoot 'skills') -Force | Out-Null
+
+if (-not (Test-GalRootUsable -GalRoot $minimalRoot)) {
+    throw 'Expected minimal galRoot to be considered usable when it contains commands/agent/skills.'
+}
+
+Remove-Item -LiteralPath $minimalRoot -Recurse -Force -ErrorAction SilentlyContinue
+
 Write-Host 'Install mode resolution tests passed.'

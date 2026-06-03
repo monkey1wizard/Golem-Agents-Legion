@@ -335,7 +335,7 @@ function Test-GalRootUsable {
         return $false
     }
 
-    $requiredPaths = @('commands', 'scripts', 'skills', 'agent', 'templates')
+    $requiredPaths = @('commands', 'agent', 'skills')
     foreach ($relativePath in $requiredPaths) {
         if (-not (Test-Path -LiteralPath (Join-Path $GalRoot $relativePath) -PathType Container)) {
             return $false
