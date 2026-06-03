@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/gal-cli", "crates/gal-core"]
+resolver = "2"

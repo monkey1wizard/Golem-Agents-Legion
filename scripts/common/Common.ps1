@@ -328,6 +328,36 @@ function Get-GalActiveProviderTarget {
     return Join-Path $env:USERPROFILE (".gal\active\{0}" -f $Provider)
 }
 
+function Test-GalRootUsable {
+    param([string]$GalRoot)
+
+    if ([string]::IsNullOrWhiteSpace($GalRoot) -or -not (Test-Path -LiteralPath $GalRoot -PathType Container)) {
+        return $false
+    }
+
+    $requiredPaths = @('commands', 'scripts', 'skills', 'agent', 'templates')
+    foreach ($relativePath in $requiredPaths) {
+        if (-not (Test-Path -LiteralPath (Join-Path $GalRoot $relativePath) -PathType Container)) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Resolve-InstallMode {
+    param(
+        [bool]$devMode,
+        [string]$galRoot
+    )
+
+    if ($devMode -and (Test-GalRootUsable -GalRoot $galRoot)) {
+        return 'source'
+    }
+
+    return 'install'
+}
+
 function Get-ConfiguredInstallModeFromContext {
     param(
         [pscustomobject]$Context
@@ -350,10 +380,18 @@ function Get-ConfiguredInstallModeFromContext {
     }
 
     $config = Read-JsonOrderedMap $Context.GalConfigFile
-    if ($config -and $config.Contains('installMode')) {
-        $mode = [string]$config['installMode']
-        if (-not [string]::IsNullOrWhiteSpace($mode)) {
-            return $mode
+    if ($config) {
+        $devMode = [bool]$config['devMode']
+        $galRoot = [string]$config['galRoot']
+        if ($config.Contains('devMode') -or $config.Contains('galRoot')) {
+            return (Resolve-InstallMode -devMode $devMode -galRoot $galRoot)
+        }
+
+        if ($config.Contains('installMode')) {
+            $mode = [string]$config['installMode']
+            if (-not [string]::IsNullOrWhiteSpace($mode)) {
+                return $mode
+            }
         }
     }
 

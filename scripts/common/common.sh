@@ -190,6 +190,22 @@ get_gal_active_provider_target() {
     printf '%s\n' "$HOME/.gal/active/$provider"
 }
 
+gal_root_is_usable() {
+    local root="$1"
+    [ -n "$root" ] && [ -d "$root" ] && [ -d "$root/commands" ] && [ -d "$root/scripts" ] && [ -d "$root/skills" ] && [ -d "$root/agent" ] && [ -d "$root/templates" ]
+}
+
+resolve_install_mode() {
+    local dev_mode="$1"
+    local gal_root="$2"
+
+    if [ "$dev_mode" = true ] && gal_root_is_usable "$gal_root"; then
+        printf 'source\n'
+    else
+        printf 'install\n'
+    fi
+}
+
 get_configured_install_mode() {
     if [ ! -f "$GAL_CONFIG_FILE" ]; then
         case "${GAL_BOOTSTRAP_INSTALL:-}" in
@@ -209,6 +225,12 @@ import sys
 
 with open(sys.argv[1], encoding='utf-8') as handle:
     data = json.load(handle)
+
+if 'devMode' in data or 'galRoot' in data:
+    dev_mode = bool(data.get('devMode', False))
+    gal_root = str(data.get('galRoot') or '').strip()
+    print('source' if dev_mode and gal_root and any([__import__('os').path.isdir(gal_root), __import__('os').path.isdir(gal_root + '/commands'), __import__('os').path.isdir(gal_root + '/scripts'), __import__('os').path.isdir(gal_root + '/skills'), __import__('os').path.isdir(gal_root + '/agent'), __import__('os').path.isdir(gal_root + '/templates')]) else 'install')
+    raise SystemExit(0)
 
 mode = str(data.get('installMode') or 'source').strip()
 print(mode or 'source')
