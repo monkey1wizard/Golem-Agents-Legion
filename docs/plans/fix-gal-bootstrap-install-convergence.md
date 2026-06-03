@@ -316,8 +316,8 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **R3 — Rust provider projection（依 R2）**
 
-- [ ] T-007 — Rust Claude skills-dir + Copilot installed-plugin projection，逐檔 == oracle。 *(8f536a4)*
-- [ ] T-008 — Rust MCP **core + safe-merge**（provider-agnostic）：manifest model、變數/placeholder 解析、managed-vs-user 合併（只動 GAL-managed entry、保留 user entry、idempotent）、未解析 secret 不寫入、plugin root 未完整前不寫半殘 `mcp_config.json`。（拆自 ~78KB `Update-Mcp.*`，BUG-D。）
+- [x] T-007 — Rust Claude skills-dir + Copilot installed-plugin projection，逐檔 == oracle。 *(8f536a4)*
+- [x] T-008 — Rust MCP **core + safe-merge**（provider-agnostic）：manifest model、變數/placeholder 解析、managed-vs-user 合併（只動 GAL-managed entry、保留 user entry、idempotent）、未解析 secret 不寫入、plugin root 未完整前不寫半殘 `mcp_config.json`。（拆自 ~78KB `Update-Mcp.*`，BUG-D。） *(d58bb5f)*
 - [ ] T-009 — Rust MCP **per-provider serializers**：各 provider 不同 config 格式（Claude Desktop / Copilot CLI / AGY / Codex / OpenCode；含 TOML）。**M1 先做 Claude + Copilot 並逐檔 == oracle；AGY/Codex/OpenCode 列 M2。** xmachine binding（legacy skills store）不在此 scope。
 - [ ] T-010 — Rust AGY 三 surface **best-effort**（低優先；交易/ledger 延後 M2）。
 
