@@ -1,3 +1,11 @@
+# ENTRY SWITCH (T-011, BUG-B): The Rust `gal` binary is now the single entry
+# for `install`, `update`, `uninstall`, `doctor`, and `commit-msg`.
+# This script handles the developer workflow only (init, dispatch-to-golems,
+# xmachine). The frozen scripts remain as oracle only and are NOT invoked for
+# install/update/uninstall by any entry path.
+#
+# To install/update GAL, use the Rust binary: gal install / gal update
+
 param(
     [Parameter(Position = 0)]
     [string]$Command,

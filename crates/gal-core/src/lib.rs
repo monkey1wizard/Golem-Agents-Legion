@@ -3,7 +3,11 @@
 //! Provides configuration parsing (Rust owns config truth), command enum,
 //! exit-code classification, and path resolution.
 
+pub mod commit_msg;
 pub mod config;
+pub mod doctor;
+pub mod install;
+pub mod ledger;
 pub mod mcp;
 pub mod mode;
 pub mod providers;
@@ -16,16 +20,19 @@ pub enum CommandKind {
     Update,
     Doctor,
     Uninstall,
+    /// `gal commit-msg <msg-file>` — git commit-msg hook (T-013, optional/R5).
+    CommitMsg,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 5] = [
+    pub const ALL: [CommandKind; 6] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Doctor,
         CommandKind::Uninstall,
+        CommandKind::CommitMsg,
         CommandKind::DispatchScript,
     ];
 
@@ -36,6 +43,7 @@ impl CommandKind {
             CommandKind::Update => "update",
             CommandKind::Doctor => "doctor",
             CommandKind::Uninstall => "uninstall",
+            CommandKind::CommitMsg => "commit-msg",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -47,6 +55,7 @@ impl CommandKind {
             "update" => Some(CommandKind::Update),
             "doctor" => Some(CommandKind::Doctor),
             "uninstall" => Some(CommandKind::Uninstall),
+            "commit-msg" => Some(CommandKind::CommitMsg),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -56,8 +65,10 @@ impl CommandKind {
 /// Process exit-code classification for the CLI.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ExitCode {
-    /// Completed successfully.
+    /// Completed successfully (and doctor: no errors, warnings only).
     Success = 0,
+    /// Operation failed (install error, render error, uninstall error, doctor errors).
+    Error = 1,
     /// Subcommand recognized but not yet wired to the legacy engine (Phase 1).
     NotWired = 2,
     /// Bad usage: unknown command or missing command.

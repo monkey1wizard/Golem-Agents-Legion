@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+# GAL commit-msg hook — delegates to the `gal commit-msg` Rust command.
+# T-013: rewire git hook to Rust implementation (R5, optional).
+#
+# Installation:
+#   cp hooks/commit-msg .git/hooks/commit-msg
+#   chmod +x .git/hooks/commit-msg
+#
+# Or use `gal install` to set this up automatically (when supported).
+
+exec gal commit-msg "$1"

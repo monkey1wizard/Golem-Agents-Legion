@@ -1,11 +1,15 @@
-//! `gal` CLI entry point (Phase 1 skeleton).
+//! `gal` CLI entry point — Rust-native install/update/doctor/uninstall/commit-msg.
 //!
-//! Owns argument parsing, help/version, and exit-code classification. It does
-//! not parse machine config and does not yet execute install/update/doctor —
-//! known subcommands are reported as `not wired` until they are delegated to the
-//! legacy scripts in a later phase (T-009).
+//! Entry switch (T-011, BUG-B): the Rust binary is now the single entry for
+//! install, update, uninstall, doctor, and commit-msg. The frozen PS/Bash scripts
+//! remain as oracle only and are NOT invoked by this entry.
+//!
+//! T-011: install/update/uninstall wired to Rust-native gal_core::install.
+//! T-012: doctor wired to Rust-native gal_core::doctor.
+//! T-013: commit-msg wired to Rust-native gal_core::commit_msg (R5, optional).
 
 use gal_core::{classify_args, Action, CommandKind, ExitCode};
+use std::path::Path;
 use std::process::ExitCode as ProcessExitCode;
 
 fn print_help() {
@@ -18,6 +22,150 @@ fn print_help() {
     println!("Commands:");
     for cmd in CommandKind::ALL {
         println!("  {}", cmd.as_str());
+    }
+    println!();
+    println!("Options:");
+    println!("  doctor --dry-run        Read-only health check (no filesystem changes)");
+    println!("  doctor --release-gate   Include package-manager and marketplace checks");
+}
+
+/// Run `gal install` — Rust-native install flow (T-011).
+fn cmd_install() -> ExitCode {
+    use gal_core::{config::GalConfig, install::run_install};
+
+    let config = GalConfig::load();
+    match run_install(&config) {
+        Ok(report) => {
+            println!("GAL installed to {}", report.canonical_root.display());
+            println!("Mode: {}", report.mode);
+            println!("Providers: {}", report.providers.join(", "));
+            for w in &report.warnings {
+                eprintln!("warning: {w}");
+            }
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal install: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+/// Run `gal update` — re-render and re-project all surfaces (T-011).
+fn cmd_update() -> ExitCode {
+    use gal_core::{config::GalConfig, install::run_update};
+
+    let config = GalConfig::load();
+    match run_update(&config) {
+        Ok(report) => {
+            println!("GAL updated at {}", report.canonical_root.display());
+            println!("Mode: {}", report.mode);
+            println!("Providers: {}", report.providers.join(", "));
+            for w in &report.warnings {
+                eprintln!("warning: {w}");
+            }
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal update: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+/// Run `gal uninstall` — remove canonical root and surfaces (T-011).
+fn cmd_uninstall() -> ExitCode {
+    use gal_core::install::run_uninstall;
+
+    match run_uninstall() {
+        Ok(()) => {
+            println!("GAL uninstalled.");
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal uninstall: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+/// Run `gal doctor [--dry-run] [--release-gate]` — read-only health checks (T-012).
+fn cmd_doctor(args: &[String]) -> ExitCode {
+    use gal_core::doctor::{run_doctor, DoctorOptions};
+
+    let dry_run = args.iter().any(|a| a == "--dry-run");
+    let release_gate = args.iter().any(|a| a == "--release-gate");
+
+    let opts = DoctorOptions { dry_run, release_gate };
+    let report = run_doctor(&opts);
+
+    if report.findings.is_empty() {
+        println!("gal doctor: all checks passed.");
+    } else {
+        for f in &report.findings {
+            println!("{f}");
+        }
+    }
+
+    if report.has_errors() {
+        ExitCode::Error
+    } else {
+        ExitCode::Success
+    }
+}
+
+/// Run `gal commit-msg <msg-file>` — git commit-msg hook (T-013, R5 optional).
+fn cmd_commit_msg(args: &[String]) -> ExitCode {
+    use gal_core::commit_msg::{process_commit_msg, CommitMsgResult};
+
+    // The first argument after "commit-msg" is the message file path.
+    let msg_path_str = match args.iter().skip(1).next() {
+        Some(p) => p.clone(),
+        None => {
+            eprintln!("gal commit-msg: missing message file argument");
+            eprintln!("usage: gal commit-msg <path-to-commit-message-file>");
+            return ExitCode::Usage;
+        }
+    };
+
+    let msg_path = Path::new(&msg_path_str);
+    if !msg_path.exists() {
+        eprintln!("gal commit-msg: message file not found: {msg_path_str}");
+        return ExitCode::Error;
+    }
+
+    // Get staged files from git.
+    let staged_files = get_staged_files();
+    let staged_refs: Vec<&str> = staged_files.iter().map(|s| s.as_str()).collect();
+
+    match process_commit_msg(msg_path, &staged_refs) {
+        Ok(CommitMsgResult::NoOp) => {
+            // Empty staging — no-op (TP-019).
+            ExitCode::Success
+        }
+        Ok(CommitMsgResult::Updated) => ExitCode::Success,
+        Err(e) => {
+            eprintln!("gal commit-msg: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+/// Retrieve staged file paths from git (no-op list on error).
+fn get_staged_files() -> Vec<String> {
+    let output = std::process::Command::new("git")
+        .args(["diff", "--staged", "--name-only"])
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let text = String::from_utf8_lossy(&out.stdout);
+            text.lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect()
+        }
+        _ => Vec::new(), // git unavailable or not a repo → treat as empty staging
     }
 }
 
@@ -35,16 +183,21 @@ fn run(args: &[String]) -> ExitCode {
             print_help();
             ExitCode::Usage
         }
+        // T-011: wired install/update/uninstall
+        Action::NotWired(CommandKind::Install) => cmd_install(),
+        Action::NotWired(CommandKind::Update) => cmd_update(),
+        Action::NotWired(CommandKind::Uninstall) => cmd_uninstall(),
+        // T-012: wired doctor
+        Action::NotWired(CommandKind::Doctor) => cmd_doctor(args),
+        // T-013: wired commit-msg (R5, optional)
+        Action::NotWired(CommandKind::CommitMsg) => cmd_commit_msg(args),
+        // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
-            eprintln!(
-                "gal {}: not wired yet (Phase 1 skeleton). This subcommand will \
-                 delegate to the legacy scripts in a later phase.",
-                cmd.as_str()
-            );
+            eprintln!("gal {}: not wired", cmd.as_str());
             ExitCode::NotWired
         }
         Action::UnknownCommand(cmd) => {
-            eprintln!("gal: unknown command '{}'. Run `gal --help`.", cmd);
+            eprintln!("gal: unknown command '{cmd}'. Run `gal --help`.");
             ExitCode::Usage
         }
     }
@@ -70,18 +223,72 @@ mod tests {
     }
 
     #[test]
-    fn known_subcommand_is_not_wired() {
-        assert_eq!(run(&["doctor".to_string()]), ExitCode::NotWired);
-        assert_eq!(run(&["uninstall".to_string()]), ExitCode::NotWired);
+    fn no_args_is_usage() {
+        assert_eq!(run(&[]), ExitCode::Usage);
     }
 
     #[test]
-    fn unknown_subcommand_is_usage_error() {
+    fn unknown_command_is_usage() {
         assert_eq!(run(&["frobnicate".to_string()]), ExitCode::Usage);
     }
 
+    // T-011: install/update/uninstall are now wired (return Success or Error, not NotWired)
     #[test]
-    fn no_args_is_usage_error() {
-        assert_eq!(run(&[]), ExitCode::Usage);
+    fn install_is_wired_not_not_wired() {
+        let result = run(&["install".to_string()]);
+        assert_ne!(
+            result,
+            ExitCode::NotWired,
+            "install must be wired (T-011) — should return Success or Error, not NotWired"
+        );
+    }
+
+    #[test]
+    fn update_is_wired_not_not_wired() {
+        let result = run(&["update".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "update must be wired (T-011)");
+    }
+
+    #[test]
+    fn uninstall_is_wired_not_not_wired() {
+        let result = run(&["uninstall".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "uninstall must be wired (T-011)");
+    }
+
+    // T-012: doctor is wired
+    #[test]
+    fn doctor_is_wired_not_not_wired() {
+        let result = run(&["doctor".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "doctor must be wired (T-012)");
+    }
+
+    #[test]
+    fn doctor_dry_run_is_wired() {
+        let result = run(&["doctor".to_string(), "--dry-run".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "doctor --dry-run must be wired (T-012)");
+    }
+
+    // T-013: commit-msg is wired
+    #[test]
+    fn commit_msg_without_arg_returns_usage() {
+        let result = run(&["commit-msg".to_string()]);
+        assert_eq!(result, ExitCode::Usage, "commit-msg with no file arg should be Usage");
+    }
+
+    #[test]
+    fn dispatch_script_is_still_not_wired() {
+        assert_eq!(
+            run(&["dispatch-script".to_string()]),
+            ExitCode::NotWired,
+            "dispatch-script should remain not wired"
+        );
+    }
+
+    #[test]
+    fn exit_code_values_are_correct() {
+        assert_eq!(ExitCode::Success as u8, 0);
+        assert_eq!(ExitCode::Error as u8, 1);
+        assert_eq!(ExitCode::NotWired as u8, 2);
+        assert_eq!(ExitCode::Usage as u8, 64);
     }
 }

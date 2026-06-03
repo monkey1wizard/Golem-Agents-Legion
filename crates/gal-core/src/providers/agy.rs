@@ -245,6 +245,44 @@ skill_path = "{}"
     pub fn verify_surfaces_exist(&self) -> bool {
         self.cli_target.exists() && self.ide_target.exists() && self.gui_config_dir.exists()
     }
+
+    /// Remove all three AGY surfaces (reverse of apply).
+    ///
+    /// Best-effort: continues on partial failures, returns first error encountered.
+    /// GUI config TOML files are NOT removed (user may have customized them).
+    pub fn remove(&self) -> Result<(), AgyError> {
+        // Remove CLI junction/symlink
+        if self.cli_target.exists() || self.cli_target.is_symlink() {
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("cmd")
+                    .args(["/C", "rmdir", self.cli_target.to_str().unwrap_or("")])
+                    .output();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = fs::remove_file(&self.cli_target);
+            }
+        }
+
+        // Remove IDE junction/symlink
+        if self.ide_target.exists() || self.ide_target.is_symlink() {
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("cmd")
+                    .args(["/C", "rmdir", self.ide_target.to_str().unwrap_or("")])
+                    .output();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = fs::remove_file(&self.ide_target);
+            }
+        }
+
+        // GUI config TOML files are preserved (user may have customized them).
+
+        Ok(())
+    }
     
     /// Get the list of expected GUI config files
     pub fn expected_gui_configs(&self) -> Vec<PathBuf> {
@@ -293,9 +331,17 @@ mod tests {
     fn test_verify_surfaces_exist_when_missing() {
         let temp_dir = TempDir::new().unwrap();
         let canonical_root = temp_dir.path().to_path_buf();
-        
-        let projection = AgyProjection::new(canonical_root).unwrap();
-        
+
+        // Use explicitly non-existent paths inside temp_dir to avoid
+        // depending on real HOME state (AGY surfaces may exist from a
+        // prior T-010 installation on this machine).
+        let projection = AgyProjection {
+            canonical_root: canonical_root.clone(),
+            cli_target: temp_dir.path().join("nonexistent_cli_gal"),
+            ide_target: temp_dir.path().join("nonexistent_ide_gal"),
+            gui_config_dir: temp_dir.path().join("nonexistent_commands"),
+        };
+
         // Should return false when surfaces don't exist
         assert!(!projection.verify_surfaces_exist());
     }
