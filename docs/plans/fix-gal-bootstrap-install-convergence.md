@@ -323,12 +323,12 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **R4 — Rust 入口接管 + doctor + 退休 scripts（= M1，依 R3 Claude/Copilot）**
 
-- [ ] T-011 — `gal install`/`update`/`uninstall` 接 Rust 原生（config→render→projection→ledger）；Claude+Copilot parity 後切 entry；過渡期單一 entry（BUG-B）。
-- [ ] T-012 — `gal doctor` read-only（Rust）：canonical freshness、provider projection、ledger、plan lifecycle drift；exit-code 分級。
+- [x] T-011 — `gal install`/`update`/`uninstall` 接 Rust 原生（config→render→projection→ledger）；Claude+Copilot parity 後切 entry；過渡期單一 entry（BUG-B）。 *(314afcd)*
+- [x] T-012 — `gal doctor` read-only（Rust）：canonical freshness、provider projection、ledger、plan lifecycle drift；exit-code 分級。 *(314afcd)*
 
 **R5 — commit-msg（Rust，選配/最低優先）**
 
-- [ ] T-013 — Rust 化 commit-msg（port 已修邏輯）；rewire git hook；退役 PS/Bash helper。**可延後或移出本計畫。**
+- [x] T-013 — Rust 化 commit-msg（port 已修邏輯）；rewire git hook；退役 PS/Bash helper。**可延後或移出本計畫。** *(314afcd)*
 
 **P2 — package-manager release lane（依 M1 parity、Security review）**
 
