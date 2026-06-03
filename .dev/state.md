@@ -15,6 +15,7 @@
 | Doc Keeper Golem (golem-dockeeper) | .dev/plans/feat-golem-dockeeper.prompt.md | VERIFIED | 2026-06-01 |
 | AI 規劃文件語言策略 | .dev/plans/feat-ai-plan-language-strategy.prompt.md | IMPLEMENT | 2026-06-01 |
 | Headless CLI Pipeline Orchestration | .dev/plans/headless-cli-pipeline.prompt.md | DRAFT | 2026-06-01 |
+| Headless CLI Pipeline Test + Routing JSON Migration | .dev/plans/headless-cli-pipeline-test.prompt.md | DRAFT | 2026-06-03 (prompt generated) |
 | Docs Architecture Restructure | docs/plans/refactor-docs-restructure.md | IMPLEMENTED (Slices 1–5 done) | 2026-06-02 |
 
 <!-- When more than one plan is active, table order is priority order. `/gal whats-next` and `/gal wrap-up` use the first non-terminal row; if all rows are terminal, they fall back to the first row. -->
