@@ -16,6 +16,8 @@ use std::path::{Path, PathBuf};
 pub enum RenderError {
     /// I/O error during rendering.
     Io(std::io::Error),
+    /// JSON serialization error.
+    Json(serde_json::Error),
     /// Source root not found or not accessible.
     SourceRootNotFound(PathBuf),
     /// Invalid source structure (missing required components).
@@ -28,6 +30,7 @@ impl std::fmt::Display for RenderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RenderError::Io(e) => write!(f, "I/O error: {}", e),
+            RenderError::Json(e) => write!(f, "JSON error: {}", e),
             RenderError::SourceRootNotFound(p) => {
                 write!(f, "Source root not found: {}", p.display())
             }
@@ -44,6 +47,12 @@ impl std::error::Error for RenderError {}
 impl From<std::io::Error> for RenderError {
     fn from(e: std::io::Error) -> Self {
         RenderError::Io(e)
+    }
+}
+
+impl From<serde_json::Error> for RenderError {
+    fn from(e: serde_json::Error) -> Self {
+        RenderError::Json(e)
     }
 }
 
@@ -265,11 +274,15 @@ fn render_to_temp(
     let commands_dir = temp_dir.join("commands");
     let agents_dir = temp_dir.join("agents");
     let agy_agents_dir = temp_dir.join("agy-agents");
+    let claude_plugin_dir = temp_dir.join(".claude-plugin");
+    let rules_dir = temp_dir.join("rules");
 
     fs::create_dir_all(&skills_dir)?;
     fs::create_dir_all(&commands_dir)?;
     fs::create_dir_all(&agents_dir)?;
     fs::create_dir_all(&agy_agents_dir)?;
+    fs::create_dir_all(&claude_plugin_dir)?;
+    fs::create_dir_all(&rules_dir)?;
 
     // Copy skills
     for skill in &components.skills {
@@ -285,23 +298,197 @@ fn render_to_temp(
         fs::copy(&cmd_skill.source_path, &target_file)?;
     }
 
-    // Copy agents
+    // Copy agents with frontmatter filtering
     for agent in &components.agents {
-        // Render to both agents/ (filtered) and agy-agents/ (unfiltered)
+        // Render to agents/ (Claude-filtered) 
         let filtered_target = agents_dir.join(format!("{}.md", agent.name));
-        let unfiltered_target = agy_agents_dir.join(format!("{}.agent.md", agent.name));
+        let filtered_content = filter_agent_for_claude(&agent.source_path)?;
+        fs::write(&filtered_target, filtered_content)?;
 
-        // For now, just copy as-is (filtering logic will be added later)
-        fs::copy(&agent.source_path, &filtered_target)?;
+        // Render to agy-agents/ (unfiltered)
+        let unfiltered_target = agy_agents_dir.join(format!("{}.agent.md", agent.name));
         fs::copy(&agent.source_path, &unfiltered_target)?;
     }
 
-    // Copy other components (mcp.json, etc.) if they exist
+    // Render Claude plugin manifest
+    render_claude_plugin_manifest(&claude_plugin_dir, components)?;
+
+    // Render AGY plugin manifest
+    render_agy_plugin_manifest(temp_dir, components)?;
+
+    // Render instruction corpus
+    render_instruction_corpus(&rules_dir, source_root)?;
+
+    // Copy MCP config if it exists
     let mcp_source = source_root.join("mcp.json");
     if mcp_source.exists() {
         let mcp_target = temp_dir.join(".mcp.json");
         fs::copy(&mcp_source, &mcp_target)?;
     }
+
+    Ok(())
+}
+
+/// Filter agent frontmatter for Claude compatibility.
+/// Keeps only Claude-compatible keys: name, description, model, effort, maxTurns, 
+/// tools, disallowedTools, skills, memory, background, isolation (if worktree).
+fn filter_agent_for_claude(agent_path: &Path) -> Result<String, RenderError> {
+    let content = fs::read_to_string(agent_path)?;
+    let lines: Vec<&str> = content.lines().collect();
+
+    if lines.len() < 3 || lines[0] != "---" {
+        // No frontmatter, return as-is
+        return Ok(content);
+    }
+
+    // Find closing ---
+    let mut closing_idx = None;
+    for (i, line) in lines.iter().enumerate().skip(1) {
+        if *line == "---" {
+            closing_idx = Some(i);
+            break;
+        }
+    }
+
+    let closing_idx = match closing_idx {
+        Some(idx) => idx,
+        None => return Ok(content), // No closing, return as-is
+    };
+
+    let allowed_keys = [
+        "name", "description", "model", "effort", "maxTurns", 
+        "tools", "disallowedTools", "skills", "memory", "background", "isolation"
+    ];
+
+    let mut filtered_frontmatter = Vec::new();
+    for line in &lines[1..closing_idx] {
+        if let Some(colon_pos) = line.find(':') {
+            let key = line[..colon_pos].trim();
+            if allowed_keys.contains(&key) {
+                // Special handling for isolation
+                if key == "isolation" {
+                    let value = line[colon_pos + 1..].trim();
+                    if value == "worktree" || value == "\"worktree\"" || value == "'worktree'" {
+                        filtered_frontmatter.push(line.to_string());
+                    }
+                } else {
+                    filtered_frontmatter.push(line.to_string());
+                }
+            }
+        }
+    }
+
+    let body = &lines[closing_idx + 1..];
+    let mut result = Vec::new();
+    result.push("---".to_string());
+    result.extend(filtered_frontmatter);
+    result.push("---".to_string());
+    result.extend(body.iter().map(|s| s.to_string()));
+
+    Ok(result.join("\n"))
+}
+
+/// Render Claude plugin manifest (.claude-plugin/plugin.json).
+fn render_claude_plugin_manifest(
+    claude_plugin_dir: &Path,
+    components: &ScannedComponents,
+) -> Result<(), RenderError> {
+    use std::collections::HashMap;
+
+    let mut manifest = HashMap::new();
+    manifest.insert("name", "gal");
+    manifest.insert("version", "1.0.0");
+    manifest.insert("description", "GAL - Golem Agents Legion");
+
+    // List agents
+    let agent_names: Vec<String> = components
+        .agents
+        .iter()
+        .map(|a| a.name.clone())
+        .collect();
+    
+    let manifest_json = serde_json::json!({
+        "name": "gal",
+        "version": "1.0.0",
+        "description": "GAL - Golem Agents Legion",
+        "agents": agent_names,
+        "skills": components.skills.iter().map(|s| &s.name).collect::<Vec<_>>(),
+    });
+
+    let manifest_path = claude_plugin_dir.join("plugin.json");
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
+
+    Ok(())
+}
+
+/// Render AGY plugin manifest (plugin.json at root).
+fn render_agy_plugin_manifest(
+    temp_dir: &Path,
+    components: &ScannedComponents,
+) -> Result<(), RenderError> {
+    let manifest_json = serde_json::json!({
+        "name": "gal",
+        "version": "1.0.0",
+        "description": "GAL - Golem Agents Legion",
+        "agents": components.agents.iter().map(|a| format!("agy-agents/{}.agent.md", a.name)).collect::<Vec<_>>(),
+        "skills": components.skills.iter().map(|s| format!("skills/{}", s.name)).collect::<Vec<_>>(),
+    });
+
+    let manifest_path = temp_dir.join("plugin.json");
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
+
+    Ok(())
+}
+
+/// Render instruction corpus (rules/gal.md) from conventions/ and workflows/.
+fn render_instruction_corpus(
+    rules_dir: &Path,
+    source_root: &Path,
+) -> Result<(), RenderError> {
+    let mut corpus = String::new();
+    corpus.push_str("# GAL Instruction Corpus\n\n");
+    corpus.push_str("## Conventions\n\n");
+
+    // Collect conventions
+    let conventions_dir = source_root.join("conventions");
+    if conventions_dir.exists() {
+        for entry in fs::read_dir(&conventions_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.ends_with(".md") {
+                        let content = fs::read_to_string(entry.path())?;
+                        corpus.push_str(&format!("### {}\n\n", name));
+                        corpus.push_str(&content);
+                        corpus.push_str("\n\n");
+                    }
+                }
+            }
+        }
+    }
+
+    corpus.push_str("## Workflows\n\n");
+
+    // Collect workflows
+    let workflows_dir = source_root.join("workflows");
+    if workflows_dir.exists() {
+        for entry in fs::read_dir(&workflows_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.ends_with(".md") {
+                        let content = fs::read_to_string(entry.path())?;
+                        corpus.push_str(&format!("### {}\n\n", name));
+                        corpus.push_str(&content);
+                        corpus.push_str("\n\n");
+                    }
+                }
+            }
+        }
+    }
+
+    let corpus_path = rules_dir.join("gal.md");
+    fs::write(&corpus_path, corpus)?;
 
     Ok(())
 }
