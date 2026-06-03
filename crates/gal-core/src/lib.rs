@@ -4,6 +4,7 @@
 //! exit-code classification, and path resolution.
 
 pub mod config;
+pub mod mcp;
 pub mod mode;
 pub mod render;
 
