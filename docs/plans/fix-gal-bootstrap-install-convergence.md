@@ -205,7 +205,7 @@ PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪�
 
 - Human approval: [approved at 2026-06-03]
 - Architect review: REVISE（Rust-first）→ 見 ## Review Results。blocking 已折入本修訂（oracle 範圍、單一 entry、AGY best-effort、milestones、MCP 量體警示）；建議 `/refining-plan` 落地後重跑確認。
-- Security review: [required before P2 — install/update/uninstall、release signing CI 信任設定、provider projections、path cleanup 觸及信任邊界]
+- Security review: [CLEAR for M1 install surface — 2026-06-04，見 ## Review Results > ### Security Review；cosign CI 信任設定（S-3）延至 T-014 實作時再審]
 - Release review: [required before package-manager publication]
 
 ## Review Results
@@ -253,7 +253,23 @@ PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪�
 
 ### Security Review
 
-Pending（P2 前必做）。
+**Verdict: CLEAR（M1 install 面）— 2026-06-04。** 稽核範圍：`install.rs`、`ledger.rs`、`render.rs`（含 FU-01 resolver、`get_canonical_plugin_root`、`atomic_swap`）、`providers/agy.rs`、`mcp.rs`、`providers/{mod,claude,copilot}.rs`。方法 OWASP/STRIDE。Verification Independence: DEGRADED_SAME_RUNTIME。
+
+威脅模型：單一使用者 dev 工具，以呼叫者身分執行，只動使用者自己的 `~/.gal`/`~/.gemini`，source 來自受信任 GAL repo/package。無網路輸入、無權限邊界跨越、無多租戶資料、無不受信任反序列化。env/安裝位置/CLI 引數依 review 慣例視為受信任。
+
+| ID | 嚴重度 | 區域 | 處置 |
+| --- | --- | --- | --- |
+| S-1 | Low | secret guard anchoring gap (`has_unresolved_secrets`) | 非阻斷 |
+| S-2 | Low | AGY `mklink`/`rmdir` 路徑 `to_str().unwrap()` 對非 UTF-8 home path panic | 非阻斷 |
+| S-3 | Info | cosign keyless CI 信任設定尚未進 code | 延至 T-014 再審 |
+
+- **S-1**：`has_unresolved_secrets` 用 anchored regex，只攔「整串就是 `${SECRET}`」，內嵌型（如 `Bearer ${API_KEY}`）此 backstop 未攔。**非洩密**：內嵌型仍由 `McpVariableResolver::resolve_string`（未 anchored、遇未解 secret 變數即 error）上游攔截；漏網者只會以字面字串 `${API_KEY}` 寫出，無真實憑證被解析或外洩。MCP manifest 來自受信任 repo `.mcp.json`，進一步限縮影響。後續對齊 backstop regex。
+- **S-2**：`agy.rs` 建/移除 junction 時 `path.to_str().unwrap()`，home 含非 UTF-8 會 panic。屬 robustness/DoS 類（不阻斷），Rust 無記憶體不安全，AGY 為 best-effort 非致命。無 command injection：引數以 argv vector 傳入、路徑全來自受信任 `dirs::home_dir()` + 固定名稱。M2 hardening 改 graceful error。
+- **S-3**：OQ-001 release signing（cosign keyless OIDC）為 CI 信任議題，code 尚不存在（屬 T-014）。**T-014 落地時須對 CI 簽章信任設定再做 security review**；本次只涵蓋 install/update/uninstall + provider projection + path cleanup 面。
+
+確認安全：ledger 不寫 secret；junction/symlink 移除只動 link 本身、不 delete-through；雙層 secret 防護（resolver error + serializer skip）；PowerShell 單引號 escape 正確；render 由受信任 source 經 atomic temp+swap 複製、無 path traversal；MCP merge 只保留使用者自有 entry。
+
+**Gate 結果**：install 面 P2 前 security gate 已滿足。P2（T-014）可進行；cosign CI 信任設定（S-3）須於 T-014 實作時、package-manager 發布前完成 security review。
 
 ### Release Review
 

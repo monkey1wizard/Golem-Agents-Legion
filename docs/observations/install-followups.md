@@ -54,6 +54,33 @@ Do NOT claim full Claude/Copilot byte-parity until (1) and (2) run.
 
 ---
 
+## Security Review Findings (2026-06-04, non-blocking)
+
+Security review CLEAR for the M1 install surface. Two Low findings to harden in M2,
+one Info deferred to T-014.
+
+### S-1 (Low) — Secret-guard backstop regex is anchored
+
+`crates/gal-core/src/providers/mod.rs::has_unresolved_secrets` uses
+`^\$\{([A-Z0-9_]+)\}$`, catching only whole-string `${SECRET}` values. Embedded
+placeholders (e.g. `"Bearer ${API_KEY}"`) bypass this backstop. Not a disclosure
+vuln — `McpVariableResolver::resolve_string` (un-anchored) already errors on
+unresolved secret vars upstream, and any slipped value is a literal `${...}` string,
+not a resolved credential. Harden by aligning the backstop regex to the embedded form.
+
+### S-2 (Low) — AGY junction path `to_str().unwrap()` panics on non-UTF-8 home
+
+`crates/gal-core/src/providers/agy.rs` `create_link` / junction-removal call
+`path.to_str().unwrap()` when building `cmd` argv. A non-UTF-8 home path panics.
+Robustness/DoS-class (not memory-unsafe; AGY is best-effort/non-fatal). No command
+injection (argv vector, trusted paths). Replace with a graceful best-effort error.
+
+### S-3 (Info) — cosign keyless CI trust setup
+
+Release signing (OQ-001, cosign keyless OIDC — allowed workflow identity + Rekor)
+is not yet in code. **Re-review CI signing trust at T-014 implementation** before
+package-manager publication.
+
 ## Low-priority Improvements (M2 or later)
 
 ### FU-03 (L-01) — Uninstall ledger record is imprecise
