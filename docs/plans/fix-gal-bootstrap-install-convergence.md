@@ -348,7 +348,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **P2 — package-manager release lane（依 M1 parity、Security review）**
 
-- [ ] T-014 — release artifact（Rust/CI）+ cosign keyless。
+- [x] T-014 — release artifact（Rust/CI）+ cosign keyless。*(8d75e94)*
 - [ ] T-015 — winget manifest。
 - [ ] T-016 — Homebrew formula template。
 - [ ] T-017 — Claude marketplace 三狀態模型（doctor + docs）。
