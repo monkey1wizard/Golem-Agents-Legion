@@ -313,6 +313,9 @@ fn render_to_temp(
     // Render Claude plugin manifest
     render_claude_plugin_manifest(&claude_plugin_dir, components)?;
 
+    // Render Copilot manifest
+    render_copilot_manifest(temp_dir, components)?;
+
     // Render AGY plugin manifest
     render_agy_plugin_manifest(temp_dir, components)?;
 
@@ -416,6 +419,50 @@ fn render_claude_plugin_manifest(
     });
 
     let manifest_path = claude_plugin_dir.join("plugin.json");
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
+
+    Ok(())
+}
+
+/// Generate a plugin version string: 1.0.0-timestamp.hash
+/// Format matches the PowerShell oracle: timestamp from current time, hash from package content.
+/// For initial implementation, we use a simplified version with timestamp + UUID-based suffix.
+fn generate_plugin_version() -> String {
+    let formatted_time = chrono::Utc::now().format("%Y%m%d%H%M%S").to_string();
+    let uuid_suffix = uuid::Uuid::new_v4()
+        .simple()
+        .to_string()
+        .chars()
+        .take(8)
+        .collect::<String>();
+    
+    format!("1.0.0-{}.{}", formatted_time, uuid_suffix)
+}
+
+/// Render Copilot manifest (copilot-manifest.json at root).
+/// Fixes BUG-02: Copilot will not load commands/ unless the path is explicitly defined
+/// in a root-level manifest.
+fn render_copilot_manifest(
+    temp_dir: &Path,
+    _components: &ScannedComponents,
+) -> Result<(), RenderError> {
+    // Generate version string: 1.0.0-timestamp.hash
+    let version = generate_plugin_version();
+
+    let manifest_json = serde_json::json!({
+        "name": "gal",
+        "displayName": "Golem Agents Legion",
+        "version": version,
+        "description": "Golem Agents Legion plugin for GitHub Copilot CLI",
+        "components": {
+            "agents": "agents/",
+            "skills": "skills/",
+            "commands": "commands/",
+            "mcpConfig": ".mcp.json"
+        }
+    });
+
+    let manifest_path = temp_dir.join("copilot-manifest.json");
     fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
 
     Ok(())
@@ -562,5 +609,57 @@ mod tests {
         assert!(root.to_string_lossy().contains(".gal"));
         assert!(root.to_string_lossy().contains("plugins"));
         assert!(root.to_string_lossy().ends_with("gal"));
+    }
+
+    #[test]
+    fn test_generate_plugin_version() {
+        let version = generate_plugin_version();
+        // Version should match format: 1.0.0-timestamp.hash
+        assert!(version.starts_with("1.0.0-"));
+        let parts: Vec<&str> = version.split('-').collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0], "1.0.0");
+        // Second part should be timestamp.hash
+        let suffix_parts: Vec<&str> = parts[1].split('.').collect();
+        assert_eq!(suffix_parts.len(), 2);
+        // Timestamp should be 14 digits (yyyyMMddHHmmss)
+        assert_eq!(suffix_parts[0].len(), 14);
+        // Hash should be 8 characters
+        assert_eq!(suffix_parts[1].len(), 8);
+    }
+
+    #[test]
+    fn test_render_copilot_manifest() {
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let components = ScannedComponents {
+            skills: vec![],
+            command_skills: vec![],
+            agents: vec![],
+        };
+        
+        let result = render_copilot_manifest(temp_dir.path(), &components);
+        assert!(result.is_ok());
+        
+        // Check manifest file exists
+        let manifest_path = temp_dir.path().join("copilot-manifest.json");
+        assert!(manifest_path.exists());
+        
+        // Verify content structure
+        let content = std::fs::read_to_string(&manifest_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        
+        assert_eq!(json["name"], "gal");
+        assert_eq!(json["displayName"], "Golem Agents Legion");
+        assert_eq!(json["description"], "Golem Agents Legion plugin for GitHub Copilot CLI");
+        assert!(json["version"].as_str().unwrap().starts_with("1.0.0-"));
+        
+        // Verify components structure
+        let components_obj = json["components"].as_object().unwrap();
+        assert_eq!(components_obj["agents"], "agents/");
+        assert_eq!(components_obj["skills"], "skills/");
+        assert_eq!(components_obj["commands"], "commands/");
+        assert_eq!(components_obj["mcpConfig"], ".mcp.json");
     }
 }
