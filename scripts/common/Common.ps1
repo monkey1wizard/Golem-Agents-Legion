@@ -328,34 +328,90 @@ function Get-GalActiveProviderTarget {
     return Join-Path $env:USERPROFILE (".gal\active\{0}" -f $Provider)
 }
 
-function Test-GalRootUsable {
-    param([string]$GalRoot)
+function Test-GalRootReadable {
+    # Readability probe with a short timeout so a dead UNC/network path fails fast
+    # instead of blocking mode resolution. Local paths are probed inline.
+    param([string]$Path)
 
-    if ([string]::IsNullOrWhiteSpace($GalRoot) -or -not (Test-Path -LiteralPath $GalRoot -PathType Container)) {
-        return $false
-    }
-
-    $requiredPaths = @('commands', 'agent', 'skills')
-    foreach ($relativePath in $requiredPaths) {
-        if (-not (Test-Path -LiteralPath (Join-Path $GalRoot $relativePath) -PathType Container)) {
-            return $false
+    $probe = {
+        param($p)
+        try {
+            $enumerator = [System.IO.Directory]::EnumerateFileSystemEntries($p).GetEnumerator()
+            [void]$enumerator.MoveNext()
+            'readable'
+        }
+        catch {
+            'unreadable'
         }
     }
 
-    return $true
+    # Only network paths (UNC) risk hanging; guard those with a timed job.
+    if ($Path -notmatch '^\\\\') {
+        return ((& $probe $Path) -eq 'readable')
+    }
+
+    $job = Start-Job -ScriptBlock $probe -ArgumentList $Path
+    try {
+        if ($null -eq (Wait-Job -Job $job -Timeout 2)) {
+            Stop-Job -Job $job -ErrorAction SilentlyContinue
+            return $false
+        }
+        return ((Receive-Job -Job $job) -eq 'readable')
+    }
+    finally {
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-GalRootUsableError {
+    # Returns $null when galRoot is usable, otherwise a string naming the first
+    # failed check. Predicate: non-empty + directory + readable + GAL source checkout.
+    param([string]$GalRoot)
+
+    if ([string]::IsNullOrWhiteSpace($GalRoot)) {
+        return 'galRoot is empty'
+    }
+    if (-not (Test-Path -LiteralPath $GalRoot -PathType Container)) {
+        return "galRoot path does not exist or is not a directory: $GalRoot"
+    }
+    if (-not (Test-GalRootReadable -Path $GalRoot)) {
+        return "galRoot is not readable or timed out (e.g. dead network path): $GalRoot"
+    }
+    foreach ($relativePath in @('commands', 'agent', 'skills')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $GalRoot $relativePath) -PathType Container)) {
+            return "galRoot is not a GAL source checkout (missing '$relativePath/'): $GalRoot"
+        }
+    }
+
+    return $null
+}
+
+function Test-GalRootUsable {
+    param([string]$GalRoot)
+
+    return ($null -eq (Get-GalRootUsableError -GalRoot $GalRoot))
 }
 
 function Resolve-InstallMode {
+    # Authoritative mode resolution from devMode + galRoot.
+    #   devMode false/absent      -> 'install' (normal mode)
+    #   devMode true + usable root -> 'source'  (dev mode)
+    #   devMode true + unusable    -> THROW (no silent fallback; see OQ-003 / TP-003)
     param(
         [bool]$devMode,
         [string]$galRoot
     )
 
-    if ($devMode -and (Test-GalRootUsable -GalRoot $galRoot)) {
-        return 'source'
+    if (-not $devMode) {
+        return 'install'
     }
 
-    return 'install'
+    $usableError = Get-GalRootUsableError -GalRoot $galRoot
+    if ($usableError) {
+        throw "Dev mode is enabled (devMode=true) but galRoot is not usable: $usableError. Refusing to silently fall back to normal mode. Fix galRoot or set devMode=false."
+    }
+
+    return 'source'
 }
 
 function Get-ConfiguredInstallModeFromContext {
@@ -381,17 +437,26 @@ function Get-ConfiguredInstallModeFromContext {
 
     $config = Read-JsonOrderedMap $Context.GalConfigFile
     if ($config) {
-        $devMode = [bool]$config['devMode']
-        $galRoot = [string]$config['galRoot']
-        if ($config.Contains('devMode') -or $config.Contains('galRoot')) {
+        # Authority: devMode + galRoot decide the mode. installMode is no longer read here.
+        if ($config.Contains('devMode')) {
+            $devMode = [bool]$config['devMode']
+            $galRoot = [string]$config['galRoot']
             return (Resolve-InstallMode -devMode $devMode -galRoot $galRoot)
         }
 
+        # Migration: legacy config has installMode but no devMode. Derive devMode once,
+        # warn, and stop trusting installMode as ongoing authority. Re-running
+        # install/update rewrites the config with devMode + galRoot.
         if ($config.Contains('installMode')) {
-            $mode = [string]$config['installMode']
-            if (-not [string]::IsNullOrWhiteSpace($mode)) {
-                return $mode
+            $legacy = [string]$config['installMode']
+            Write-Warning "config 'installMode' is deprecated; deriving devMode from it. Re-run install/update to migrate the machine config to devMode + galRoot."
+            $derivedDevMode = ($legacy -eq 'source')
+            $galRoot = [string]$config['galRoot']
+            if ($derivedDevMode -and [string]::IsNullOrWhiteSpace($galRoot) -and
+                ($Context.PSObject.Properties.Name -contains 'RepoRoot')) {
+                $galRoot = [string]$Context.RepoRoot
             }
+            return (Resolve-InstallMode -devMode $derivedDevMode -galRoot $galRoot)
         }
     }
 

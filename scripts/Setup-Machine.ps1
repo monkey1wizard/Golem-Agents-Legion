@@ -76,15 +76,9 @@ function Get-ConfiguredInstallMode {
         return 'source'
     }
 
-    $config = Read-JsonOrderedMap $Context.GalConfigFile
-    if ($config -and $config.Contains('installMode')) {
-        $mode = [string]$config['installMode']
-        if (-not [string]::IsNullOrWhiteSpace($mode)) {
-            return $mode
-        }
-    }
-
-    return 'source'
+    # Single authority: delegate to the shared devMode + galRoot resolver.
+    # Do not read installMode here (deprecated; see Common.ps1 / OQ-003).
+    return Get-ConfiguredInstallModeFromContext -Context $Context
 }
 
 $previousBootstrapEnv = $env:GAL_BOOTSTRAP_INSTALL

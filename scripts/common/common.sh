@@ -190,20 +190,61 @@ get_gal_active_provider_target() {
     printf '%s\n' "$HOME/.gal/active/$provider"
 }
 
-gal_root_is_usable() {
+# Returns 0 when galRoot is usable, otherwise prints the failed check to stderr
+# and returns non-zero. Predicate: non-empty + directory + readable + GAL checkout.
+# A short-timeout readability probe keeps dead network paths from hanging.
+gal_root_usable_error() {
     local root="$1"
-    [ -n "$root" ] && [ -d "$root" ] && [ -d "$root/commands" ] && [ -d "$root/skills" ] && [ -d "$root/agent" ]
+    if [ -z "$root" ]; then
+        printf 'galRoot is empty\n' >&2
+        return 1
+    fi
+    if [ ! -d "$root" ]; then
+        printf 'galRoot path does not exist or is not a directory: %s\n' "$root" >&2
+        return 1
+    fi
+    if command -v timeout >/dev/null 2>&1; then
+        if ! timeout 2 ls "$root" >/dev/null 2>&1; then
+            printf 'galRoot is not readable or timed out (e.g. dead network path): %s\n' "$root" >&2
+            return 1
+        fi
+    elif ! ls "$root" >/dev/null 2>&1; then
+        printf 'galRoot is not readable: %s\n' "$root" >&2
+        return 1
+    fi
+    local sub
+    for sub in commands agent skills; do
+        if [ ! -d "$root/$sub" ]; then
+            printf "galRoot is not a GAL source checkout (missing '%s/'): %s\n" "$sub" "$root" >&2
+            return 1
+        fi
+    done
+    return 0
 }
 
+gal_root_is_usable() {
+    gal_root_usable_error "$1" 2>/dev/null
+}
+
+# Authoritative resolution. devMode false/absent -> install; devMode true +
+# usable root -> source; devMode true + unusable -> error (no silent fallback).
 resolve_install_mode() {
     local dev_mode="$1"
     local gal_root="$2"
 
-    if [ "$dev_mode" = true ] && gal_root_is_usable "$gal_root"; then
-        printf 'source\n'
-    else
+    if [ "$dev_mode" != true ]; then
         printf 'install\n'
+        return 0
     fi
+
+    local reason
+    if reason="$(gal_root_usable_error "$gal_root" 2>&1)"; then
+        printf 'source\n'
+        return 0
+    fi
+
+    printf 'error: devMode=true but galRoot is not usable: %s. Refusing to silently fall back to normal mode.\n' "$reason" >&2
+    return 3
 }
 
 get_configured_install_mode() {
@@ -221,24 +262,64 @@ get_configured_install_mode() {
 
     run_python - "$GAL_CONFIG_FILE" <<'PY'
 import json
+import os
 import sys
 
 with open(sys.argv[1], encoding='utf-8') as handle:
     data = json.load(handle)
 
-if 'devMode' in data or 'galRoot' in data:
+
+def gal_root_usable_error(root):
+    if not root:
+        return 'galRoot is empty'
+    if not os.path.isdir(root):
+        return 'galRoot path does not exist or is not a directory: %s' % root
+    if not os.access(root, os.R_OK):
+        return 'galRoot is not readable: %s' % root
+    for sub in ('commands', 'agent', 'skills'):
+        if not os.path.isdir(os.path.join(root, sub)):
+            return "galRoot is not a GAL source checkout (missing '%s/'): %s" % (sub, root)
+    return None
+
+
+# Authority: devMode + galRoot. installMode is no longer read for decisions.
+if 'devMode' in data:
     dev_mode = bool(data.get('devMode', False))
     gal_root = str(data.get('galRoot') or '').strip()
-    print('source' if dev_mode and gal_root and all([__import__('os').path.isdir(gal_root + '/commands'), __import__('os').path.isdir(gal_root + '/skills'), __import__('os').path.isdir(gal_root + '/agent')]) else 'install')
+    if not dev_mode:
+        print('install')
+        raise SystemExit(0)
+    reason = gal_root_usable_error(gal_root)
+    if reason is None:
+        print('source')
+        raise SystemExit(0)
+    sys.stderr.write(
+        'error: devMode=true but galRoot is not usable: %s. '
+        'Refusing to silently fall back to normal mode.\n' % reason
+    )
+    raise SystemExit(3)
+
+# Migration: legacy installMode with no devMode. Derive once and warn; do not
+# treat installMode as ongoing authority. Re-running install/update migrates it.
+if 'installMode' in data:
+    sys.stderr.write(
+        "warning: config 'installMode' is deprecated; deriving devMode from it. "
+        "Re-run install/update to migrate the machine config to devMode + galRoot.\n"
+    )
+    legacy = str(data.get('installMode') or 'source').strip()
+    print('source' if legacy == 'source' else 'install')
     raise SystemExit(0)
 
-mode = str(data.get('installMode') or 'source').strip()
-print(mode or 'source')
+print('source')
 PY
 }
 
 is_install_mode() {
-    [ "$(get_configured_install_mode)" = 'install' ]
+    # Propagate resolution errors (e.g. devMode=true + unusable galRoot) rather
+    # than silently treating an empty result as "not install" -> source.
+    local mode
+    mode="$(get_configured_install_mode)" || return 3
+    [ "$mode" = 'install' ]
 }
 
 join_by() {

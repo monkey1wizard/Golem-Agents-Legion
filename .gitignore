@@ -38,3 +38,10 @@ gal-results/
 # Generated provider plugin artifacts
 dist/
 cache/
+
+# Rust build output
+/target/
+**/target/
+
+# Release scratch
+/release-scratch/
