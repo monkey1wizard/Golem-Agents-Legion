@@ -10,17 +10,24 @@ is releasable or P2 (package-manager release lane) begins.
 
 ## M1 Blockers (must fix before M1 is releasable)
 
-### FU-01 (H-01) — Normal-mode packaged-source render is stubbed
+### FU-01 (H-01) — Normal-mode packaged-source render — RESOLVED (commit 47f04c4)
 
 **File**: `crates/gal-core/src/render.rs`, `GalMode::Normal` branch
 
-**Problem**: `render.rs` uses `std::env::current_dir()` as the GAL source location in
-normal mode. A `gal` binary installed via winget or Homebrew and run from an arbitrary
-directory will fail to locate GAL source files and cannot install (R-003/R-005).
+**Was**: `render.rs` used `std::env::current_dir()` as the GAL source location in normal
+mode. A `gal` binary installed via winget or Homebrew and run from an arbitrary directory
+would fail to locate GAL source files and could not install (R-003/R-005).
 
-**Required**: Resolve the installed/packaged source path at runtime — e.g., via a path
-relative to the binary location (`std::env::current_exe()`), an embedded asset bundle,
-or an install-time recorded path in config.
+**Fix (2026-06-03)**: Added `resolve_packaged_source_root()` resolving the source relative
+to `std::env::current_exe()`. Tries flat layout (binary + source side by side), FHS
+(`<prefix>/bin/gal` + `<prefix>/share/gal`), then a bounded ancestor walk-up. Each
+candidate is validated by `looks_like_source_root()` (requires `skills/`+`agent/`+
+`commands/`). Returns `SourceRootNotFound` rather than silently using the working
+directory. Layout logic extracted to `resolve_source_from_exe_dir()` for unit testing;
+5 new tests added, 122 pass, clippy clean.
+
+**Still open**: the concrete packaged layout (which of flat/FHS) is fixed by P2 artifact
+packaging (T-014). FU-02 below must run end-to-end once that layout is locked.
 
 **Discovered**: T-011/T-012/T-013 code review (2026-06-03), finding H-01.
 
