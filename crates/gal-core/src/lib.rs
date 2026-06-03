@@ -4,6 +4,7 @@
 //! exit-code classification, and path resolution.
 
 pub mod config;
+pub mod mode;
 
 /// Known subcommands of the `gal` CLI.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

@@ -24,8 +24,10 @@ use std::path::{Path, PathBuf};
 pub struct GalConfig {
     /// Developer mode flag. When `true`, GAL renders from the working tree
     /// specified by `galRoot`. When `false` or absent, GAL renders from
-    /// packaged source (normal mode).
-    pub dev_mode: bool,
+    /// packaged source (normal mode). `None` means the field was not present
+    /// in the JSON file, which enables legacy migration logic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dev_mode: Option<bool>,
 
     /// Path to the GAL repository working tree. Only used when `dev_mode` is
     /// `true`. If `dev_mode` is `true` but `gal_root` is not usable, GAL will
@@ -41,10 +43,10 @@ pub struct GalConfig {
 }
 
 impl Default for GalConfig {
-    /// Default configuration: normal mode (dev_mode = false), no galRoot.
+    /// Default configuration: normal mode (dev_mode = None), no galRoot.
     fn default() -> Self {
         GalConfig {
-            dev_mode: false,
+            dev_mode: None,
             gal_root: None,
             install_mode: None,
         }
@@ -94,7 +96,7 @@ impl GalConfig {
 
     /// Check if the configuration is in dev mode.
     pub fn is_dev_mode(&self) -> bool {
-        self.dev_mode
+        self.dev_mode.unwrap_or(false)
     }
 
     /// Get the galRoot path if set.
