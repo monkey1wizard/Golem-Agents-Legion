@@ -355,9 +355,9 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **P3 — state / plan / headless closeout（純 docs/state，隨時）**
 
-- [ ] T-018 — `.dev/state.md` closeout + follow-up log。
-- [ ] T-019 — `plugin-bin-migration.md` 邊界重訂。
-- [ ] T-020 — headless closeout（state reclassify + `Invoke-Executor`/`New-TaskSpec` 收斂）。
+- [x] T-018 — `.dev/state.md` closeout + follow-up log。*(45718a5)*
+- [x] T-019 — `plugin-bin-migration.md` 邊界重訂。*(no-change — 已在前次 session 正確完成；TP-026 PASS)*
+- [x] T-020 — headless closeout（state reclassify + `Invoke-Executor`/`New-TaskSpec` 收斂）。*(c02b1ef)*
 
 **P4 — release gate（最後，依 T-012 + P2）**
 
