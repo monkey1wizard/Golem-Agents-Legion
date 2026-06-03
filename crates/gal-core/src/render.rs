@@ -190,9 +190,11 @@ pub fn render_canonical_root(
                 })?
         }
         GalMode::Normal => {
-            // Normal mode: use installed/packaged location
-            // For now, use current directory (will be refined in later tasks)
-            std::env::current_dir()?
+            // Normal mode: resolve the packaged source relative to the installed
+            // binary, NOT the process working directory (FU-01). A package-manager
+            // install ships the GAL source alongside the executable; the user may
+            // invoke `gal` from any directory, so current_dir() is wrong.
+            resolve_packaged_source_root()?
         }
     };
 
@@ -232,6 +234,65 @@ pub fn render_canonical_root(
     atomic_swap(&temp_dir, &canonical_root)?;
 
     Ok(canonical_root)
+}
+
+/// Resolve the packaged source root for normal mode (FU-01).
+///
+/// In a package-manager install the GAL source travels with the binary, so we
+/// resolve it relative to the executable location — never the process working
+/// directory, which is wherever the user happened to invoke `gal` from.
+///
+/// Returns a clear error if no candidate layout next to the binary looks like a
+/// GAL source root; it does not silently fall back to the working directory.
+fn resolve_packaged_source_root() -> Result<PathBuf, RenderError> {
+    let exe = std::env::current_exe()?;
+    let exe_dir = exe.parent().ok_or_else(|| {
+        RenderError::InvalidSourceStructure("Executable path has no parent directory".to_string())
+    })?;
+    resolve_source_from_exe_dir(exe_dir)
+        .ok_or_else(|| RenderError::SourceRootNotFound(exe_dir.to_path_buf()))
+}
+
+/// Pure source resolution given the executable's directory. Extracted from
+/// [`resolve_packaged_source_root`] so the layout logic is unit-testable without
+/// depending on the real `current_exe()`.
+///
+/// Tries, in order: a flat layout (binary and source side by side), an
+/// FHS-style layout (`<prefix>/bin/gal` + `<prefix>/share/gal`), then a bounded
+/// walk up the ancestor chain (covers `bin/` nesting and dev `target/` layouts).
+fn resolve_source_from_exe_dir(exe_dir: &Path) -> Option<PathBuf> {
+    // 1. Flat layout: gal(.exe) and skills/agent/commands in the same directory.
+    if looks_like_source_root(exe_dir) {
+        return Some(exe_dir.to_path_buf());
+    }
+
+    // 2. FHS layout: <prefix>/bin/gal next to <prefix>/share/gal.
+    if let Some(prefix) = exe_dir.parent() {
+        let fhs = prefix.join("share").join("gal");
+        if looks_like_source_root(&fhs) {
+            return Some(fhs);
+        }
+    }
+
+    // 3. Walk up ancestors (binary inside a nested bin/, or dev target/ tree).
+    let mut cursor = exe_dir;
+    while let Some(parent) = cursor.parent() {
+        if looks_like_source_root(parent) {
+            return Some(parent.to_path_buf());
+        }
+        cursor = parent;
+    }
+
+    None
+}
+
+/// Does this path look like a GAL source root? Requires the three marker
+/// directories that the renderer scans: `skills/`, `agent/`, `commands/`.
+/// Mirrors the `galRoot` usable predicate used for dev-mode validation.
+fn looks_like_source_root(path: &Path) -> bool {
+    path.join("skills").is_dir()
+        && path.join("agent").is_dir()
+        && path.join("commands").is_dir()
 }
 
 /// Get the canonical plugin root path.
@@ -609,6 +670,72 @@ mod tests {
         assert!(root.to_string_lossy().contains(".gal"));
         assert!(root.to_string_lossy().contains("plugins"));
         assert!(root.to_string_lossy().ends_with("gal"));
+    }
+
+    /// Create the three marker directories that mark a GAL source root.
+    fn make_source_markers(root: &Path) {
+        fs::create_dir_all(root.join("skills")).unwrap();
+        fs::create_dir_all(root.join("agent")).unwrap();
+        fs::create_dir_all(root.join("commands")).unwrap();
+    }
+
+    #[test]
+    fn test_looks_like_source_root_requires_all_three() {
+        use tempfile::TempDir;
+        let dir = TempDir::new().unwrap();
+        // Only skills/ present → not a source root.
+        fs::create_dir_all(dir.path().join("skills")).unwrap();
+        assert!(!looks_like_source_root(dir.path()));
+        // All three present → source root.
+        make_source_markers(dir.path());
+        assert!(looks_like_source_root(dir.path()));
+    }
+
+    #[test]
+    fn test_resolve_source_flat_layout() {
+        use tempfile::TempDir;
+        // Binary sits in the same directory as skills/agent/commands.
+        let dir = TempDir::new().unwrap();
+        make_source_markers(dir.path());
+        let resolved = resolve_source_from_exe_dir(dir.path());
+        assert_eq!(resolved.as_deref(), Some(dir.path()));
+    }
+
+    #[test]
+    fn test_resolve_source_fhs_layout() {
+        use tempfile::TempDir;
+        // <prefix>/bin/gal + <prefix>/share/gal/{skills,agent,commands}
+        let prefix = TempDir::new().unwrap();
+        let bin_dir = prefix.path().join("bin");
+        fs::create_dir_all(&bin_dir).unwrap();
+        let share_gal = prefix.path().join("share").join("gal");
+        make_source_markers(&share_gal);
+
+        let resolved = resolve_source_from_exe_dir(&bin_dir);
+        assert_eq!(resolved.as_deref(), Some(share_gal.as_path()));
+    }
+
+    #[test]
+    fn test_resolve_source_walk_up() {
+        use tempfile::TempDir;
+        // Source markers at root; binary nested several levels down (dev target/).
+        let root = TempDir::new().unwrap();
+        make_source_markers(root.path());
+        let nested = root.path().join("target").join("debug");
+        fs::create_dir_all(&nested).unwrap();
+
+        let resolved = resolve_source_from_exe_dir(&nested);
+        assert_eq!(resolved.as_deref(), Some(root.path()));
+    }
+
+    #[test]
+    fn test_resolve_source_none_when_no_markers() {
+        use tempfile::TempDir;
+        // Empty tree with no source markers in it or (realistically) any ancestor.
+        let dir = TempDir::new().unwrap();
+        let exe_dir = dir.path().join("isolated").join("bin");
+        fs::create_dir_all(&exe_dir).unwrap();
+        assert!(resolve_source_from_exe_dir(&exe_dir).is_none());
     }
 
     #[test]
