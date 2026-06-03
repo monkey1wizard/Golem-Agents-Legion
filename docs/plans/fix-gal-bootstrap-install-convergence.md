@@ -307,8 +307,8 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **R1 — gal-core config + mode（依 T-001）**
 
-- [ ] T-004 — gal-core config model（serde 讀 `config.json`，Rust 擁有 config 真相，缺檔/key 明確預設）。
-- [ ] T-005 — gal-core mode resolution（port T-002 predicate + no-fallback + dead-path；== 凍結 PS oracle）。
+- [x] T-004 — gal-core config model（serde 讀 `config.json`，Rust 擁有 config 真相，缺檔/key 明確預設）。 *(b03e904)*
+- [x] T-005 — gal-core mode resolution（port T-002 predicate + no-fallback + dead-path；== 凍結 PS oracle）。 *(1172295)*
 
 **R2 — Rust canonical render（依 R1、T-003 oracle）**
 
