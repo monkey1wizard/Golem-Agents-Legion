@@ -11,6 +11,7 @@ pub mod ledger;
 pub mod mcp;
 pub mod mode;
 pub mod providers;
+pub mod release;
 pub mod render;
 
 /// Known subcommands of the `gal` CLI.
@@ -22,17 +23,21 @@ pub enum CommandKind {
     Uninstall,
     /// `gal commit-msg <msg-file>` — git commit-msg hook (T-013, optional/R5).
     CommitMsg,
+    /// `gal release [--dry-run] [--version <tag>] [--output-dir <dir>]`
+    /// — produce release artifacts (checksums.txt, artifact-manifest.json) (T-014).
+    Release,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 6] = [
+    pub const ALL: [CommandKind; 7] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Doctor,
         CommandKind::Uninstall,
         CommandKind::CommitMsg,
+        CommandKind::Release,
         CommandKind::DispatchScript,
     ];
 
@@ -44,6 +49,7 @@ impl CommandKind {
             CommandKind::Doctor => "doctor",
             CommandKind::Uninstall => "uninstall",
             CommandKind::CommitMsg => "commit-msg",
+            CommandKind::Release => "release",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -56,6 +62,7 @@ impl CommandKind {
             "doctor" => Some(CommandKind::Doctor),
             "uninstall" => Some(CommandKind::Uninstall),
             "commit-msg" => Some(CommandKind::CommitMsg),
+            "release" => Some(CommandKind::Release),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }

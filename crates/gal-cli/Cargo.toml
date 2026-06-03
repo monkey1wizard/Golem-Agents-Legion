@@ -2,6 +2,13 @@
 name = "gal-cli"
 version = "0.1.0"
 edition = "2021"
+description = "GAL — Golem Agents Legion bootstrap CLI"
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[[bin]]
+name = "gal"
+path = "src/main.rs"
 
 [dependencies]
 gal-core = { path = "../gal-core" }

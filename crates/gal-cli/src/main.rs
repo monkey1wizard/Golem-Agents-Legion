@@ -25,8 +25,11 @@ fn print_help() {
     }
     println!();
     println!("Options:");
-    println!("  doctor --dry-run        Read-only health check (no filesystem changes)");
-    println!("  doctor --release-gate   Include package-manager and marketplace checks");
+    println!("  doctor --dry-run                  Read-only health check (no filesystem changes)");
+    println!("  doctor --release-gate             Include package-manager and marketplace checks");
+    println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
+    println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
+    println!("  release --output-dir <path>       Output directory (default: release-artifacts/)");
 }
 
 /// Run `gal install` — Rust-native install flow (T-011).
@@ -114,6 +117,131 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
     }
 }
 
+/// Run `gal release [--dry-run] [--version <tag>] [--output-dir <dir>]` (T-014).
+///
+/// Produces `checksums.txt` and `artifact-manifest.json` in the output directory.
+/// Cosign signing is CI-only (OIDC); locally a placeholder is written instead.
+fn cmd_release(args: &[String]) -> ExitCode {
+    use gal_core::release::{run_release, AssetSpec, ReleaseOptions};
+    use std::path::PathBuf;
+
+    // Parse flags: --version <tag>, --output-dir <path>, --dry-run (implied always)
+    let mut version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    let mut output_dir = PathBuf::from("release-artifacts");
+    let mut extra_assets: Vec<PathBuf> = Vec::new();
+
+    let mut i = 1usize; // skip "release"
+    while i < args.len() {
+        match args[i].as_str() {
+            "--version" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    version = v.clone();
+                } else {
+                    eprintln!("gal release: --version requires a value");
+                    return ExitCode::Usage;
+                }
+            }
+            "--output-dir" => {
+                i += 1;
+                if let Some(d) = args.get(i) {
+                    output_dir = PathBuf::from(d);
+                } else {
+                    eprintln!("gal release: --output-dir requires a value");
+                    return ExitCode::Usage;
+                }
+            }
+            "--asset" => {
+                // Accept --asset <path> for CI invocation with pre-built binaries.
+                i += 1;
+                if let Some(p) = args.get(i) {
+                    extra_assets.push(PathBuf::from(p));
+                } else {
+                    eprintln!("gal release: --asset requires a path");
+                    return ExitCode::Usage;
+                }
+            }
+            "--dry-run" => {} // always dry-run locally; flag is accepted but implied
+            unknown => {
+                eprintln!("gal release: unknown option '{unknown}'");
+                return ExitCode::Usage;
+            }
+        }
+        i += 1;
+    }
+
+    // Build asset specs from explicit --asset paths (CI) or empty (local dev dry-run).
+    let assets: Vec<AssetSpec> = extra_assets
+        .into_iter()
+        .map(|path| {
+            // Infer platform/arch/kind from the canonical filename convention:
+            // gal-<version>-<platform>-<arch>[.exe|.zip|.tar.gz]
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let (platform, architecture, kind) = parse_asset_name(&name, &version);
+            AssetSpec {
+                name,
+                platform,
+                architecture,
+                kind,
+                contains: vec![],
+                path,
+            }
+        })
+        .collect();
+
+    match run_release(ReleaseOptions { version: version.clone(), output_dir: output_dir.clone(), assets }) {
+        Ok(result) => {
+            println!("gal release: artifacts written to {}", output_dir.display());
+            println!("  checksums.txt:        {}", result.checksums_path.display());
+            println!("  artifact-manifest.json: {}", result.manifest_path.display());
+            if result.cosign_skipped {
+                println!("  cosign: SKIPPED (no OIDC locally) — placeholder written");
+                println!("  To sign, run this in CI with OIDC token available.");
+            }
+            println!("  version: {}", result.manifest.version);
+            println!("  assets:  {}", result.manifest.assets.len());
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal release: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+/// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
+/// Falls back to ("unknown", "unknown", Binary) when the name does not match the
+/// convention — never panics.
+fn parse_asset_name(name: &str, _version: &str) -> (String, String, gal_core::release::ArtifactKind) {
+    use gal_core::release::ArtifactKind;
+
+    let kind = if name.ends_with(".zip") || name.ends_with(".tar.gz") {
+        ArtifactKind::Archive
+    } else {
+        ArtifactKind::Binary
+    };
+
+    // Strip known suffixes to expose the platform-arch portion.
+    let stem = name
+        .trim_end_matches(".tar.gz")
+        .trim_end_matches(".zip")
+        .trim_end_matches(".exe");
+
+    // Expected: gal-<version>-<platform>-<arch>
+    let parts: Vec<&str> = stem.split('-').collect();
+    if parts.len() >= 2 {
+        let arch = parts[parts.len() - 1].to_string();
+        let platform = parts[parts.len() - 2].to_string();
+        (platform, arch, kind)
+    } else {
+        ("unknown".to_string(), "unknown".to_string(), kind)
+    }
+}
+
 /// Run `gal commit-msg <msg-file>` — git commit-msg hook (T-013, R5 optional).
 fn cmd_commit_msg(args: &[String]) -> ExitCode {
     use gal_core::commit_msg::{process_commit_msg, CommitMsgResult};
@@ -191,6 +319,8 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::Doctor) => cmd_doctor(args),
         // T-013: wired commit-msg (R5, optional)
         Action::NotWired(CommandKind::CommitMsg) => cmd_commit_msg(args),
+        // T-014: wired release artifact generation
+        Action::NotWired(CommandKind::Release) => cmd_release(args),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());
