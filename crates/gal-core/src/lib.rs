@@ -1,11 +1,9 @@
 //! gal-core: shared primitives for the `gal` CLI.
 //!
-//! Phase 1 holds exactly three concerns: the command enum, exit-code
-//! classification, and path *location* resolution.
-//!
-//! It MUST NOT parse machine config. Scripts own config/path truth; the Rust
-//! entry only passes user intent and resolves where files live, never what they
-//! contain (see plan BUG-01 / R-004 / T-009).
+//! Provides configuration parsing (Rust owns config truth), command enum,
+//! exit-code classification, and path resolution.
+
+pub mod config;
 
 /// Known subcommands of the `gal` CLI.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
