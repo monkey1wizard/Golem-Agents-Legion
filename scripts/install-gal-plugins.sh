@@ -280,6 +280,24 @@ invoke_copilot_plugin_lifecycle() {
     fi
 
     echo '  [OK] Evaluating Copilot plugin lifecycle.'
+    
+    # T-003: Resolve mode and effective source root
+    local install_mode effective_repo_root
+    install_mode="$(get_configured_install_mode)" || exit 1
+    if [[ "$install_mode" == 'source' && -f "$GAL_CONFIG_FILE" ]]; then
+        effective_repo_root="$(run_python - "$GAL_CONFIG_FILE" "$REPO_ROOT" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding='utf-8') as f:
+    config = json.load(f)
+gal_root = config.get('galRoot', '').strip()
+print(gal_root if gal_root else sys.argv[2])
+PY
+)" || effective_repo_root="$REPO_ROOT"
+    else
+        effective_repo_root="$REPO_ROOT"
+    fi
+
     local canonical_root package_output_root manifest_path support_json
     canonical_root="$(get_gal_plugin_root gal)"
     package_output_root="$(get_copilot_plugin_package_output_root "$REPO_ROOT")"
@@ -288,7 +306,7 @@ invoke_copilot_plugin_lifecycle() {
 
     if [[ ! -d "$canonical_root" || ! -f "$manifest_path" ]]; then
         echo '  [WARN] Copilot canonical artifact was missing; rerendering shared plugin root before lifecycle projection.'
-        "$SCRIPT_DIR/build-core-plugin.sh" >/dev/null
+        "$SCRIPT_DIR/build-core-plugin.sh" --install-mode "$install_mode" >/dev/null
     fi
 
     if [[ ! -d "$canonical_root" ]]; then
@@ -579,6 +597,24 @@ invoke_codex_plugin_lifecycle() {
     fi
 
     echo '  [OK] Evaluating Codex plugin lifecycle.'
+    
+    # T-003: Resolve mode and effective source root
+    local install_mode effective_repo_root
+    install_mode="$(get_configured_install_mode)" || exit 1
+    if [[ "$install_mode" == 'source' && -f "$GAL_CONFIG_FILE" ]]; then
+        effective_repo_root="$(run_python - "$GAL_CONFIG_FILE" "$REPO_ROOT" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding='utf-8') as f:
+    config = json.load(f)
+gal_root = config.get('galRoot', '').strip()
+print(gal_root if gal_root else sys.argv[2])
+PY
+)" || effective_repo_root="$REPO_ROOT"
+    else
+        effective_repo_root="$REPO_ROOT"
+    fi
+
     local canonical_root package_output_root manifest_path support_json marketplace_root marketplace_name plugin_selector
     canonical_root="$(get_gal_plugin_root gal)"
     package_output_root="$(get_codex_plugin_package_output_root "$REPO_ROOT")"
@@ -590,7 +626,7 @@ invoke_codex_plugin_lifecycle() {
 
     if [[ ! -d "$canonical_root" || ! -f "$manifest_path" ]]; then
         echo '  [WARN] Codex canonical artifact was missing; rerendering shared plugin root before marketplace registration.'
-        "$SCRIPT_DIR/build-core-plugin.sh" >/dev/null
+        "$SCRIPT_DIR/build-core-plugin.sh" --install-mode "$install_mode" >/dev/null
     fi
 
     if [[ ! -d "$canonical_root" ]]; then

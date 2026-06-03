@@ -31,6 +31,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL=false
 FORCE=false
 RESOLVED_PLUGINS_FILE=''
+INSTALL_MODE=''
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --install) INSTALL=true ; shift ;;
@@ -45,9 +46,26 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --resolved-plugins-file=*) RESOLVED_PLUGINS_FILE="${1#*=}" ; shift ;;
+        --install-mode)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Missing value for --install-mode" >&2
+                exit 1
+            fi
+            INSTALL_MODE="$1"
+            shift
+            ;;
+        --install-mode=*) INSTALL_MODE="${1#*=}" ; shift ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
+
+# T-003: Default to 'source' for backward compatibility when mode not specified
+if [[ -z "$INSTALL_MODE" ]]; then
+    INSTALL_MODE='source'
+fi
+
+echo "Build-CorePlugin: mode=$INSTALL_MODE, sourceRoot=$REPO_ROOT"
 
 source "$SCRIPT_DIR/common/provider-plugin.sh"
 

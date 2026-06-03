@@ -109,6 +109,17 @@ function Invoke-UpdatePersonalization {
         }
     }
     else {
+        # T-003: Resolve mode and effective source root
+        $installModeValue = Get-ConfiguredInstallModeFromContext -Context $script:SetupContext
+        $effectiveRepoRoot = if ($installModeValue -eq 'source') {
+            $config = if (Test-Path $script:SetupContext.GalConfigFile) { Read-JsonOrderedMap $script:SetupContext.GalConfigFile } else { $null }
+            $galRoot = if ($config -and $config.Contains('galRoot')) { [string]$config['galRoot'] } else { (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
+            if (-not [string]::IsNullOrWhiteSpace($galRoot)) { $galRoot } else { (Resolve-Path (Join-Path $PSScriptRoot '..')).Path }
+        }
+        else {
+            (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+        }
+
         # Build and install the AGY plugin (includes rules/gal.md from instruction corpus)
         $buildScript = Join-Path $PSScriptRoot 'Build-CorePlugin.ps1'
         if (Test-Path $buildScript) {
@@ -116,7 +127,7 @@ function Invoke-UpdatePersonalization {
                 Write-Host '  [DRY RUN] Would run: Build-CorePlugin.ps1 -Force -Install'
             }
             else {
-                & $buildScript -Force -Install
+                & $buildScript -RepoRoot $effectiveRepoRoot -InstallMode $installModeValue -Force -Install
                 Write-Host '  [OK] AGY plugin built and installed (rules/gal.md from instruction corpus)'
             }
         }

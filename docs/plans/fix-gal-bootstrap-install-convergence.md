@@ -441,8 +441,8 @@ Pending.
 
 **P0 — runtime install truth + Rust init（先行，P0-R 與 P0 群可平行；P0-1/2/3 依 T-002）**
 
-- [ ] T-001 — [P0-R] 建立 Rust workspace（`Cargo.toml`/`crates/gal-cli`/`crates/gal-core`/`.gitignore`）：`--version` + 子命令 enum，僅引數解析 + exit-code 分類，未接線回 `not wired`；不 parse machine config；gal-core 僅 path/enum/exit-code 三型別。
-- [ ] T-002 — [P0-0] 模式解析改唯一權威 `devMode:true` + `galRoot` usable，棄用 `installMode` 決策；新增 `Test-GalRootUsable`（PS）+ Bash 對等（非空/目錄/可讀短逾時/含 `commands`+`agent`+`skills`）；migration 由舊 `installMode` 一次性推導 `devMode`。改 `Common.ps1`/`common.sh`/`install-gal-plugins.sh`。
+- [x] T-001 — [P0-R] 建立 Rust workspace（`Cargo.toml`/`crates/gal-cli`/`crates/gal-core`/`.gitignore`）：`--version` + 子命令 enum，僅引數解析 + exit-code 分類，未接線回 `not wired`；不 parse machine config；gal-core 僅 path/enum/exit-code 三型別。
+- [x] T-002 — [P0-0] 模式解析改唯一權威 `devMode:true` + `galRoot` usable，棄用 `installMode` 決策；新增 `Test-GalRootUsable`（PS）+ Bash 對等（非空/目錄/可讀短逾時/含 `commands`+`agent`+`skills`）；migration 由舊 `installMode` 一次性推導 `devMode`。改 `Common.ps1`/`common.sh`/`install-gal-plugins.sh`。
 - [ ] T-003 — [P0-1] `Build-CorePlugin.*` render-mode 分支：一般與 dev mode 都重渲染 canonical root（dev mode 以 T-002 解析的 `galRoot` 為來源）；render atomic（temp+swap）或冪等；移除只在 dev mode 處理 Claude 的缺口。
 - [ ] T-004 — [P0-2] `Build-ProviderPlugins.*`：所有 selected providers 都跑投影/刷新，不只 Claude。
 - [ ] T-005 — [P0-3] AGY CLI/IDE/GUI-config 三投影交易化：全成功或全回滾並寫 ledger；link-first，權限失敗 fallback host-copy 並記 ledger。改 `Build-CorePlugin.*`/`Install-GalPlugins.*` AGY 分支。

@@ -188,6 +188,17 @@ $tempResolvedPluginsFile = Join-Path $env:TEMP ("gal-resolved-plugins-{0}.json" 
 $resolution.ResolvedPlugins | ConvertTo-Json -Depth 20 | Set-Content -Path $tempResolvedPluginsFile -Encoding UTF8
 
 try {
+    # T-003: Resolve mode and effective source root before rendering
+    $installMode = Get-ConfiguredInstallModeFromContext -Context $script:SetupContext
+    $effectiveRepoRoot = if ($installMode -eq 'source') {
+        $config = if (Test-Path $ConfigPath) { Read-JsonOrderedMap $ConfigPath } else { $null }
+        $galRoot = if ($config -and $config.Contains('galRoot')) { [string]$config['galRoot'] } else { $RepoRoot }
+        if (-not [string]::IsNullOrWhiteSpace($galRoot)) { $galRoot } else { $RepoRoot }
+    }
+    else {
+        $RepoRoot
+    }
+
     if ($DryRun) {
         Write-Host '--- DRY RUN ---'
         Write-Host "Resolved plugins: $(($resolution.ResolvedPlugins | ForEach-Object { $_.pluginId }) -join ', ')"
@@ -205,7 +216,7 @@ try {
 
             if ($plan.Provider -eq 'agy') {
                 # AGY is the only lane that currently projects managed shortcuts during the build step.
-                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
+                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $effectiveRepoRoot -InstallMode $installMode -ResolvedPluginsFile $tempResolvedPluginsFile -Install -Force:$Force
                 $canonicalPluginRendered = $true
                 Set-ProviderShortcutTarget -Provider 'agy' -TargetPath $plan.InstallTarget
                 continue
@@ -213,7 +224,7 @@ try {
 
             if (-not $canonicalPluginRendered) {
                 # Render the shared canonical root once for any selected native-install lane.
-                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
+                & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $effectiveRepoRoot -InstallMode $installMode -ResolvedPluginsFile $tempResolvedPluginsFile -Force:$Force
                 $canonicalPluginRendered = $true
             }
         }

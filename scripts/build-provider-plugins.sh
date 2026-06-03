@@ -71,7 +71,22 @@ if [[ "$DRY_RUN" == 'true' ]]; then
     exit 0
 fi
 
-core_args=(--resolved-plugins-file "$tmp_resolved_plugins_file")
+# T-003: Resolve mode and effective source root
+install_mode="$(get_configured_install_mode)" || exit 1
+effective_repo_root="$REPO_ROOT"
+if [[ "$install_mode" == 'source' && -f "$GAL_CONFIG_FILE" ]]; then
+    effective_repo_root="$(run_python - "$GAL_CONFIG_FILE" "$REPO_ROOT" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding='utf-8') as f:
+    config = json.load(f)
+gal_root = config.get('galRoot', '').strip()
+print(gal_root if gal_root else sys.argv[2])
+PY
+)" || effective_repo_root="$REPO_ROOT"
+fi
+
+core_args=(--resolved-plugins-file "$tmp_resolved_plugins_file" --install-mode "$install_mode")
 if [[ "$FORCE" == 'true' ]]; then
     core_args+=(--force)
 fi

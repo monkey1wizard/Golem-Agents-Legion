@@ -37,7 +37,8 @@ param(
     [string]$RepoRoot,
     [string]$ResolvedPluginsFile,
     [switch]$Install,
-    [switch]$Force
+    [switch]$Force,
+    [string]$InstallMode
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,6 +46,18 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
+
+# T-003: Both normal and dev mode re-render canonical root.
+# Dev mode sources from the resolved galRoot (passed as $RepoRoot when in dev mode).
+# Normal mode sources from the installed/packaged location.
+# When InstallMode is not specified, default to 'source' for backward compatibility
+# (caller should pass this explicitly from config).
+if ([string]::IsNullOrWhiteSpace($InstallMode)) {
+    $InstallMode = 'source'
+}
+
+$sourceRoot = $RepoRoot
+Write-Host "Build-CorePlugin: mode=$InstallMode, sourceRoot=$sourceRoot" -ForegroundColor Cyan
 
 . (Join-Path (Join-Path $PSScriptRoot 'common') 'ProviderPlugin.ps1')
 . (Join-Path (Join-Path $PSScriptRoot 'common') 'Common.ps1')

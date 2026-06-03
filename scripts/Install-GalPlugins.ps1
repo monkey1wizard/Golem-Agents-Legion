@@ -751,6 +751,17 @@ function Invoke-CopilotPluginLifecycle {
         return
     }
 
+    # T-003: Resolve mode and effective source root for Build-CorePlugin
+    $installMode = Get-ConfiguredInstallModeFromContext -Context $Context
+    $effectiveRepoRoot = if ($installMode -eq 'source') {
+        $config = if (Test-Path $Context.GalConfigFile) { Read-JsonOrderedMap $Context.GalConfigFile } else { $null }
+        $galRoot = if ($config -and $config.Contains('galRoot')) { [string]$config['galRoot'] } else { $RepoRoot }
+        if (-not [string]::IsNullOrWhiteSpace($galRoot)) { $galRoot } else { $RepoRoot }
+    }
+    else {
+        $RepoRoot
+    }
+
     Write-Host '  [OK] Evaluating Copilot plugin lifecycle.'
     $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
     $packageOutputRoot = Get-CopilotPluginPackageOutputRoot -RepoRoot $RepoRoot
@@ -760,7 +771,7 @@ function Invoke-CopilotPluginLifecycle {
 
     if (-not (Test-Path $canonicalRoot) -or -not (Test-Path $manifestPath)) {
         Write-Host '  [WARN] Copilot canonical artifact was missing; rerendering shared plugin root before lifecycle projection.' -ForegroundColor Yellow
-        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -Force:$Force | Out-Null
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $effectiveRepoRoot -InstallMode $installMode -Force:$Force | Out-Null
     }
 
     $state = [ordered]@{
@@ -851,6 +862,17 @@ function Invoke-CodexPluginLifecycle {
         return
     }
 
+    # T-003: Resolve mode and effective source root for Build-CorePlugin
+    $installMode = Get-ConfiguredInstallModeFromContext -Context $Context
+    $effectiveRepoRoot = if ($installMode -eq 'source') {
+        $config = if (Test-Path $Context.GalConfigFile) { Read-JsonOrderedMap $Context.GalConfigFile } else { $null }
+        $galRoot = if ($config -and $config.Contains('galRoot')) { [string]$config['galRoot'] } else { $RepoRoot }
+        if (-not [string]::IsNullOrWhiteSpace($galRoot)) { $galRoot } else { $RepoRoot }
+    }
+    else {
+        $RepoRoot
+    }
+
     Write-Host '  [OK] Evaluating Codex plugin lifecycle.'
     $canonicalRoot = Get-GalPluginRoot -PluginId 'gal'
     $packageOutputRoot = Get-CodexPluginPackageOutputRoot -RepoRoot $RepoRoot
@@ -863,7 +885,7 @@ function Invoke-CodexPluginLifecycle {
 
     if (-not (Test-Path $canonicalRoot) -or -not (Test-Path $manifestPath)) {
         Write-Host '  [WARN] Codex canonical artifact was missing; rerendering shared plugin root before marketplace registration.' -ForegroundColor Yellow
-        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $RepoRoot -Force:$Force | Out-Null
+        & (Join-Path $PSScriptRoot 'Build-CorePlugin.ps1') -RepoRoot $effectiveRepoRoot -InstallMode $installMode -Force:$Force | Out-Null
     }
 
     $marketplaceManifestPath = Ensure-CodexMarketplaceManifest -Context $Context
