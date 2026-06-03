@@ -4,9 +4,11 @@
 //! into provider-specific configuration formats:
 //! - Claude Desktop: stdio/command format
 //! - Copilot CLI: local/http transport format
+//! - AGY (Antigravity): three-surface projection (CLI/IDE/GUI-config)
 //!
-//! Corresponds to T-009 of the bootstrap convergence plan (M1 phase).
+//! Corresponds to T-009 (MCP) and T-010 (AGY) of the bootstrap convergence plan (M1 phase).
 
+pub mod agy;
 pub mod claude;
 pub mod copilot;
 

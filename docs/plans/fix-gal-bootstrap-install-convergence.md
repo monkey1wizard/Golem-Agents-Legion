@@ -277,7 +277,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 | TP-010 | unit | MCP core：變數/placeholder 解析正確；未解析 secret 不寫入 | T-008 |
 | TP-011 | integration | MCP safe-merge：保留既有 user entry、只覆寫 GAL-managed entry、重跑 idempotent；plugin root 不完整時不寫半殘 `mcp_config.json` | T-008 |
 | TP-012 | parity | MCP per-provider serializer：Claude Desktop + Copilot CLI 輸出 == 凍結 oracle（逐格式；AGY/Codex/OpenCode 列 M2） | T-009 |
-| TP-013 | intent | Rust AGY 三 surface 存在含必要檔（best-effort；交易/ledger 屬 M2，不在此驗） | T-010 |
+| TP-013 | intent | Rust AGY 三 surface 存在含必要檔（best-effort；交易/ledger 屬 M2，不在此驗）✓ 通過：`cargo test --ignored test_apply_creates_all_surfaces` + `cargo run --example verify_agy_surfaces` | T-010 |
 | TP-014 | parity | 隔離 home：`gal install`/`update` 對 Claude+Copilot == oracle；改 source marker 重跑 → 傳播到 canonical + provider surfaces | T-011 |
 | TP-015 | integration | 入口切換後 `gal` 走 Rust binary；凍結 scripts 不再被 entry 呼叫；過渡期單一 entry | T-011 |
 | TP-016 | manual | `gal doctor --dry-run` 不改檔 | T-012 |
@@ -319,7 +319,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 - [x] T-007 — Rust Claude skills-dir + Copilot installed-plugin projection，逐檔 == oracle。 *(8f536a4)*
 - [x] T-008 — Rust MCP **core + safe-merge**（provider-agnostic）：manifest model、變數/placeholder 解析、managed-vs-user 合併（只動 GAL-managed entry、保留 user entry、idempotent）、未解析 secret 不寫入、plugin root 未完整前不寫半殘 `mcp_config.json`。（拆自 ~78KB `Update-Mcp.*`，BUG-D。） *(d58bb5f)*
 - [ ] T-009 — Rust MCP **per-provider serializers**：各 provider 不同 config 格式（Claude Desktop / Copilot CLI / AGY / Codex / OpenCode；含 TOML）。**M1 先做 Claude + Copilot 並逐檔 == oracle；AGY/Codex/OpenCode 列 M2。** xmachine binding（legacy skills store）不在此 scope。
-- [ ] T-010 — Rust AGY 三 surface **best-effort**（低優先；交易/ledger 延後 M2）。
+- [x] T-010 — Rust AGY 三 surface **best-effort**（低優先；交易/ledger 延後 M2）。TP-013 通過：CLI/IDE junctions + GUI config TOML 生成可用。 *(795ee36)*
 
 **R4 — Rust 入口接管 + doctor + 退休 scripts（= M1，依 R3 Claude/Copilot）**
 
