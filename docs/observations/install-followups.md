@@ -33,16 +33,24 @@ packaging (T-014). FU-02 below must run end-to-end once that layout is locked.
 
 ---
 
-### FU-02 (M-01) — TP-014 / TP-015 oracle-parity tests never executed
+### FU-02 (M-01) — TP-014 / TP-015 oracle-parity — PARTIALLY ADDRESSED (2026-06-03)
 
 **Tests**: TP-014 (isolated-home `gal install` Claude+Copilot == frozen oracle),
 TP-015 (entry-switch: `gal` uses Rust binary, frozen scripts not invoked)
 
-**Problem**: These are the load-bearing acceptance tests for "Claude/Copilot native
-parity" (M1 milestone). Neither has been run. TP-014 is also blocked on FU-01 being
-fixed first (the stub makes it fail trivially in a non-repo directory).
+**Done (2026-06-03)**: Render-surface smoke via `crates/gal-core/examples/fu02_render_smoke.rs`
+— renders the normal-mode canonical root into an isolated home (no ledger/AGY, no
+real-home pollution). PASS: 71 files, 29 skills (incl. doc-sync), 13 agents (incl.
+golem-dockeeper), Claude + Copilot manifests + `.mcp.json` present; 7/7 assertions.
+Human-inspected, temp dir deleted. Confirms FU-01 works in practice and install
+produces a correct canonical root in a clean home.
 
-**Required**: Run both in an isolated home after FU-01 is implemented.
+**Still open**:
+1. Byte-level oracle parity vs the frozen `Install-GalPlugins` PowerShell output —
+   needs the frozen script run side-by-side and the P2 artifact layout locked.
+2. TP-015 entry-switch end-to-end in an installed environment.
+
+Do NOT claim full Claude/Copilot byte-parity until (1) and (2) run.
 
 ---
 
