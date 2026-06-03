@@ -312,7 +312,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **R2 — Rust canonical render（依 R1、T-003 oracle）**
 
-- [ ] T-006 — Rust render atomic temp+swap；目錄掃描 agents/skills；Claude/Copilot 結構 == oracle（parity），dockeeper/doc-sync 以意圖斷言；kill-mid-render 收斂。
+- [x] T-006 — Rust render atomic temp+swap；目錄掃描 agents/skills；Claude/Copilot 結構 == oracle（parity），dockeeper/doc-sync 以意圖斷言；kill-mid-render 收斂。 *(a6891e0)*
 
 **R3 — Rust provider projection（依 R2）**
 
