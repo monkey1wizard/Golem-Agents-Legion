@@ -6,6 +6,7 @@
 pub mod config;
 pub mod mcp;
 pub mod mode;
+pub mod providers;
 pub mod render;
 
 /// Known subcommands of the `gal` CLI.
