@@ -78,9 +78,7 @@ fn convert_to_claude_entry(
 ) -> ClaudeDesktopServerEntry {
     let command = server_config.command.as_ref().unwrap().clone();
     let args = server_config
-        .args
-        .as_ref()
-        .map(|a| a.clone())
+        .args.clone()
         .unwrap_or_default();
 
     // Check if we need PowerShell wrapper (Windows only, and env vars present)

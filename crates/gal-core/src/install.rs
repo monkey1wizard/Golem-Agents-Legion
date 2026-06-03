@@ -18,7 +18,7 @@ use crate::mode::{resolve_mode, GalMode, ModeError};
 use crate::providers::agy::AgyProjection;
 use crate::render::{render_canonical_root, RenderError};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Errors that can occur during install/update/uninstall.
 #[derive(Debug)]
@@ -161,7 +161,7 @@ pub fn run_uninstall() -> Result<(), InstallError> {
 
 fn write_ledger_entry(
     op: &str,
-    canonical_root: &PathBuf,
+    canonical_root: &Path,
     providers: &[String],
     mode: &str,
     warnings: &mut Vec<String>,
@@ -170,7 +170,7 @@ fn write_ledger_entry(
         let mut ledger = Ledger::load(&ledger_p);
         ledger.record(LedgerEntry {
             operation: op.to_string(),
-            canonical_root: canonical_root.clone(),
+            canonical_root: canonical_root.to_path_buf(),
             timestamp: now_timestamp(),
             providers: providers.to_vec(),
             mode: mode.to_string(),

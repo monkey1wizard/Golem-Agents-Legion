@@ -119,7 +119,7 @@ fn cmd_commit_msg(args: &[String]) -> ExitCode {
     use gal_core::commit_msg::{process_commit_msg, CommitMsgResult};
 
     // The first argument after "commit-msg" is the message file path.
-    let msg_path_str = match args.iter().skip(1).next() {
+    let msg_path_str = match args.get(1) {
         Some(p) => p.clone(),
         None => {
             eprintln!("gal commit-msg: missing message file argument");

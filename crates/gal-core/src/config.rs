@@ -77,10 +77,7 @@ impl GalConfig {
     /// be read, or contains invalid JSON.
     pub fn load_from_path(path: &Path) -> Self {
         match fs::read_to_string(path) {
-            Ok(content) => match serde_json::from_str::<GalConfig>(&content) {
-                Ok(config) => config,
-                Err(_) => GalConfig::default(),
-            },
+            Ok(content) => serde_json::from_str::<GalConfig>(&content).unwrap_or_default(),
             Err(_) => GalConfig::default(),
         }
     }

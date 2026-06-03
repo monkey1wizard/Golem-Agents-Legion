@@ -70,10 +70,7 @@ fn is_readable(path: &Path) -> bool {
             let path = path.to_owned();
             let handle = thread::spawn(move || fs::read_dir(&path).is_ok());
 
-            match handle.join() {
-                Ok(result) => result,
-                Err(_) => false,
-            }
+            handle.join().unwrap_or_default()
         } else {
             // Local path: check inline
             fs::read_dir(path).is_ok()
@@ -375,7 +372,6 @@ mod tests {
             dev_mode: None,
             install_mode: Some("source".to_string()),
             gal_root: Some(gal_root),
-            ..Default::default()
         };
 
         // Should treat as devMode=true and check galRoot
@@ -418,7 +414,6 @@ mod tests {
             dev_mode: Some(true),
             install_mode: Some("install".to_string()), // Would suggest Normal
             gal_root: Some(gal_root),
-            ..Default::default()
         };
 
         // devMode takes precedence

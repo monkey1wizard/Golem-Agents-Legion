@@ -97,13 +97,13 @@ impl AgyProjection {
         })?;
         
         // Remove existing link/junction if present
-        if self.cli_target.exists() {
-            if self.cli_target.is_dir() {
+        if self.cli_target.exists()
+            && self.cli_target.is_dir() {
                 #[cfg(windows)]
                 {
                     // On Windows, remove junction using rmdir
                     std::process::Command::new("cmd")
-                        .args(&["/C", "rmdir", self.cli_target.to_str().unwrap()])
+                        .args(["/C", "rmdir", self.cli_target.to_str().unwrap()])
                         .output()
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing CLI junction: {}", e)))?;
                 }
@@ -113,7 +113,6 @@ impl AgyProjection {
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing CLI symlink: {}", e)))?;
                 }
             }
-        }
         
         // Create junction/symlink
         self.create_link(&self.canonical_root, &self.cli_target, "CLI")?;
@@ -132,13 +131,13 @@ impl AgyProjection {
         })?;
         
         // Remove existing link/junction if present
-        if self.ide_target.exists() {
-            if self.ide_target.is_dir() {
+        if self.ide_target.exists()
+            && self.ide_target.is_dir() {
                 #[cfg(windows)]
                 {
                     // On Windows, remove junction using rmdir
                     std::process::Command::new("cmd")
-                        .args(&["/C", "rmdir", self.ide_target.to_str().unwrap()])
+                        .args(["/C", "rmdir", self.ide_target.to_str().unwrap()])
                         .output()
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing IDE junction: {}", e)))?;
                 }
@@ -148,7 +147,6 @@ impl AgyProjection {
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing IDE symlink: {}", e)))?;
                 }
             }
-        }
         
         // Create junction/symlink
         self.create_link(&self.canonical_root, &self.ide_target, "IDE")?;
@@ -199,7 +197,7 @@ skill_path = "{}"
                 );
                 
                 fs::write(&toml_path, toml_content)
-                    .map_err(|e| AgyError::Io(e))?;
+                    .map_err(AgyError::Io)?;
             }
         }
         
@@ -211,7 +209,7 @@ skill_path = "{}"
     fn create_link(&self, target: &Path, link: &Path, label: &str) -> Result<(), AgyError> {
         // On Windows, create a directory junction using mklink /J
         let output = std::process::Command::new("cmd")
-            .args(&[
+            .args([
                 "/C",
                 "mklink",
                 "/J",
@@ -455,7 +453,7 @@ mod tests {
         let tomls: Vec<_> = fs::read_dir(&gui_config_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "toml"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
             .collect();
         assert!(tomls.len() >= 2, "Should have at least 2 TOML files");
         

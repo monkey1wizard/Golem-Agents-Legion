@@ -30,102 +30,50 @@ pub trait McpProviderConfig {
 /// Returns true if the server config contains unresolved placeholder secrets
 /// (e.g., ${API_KEY}, ${SECRET}, ${TOKEN}, ${PASSWORD})
 pub fn has_unresolved_secrets(server: &McpServer) -> bool {
-    let secret_pattern = regex::Regex::new(r"^\$\{[A-Z0-9_]+\}$").unwrap();
+    // Compile the capturing pattern once (not per field/iteration).
+    static PLACEHOLDER: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let placeholder =
+        PLACEHOLDER.get_or_init(|| regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$").unwrap());
     let secret_keywords = ["KEY", "SECRET", "TOKEN", "PASSWORD"];
 
-    // Check command
+    // Returns true if `value` is a bare `${VAR}` placeholder whose name looks
+    // like a secret (contains KEY/SECRET/TOKEN/PASSWORD).
+    let is_unresolved_secret = |value: &str| -> bool {
+        if let Some(captures) = placeholder.captures(value) {
+            let var_name = &captures[1];
+            return secret_keywords
+                .iter()
+                .any(|&keyword| var_name.contains(keyword));
+        }
+        false
+    };
+
+    // Scalar fields.
     if let Some(ref cmd) = server.command {
-        if secret_pattern.is_match(cmd) {
-            if let Some(captures) = regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$")
-                .unwrap()
-                .captures(cmd)
-            {
-                let var_name = &captures[1];
-                if secret_keywords
-                    .iter()
-                    .any(|&keyword| var_name.contains(keyword))
-                {
-                    return true;
-                }
-            }
+        if is_unresolved_secret(cmd) {
+            return true;
         }
     }
-
-    // Check URL
     if let Some(ref url) = server.url {
-        if secret_pattern.is_match(url) {
-            if let Some(captures) = regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$")
-                .unwrap()
-                .captures(url)
-            {
-                let var_name = &captures[1];
-                if secret_keywords
-                    .iter()
-                    .any(|&keyword| var_name.contains(keyword))
-                {
-                    return true;
-                }
-            }
+        if is_unresolved_secret(url) {
+            return true;
         }
     }
 
-    // Check args
+    // Collection fields.
     if let Some(ref args) = server.args {
-        for arg in args {
-            if secret_pattern.is_match(arg) {
-                if let Some(captures) = regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$")
-                    .unwrap()
-                    .captures(arg)
-                {
-                    let var_name = &captures[1];
-                    if secret_keywords
-                        .iter()
-                        .any(|&keyword| var_name.contains(keyword))
-                    {
-                        return true;
-                    }
-                }
-            }
+        if args.iter().any(|a| is_unresolved_secret(a)) {
+            return true;
         }
     }
-
-    // Check env values
     if let Some(ref env) = server.env {
-        for value in env.values() {
-            if secret_pattern.is_match(value) {
-                if let Some(captures) = regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$")
-                    .unwrap()
-                    .captures(value)
-                {
-                    let var_name = &captures[1];
-                    if secret_keywords
-                        .iter()
-                        .any(|&keyword| var_name.contains(keyword))
-                    {
-                        return true;
-                    }
-                }
-            }
+        if env.values().any(|v| is_unresolved_secret(v)) {
+            return true;
         }
     }
-
-    // Check headers values
     if let Some(ref headers) = server.headers {
-        for value in headers.values() {
-            if secret_pattern.is_match(value) {
-                if let Some(captures) = regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$")
-                    .unwrap()
-                    .captures(value)
-                {
-                    let var_name = &captures[1];
-                    if secret_keywords
-                        .iter()
-                        .any(|&keyword| var_name.contains(keyword))
-                    {
-                        return true;
-                    }
-                }
-            }
+        if headers.values().any(|v| is_unresolved_secret(v)) {
+            return true;
         }
     }
 
