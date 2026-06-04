@@ -201,7 +201,7 @@
 - [x] T-004 — CLI 無頭模型旗標 spike *(5552d0f0e805752d3e23a6e11e62d60fc051364c)* — claude: `--model`; opencode: `-m provider/model`; agy: env-unverifiable：實測確認 claude / opencode / agy 的無頭模型旗標語法（claude `--model`、opencode `--model`、agy 待確認），記錄為 T-005 依據；不寫產品碼。不可用者標環境不可驗證。
 - [x] T-005 — 修改 `scripts/executors/claude.ps1`、`opencode.ps1`、`agy.ps1` *(f25e3e6de6db2ea30d8233beab1f13b42097ae7c)*：新增 `-Model` 參數，依 T-004 語法帶入無頭模型旗標；未指定時用 CLI 預設；可用性檢查與逾時邏輯不變。
 - [x] T-006 — 修改 `scripts/executors/Invoke-Executor.ps1` 與 `scripts/gal.ps1` *(2be03159c009e779666276e5741e4ee04828d06b)*：OFFLOAD 路徑把 `Read-ExecutorRouting` 取得的 model 透傳給轉接器（`-Model`）；`.dev/executor-logs/` header 記錄實際傳入 model；保持 OFFLOAD 與降級語義不變。
-- [ ] T-007 — 測試前置：依 TC 案例設定 `~/.gal/config/executor-routing.json` 的 `role → {executor, model}`，確認 `-WorkDir` 帶入與目前相同工作目錄。
-- [ ] T-008 — 執行 TC-01~12 互派矩陣，逐格檢查終端輸出、`.dev/executor-logs/` 終態分類、執行 prompt `Dispatch:` 標記，記錄 Offload / Fallback 實際走法；以矩陣結果回答 OQ-003（Orchestrator 能力）。
+- [x] T-007 — 測試前置 *(完成於 TC-05 執行前)*：`~/.gal/config/executor-routing.json` 按 TC 案例設定；`-WorkDir C:\Code\Golem-Agents-Legion` 補入 OFFLOAD ACTION（hotfix commit）；`opencode.json` 加 `default_agent: build` 覆蓋 global plan-mode 限制；working model for opencode = `opencode/minimax-m3-free`。
+- [ ] T-008 — 執行 TC-01~12 互派矩陣（進行中）：TC-05（Claude→OpenCode）PASS。其餘 11 格待執行。
 
 > **Deferred**: Bash 執行器（`invoke-executor.sh`、`claude.sh`、`opencode.sh`、`agy.sh` 對應 `-Model`、`gal.sh` 透傳）延後至有 Bash 主機可驗證時（沿用 `headless-cli-pipeline.md` OE-01）。本計畫 Bash 僅交付 T-003 的播種對等。
