@@ -195,12 +195,12 @@
 
 ## Tasks
 
-- [ ] T-001 — 建立 `executor-routing.example.json`（repo root，取代 `executor-routing.example.ndjson`）：**鎖定 role-keyed map schema**（`{ "CODER": { "executor": "claude", "model": "haiku-4.5" }, ... }`），`model` 可選；含分工註解（此檔為 dispatch + model 單一來源，`model-roles.md` 僅人類參考）；範例不含 codex/copilot 的 executor model。
-- [ ] T-002 — 修改 `scripts/common/Common.ps1` 的 `Read-ExecutorRouting`：由逐行 NDJSON try-catch 改為整檔 JSON 解析，回傳 `role → @{ executor; model }`；缺檔回 `$null`；malformed JSON 回 `$null` 不致命；`model` 缺項回 `$null`。
-- [ ] T-003 — 修改 `scripts/Update-Personalization.ps1` 與 `scripts/update-personalization.sh`：播種目標由 `executor-routing.ndjson` 改為 `executor-routing.json`；偵測既有 `~/.gal/config/executor-routing.ndjson` 存在但 `.json` 缺檔時給明確遷移提示或一次性轉換；**不動**既有 `config.local.env` 播種與 git smudge/clean `trackedFilterFiles` 名單。
-- [ ] T-004 — CLI 無頭模型旗標 spike：實測確認 claude / opencode / agy 的無頭模型旗標語法（claude `--model`、opencode `--model`、agy 待確認），記錄為 T-005 依據；不寫產品碼。不可用者標環境不可驗證。
-- [ ] T-005 — 修改 `scripts/executors/claude.ps1`、`opencode.ps1`、`agy.ps1`：新增 `-Model` 參數，依 T-004 語法帶入無頭模型旗標；未指定時用 CLI 預設；可用性檢查與逾時邏輯不變。
-- [ ] T-006 — 修改 `scripts/executors/Invoke-Executor.ps1` 與 `scripts/gal.ps1`：OFFLOAD 路徑把 `Read-ExecutorRouting` 取得的 model 透傳給轉接器（`-Model`）；`.dev/executor-logs/` header 記錄實際傳入 model；保持 OFFLOAD 與降級語義不變。
+- [x] T-001 — 建立 `executor-routing.example.json` *(4b57439aa1d1050fd206f3ad7987185abe7d71e3)*（repo root，取代 `executor-routing.example.ndjson`）：**鎖定 role-keyed map schema**（`{ "CODER": { "executor": "claude", "model": "haiku-4.5" }, ... }`），`model` 可選；含分工註解（此檔為 dispatch + model 單一來源，`model-roles.md` 僅人類參考）；範例不含 codex/copilot 的 executor model。
+- [x] T-002 — 修改 `scripts/common/Common.ps1` 的 `Read-ExecutorRouting` *(b4a7102bce55bdfd32297eeb8242c9e8566b2f0b)*：由逐行 NDJSON try-catch 改為整檔 JSON 解析，回傳 `role → @{ executor; model }`；缺檔回 `$null`；malformed JSON 回 `$null` 不致命；`model` 缺項回 `$null`。
+- [x] T-003 — 修改 `scripts/Update-Personalization.ps1` 與 `scripts/update-personalization.sh` *(6ea5055a6e5dd179e660b63b5b1ba2d12960e9a9)*：播種目標由 `executor-routing.ndjson` 改為 `executor-routing.json`；偵測既有 `~/.gal/config/executor-routing.ndjson` 存在但 `.json` 缺檔時給明確遷移提示或一次性轉換；**不動**既有 `config.local.env` 播種與 git smudge/clean `trackedFilterFiles` 名單。
+- [x] T-004 — CLI 無頭模型旗標 spike *(5552d0f0e805752d3e23a6e11e62d60fc051364c)* — claude: `--model`; opencode: `-m provider/model`; agy: env-unverifiable：實測確認 claude / opencode / agy 的無頭模型旗標語法（claude `--model`、opencode `--model`、agy 待確認），記錄為 T-005 依據；不寫產品碼。不可用者標環境不可驗證。
+- [x] T-005 — 修改 `scripts/executors/claude.ps1`、`opencode.ps1`、`agy.ps1` *(f25e3e6de6db2ea30d8233beab1f13b42097ae7c)*：新增 `-Model` 參數，依 T-004 語法帶入無頭模型旗標；未指定時用 CLI 預設；可用性檢查與逾時邏輯不變。
+- [x] T-006 — 修改 `scripts/executors/Invoke-Executor.ps1` 與 `scripts/gal.ps1` *(2be03159c009e779666276e5741e4ee04828d06b)*：OFFLOAD 路徑把 `Read-ExecutorRouting` 取得的 model 透傳給轉接器（`-Model`）；`.dev/executor-logs/` header 記錄實際傳入 model；保持 OFFLOAD 與降級語義不變。
 - [ ] T-007 — 測試前置：依 TC 案例設定 `~/.gal/config/executor-routing.json` 的 `role → {executor, model}`，確認 `-WorkDir` 帶入與目前相同工作目錄。
 - [ ] T-008 — 執行 TC-01~12 互派矩陣，逐格檢查終端輸出、`.dev/executor-logs/` 終態分類、執行 prompt `Dispatch:` 標記，記錄 Offload / Fallback 實際走法；以矩陣結果回答 OQ-003（Orchestrator 能力）。
 
