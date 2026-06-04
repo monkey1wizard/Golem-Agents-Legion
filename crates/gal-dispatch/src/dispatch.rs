@@ -86,6 +86,7 @@ pub struct SpawnConfig {
     /// Arguments passed to the executor *before* stdin spec injection.
     pub executor_args: Vec<String>,
     /// Task spec written to the executor's stdin.
+    /// For adapters that embed the spec in args (e.g. copilot `-p`), this should be empty.
     pub spec: String,
     /// Working directory for the spawned process.
     pub workdir: PathBuf,
@@ -100,6 +101,13 @@ pub struct SpawnConfig {
     /// Directory where executor logs are written.
     /// Defaults to `<workdir>/.dev/executor-logs/` when constructed via [`SpawnConfig::default_log_dir`].
     pub log_dir: PathBuf,
+    /// Path of the file the executor is expected to write back to (T-006).
+    ///
+    /// When `Some`, terminal state is only `Completed` if this file exists and is
+    /// non-empty after a successful exit (exit 0). Otherwise it is downgraded to
+    /// `NoReceipt`. When `None`, receipt verification is skipped and a successful
+    /// exit is always recorded as `Completed`.
+    pub receipt_path: Option<PathBuf>,
 }
 
 impl SpawnConfig {
@@ -208,13 +216,23 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
     let (terminal_state, exit_code, stdout_str, stderr_str) = match rx.recv_timeout(timeout) {
         Ok(Ok(output)) => {
             let code = output.status.code();
+            let out = String::from_utf8_lossy(&output.stdout).into_owned();
+            let err = String::from_utf8_lossy(&output.stderr).into_owned();
             let state = if output.status.success() {
-                TerminalState::Completed // T-006 may downgrade to NoReceipt
+                // T-006: verify write-back. Downgrade to NoReceipt if file absent/empty.
+                match &cfg.receipt_path {
+                    None => TerminalState::Completed,
+                    Some(path) => {
+                        if verify_receipt(path) {
+                            TerminalState::Completed
+                        } else {
+                            TerminalState::NoReceipt
+                        }
+                    }
+                }
             } else {
                 TerminalState::DisconnectedPartial
             };
-            let out = String::from_utf8_lossy(&output.stdout).into_owned();
-            let err = String::from_utf8_lossy(&output.stderr).into_owned();
             (state, code, out, err)
         }
         Ok(Err(e)) => {
@@ -249,6 +267,16 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+/// Verify that the receipt file exists and is non-empty (T-006).
+///
+/// Returns `true` only when the file exists and has at least one byte. An empty
+/// file or a missing file both count as "no receipt".
+pub fn verify_receipt(path: &Path) -> bool {
+    std::fs::metadata(path)
+        .map(|m| m.len() > 0)
+        .unwrap_or(false)
+}
 
 /// Check if an executable is findable in PATH.
 pub fn is_available(name: &str) -> bool {
@@ -307,7 +335,7 @@ fn write_log(
     let exit_str = result.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "none".to_string());
     let session_str = result.session_id.as_deref().unwrap_or("none");
 
-    let mut content = format!(
+    let content = format!(
         "GAL-DISPATCH-LOG v1\n\
          timestamp_start: {start_ts}\n\
          timestamp_end:   {end_ts}\n\
@@ -428,6 +456,7 @@ mod tests {
             phase: "implement".to_string(),
             actual_model: "test-model".to_string(),
             log_dir: tmp.path().join("executor-logs"),
+            receipt_path: None,
         }
     }
 
@@ -535,5 +564,101 @@ mod tests {
         assert!(!looks_like_uuid("not-a-uuid"));
         assert!(!looks_like_uuid("too-short-1234"));
         assert!(!looks_like_uuid(""));
+    }
+
+    // TP-007: receipt file written by executor → Completed
+    #[test]
+    fn receipt_present_and_nonempty_gives_completed() {
+        let tmp = TempDir::new().unwrap();
+        let receipt = tmp.path().join("receipt.txt");
+        std::fs::write(&receipt, "written by executor").unwrap();
+
+        #[cfg(target_os = "windows")]
+        let (exe, args) = ("cmd", vec!["/C", "echo", "ok"]);
+        #[cfg(not(target_os = "windows"))]
+        let (exe, args) = ("sh", vec!["-c", "echo ok"]);
+
+        let mut cfg = test_config(&tmp, exe, args, "spec", 30);
+        cfg.receipt_path = Some(receipt);
+        let result = spawn_executor(&cfg).unwrap();
+        assert_eq!(result.terminal_state, TerminalState::Completed,
+            "exit-0 + non-empty receipt file should give Completed");
+    }
+
+    // TP-007: executor exits 0 but receipt file missing → NoReceipt
+    #[test]
+    fn receipt_missing_gives_no_receipt() {
+        let tmp = TempDir::new().unwrap();
+        let missing = tmp.path().join("nonexistent-receipt.txt");
+
+        #[cfg(target_os = "windows")]
+        let (exe, args) = ("cmd", vec!["/C", "echo", "ok"]);
+        #[cfg(not(target_os = "windows"))]
+        let (exe, args) = ("sh", vec!["-c", "echo ok"]);
+
+        let mut cfg = test_config(&tmp, exe, args, "spec", 30);
+        cfg.receipt_path = Some(missing);
+        let result = spawn_executor(&cfg).unwrap();
+        assert_eq!(result.terminal_state, TerminalState::NoReceipt,
+            "exit-0 but missing receipt file should give NoReceipt");
+    }
+
+    // TP-007: executor exits 0 but receipt file is empty → NoReceipt (partial write)
+    #[test]
+    fn receipt_empty_gives_no_receipt() {
+        let tmp = TempDir::new().unwrap();
+        let receipt = tmp.path().join("empty.txt");
+        std::fs::write(&receipt, "").unwrap(); // empty file
+
+        #[cfg(target_os = "windows")]
+        let (exe, args) = ("cmd", vec!["/C", "echo", "ok"]);
+        #[cfg(not(target_os = "windows"))]
+        let (exe, args) = ("sh", vec!["-c", "echo ok"]);
+
+        let mut cfg = test_config(&tmp, exe, args, "spec", 30);
+        cfg.receipt_path = Some(receipt);
+        let result = spawn_executor(&cfg).unwrap();
+        assert_eq!(result.terminal_state, TerminalState::NoReceipt,
+            "exit-0 but empty receipt file (partial write) should give NoReceipt");
+    }
+
+    // TP-007: no receipt_path configured → Completed (no check)
+    #[test]
+    fn no_receipt_path_skips_check() {
+        let tmp = TempDir::new().unwrap();
+
+        #[cfg(target_os = "windows")]
+        let (exe, args) = ("cmd", vec!["/C", "echo", "ok"]);
+        #[cfg(not(target_os = "windows"))]
+        let (exe, args) = ("sh", vec!["-c", "echo ok"]);
+
+        let cfg = test_config(&tmp, exe, args, "spec", 30);
+        assert!(cfg.receipt_path.is_none());
+        let result = spawn_executor(&cfg).unwrap();
+        assert_eq!(result.terminal_state, TerminalState::Completed,
+            "no receipt_path → skip check → Completed");
+    }
+
+    // verify_receipt unit tests
+    #[test]
+    fn verify_receipt_returns_true_for_nonempty_file() {
+        let tmp = TempDir::new().unwrap();
+        let f = tmp.path().join("r.txt");
+        std::fs::write(&f, "content").unwrap();
+        assert!(verify_receipt(&f));
+    }
+
+    #[test]
+    fn verify_receipt_returns_false_for_missing_file() {
+        let tmp = TempDir::new().unwrap();
+        assert!(!verify_receipt(&tmp.path().join("no-such-file.txt")));
+    }
+
+    #[test]
+    fn verify_receipt_returns_false_for_empty_file() {
+        let tmp = TempDir::new().unwrap();
+        let f = tmp.path().join("empty.txt");
+        std::fs::write(&f, "").unwrap();
+        assert!(!verify_receipt(&f));
     }
 }

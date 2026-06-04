@@ -19,6 +19,11 @@ pub struct DispatchArgs {
     pub timeout_secs: u64,
     /// Routing file override (optional; defaults to `~/.gal/config/executor-routing.json`).
     pub routing_path: Option<PathBuf>,
+    /// Expected receipt file path for write-back verification (T-006).
+    ///
+    /// When set, the dispatcher verifies the file exists and is non-empty after the executor
+    /// exits 0. Missing or empty file → terminal state `no-receipt`.
+    pub receipt_path: Option<PathBuf>,
 }
 
 impl Default for DispatchArgs {
@@ -29,6 +34,7 @@ impl Default for DispatchArgs {
             workdir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             timeout_secs: 300,
             routing_path: None,
+            receipt_path: None,
         }
     }
 }
@@ -56,6 +62,7 @@ pub fn parse_args(args: &[String]) -> Result<DispatchArgs, CliParseError> {
     let mut workdir: Option<PathBuf> = None;
     let mut timeout_secs: u64 = 300;
     let mut routing_path: Option<PathBuf> = None;
+    let mut receipt_path: Option<PathBuf> = None;
 
     let mut i = 0;
     while i < args.len() {
@@ -90,6 +97,11 @@ pub fn parse_args(args: &[String]) -> Result<DispatchArgs, CliParseError> {
                 let v = args.get(i).ok_or(CliParseError::MissingValue("--routing"))?;
                 routing_path = Some(PathBuf::from(v));
             }
+            "--receipt" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--receipt"))?;
+                receipt_path = Some(PathBuf::from(v));
+            }
             other if other.starts_with('-') => {
                 return Err(CliParseError::UnknownFlag(other.to_string()));
             }
@@ -106,6 +118,7 @@ pub fn parse_args(args: &[String]) -> Result<DispatchArgs, CliParseError> {
         }),
         timeout_secs,
         routing_path,
+        receipt_path,
     })
 }
 
@@ -192,5 +205,21 @@ mod tests {
             "--routing", "/custom/executor-routing.json",
         ])).unwrap();
         assert_eq!(a.routing_path, Some(PathBuf::from("/custom/executor-routing.json")));
+    }
+
+    #[test]
+    fn receipt_path_parsed() {
+        let a = parse_args(&args(&[
+            "--phase", "implement",
+            "--task", "T-006",
+            "--receipt", "/tmp/receipt.txt",
+        ])).unwrap();
+        assert_eq!(a.receipt_path, Some(PathBuf::from("/tmp/receipt.txt")));
+    }
+
+    #[test]
+    fn receipt_path_absent_gives_none() {
+        let a = parse_args(&args(&["--phase", "implement", "--task", "T-006"])).unwrap();
+        assert!(a.receipt_path.is_none());
     }
 }
