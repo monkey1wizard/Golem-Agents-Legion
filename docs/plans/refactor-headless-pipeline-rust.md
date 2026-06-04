@@ -299,7 +299,7 @@ Not requested（無 customer-facing UI）。
 
 ### 階段二：5×4 互派測試矩陣
 
-- [ ] T-012 — 測試前置：`~/.gal/config/executor-routing.json` 依案例設定、`-WorkDir` 帶入相同工作目錄、log header 與目前環境一致。
+- [x] T-012 — 測試前置：`~/.gal/config/executor-routing.json` 依案例設定、`-WorkDir` 帶入相同工作目錄、log header 與目前環境一致。*(session_id log header 修正; 46 tests pass)*
 - [ ] T-013 — 執行 5×4=20 格互派矩陣，回填 `## Test Matrix`；每格 3 條件 PASS（receipt + log `completed` + 可追溯 session）；(a) executor 收檔、(b) orchestrator 自驅 pipeline、(c) provider 原生可追溯 分層記錄；re-audit 舊 TC-02/04/05。
 
 ### 階段三：`model-roles.md` → `executor-routing.json` 取代（解耦）
