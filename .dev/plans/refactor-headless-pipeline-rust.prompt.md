@@ -147,12 +147,12 @@ None — all planning questions resolved. Decisions are embedded in Goal, Scope,
 ## Status
 
 ```
-Workflow: VERIFY
+Workflow: DONE
 Step: 16 of 16
-Last activity: 2026-06-04 — T-015 COMPLETE (58a65bf; 29 files updated; model-roles.md deleted; grep 0 residual)
-Next step: T-016 — 收尾驗證：舊計畫已移除、state.md 指向新 prompt、repo 無殘留引用
-Current Task: T-016
-Task Base Commit: 58a65bf
+Last activity: 2026-06-04 — T-016 COMPLETE (c82c782; Phase 3 全部收尾)
+Next step: golem-verifier (T-013 manual matrix remains user-driven; Phase 3 VERIFIED)
+Current Task: —
+Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
@@ -219,7 +219,7 @@ Old plan deletion: `headless-cli-pipeline.md` and `headless-cli-pipeline-test.md
 
 - [x] T-014 — Migrate cross-model policy prose (CODER≠TESTER, tier rules) into `workflows/coding.md` **(protected path)**; add human-reference section to `executor-routing.json` to promote it to sole role-config source. *(d7a8a5c)*
 - [x] T-015 — Delete `model-roles.md` and `model-roles.example.md`; update all 33 references (stop seeding in `Update-Personalization.*`, update generated-adapter segments in `Sync-DevContext.*`, `.gitignore`, docs); grep verifies zero residual dead links. *(58a65bf)*
-- [x] T-016 — Close-out: confirm old plans removed, `.dev/state.md` points to this prompt, repo has no residual references. *(pending commit)*
+- [x] T-016 — Close-out: confirm old plans removed, `.dev/state.md` points to this prompt, repo has no residual references. *(c82c782)*
 
 > **Deferred**: Bash channel deferred (limited by Bash host availability); because bin runs natively cross-platform, *nix dispatch is covered by bin; only `gal.sh` thin shim (T-009) needs handling; no separate Bash adapters. Bash host smoke tests deferred until a Bash host is available.
 
