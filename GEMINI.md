@@ -576,29 +576,13 @@ This is manually triggered — the AI does not know when you're switching contex
 
 Examples above use the literal dispatcher-facing golem names. Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
-## Per-Phase Model Assignment
+## Model Roles and Per-Phase Assignment
 
-Model assignment is defined in [model-roles.md](../model-roles.md).
-
-Key rules:
-
-- **The planning author and architect should differ when practical** — cross-check the plan before implementation
-- **The planning author and designer should differ when designer is a formal reviewer** — keep design critique independent from plan authorship
-- **Implementer and tester must be different models** — independent verification
-- **Reviewer should differ from implementer** — fresh perspective
-- **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
-- **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
-- **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger
-
-<!-- Source: model-roles.md -->
-# Model Roles
-
-Define roles by **what they do**, not by which model they are.
-When you switch AI tools, update the mapping table — everything else stays the same.
+Define roles by **what they do**, not by which model they are. When you switch AI tools, update `~/.gal/config/executor-routing.json` (machine-read dispatch) and the mapping section below (human reference).
 
 Default principle: formal cross-checks should use a different model from the one that authored the work file whenever practical.
 
-## Roles
+### Roles
 
 | Role | Purpose | Key Trait |
 | --- | --- | --- |
@@ -612,7 +596,7 @@ Default principle: formal cross-checks should use a different model from the one
 | NOTEWRITER | Obsidian writes — diary, private captures, inbox processing, and knowledge extraction | Note authoring, Guide-aware fallback, private vs. durable routing |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
-## Routing Rules
+### Routing Rules
 
 1. **Planning review should be a different-model check** — the model that critiques a plan should differ from the one that drafted it whenever practical.
 2. **CODER and TESTER must be different models** — independent verification
@@ -622,9 +606,9 @@ Default principle: formal cross-checks should use a different model from the one
 6. **RESEARCHER owns research, synthesis, and cross-review** — independent reference verification must be done by a different model
 7. **NOTEWRITER** handles all Obsidian writes — it should load the user's configured Guide when available and fall back to generic mode when not
 8. **LOCAL** is for privacy-sensitive data or Traditional Chinese tasks
-9. When switching tools, update the **Current Mapping** table below only
+9. When switching tools, update `~/.gal/config/executor-routing.json` (machine-read) and any personal planning notes
 
-## Planning Review Rules
+### Planning Review Rules
 
 `/deep-planning` is the default architect-reviewed planning pass before prompt generation.
 
@@ -636,7 +620,7 @@ Default principle: formal cross-checks should use a different model from the one
 
 Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
-## Typical Workflow (Single Developer)
+### Typical Workflow (Single Developer)
 
 ```text
 1. `/planning` or `/deep-planning` → Use a frontier-class model (interactive or async) to produce the initial plan
@@ -649,14 +633,17 @@ Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They
 
 Research workflow note: `/gal research` and `/gal deep-research` have their own VERIFY state for citation checking. That VERIFY pass must use a different model from the research author.
 
----
+### Per-Phase Rules
 
-## Your Setup
+- **The planning author and architect should differ when practical** — cross-check the plan before implementation
+- **The planning author and designer should differ when designer is a formal reviewer** — keep design critique independent from plan authorship
+- **Implementer and tester must be different models** — independent verification
+- **Reviewer should differ from implementer** — fresh perspective
+- **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
+- **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
+- **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger
 
-Copy [`model-roles.example.md`](model-roles.example.md) to `model-roles.local.md` and customize
-with your own machines, models, and tools. The local file is git-ignored.
-
-> **Headless executor routing**: this Markdown table is human reference only. The pipeline's machine-read source for per-role CLI assignment is `~/.gal/config/executor-routing.ndjson`. See [docs/manual.md — Headless Executor Routing](docs/manual.md#headless-executor-routing) to configure it.
+> **Executor routing**: machine-read per-role CLI assignment lives in `~/.gal/config/executor-routing.json`. See [docs/manual.md — Headless Executor Routing](docs/manual.md#headless-executor-routing) for setup. Copy `executor-routing.example.json` to customize.
 
 ## Repo Skills
 

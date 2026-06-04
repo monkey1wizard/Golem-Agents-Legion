@@ -246,25 +246,6 @@ function Invoke-UpdatePersonalization {
         Write-Host "  [SKIP] $localEnv already exists"
     }
 
-    $exampleRoles = Join-Path $context.RepoRoot 'model-roles.example.md'
-    $primaryLocalRoles = Join-Path $context.GalConfigRoot 'model-roles.local.md'
-    $legacyLocalRoles = Join-Path $context.RepoRoot 'model-roles.local.md'
-    $localRoles = $primaryLocalRoles
-    if (-not (Test-Path $localRoles) -and (Test-Path $legacyLocalRoles)) {
-        $localRoles = $legacyLocalRoles
-        Write-Host "  [LEGACY] Using existing legacy model-roles.local.md at $localRoles" -ForegroundColor Yellow
-    }
-
-    if (-not (Test-Path $localRoles)) {
-        if (Test-Path $exampleRoles) {
-            Copy-Item $exampleRoles $localRoles
-            Write-Host "  [OK] Created $localRoles from model-roles.example.md"
-        }
-    }
-    else {
-        Write-Host "  [SKIP] $localRoles already exists"
-    }
-
     $exampleRouting = Join-Path $context.RepoRoot 'executor-routing.example.json'
     $localRouting   = Join-Path $context.GalConfigRoot 'executor-routing.json'
     $legacyRouting  = Join-Path $context.GalConfigRoot 'executor-routing.ndjson'
@@ -310,7 +291,7 @@ function Invoke-UpdatePersonalization {
             }
 
             if ($hasValues) {
-                $trackedFilterFiles = @('config.local.env', 'model-roles.local.md') | Where-Object {
+                $trackedFilterFiles = @('config.local.env') | Where-Object {
                     git ls-files --error-unmatch $_ *> $null
                     $LASTEXITCODE -eq 0
                 }
@@ -321,7 +302,7 @@ function Invoke-UpdatePersonalization {
                 }
             }
             else {
-                Write-Host "  [INFO] $localEnv has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md" 
+                Write-Host "  [INFO] $localEnv has no values yet — fill it in, then run: git checkout -- config.local.env"
             }
         }
     }

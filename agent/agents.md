@@ -73,7 +73,7 @@ Workflow specialists may be explicitly named, but doing so does not skip PLAN, T
 
 ## Model Role Enforcement
 
-Per [model-roles.md](../model-roles.md):
+Per [workflows/coding.md](../workflows/coding.md) — Model Roles and Per-Phase Assignment:
 
 - **Tester must be a different model from implementer** — independent verification
 - **Reviewer should differ from implementer** — fresh perspective

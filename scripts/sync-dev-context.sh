@@ -20,7 +20,6 @@ claude_path="$target_path/CLAUDE.md"
 agents_path="$target_path/AGENTS.md"
 conventions_dir="$repo_root/conventions"
 workflow_path="$repo_root/workflows/coding.md"
-model_roles_path="$repo_root/model-roles.md"
 skills_root="$repo_root/skills"
 
 require_file() {
@@ -114,7 +113,6 @@ build_adapter() {
   done
 
   append_source_block "$output_path" "workflows/coding.md" "$workflow_path"
-  append_source_block "$output_path" "model-roles.md" "$model_roles_path"
 
   if [[ "$include_skill_index" == "true" ]]; then
     append_skill_index "$output_path"
@@ -123,7 +121,6 @@ build_adapter() {
 
 require_file "$project_path"
 require_file "$workflow_path"
-require_file "$model_roles_path"
 
 # Auto-discover all skills from the skills/ directory
 declare -a skill_dirs=()

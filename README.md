@@ -71,7 +71,7 @@ A one-glance mental model. Each row links to the doc that owns the full contract
 
 ### Golem agents
 
-12 specialized agents in three categories — **Utility** (debugger, notewriter), **Domain** (architect, analyst, designer, researcher, security, releaser), **Pipeline** (implementer, tester, reviewer, verifier). Independent tester/reviewer/verifier (different models) keep verification credible. Full roster and rules: [agent/agents.md](agent/agents.md) and [model-roles.md](model-roles.md).
+12 specialized agents in three categories — **Utility** (debugger, notewriter), **Domain** (architect, analyst, designer, researcher, security, releaser), **Pipeline** (implementer, tester, reviewer, verifier). Independent tester/reviewer/verifier (different models) keep verification credible. Full roster and rules: [agent/agents.md](agent/agents.md) and [workflows/coding.md](workflows/coding.md).
 
 ### Pipeline
 

@@ -69,7 +69,6 @@ function Copy-TestSourceRoot {
         'conventions',
         'workflows',
         'mcp.json',
-        'model-roles.md',
         '.dev\project.md'
     )
 

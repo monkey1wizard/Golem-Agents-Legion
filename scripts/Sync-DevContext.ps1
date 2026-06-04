@@ -17,7 +17,6 @@ $agentsPath = Join-Path $resolvedTarget "AGENTS.md"
 
 $conventionsDir = Join-Path $repoRoot "conventions"
 $workflowPath = Join-Path $repoRoot "workflows\coding.md"
-$modelRolesPath = Join-Path $repoRoot "model-roles.md"
 $skillsRoot = Join-Path $repoRoot "skills"
 
 function Read-NormalizedFile([string]$Path) {
@@ -124,7 +123,6 @@ function Build-AdapterContent(
     [string]$ProjectContent,
     [object[]]$ConventionSources,
     [string]$WorkflowContent,
-    [string]$ModelRolesContent,
     [object[]]$SkillSources,
     [switch]$IncludeSkillIndex
 ) {
@@ -146,7 +144,6 @@ function Build-AdapterContent(
         Add-SourceBlock -Lines $lines -Label $convention.Label -Content $convention.Content
     }
     Add-SourceBlock -Lines $lines -Label 'workflows/coding.md' -Content $WorkflowContent
-    Add-SourceBlock -Lines $lines -Label 'model-roles.md' -Content $ModelRolesContent
 
     if ($IncludeSkillIndex) {
         Add-SkillIndex -Lines $lines -SkillSources $SkillSources
@@ -159,7 +156,6 @@ $projectContent = Read-NormalizedFile -Path $projectPath
 $skillSources = Get-AllSkillSources
 $conventionSources = Get-ConventionSources
 $workflowContent = Read-NormalizedFile -Path $workflowPath
-$modelRolesContent = Read-NormalizedFile -Path $modelRolesPath
 
 [System.IO.Directory]::CreateDirectory($copilotDir) | Out-Null
 
@@ -173,7 +169,6 @@ $copilotContent = Build-AdapterContent `
     -ProjectContent $projectContent `
     -ConventionSources $conventionSources `
     -WorkflowContent $workflowContent `
-    -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources
 
 $geminiContent = Build-AdapterContent `
@@ -186,7 +181,6 @@ $geminiContent = Build-AdapterContent `
     -ProjectContent $projectContent `
     -ConventionSources $conventionSources `
     -WorkflowContent $workflowContent `
-    -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
     -IncludeSkillIndex
 
@@ -200,7 +194,6 @@ $claudeContent = Build-AdapterContent `
     -ProjectContent $projectContent `
     -ConventionSources $conventionSources `
     -WorkflowContent $workflowContent `
-    -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
     -IncludeSkillIndex
 
@@ -214,7 +207,6 @@ $agentsContent = Build-AdapterContent `
     -ProjectContent $projectContent `
     -ConventionSources $conventionSources `
     -WorkflowContent $workflowContent `
-    -ModelRolesContent $modelRolesContent `
     -SkillSources $skillSources `
     -IncludeSkillIndex
 

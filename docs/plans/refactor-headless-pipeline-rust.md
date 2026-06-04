@@ -304,7 +304,7 @@ Not requested（無 customer-facing UI）。
 
 ### 階段三：`model-roles.md` → `executor-routing.json` 取代（解耦）
 
-- [ ] T-014 — 跨模型政策散文（CODER≠TESTER、tier 等）遷入 `workflows/coding.md`（**受保護路徑**）；`executor-routing.json` 補人類參考段，升為角色設定單一來源。
+- [x] T-014 — 跨模型政策散文（CODER≠TESTER、tier 等）遷入 `workflows/coding.md`（**受保護路徑**）；`executor-routing.json` 補人類參考段，升為角色設定單一來源。*(d7a8a5c)*
 - [ ] T-015 — 刪 `model-roles.md`、`model-roles.example.md`；更新 33 處引用（停 `Update-Personalization.*` 播種、`Sync-DevContext.*` 生成段改源/移除、`.gitignore`、docs）；grep 驗無殘留死連結。
 - [ ] T-016 — 收尾：確認舊兩計畫已移除、`.dev/state.md` 指向新計畫、repo 無殘留引用。
 

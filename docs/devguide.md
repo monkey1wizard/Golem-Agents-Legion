@@ -513,7 +513,7 @@ The common package (`scripts/common/ProviderPlugin.ps1`, `scripts/common/provide
 | `skills` | `skills/<name>/SKILL.md` | yes |
 | `commandSkills` | `commands/*/SKILL.md` | yes, as skill bundles |
 | `mcpSpec` | `mcp.json` plus `~/.gal/config/mcp.local.json` boundary info | conceptually yes, but resolved local values stay out |
-| `instructionCorpus` | `.dev/project.md`, required conventions, workflows, `model-roles.md`, generated indexes | content yes, path no |
+| `instructionCorpus` | `.dev/project.md`, required conventions, workflows, generated indexes | content yes, path no |
 | `agents` | `agent/*.agent.md` | optional; projected to three of four providers |
 
 The common model explicitly excludes: provider-specific output paths, resolved machine-local secrets or paths, `runtimeScripts`, plugin-root `scripts/`, `gal-results/`, and hooks (deferred from v1).

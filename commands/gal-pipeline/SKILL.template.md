@@ -5,7 +5,7 @@ description: "Task-driven autopilot. Iterates through every T-NNN task in the ac
 
 # /gal-pipeline
 
-Run the full implementation pipeline task by task: for each blocking `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Prefer different AI vendors per `model-roles.local.md` when the active runtime can actually enforce that split. After all blocking tasks complete, run a final verifier pass.
+Run the full implementation pipeline task by task: for each blocking `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Prefer different AI vendors per `~/.gal/config/executor-routing.json` when the active runtime can actually enforce that split. After all blocking tasks complete, run a final verifier pass.
 
 ## Role
 
@@ -51,7 +51,7 @@ If the dispatcher emits `TASK_REF`, `FROM`, and `STOP_AT`, treat them as authori
 
 ## Model Assignment
 
-Prefer a different AI vendor for each phase, using `model-roles.local.md` as the desired role mapping and the active runtime config as the enforcement surface:
+Prefer a different AI vendor for each phase, using `~/.gal/config/executor-routing.json` as the desired role mapping and the active runtime config as the enforcement surface:
 
 | Phase | Golem | Role | Why different |
 | --- | --- | --- | --- |
@@ -67,7 +67,7 @@ Prefer a different AI vendor for each phase, using `model-roles.local.md` as the
 Before starting the task loop, resolve model separation in this order:
 
 1. Treat runtime-enforced per-agent model routing as authoritative.
-2. Treat `model-roles.local.md` as the desired separation policy, not proof that the current runtime can enforce it.
+2. Treat `~/.gal/config/executor-routing.json` as the desired separation policy, not proof that the current runtime can enforce it.
 3. If the active runtime cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER routes, degrade explicitly to same-runtime fallback.
 
 OpenCode-specific rule:

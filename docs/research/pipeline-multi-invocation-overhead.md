@@ -23,7 +23,7 @@ During field use of `/gal pipeline` on the GAL repository itself (plans `feat-ga
 - `opencode.json` — OpenCode runtime configuration (138 lines)
 - `conventions/token-budget.md` — token and context management rules
 - `workflows/coding.md` — coding flow workflow definition
-- `model-roles.md` — model role assignment and routing rules
+- `workflows/coding.md` — model role assignment and routing rules
 - `.dev/state.md` — current repo state (3 active plans)
 
 ## Root Cause Analysis

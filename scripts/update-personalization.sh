@@ -210,24 +210,6 @@ PY
         echo "  [SKIP] $local_env already exists"
     fi
 
-    local example_roles="$REPO_ROOT/model-roles.example.md"
-    local primary_local_roles="$GAL_CONFIG_ROOT/model-roles.local.md"
-    local legacy_local_roles="$REPO_ROOT/model-roles.local.md"
-    local local_roles="$primary_local_roles"
-    if [ ! -f "$local_roles" ] && [ -f "$legacy_local_roles" ]; then
-        local_roles="$legacy_local_roles"
-        echo "  [LEGACY] Using existing legacy model-roles.local.md at $local_roles"
-    fi
-
-    if [ ! -f "$local_roles" ]; then
-        if [ -f "$example_roles" ]; then
-            cp "$example_roles" "$local_roles"
-            echo "  [OK] Created $local_roles from model-roles.example.md"
-        fi
-    else
-        echo "  [SKIP] $local_roles already exists"
-    fi
-
     local example_routing="$REPO_ROOT/executor-routing.example.json"
     local local_routing="$GAL_CONFIG_ROOT/executor-routing.json"
     local legacy_routing="$GAL_CONFIG_ROOT/executor-routing.ndjson"
@@ -265,7 +247,7 @@ PY
         if [ "$has_values" -gt 0 ]; then
             local tracked_filter_files=()
             local filter_file
-            for filter_file in config.local.env model-roles.local.md; do
+            for filter_file in config.local.env; do
                 if git ls-files --error-unmatch "$filter_file" >/dev/null 2>&1; then
                     tracked_filter_files+=("$filter_file")
                 fi
@@ -278,7 +260,7 @@ PY
                 echo '  [INFO] Filtered files are not tracked yet — skipping git checkout'
             fi
         else
-            echo "  [INFO] $local_env has no values yet — fill it in, then run: git checkout -- config.local.env model-roles.local.md"
+            echo "  [INFO] $local_env has no values yet — fill it in, then run: git checkout -- config.local.env"
         fi
     fi
     popd >/dev/null

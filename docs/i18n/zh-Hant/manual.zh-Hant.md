@@ -56,7 +56,7 @@ GAL 透過 `~/.gal/config/config.json` 控制 install mode 與 source mode 兩�
 |   |-- config.json             # 機器意圖：installMode、galRoot、plugins、runtime selection overrides
 |   |-- config.local.env        # 機器本機 env 值與 secrets
 |   |-- mcp.local.json          # 本機 MCP overrides
-|   |-- model-roles.local.md    # 本機模型角色對應覆寫
+|   |-- executor-routing.json   # 本機 executor 角色對應（executor-routing.example.json 的副本）
 |   `-- xmachine.json           # 機器本機 xmachine node 定義
 |-- dist/
 |   |-- commits/                # dev mode 下 GAL 變更的隔離輸出；永遠不是 runtime source of truth
@@ -170,8 +170,8 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 
 ### 1. 模型路由 (Model routing)
 
-- 將 `model-roles.example.md` 複製到 `~/.gal/config/model-roles.local.md`。
-- 只能在 `~/.gal/config/model-roles.local.md` 中更改提供者（provider）和模型對應。
+- 將 `executor-routing.example.json` 複製到 `~/.gal/config/executor-routing.json`。
+- 只能在 `~/.gal/config/executor-routing.json` 中更改 role 對應的 executor 與 model。角色定義與跨模型政策請參閱 `workflows/coding.md`。
 
 ### 2. 本機機密與路徑 (Local secrets and paths)
 
@@ -358,11 +358,11 @@ GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯
 
 如果只有單一關注點發生變更，請使用較狹窄範圍的腳本：
 
-- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/model-roles.local.md` 後，執行 `scripts/Update-Personalization.ps1`
+- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/Update-Personalization.ps1`
 - 更改 `agent/` 或 `skills/` 後，執行 `scripts/Update-Skills.ps1`
 - 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/Update-Commands.ps1`
 - 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
-- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/model-roles.local.md` 後，執行 `scripts/update-personalization.sh`
+- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/update-personalization.sh`
 - 更改 `agent/` 或 `skills/` 後，執行 `scripts/update-skills.sh`
 - 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
 - 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`

@@ -213,7 +213,7 @@ Pipeline 流程中，GAL 強制以不同模型進行審查與測試：
 - Reviewer **應**與 implementer 不同，能力不應弱於 implementer
 - Planning 與 architect **應盡量**不同
 
-上述規則在 `model-roles.local.md` 中設定。
+上述規則在 `~/.gal/config/executor-routing.json` 中設定；完整政策請參閱 `workflows/coding.md`。
 
 ### Working Hours
 

@@ -72,8 +72,8 @@ Known companion candidates (all `curated-upstream`, opt-in): `dart-lang/skills`,
 
 ### Model Routing
 
-- Copy `model-roles.example.md` into `~/.gal/config/model-roles.local.md`.
-- Change provider and model mappings only in `~/.gal/config/model-roles.local.md`.
+- Copy `executor-routing.example.json` into `~/.gal/config/executor-routing.json`.
+- Change role-to-executor mappings in `~/.gal/config/executor-routing.json`. Role definitions and cross-model policy are in `workflows/coding.md`.
 
 ### Local Secrets, Paths, and Doc Language
 
@@ -200,7 +200,7 @@ Valid executors: `claude`, `opencode`, `agy`. Omit a role to keep it in the conv
 
 Rerun setup when any of these change: `~/.gal/config/config.local.env`, `mcp.json`, `~/.gal/config/mcp.local.json`, any `commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
 
-Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `model-roles.local.md`), `Update-Skills` (`agent/`, `skills/`), `Update-Commands` (`commands/*/SKILL.*`), `Update-Mcp` (`mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
+Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `executor-routing.json`), `Update-Skills` (`agent/`, `skills/`), `Update-Commands` (`commands/*/SKILL.*`), `Update-Mcp` (`mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
 
 ```bash
 # Windows                         # macOS / Linux

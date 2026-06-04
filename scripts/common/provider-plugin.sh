@@ -421,7 +421,7 @@ build_provider_plugin_package() {
     # --- Instruction corpus sources ---
     local corpus_sources=()
     local corpus_file
-    for corpus_file in "$repo_root/.dev/project.md" "$repo_root/conventions/conventions.md" "$repo_root/conventions/token-budget.md" "$repo_root/workflows/coding.md" "$repo_root/model-roles.md"; do
+    for corpus_file in "$repo_root/.dev/project.md" "$repo_root/conventions/conventions.md" "$repo_root/conventions/token-budget.md" "$repo_root/workflows/coding.md"; do
         if [ -f "$corpus_file" ]; then
             corpus_sources+=("$(jq -R . <<< "$corpus_file")")
         fi

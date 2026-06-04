@@ -455,7 +455,6 @@ function New-ProviderPluginPackage {
         Join-Path $RepoRoot 'conventions/conventions.md'
         Join-Path $RepoRoot 'conventions/token-budget.md'
         Join-Path $RepoRoot 'workflows/coding.md'
-        Join-Path $RepoRoot 'model-roles.md'
     ) | Where-Object { Test-Path $_ }
     foreach ($src in $corpusSources) {
         $package.instructionCorpus.sources.Add($src)

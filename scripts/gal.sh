@@ -653,7 +653,7 @@ case "$command" in
             on_complete="Synthesize findings, verify references, and surface RESEARCH_COMPLETE to the user."
             ;;
           pipeline)
-            action="Follow the /gal-pipeline procedure to chain implement → test → review using model-roles for multi-vendor AI assignment."
+            action="Follow the /gal-pipeline procedure to chain implement → test → review using executor-routing.json for multi-vendor AI assignment."
             on_complete="Report combined verdict: implement/test/review status and whether the branch is ready for /ship."
             ;;
         esac
