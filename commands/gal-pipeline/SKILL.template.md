@@ -88,86 +88,118 @@ If runtime preflight cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER
 
 ### Headless Executor Dispatch
 
-When `~/.gal/config/executor-routing.ndjson` is present and maps the current phase's role to a CLI executor, the `gal.ps1 dispatch` command emits an **OFFLOAD block** instead of the usual `--- GAL DISPATCH ---` text block. The dispatcher itself does not spawn any child process.
+When `~/.gal/config/executor-routing.json` is present and maps the current phase's role to a CLI executor, the **`gal-dispatch` Rust bin** (T-007/T-008) takes over dispatch. The bin is the single cross-platform implementation; the `gal.ps1 pipeline` command is a thin shim that pipes the task spec to the bin's stdin. When the bin is absent, the shim outputs a minimal `--- GAL DISPATCH ---` text dispatch (backward-compatible, no regression).
 
-#### Triggering OFFLOAD
+Phase-to-role map (implement→CODER, test→TESTER, review→REVIEWER, verify→VERIFIER).  
+Supported executors: **claude / codex / opencode / copilot / agy** — all five are first-class headless executors. The prior `non-dispatchable` status for codex and copilot has been overturned by spike evidence (T-001/T-002).
 
-1. Read `executor-routing.ndjson` via `Read-ExecutorRouting` (Common.ps1). If the file is missing or the role has no mapping, fall through to normal text dispatch — fully backward-compatible.
-2. Generate a compact Task Spec (`scripts/common/New-TaskSpec.ps1`) for the current T-NNN and phase. If spec generation fails, fall through to normal text dispatch.
-3. Emit the OFFLOAD block containing `EXECUTOR`, `TASK_SPEC`, the Invoke-Executor command, and the observability instructions.
+#### How the Bin Dispatches
 
-Phase-to-role map (implement→CODER, test→TESTER, review→REVIEWER, verify→VERIFIER).
+1. Read `~/.gal/config/executor-routing.json` → resolve `role → { executor, model }`.
+2. Safety gate: only offload when executor CLI is available in PATH. Unavailable executor → text dispatch, exit 2.
+3. Select the tool-specific adapter (invocation flags per spike-locked results):
 
-#### On OFFLOAD Success
+| Tool     | Headless flags                                                    | Spec delivery |
+|----------|-------------------------------------------------------------------|---------------|
+| claude   | `-p --output-format json --dangerously-skip-permissions --model <m>` | stdin     |
+| codex    | `exec --json -s workspace-write -m <m>`                            | stdin         |
+| opencode | `run --format json -m <m>`                                         | stdin         |
+| copilot  | `-C <workdir> --allow-all --output-format json --model <m> -p <spec>` | `-p` flag  |
+| agy      | (stdin)                                                            | stdin         |
 
-When the dispatcher emits an OFFLOAD block, the orchestrator **must**:
+4. Spawn the executor, feed spec, enforce timeout, kill process tree on timeout.
+5. After exit 0: read the receipt file (`--receipt <path>`) to confirm write-back. Exit 0 without the file written → terminal state `no-receipt`. **Do not accept exit code 0 alone.**
+6. Extract provider-native session/job id from stdout (tool-specific JSON field; agy scans `~/.agy/brain/`). Record in executor-log header and `Dispatch:` marker.
+7. Write durable executor log and output the `Dispatch:` marker line to stdout.
 
-- Run `scripts/executors/Invoke-Executor.ps1 -Executor <cli> -TaskSpecPath <spec> -Wait`.
-- **NOT role-play the golem itself.** The orchestrator's job is verification, not acting as the golem.
-- After the executor exits with code 0, **verify write-back by reading file content** — confirm the expected section (`## Test Results`, `## Review Results`, etc.) was written in the execution prompt. Do not accept exit code 0 alone.
-- Only if the executor exits with code 2 (unavailable or timed out) may the orchestrator fall back to role-playing the golem in this conversation.
+#### Dispatch Observability Marker
+
+The bin outputs to stdout after every run:
+
+```
+--- GAL DISPATCH ---
+Dispatch: phase=<p> task=<T-NNN> role=<ROLE> executor=<cli> model=<m> state=<terminal-state> session_id=<id|none> log=<path>
+```
+
+Degrade variants (exit 2, bin is the output owner):
+```
+Dispatch: phase=<p> task=<T-NNN> role=<ROLE> executor=none reason=no-routing
+Dispatch: phase=<p> task=<T-NNN> role=<ROLE> executor=<cli> model=<m> reason=executor-unavailable
+```
+
+Shim fallback (bin absent, shim is the output owner):
+```
+--- GAL DISPATCH ---
+Dispatch: reason=bin-absent executor=text-dispatch
+```
+
+After every pipeline-phase dispatch, the orchestrator records the `Dispatch:` line in the execution prompt for that stage. Record before moving to the next phase or task.
+
+#### Provider-Native Traceability
+
+Every dispatch captures and records the provider-native session/job id:
+
+| Tool     | Session id field              | Resume command                            |
+|----------|-------------------------------|-------------------------------------------|
+| claude   | JSON `session_id`             | `claude --resume <session_id>`            |
+| codex    | NDJSON `thread_id`            | `codex exec resume <thread_id>`           |
+| opencode | NDJSON `sessionID`            | `opencode run --session <sessionID>`      |
+| copilot  | JSON `result.sessionId`       | `copilot --resume=<sessionId>`            |
+| agy      | newest `~/.agy/brain/<uuid>/` | `agy --conversation <uuid>`               |
+
+The session id appears in the executor-log header and in the `Dispatch:` marker line. If the id cannot be extracted, `session_id=none` is recorded (not a failure; traceability is a goal, not a gate for completion).
+
+#### Three-Condition PASS Threshold (Honest Test Gate)
+
+A dispatch is only PASS when **all three** hold:
+
+1. Receipt file was written by the secondary tool (non-empty file exists at `--receipt <path>`)
+2. `.dev/executor-logs/` terminal state is `completed`
+3. Provider-native session record appears in the tool's own history / is resumable
+
+Anything less is `no-receipt`, `disconnected-partial`, or `env-unverifiable`. "CLI accepted `--model`" ≠ "headless write-back verified." These are distinct claims.
 
 #### Degrade Conditions
 
 | Condition | Behavior |
 | --- | --- |
-| No routing file | Fall through to `--- GAL DISPATCH ---` (unchanged) |
-| Role has no executor mapping | Fall through to `--- GAL DISPATCH ---` |
-| Spec generation fails | Fall through to `--- GAL DISPATCH ---` |
-| Executor exits 2 (unavailable/timeout) | Fall back to role-playing the golem in conversation; record `Dispatch: fallback(reason=exit2-<executor>)` |
-| Write-back missing or wrong format after exit 0 | Treat as `no-receipt`; fall back; record `Dispatch: fallback(reason=no-receipt)` |
+| No routing file | Bin outputs text dispatch, exit 2 |
+| Role has no routing entry | Bin outputs text dispatch, exit 2 |
+| Executor not in PATH | Bin outputs text dispatch with `reason=executor-unavailable`, exit 2 |
+| Executor exit non-zero | Terminal state `disconnected-partial`, exit 1 |
+| Write-back missing or empty after exit 0 | Terminal state `no-receipt`, exit 1 |
+| Timeout | Terminal state `timeout`, exit 2; process tree killed |
+| Bin absent | Shim outputs `Dispatch: reason=bin-absent`, exit 2 |
+
+All degrade paths are backward-compatible — orchestrator falls back to role-playing the golem in conversation.
 
 #### Commit Boundary
 
-**The secondary CLI must not run `git commit` or `git push`.** The Task Spec explicitly forbids this. The commit boundary is held exclusively by the orchestrator. Partial or ambiguous write-back (from mid-disconnect or format errors) is **always treated as failure and degrades** — the orchestrator never accepts a partial result. The durable run log retains pre-disconnect output for diagnosis.
-
-#### Dispatch Observability Marker
-
-After every pipeline-phase dispatch, the orchestrator records one line in the execution prompt for that stage:
-
-```
-Dispatch: offload(executor=<cli>, receipt=<ok|no-receipt>, exit=<n>)
-Dispatch: fallback(reason=<no-routing|no-executor|exit2-<cli>|no-receipt>)
-Dispatch: inline(reason=<same-runtime-fallback>)
-Dispatch: non-dispatchable(provider=<codex|copilot>)
-```
-
-Rules:
-- All five providers are in the observation surface.
-- `claude`, `opencode`, and `agy` can produce real receipts.
-- `codex` and `copilot` have no headless execution mode — they are **always** recorded as `non-dispatchable`. This is not a degrade; it is their permanent status.
-- Record the marker before moving to the next phase or task.
+**The secondary CLI must not run `git commit` or `git push`.** The task spec explicitly forbids this. The commit boundary is held exclusively by the orchestrator. The bin enforces the commit boundary by not passing commit-related flags; the spec template must also omit any commit instruction to the executor.
 
 #### Durable Run Record (Forensics)
 
-Each `Invoke-Executor.ps1` call writes a log to `.dev/executor-logs/<ts>-T-NNN-<phase>-<executor>.log` containing:
-- Header: start/end time, duration, executor name, task/phase, spec path, git branch/HEAD, exit code, terminal state.
-- Full stdout and stderr of the secondary CLI subprocess.
+The bin writes `.dev/executor-logs/<epoch>-<T-NNN>-<phase>-<executor>.log` containing:
+- Header fields: `timestamp_start`, `timestamp_end`, `duration_ms`, `executor`, `phase`, `task_id`, `git_branch`, `git_head`, `exit_code`, `actual_model`, `terminal_state`, `session_id`
+- Full `---STDOUT---` and `---STDERR---` sections
 
-Terminal-state classifications (same enumeration as the `Dispatch:` `reason=` values):
+Terminal-state vocabulary:
 
 | State | Meaning |
 | --- | --- |
 | `completed` | Exit 0 and write-back verified |
-| `no-receipt` | Ran but write-back missing or wrong format |
-| `timeout` | Killed by timeout reclamation |
-| `disconnected-partial` | Child exited nonzero unexpectedly; possible partial write |
-| `unavailable` | CLI absent (`Get-Command` failed) |
+| `no-receipt` | Exit 0 but receipt file absent or empty |
+| `timeout` | Killed by process-tree timeout |
+| `disconnected-partial` | Non-zero exit; possible partial write |
+| `unavailable` | Executor CLI not found in PATH |
 
-These logs are **retained for forensics**, not cleaned at pipeline end. Retention is capped to the N most recent dispatches (per task or global). Use them to trace:
-- **Timeout / no response**: terminal state `timeout`.
-- **Wrong format (no write-back or wrong section)**: terminal state `no-receipt`.
-- **Mid-disconnect partial completion**: terminal state `disconnected-partial`.
-
-#### Task Spec Lifecycle
-
-The Task Spec (`.dev/task-specs/<T-NNN>-<phase>.md`) is a **transient** control-plane artifact. It is cleaned up by `New-TaskSpec.ps1 -Cleanup` at pipeline end. Do not treat it as durable state.
+These logs are retained for forensics. Use them to trace timeout, no-receipt, and disconnected-partial conditions.
 
 #### ⚠️ SECURITY WARNING — bypass-permission
 
-Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (or equivalent). This is **equivalent to full trust** of the secondary CLI's filesystem and terminal access. A malicious or flawed agent contract could cause unintended file deletions, edits, or arbitrary command execution.
+Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (claude/opencode) or `--allow-all` (copilot), which grant the secondary CLI full filesystem and terminal access. A malicious or flawed agent contract could cause unintended file deletions, edits, or arbitrary command execution.
 
-**Enable executor routing only in a trusted local environment.** The OFFLOAD block always echoes this warning. The orchestrator must surface it to the user before executing.
+**Enable executor routing only in a trusted local environment.** The `Dispatch:` marker always appears before execution. The orchestrator must surface this warning to the user before first use.
 
 ### Runtime Step-Budget Preflight
 
