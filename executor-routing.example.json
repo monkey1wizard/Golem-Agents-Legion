@@ -1,0 +1,7 @@
+{
+  "_comment": "Single source for executor dispatch and per-role model injection. model-roles.md is human planning reference only. codex/copilot are non-headless and have no executor model entry.",
+  "CODER":    { "executor": "claude",   "model": "haiku-4.5" },
+  "TESTER":   { "executor": "opencode", "model": "DeepSeek V4 Flash" },
+  "REVIEWER": { "executor": "claude",   "model": "haiku-4.5" },
+  "VERIFIER": { "executor": "opencode", "model": "DeepSeek V4 Flash" }
+}
