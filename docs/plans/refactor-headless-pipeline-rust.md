@@ -288,7 +288,7 @@ Not requested（無 customer-facing UI）。
 
 ### 階段一：Rust bin 核心
 
-- [ ] T-004 — 建 `rust/gal-dispatch` crate：routing JSON 解析（`role→{executor,model}`，安全降級）+ stage→role 對照 + CLI 入口（`--phase/--task/--workdir/--timeout`）。
+- [x] T-004 — 建 `rust/gal-dispatch` crate：routing JSON 解析（`role→{executor,model}`，安全降級）+ stage→role 對照 + CLI 入口（`--phase/--task/--workdir/--timeout`）。*(77fef32)*
 - [ ] T-005 — spawn 次級 CLI + stdin 餵 spec + 逾時行程樹回收 + durable executor log（header + 終態五分類 `completed`/`no-receipt`/`timeout`/`disconnected-partial`/`unavailable`）。
 - [ ] T-006 — 收檔驗證（讀目標檔內容才判 `completed`，半寫一律失敗）+ 擷取 provider session/job id 寫入 log header 與 `Dispatch:` 標記。
 - [ ] T-007 — 預設安全閘：僅當 provider 成功設置（routing 有角色 + adapter 可用 + spike 通過）才 offload，否則 inline；bin 自身輸出 `--- GAL DISPATCH ---` 降級文字分派。
