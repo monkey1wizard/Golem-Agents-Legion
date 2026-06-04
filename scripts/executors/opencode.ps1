@@ -27,7 +27,8 @@
   See docs/manual.md for the bypass-permission warning.
 #>
 param(
-    [string]$WorkDir = $PWD.Path
+    [string]$WorkDir = $PWD.Path,
+    [string]$Model   = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,6 +47,10 @@ Set-Location -LiteralPath $WorkDir
 
 # Pipe spec to opencode headless (no positional message arg → reads from stdin)
 # stdout/stderr flow through to Invoke-Executor for capture (durable log, T-013)
-$spec | opencode run --dangerously-skip-permissions
+$opencodeArgs = @('run', '--dangerously-skip-permissions')
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+    $opencodeArgs += @('-m', $Model)
+}
+$spec | opencode @opencodeArgs
 
 exit $LASTEXITCODE

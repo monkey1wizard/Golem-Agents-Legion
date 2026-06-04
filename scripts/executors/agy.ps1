@@ -29,7 +29,8 @@
   See docs/manual.md for the bypass-permission warning.
 #>
 param(
-    [string]$WorkDir = $PWD.Path
+    [string]$WorkDir = $PWD.Path,
+    [string]$Model   = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +50,10 @@ Set-Location -LiteralPath $WorkDir
 # Pipe spec to agy headless
 # Note: agy stdout will be empty (PTY output, not captured by redirect) — expected.
 # The durable log records this; verification is by file write-back content only.
+# -Model is accepted but not forwarded: agy has no --model flag (T-004 spike: env-unverifiable).
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+    [Console]::Error.WriteLine("agy.ps1: -Model '$Model' requested but agy has no --model flag — model injection skipped (env-unverifiable)")
+}
 $spec | agy -p --dangerously-skip-permissions
 
 exit $LASTEXITCODE

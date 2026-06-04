@@ -23,7 +23,8 @@
   See docs/manual.md for the bypass-permission warning.
 #>
 param(
-    [string]$WorkDir = $PWD.Path
+    [string]$WorkDir = $PWD.Path,
+    [string]$Model   = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,6 +43,10 @@ Set-Location -LiteralPath $WorkDir
 
 # Pipe spec to claude headless
 # stdout/stderr flow through to Invoke-Executor for capture (durable log, T-013)
-$spec | claude -p --dangerously-skip-permissions
+$claudeArgs = @('-p', '--dangerously-skip-permissions')
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+    $claudeArgs += @('--model', $Model)
+}
+$spec | claude @claudeArgs
 
 exit $LASTEXITCODE
