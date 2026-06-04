@@ -751,62 +751,60 @@ switch ($Command) {
         break
     }
     "pipeline" {
-        # Headless pipeline orchestrator: dispatch task to executor based on routing configuration
-        # Usage: gal pipeline <TaskSpecPath> [role] [--model <model>]
-        # Exit codes: 0=success, 1=failed, 2=executor-not-available
-        
-        if ($Arguments.Count -eq 0) {
-            Write-Error "Usage: gal pipeline <TaskSpecPath> [role] [--model <model>]" -ErrorAction Stop
+        # T-009: Thin shim — delegates to the gal-dispatch Rust bin.
+        # Usage: gal pipeline <TaskSpecPath> [--phase <phase>] [--task <T-NNN>] [--receipt <path>]
+        # Exit codes mirror gal-dispatch: 0=completed, 1=no-receipt/failed, 2=unavailable/degraded
+        #
+        # When the gal-dispatch bin is absent (not yet distributed to this machine), this shim
+        # outputs the minimal text dispatch so callers are never silently broken.
+
+        $workDir     = Get-RepoContextRoot
+        $binName     = 'gal-dispatch'
+        $binFound    = $null -ne (Get-Command $binName -ErrorAction SilentlyContinue)
+
+        if (-not $binFound) {
+            # Bin absent — output minimal text dispatch (backward-compatible degradation)
+            Write-Output '--- GAL DISPATCH ---'
+            Write-Output "Dispatch: reason=bin-absent executor=text-dispatch"
+            Write-Error "gal-dispatch bin not found in PATH; text dispatch fallback active. Install the bin or add it to PATH." -ErrorAction Continue
+            exit 2
         }
-        
-        $taskSpecPath = $Arguments[0]
-        $role = if ($Arguments.Count -gt 1) { $Arguments[1] } else { 'CODER' }
-        $model = $null
-        $logDir = Join-Path (Get-RepoContextRoot) '.dev\executor-logs'
-        
-        # Parse optional --model flag
-        for ($i = 1; $i -lt $Arguments.Count; $i++) {
-            if ($Arguments[$i] -eq '--model' -and $i + 1 -lt $Arguments.Count) {
-                $model = $Arguments[$i + 1]
-                $i++
-                break
+
+        # Parse args: --phase, --task, --receipt, spec path
+        $phase       = 'implement'
+        $taskId      = ''
+        $receiptPath = ''
+        $specPath    = ''
+        $i = 0
+        while ($i -lt $Arguments.Count) {
+            switch ($Arguments[$i]) {
+                '--phase'   { $i++; $phase       = $Arguments[$i] }
+                '--task'    { $i++; $taskId      = $Arguments[$i] }
+                '--receipt' { $i++; $receiptPath = $Arguments[$i] }
+                default     { if (-not $specPath) { $specPath = $Arguments[$i] } }
             }
+            $i++
         }
-        
-        # Validate task spec path
-        if (-not (Test-Path $taskSpecPath)) {
-            Write-Error "Task spec not found: $taskSpecPath" -ErrorAction Stop
+
+        if (-not $specPath) {
+            Write-Error "Usage: gal pipeline <TaskSpecPath> [--phase <phase>] [--task <T-NNN>] [--receipt <path>]" -ErrorAction Stop
         }
-        
-        # Read executor routing
-        $routing = Read-ExecutorRouting
-        if (-not $routing -or -not $routing.ContainsKey($role)) {
-            Write-Error "No executor routing found for role: $role" -ErrorAction Stop
+        if (-not (Test-Path $specPath)) {
+            Write-Error "Task spec not found: $specPath" -ErrorAction Stop
         }
-        
-        $routeEntry = $routing[$role]
-        $executor = $routeEntry.executor
-        $routedModel = if ($routeEntry.model) { $routeEntry.model } else { $null }
-        $effectiveModel = if ($model) { $model } else { $routedModel }
-        
-        # Ensure log directory exists
-        if (-not (Test-Path $logDir)) {
-            New-Item -ItemType Directory -Path $logDir -Force > $null
+
+        # Auto-derive task id from spec filename (e.g. T-007-implement.md → T-007)
+        if (-not $taskId) {
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($specPath)
+            if ($baseName -match '^(T-\d+)') { $taskId = $Matches[1] }
         }
-        
-        # Call Invoke-Executor
-        $invokerPath = Join-Path $scriptRoot 'executors\Invoke-Executor.ps1'
-        $invokerArgs = @{
-            Executor = $executor
-            TaskSpecPath = $taskSpecPath
-            WorkDir = (Get-RepoContextRoot)
-        }
-        
-        if ($effectiveModel) {
-            $invokerArgs['Model'] = $effectiveModel
-        }
-        
-        & $invokerPath @invokerArgs
+        if (-not $taskId) { $taskId = 'T-unknown' }
+
+        $binArgs = @('--phase', $phase, '--task', $taskId, '--workdir', $workDir)
+        if ($receiptPath) { $binArgs += @('--receipt', $receiptPath) }
+
+        # Pipe spec content to bin stdin
+        Get-Content $specPath -Raw -Encoding UTF8 | & $binName @binArgs
         exit $LASTEXITCODE
     }
     "dispatch" {
