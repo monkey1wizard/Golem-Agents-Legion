@@ -1,0 +1,196 @@
+//! CLI argument parsing for `gal-dispatch` (T-004).
+//!
+//! Accepted flags:
+//!   --phase   <implement|test|review|verify>   (required)
+//!   --task    <T-NNN>                           (required)
+//!   --workdir <path>                            (optional; defaults to cwd)
+//!   --timeout <seconds>                         (optional; defaults to 300)
+
+use crate::stage::{Phase, PhaseParseError};
+use std::path::PathBuf;
+use thiserror::Error;
+
+/// Parsed CLI options for a `gal-dispatch` invocation.
+#[derive(Debug, Clone)]
+pub struct DispatchArgs {
+    pub phase: Phase,
+    pub task: String,
+    pub workdir: PathBuf,
+    pub timeout_secs: u64,
+    /// Routing file override (optional; defaults to `~/.gal/config/executor-routing.json`).
+    pub routing_path: Option<PathBuf>,
+}
+
+impl Default for DispatchArgs {
+    fn default() -> Self {
+        Self {
+            phase: Phase::Implement,
+            task: String::new(),
+            workdir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            timeout_secs: 300,
+            routing_path: None,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum CliParseError {
+    #[error("missing required flag --phase")]
+    MissingPhase,
+    #[error("missing required flag --task")]
+    MissingTask,
+    #[error("invalid phase: {0}")]
+    BadPhase(#[from] PhaseParseError),
+    #[error("flag {0} requires a value")]
+    MissingValue(&'static str),
+    #[error("invalid timeout value '{0}': must be a positive integer")]
+    BadTimeout(String),
+    #[error("unknown flag '{0}'")]
+    UnknownFlag(String),
+}
+
+/// Parse `gal-dispatch` CLI arguments from a slice (not including argv[0]).
+pub fn parse_args(args: &[String]) -> Result<DispatchArgs, CliParseError> {
+    let mut phase: Option<Phase> = None;
+    let mut task: Option<String> = None;
+    let mut workdir: Option<PathBuf> = None;
+    let mut timeout_secs: u64 = 300;
+    let mut routing_path: Option<PathBuf> = None;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--phase" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--phase"))?;
+                phase = Some(Phase::from_str(v)?);
+            }
+            "--task" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--task"))?;
+                task = Some(v.clone());
+            }
+            "--workdir" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--workdir"))?;
+                workdir = Some(PathBuf::from(v));
+            }
+            "--timeout" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--timeout"))?;
+                timeout_secs = v
+                    .parse::<u64>()
+                    .map_err(|_| CliParseError::BadTimeout(v.clone()))?;
+                if timeout_secs == 0 {
+                    return Err(CliParseError::BadTimeout(v.clone()));
+                }
+            }
+            "--routing" => {
+                i += 1;
+                let v = args.get(i).ok_or(CliParseError::MissingValue("--routing"))?;
+                routing_path = Some(PathBuf::from(v));
+            }
+            other if other.starts_with('-') => {
+                return Err(CliParseError::UnknownFlag(other.to_string()));
+            }
+            _ => {} // positional args ignored for now
+        }
+        i += 1;
+    }
+
+    Ok(DispatchArgs {
+        phase: phase.ok_or(CliParseError::MissingPhase)?,
+        task: task.ok_or(CliParseError::MissingTask)?,
+        workdir: workdir.unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        }),
+        timeout_secs,
+        routing_path,
+    })
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stage::Phase;
+
+    fn args(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn parses_minimal_required_flags() {
+        let a = parse_args(&args(&["--phase", "implement", "--task", "T-004"])).unwrap();
+        assert_eq!(a.phase, Phase::Implement);
+        assert_eq!(a.task, "T-004");
+        assert_eq!(a.timeout_secs, 300);
+    }
+
+    #[test]
+    fn parses_all_flags() {
+        let a = parse_args(&args(&[
+            "--phase", "test",
+            "--task", "T-005",
+            "--workdir", "/tmp/work",
+            "--timeout", "120",
+        ])).unwrap();
+        assert_eq!(a.phase, Phase::Test);
+        assert_eq!(a.task, "T-005");
+        assert_eq!(a.workdir, PathBuf::from("/tmp/work"));
+        assert_eq!(a.timeout_secs, 120);
+    }
+
+    #[test]
+    fn missing_phase_is_error() {
+        let r = parse_args(&args(&["--task", "T-001"]));
+        assert!(matches!(r, Err(CliParseError::MissingPhase)));
+    }
+
+    #[test]
+    fn missing_task_is_error() {
+        let r = parse_args(&args(&["--phase", "review"]));
+        assert!(matches!(r, Err(CliParseError::MissingTask)));
+    }
+
+    #[test]
+    fn bad_phase_is_error() {
+        let r = parse_args(&args(&["--phase", "deploy", "--task", "T-001"]));
+        assert!(matches!(r, Err(CliParseError::BadPhase(_))));
+    }
+
+    #[test]
+    fn zero_timeout_is_error() {
+        let r = parse_args(&args(&["--phase", "implement", "--task", "T-001", "--timeout", "0"]));
+        assert!(matches!(r, Err(CliParseError::BadTimeout(_))));
+    }
+
+    #[test]
+    fn non_numeric_timeout_is_error() {
+        let r = parse_args(&args(&["--phase", "implement", "--task", "T-001", "--timeout", "forever"]));
+        assert!(matches!(r, Err(CliParseError::BadTimeout(_))));
+    }
+
+    #[test]
+    fn unknown_flag_is_error() {
+        let r = parse_args(&args(&["--phase", "implement", "--task", "T-001", "--frobnicate"]));
+        assert!(matches!(r, Err(CliParseError::UnknownFlag(_))));
+    }
+
+    #[test]
+    fn flag_missing_value_is_error() {
+        let r = parse_args(&args(&["--phase", "implement", "--task", "T-001", "--workdir"]));
+        assert!(matches!(r, Err(CliParseError::MissingValue(_))));
+    }
+
+    #[test]
+    fn routing_path_override_parsed() {
+        let a = parse_args(&args(&[
+            "--phase", "verify",
+            "--task", "T-013",
+            "--routing", "/custom/executor-routing.json",
+        ])).unwrap();
+        assert_eq!(a.routing_path, Some(PathBuf::from("/custom/executor-routing.json")));
+    }
+}

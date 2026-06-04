@@ -1,0 +1,119 @@
+//! Stage → Role mapping (T-004).
+//!
+//! Pipeline phase names map to abstract role identifiers, which are then
+//! looked up in the routing table to find the executor + model.
+//!
+//! | Phase      | Role     |
+//! |------------|----------|
+//! | implement  | CODER    |
+//! | test       | TESTER   |
+//! | review     | REVIEWER |
+//! | verify     | VERIFIER |
+
+use thiserror::Error;
+
+/// A pipeline phase, as named on the CLI (`--phase <value>`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Phase {
+    Implement,
+    Test,
+    Review,
+    Verify,
+}
+
+impl Phase {
+    /// Canonical CLI name (lower-case, matches `--phase` values).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Phase::Implement => "implement",
+            Phase::Test => "test",
+            Phase::Review => "review",
+            Phase::Verify => "verify",
+        }
+    }
+
+    /// The role key used in `executor-routing.json`.
+    pub fn role(self) -> &'static str {
+        match self {
+            Phase::Implement => "CODER",
+            Phase::Test => "TESTER",
+            Phase::Review => "REVIEWER",
+            Phase::Verify => "VERIFIER",
+        }
+    }
+
+    /// Parse from a CLI string; case-insensitive.
+    pub fn from_str(s: &str) -> Result<Self, PhaseParseError> {
+        match s.to_ascii_lowercase().as_str() {
+            "implement" | "impl" => Ok(Phase::Implement),
+            "test" => Ok(Phase::Test),
+            "review" => Ok(Phase::Review),
+            "verify" => Ok(Phase::Verify),
+            _ => Err(PhaseParseError::Unknown(s.to_string())),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum PhaseParseError {
+    #[error("unknown phase '{0}'; expected one of: implement, test, review, verify")]
+    Unknown(String),
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn implement_maps_to_coder() {
+        assert_eq!(Phase::Implement.role(), "CODER");
+    }
+
+    #[test]
+    fn test_maps_to_tester() {
+        assert_eq!(Phase::Test.role(), "TESTER");
+    }
+
+    #[test]
+    fn review_maps_to_reviewer() {
+        assert_eq!(Phase::Review.role(), "REVIEWER");
+    }
+
+    #[test]
+    fn verify_maps_to_verifier() {
+        assert_eq!(Phase::Verify.role(), "VERIFIER");
+    }
+
+    #[test]
+    fn phase_from_str_case_insensitive() {
+        assert_eq!(Phase::from_str("IMPLEMENT").unwrap(), Phase::Implement);
+        assert_eq!(Phase::from_str("Test").unwrap(), Phase::Test);
+        assert_eq!(Phase::from_str("REVIEW").unwrap(), Phase::Review);
+        assert_eq!(Phase::from_str("verify").unwrap(), Phase::Verify);
+    }
+
+    #[test]
+    fn impl_alias_works() {
+        assert_eq!(Phase::from_str("impl").unwrap(), Phase::Implement);
+    }
+
+    #[test]
+    fn unknown_phase_is_error() {
+        assert!(Phase::from_str("deploy").is_err());
+        assert!(Phase::from_str("").is_err());
+    }
+
+    #[test]
+    fn all_phases_have_unique_roles() {
+        let roles = [
+            Phase::Implement.role(),
+            Phase::Test.role(),
+            Phase::Review.role(),
+            Phase::Verify.role(),
+        ];
+        let unique: std::collections::HashSet<_> = roles.iter().collect();
+        assert_eq!(unique.len(), roles.len(), "each phase must map to a distinct role");
+    }
+}
