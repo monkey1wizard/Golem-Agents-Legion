@@ -366,10 +366,41 @@ fn write_log(
     Ok(())
 }
 
-/// Naive session id extractor — looks for UUID-shaped strings in stdout.
-/// Tool-specific adapters (T-008) replace this with field-aware extraction.
+/// Generic session id extractor for use in the durable log header (T-006/T-012).
+///
+/// Tries JSON field extraction first (covers claude, opencode, copilot whose stdout
+/// is a JSON object or NDJSON stream), then falls back to a UUID-shape scan.
+/// Tool-specific adapters (T-008) may further refine this for the `Dispatch:` marker.
 fn extract_session_id_generic(stdout: &str) -> Option<String> {
-    // Very basic: look for a 36-char UUID pattern (8-4-4-4-12) in stdout
+    // Pass 1: Try to parse each line as JSON and look for known session id field names.
+    // This covers: claude (`session_id`), opencode (`sessionID`), copilot (`result.sessionId`),
+    // codex (`thread_id`) in a unified way so the log header gets the correct id.
+    const JSON_FIELDS: &[&str] = &["session_id", "sessionID", "sessionId", "thread_id"];
+    for line in stdout.lines() {
+        let line = line.trim();
+        if !line.is_empty() && line.starts_with('{') {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                for &field in JSON_FIELDS {
+                    if let Some(id) = v.get(field).and_then(|f| f.as_str()) {
+                        if !id.is_empty() {
+                            return Some(id.to_string());
+                        }
+                    }
+                }
+                // Try one level of nesting: result.sessionId (copilot)
+                if let Some(id) = v.get("result")
+                    .and_then(|r| r.get("sessionId"))
+                    .and_then(|f| f.as_str())
+                {
+                    if !id.is_empty() {
+                        return Some(id.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Pass 2: UUID-shape token scan (fallback for tools whose output is plain text).
     for word in stdout.split_whitespace() {
         let w = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-');
         if looks_like_uuid(w) {
@@ -660,5 +691,61 @@ mod tests {
         let f = tmp.path().join("empty.txt");
         std::fs::write(&f, "").unwrap();
         assert!(!verify_receipt(&f));
+    }
+
+    // ── Session id extraction tests (T-012 / T-006 completion) ─────────────────
+
+    #[test]
+    fn session_id_extracted_from_claude_json() {
+        // Claude outputs a JSON object with `session_id` at root level
+        let stdout = r#"{"type":"result","session_id":"f5c9f450-c44d-41ba-9e7e-e0bfcb19e105","duration_ms":902}"#;
+        let id = extract_session_id_generic(stdout);
+        assert_eq!(id.as_deref(), Some("f5c9f450-c44d-41ba-9e7e-e0bfcb19e105"));
+    }
+
+    #[test]
+    fn session_id_extracted_from_opencode_ndjson() {
+        // OpenCode streams NDJSON events; sessionID in one of the events
+        let stdout = "{\"type\":\"info\"}\n{\"sessionID\":\"ses_abc123\",\"model\":\"gpt-4\"}\n";
+        let id = extract_session_id_generic(stdout);
+        assert_eq!(id.as_deref(), Some("ses_abc123"));
+    }
+
+    #[test]
+    fn session_id_extracted_from_copilot_nested_result() {
+        // Copilot has result.sessionId nested
+        let stdout = r#"{"result":{"sessionId":"0f3e7af9-6cd2-4853-bf41-9e5a7a9b6df9","status":"ok"}}"#;
+        let id = extract_session_id_generic(stdout);
+        assert_eq!(id.as_deref(), Some("0f3e7af9-6cd2-4853-bf41-9e5a7a9b6df9"));
+    }
+
+    #[test]
+    fn session_id_extracted_from_codex_thread_id() {
+        // Codex NDJSON stream has thread_id in thread.started event
+        let stdout = "{\"type\":\"thread.started\",\"thread_id\":\"019e92a3-afbb-7af1-9d42-5bd8f5b017ef\"}\n";
+        let id = extract_session_id_generic(stdout);
+        assert_eq!(id.as_deref(), Some("019e92a3-afbb-7af1-9d42-5bd8f5b017ef"));
+    }
+
+    #[test]
+    fn session_id_falls_back_to_uuid_scan() {
+        // Plain text output: UUID as a standalone whitespace-separated token (possibly with
+        // leading/trailing punctuation that gets trimmed). The UUID must appear where
+        // trim_matches(non-alphanumeric, non-hyphen) isolates the UUID portion.
+        let stdout = "task complete session=a1b2c3d4-e5f6-7890-abcd-ef1234567890.";
+        // The token "session=a1b2c3d4-e5f6-7890-abcd-ef1234567890." → trim '.' from end → still has 'session=' prefix
+        // For a clean token, the UUID must be standalone or only have trimmable punctuation
+        let stdout2 = "completed. {\"id\": \"unknown\"} a1b2c3d4-e5f6-7890-abcd-ef1234567890 done";
+        let id = extract_session_id_generic(stdout2);
+        assert_eq!(id.as_deref(), Some("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
+            "standalone UUID should be found by fallback scan");
+        // The first input won't find the UUID (ref= prefix can't be trimmed mid-word)
+        let _ = extract_session_id_generic(stdout); // does not panic
+    }
+
+    #[test]
+    fn session_id_returns_none_for_empty_stdout() {
+        assert!(extract_session_id_generic("").is_none());
+        assert!(extract_session_id_generic("no id here").is_none());
     }
 }
