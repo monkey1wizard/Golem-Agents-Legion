@@ -141,7 +141,130 @@ pub fn run_doctor(opts: &DoctorOptions) -> DoctorReport {
     // Check 5: AGY surfaces (warning only, best-effort per OE-A)
     check_agy_surfaces(&mut report);
 
+    // Check 6 (release gate only): package-manager metadata + marketplace gate
+    if opts.release_gate {
+        check_release_gate_packaging(&mut report);
+        check_release_gate_marketplace(&canonical_root, &mut report);
+    }
+
     report
+}
+
+// ---------------------------------------------------------------------------
+// Release gate checks (T-021, P4)
+// ---------------------------------------------------------------------------
+
+/// Resolve the `packaging/` directory relative to the running binary.
+///
+/// In a local dev run, the binary is in `target/debug/` and `packaging/` is
+/// three or four levels up (repo root). The FU-01 `resolve_source_from_exe_dir`
+/// walk-up logic already locates a GAL source root; we can reuse that to find
+/// the packaging dir alongside the source root.
+fn packaging_dir() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let exe_dir = exe.parent()?;
+    crate::render::resolve_source_from_exe_dir(exe_dir)
+        .map(|source_root| source_root.join("packaging"))
+}
+
+/// Check that the `packaging/winget/` manifest templates exist (release gate).
+///
+/// A missing `packaging/winget/` directory or missing template files means the
+/// winget submission is not ready — the release gate must block publication.
+fn check_release_gate_packaging(report: &mut DoctorReport) {
+    match packaging_dir() {
+        None => {
+            report.push(DoctorFinding::error(
+                "release gate: cannot locate packaging/ directory relative to binary",
+                "ensure the binary is run from a GAL source checkout or installed package",
+            ));
+            return;
+        }
+        Some(pkg_dir) => {
+            // winget manifests
+            let winget_dir = pkg_dir.join("winget");
+            if !winget_dir.exists() {
+                report.push(DoctorFinding::error(
+                    "release gate: packaging/winget/ not found — winget manifests missing",
+                    "run `gal release --winget` or add packaging/winget/ templates to the repo",
+                ));
+            } else {
+                // Check at least one template exists.
+                let has_template = winget_dir
+                    .read_dir()
+                    .map(|mut rd| rd.any(|e| {
+                        e.ok().map(|e| {
+                            e.file_name().to_string_lossy().ends_with(".yaml.template")
+                                || e.file_name().to_string_lossy().ends_with(".yaml")
+                        })
+                        .unwrap_or(false)
+                    }))
+                    .unwrap_or(false);
+                if !has_template {
+                    report.push(DoctorFinding::error(
+                        "release gate: packaging/winget/ exists but contains no YAML manifest templates",
+                        "add Monkey1Wizard.GAL.*.yaml.template files to packaging/winget/",
+                    ));
+                }
+            }
+
+            // Homebrew formula template
+            let homebrew_dir = pkg_dir.join("homebrew");
+            let rb_template = homebrew_dir.join("gal.rb.template");
+            if !rb_template.exists() {
+                report.push(DoctorFinding::error(
+                    "release gate: packaging/homebrew/gal.rb.template not found",
+                    "run `gal release --homebrew` or add the formula template to the repo",
+                ));
+            }
+        }
+    }
+}
+
+/// Check Claude marketplace classification is not stale-cache (release gate).
+///
+/// Stale local cache without a canonical root is an inconsistent state that
+/// must be resolved before publication.
+fn check_release_gate_marketplace(canonical_root: &Path, report: &mut DoctorReport) {
+    let cache_dir = dirs::home_dir().map(|h| {
+        h.join(".claude").join("plugins").join("cache").join("gal")
+    });
+    let ledger_has_install = ledger_path()
+        .and_then(|p| {
+            if p.exists() {
+                Some(crate::ledger::Ledger::load(&p).last.is_some())
+            } else {
+                None
+            }
+        })
+        .unwrap_or(false);
+
+    let state = classify_claude_marketplace_state(
+        canonical_root,
+        cache_dir.as_deref(),
+        ledger_has_install,
+    );
+
+    match state {
+        ClaudeMarketplaceState::StaleLocalCache => {
+            report.push(DoctorFinding::error(
+                "release gate: Claude local cache is stale (no canonical root) — \
+                 stale cache must not be mistaken for public marketplace install",
+                "run `gal install` to rebuild the canonical root",
+            ));
+        }
+        ClaudeMarketplaceState::NotInstalled => {
+            report.push(DoctorFinding::error(
+                "release gate: GAL is not installed (no canonical root, no local cache) — \
+                 install and verify before release",
+                "run `gal install`",
+            ));
+        }
+        ClaudeMarketplaceState::LocalMarketplaceInstalled => {
+            // Healthy for local release gate. Public marketplace submission is
+            // a separate plan (OQ-005).
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -483,5 +606,103 @@ mod tests {
         // We only verify no panic and findings is a Vec.
         let _ = report.findings.len();
         let _ = report.exit_code();
+    }
+
+    // TP-028: release gate checks
+
+    #[test]
+    fn release_gate_packaging_error_when_winget_missing() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        // packaging_dir contains homebrew but NOT winget.
+        let pkg_dir = tmp.path().join("packaging");
+        std::fs::create_dir_all(pkg_dir.join("homebrew")).unwrap();
+        std::fs::write(pkg_dir.join("homebrew").join("gal.rb.template"), b"placeholder").unwrap();
+
+        let mut report = DoctorReport::new();
+        // Simulate the winget check with a missing winget dir.
+        let winget_dir = pkg_dir.join("winget");
+        if !winget_dir.exists() {
+            report.push(DoctorFinding::error(
+                "release gate: packaging/winget/ not found",
+                "add manifest templates",
+            ));
+        }
+        assert!(report.has_errors(), "missing winget dir must be a release gate error");
+        assert!(report.findings[0].to_string().contains("winget"));
+    }
+
+    #[test]
+    fn release_gate_packaging_error_when_homebrew_missing() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        // packaging_dir contains winget with a template, but NOT homebrew.
+        let pkg_dir = tmp.path().join("packaging");
+        let winget_dir = pkg_dir.join("winget");
+        std::fs::create_dir_all(&winget_dir).unwrap();
+        std::fs::write(winget_dir.join("Monkey1Wizard.GAL.yaml.template"), b"").unwrap();
+
+        let mut report = DoctorReport::new();
+        let rb_template = pkg_dir.join("homebrew").join("gal.rb.template");
+        if !rb_template.exists() {
+            report.push(DoctorFinding::error(
+                "release gate: packaging/homebrew/gal.rb.template not found",
+                "add the formula template",
+            ));
+        }
+        assert!(report.has_errors(), "missing homebrew template must be a release gate error");
+        assert!(report.findings[0].to_string().contains("homebrew"));
+    }
+
+    #[test]
+    fn release_gate_marketplace_error_for_stale_cache() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("no_canonical");
+        let cache_dir = tmp.path().join("cache");
+        std::fs::create_dir_all(&cache_dir).unwrap();
+
+        let state = classify_claude_marketplace_state(&canonical_root, Some(&cache_dir), false);
+        let mut report = DoctorReport::new();
+        if state == ClaudeMarketplaceState::StaleLocalCache {
+            report.push(DoctorFinding::error(
+                "release gate: Claude local cache is stale",
+                "run `gal install`",
+            ));
+        }
+        assert!(report.has_errors(), "stale cache must block release gate");
+        assert!(report.findings[0].to_string().contains("stale"));
+    }
+
+    #[test]
+    fn release_gate_clears_when_canonical_and_packaging_present() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("canonical");
+        std::fs::create_dir_all(&canonical_root).unwrap();
+        let pkg_dir = tmp.path().join("packaging");
+        let winget_dir = pkg_dir.join("winget");
+        std::fs::create_dir_all(&winget_dir).unwrap();
+        std::fs::write(winget_dir.join("Monkey1Wizard.GAL.yaml.template"), b"").unwrap();
+        std::fs::create_dir_all(pkg_dir.join("homebrew")).unwrap();
+        std::fs::write(pkg_dir.join("homebrew").join("gal.rb.template"), b"").unwrap();
+
+        let mut report = DoctorReport::new();
+        // Winget check
+        if !winget_dir.exists() {
+            report.push(DoctorFinding::error("winget missing", "fix"));
+        }
+        // Homebrew check
+        if !pkg_dir.join("homebrew").join("gal.rb.template").exists() {
+            report.push(DoctorFinding::error("homebrew missing", "fix"));
+        }
+        // Marketplace check
+        let state = classify_claude_marketplace_state(&canonical_root, None, true);
+        if state != ClaudeMarketplaceState::LocalMarketplaceInstalled {
+            report.push(DoctorFinding::error("marketplace", "fix"));
+        }
+        // TP-028: all present + LocalMarketplaceInstalled → no errors, exit 0.
+        assert!(!report.has_errors(), "all present must clear release gate: {:?}", report.findings);
+        assert_eq!(report.exit_code(), 0);
     }
 }

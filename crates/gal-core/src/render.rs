@@ -260,7 +260,10 @@ fn resolve_packaged_source_root() -> Result<PathBuf, RenderError> {
 /// Tries, in order: a flat layout (binary and source side by side), an
 /// FHS-style layout (`<prefix>/bin/gal` + `<prefix>/share/gal`), then a bounded
 /// walk up the ancestor chain (covers `bin/` nesting and dev `target/` layouts).
-fn resolve_source_from_exe_dir(exe_dir: &Path) -> Option<PathBuf> {
+///
+/// Public so that `doctor.rs` can use it to locate the `packaging/` directory
+/// alongside the source root (release gate, T-021).
+pub fn resolve_source_from_exe_dir(exe_dir: &Path) -> Option<PathBuf> {
     // 1. Flat layout: gal(.exe) and skills/agent/commands in the same directory.
     if looks_like_source_root(exe_dir) {
         return Some(exe_dir.to_path_buf());
