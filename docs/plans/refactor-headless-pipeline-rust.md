@@ -282,7 +282,7 @@ Not requested（無 customer-facing UI）。
 
 ### 階段零：spike 阻斷門（零產品碼，先驗證）
 
-- [ ] T-001 — claude / opencode / copilot 無頭寫回 + 原生 session id 擷取/可 resume 補證（寫回已知，補證可追溯）。
+- [x] T-001 — claude / opencode / copilot 無頭寫回 + 原生 session id 擷取/可 resume 補證（寫回已知，補證可追溯）。*(2026-06-04)*
 - [ ] T-002 — codex 無頭 spike：`codex exec`（+`-m`+sandbox/核准旗標）token 寫回 + session id 擷取（`codex resume`），借鏡 `codex-plugin-cc`。**推翻舊排除關鍵**。
 - [ ] T-003 — agy 無頭 spike：依 Antigravity CLI 文件實測寫回 + session 擷取；不可驗證標 env-unverifiable。
 
