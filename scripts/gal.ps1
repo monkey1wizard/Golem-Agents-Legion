@@ -23,6 +23,7 @@ function Show-Usage {
     Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
     Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
     Write-Host "  xmachine <node> to do <task-ref>    Run one active-plan task on a readied work node"
+    Write-Host "  pipeline <TaskSpecPath> [role]      Orchestrate task execution via executor routing"
     Write-Host ""
     Write-Host "Script-dispatched subcommands: init, research, deep-research"
     Write-Host "Control-plane skills (use in chat): /gal status, /gal whats-next, /gal wrap-up"
@@ -748,6 +749,65 @@ switch ($Command) {
 
         Write-Dispatch $dispatchFields
         break
+    }
+    "pipeline" {
+        # Headless pipeline orchestrator: dispatch task to executor based on routing configuration
+        # Usage: gal pipeline <TaskSpecPath> [role] [--model <model>]
+        # Exit codes: 0=success, 1=failed, 2=executor-not-available
+        
+        if ($Arguments.Count -eq 0) {
+            Write-Error "Usage: gal pipeline <TaskSpecPath> [role] [--model <model>]" -ErrorAction Stop
+        }
+        
+        $taskSpecPath = $Arguments[0]
+        $role = if ($Arguments.Count -gt 1) { $Arguments[1] } else { 'CODER' }
+        $model = $null
+        $logDir = Join-Path (Get-RepoContextRoot) '.dev\executor-logs'
+        
+        # Parse optional --model flag
+        for ($i = 1; $i -lt $Arguments.Count; $i++) {
+            if ($Arguments[$i] -eq '--model' -and $i + 1 -lt $Arguments.Count) {
+                $model = $Arguments[$i + 1]
+                $i++
+                break
+            }
+        }
+        
+        # Validate task spec path
+        if (-not (Test-Path $taskSpecPath)) {
+            Write-Error "Task spec not found: $taskSpecPath" -ErrorAction Stop
+        }
+        
+        # Read executor routing
+        $routing = Read-ExecutorRouting
+        if (-not $routing -or -not $routing.ContainsKey($role)) {
+            Write-Error "No executor routing found for role: $role" -ErrorAction Stop
+        }
+        
+        $routeEntry = $routing[$role]
+        $executor = $routeEntry.executor
+        $routedModel = if ($routeEntry.model) { $routeEntry.model } else { $null }
+        $effectiveModel = if ($model) { $model } else { $routedModel }
+        
+        # Ensure log directory exists
+        if (-not (Test-Path $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force > $null
+        }
+        
+        # Call Invoke-Executor
+        $invokerPath = Join-Path $scriptRoot 'executors\Invoke-Executor.ps1'
+        $invokerArgs = @{
+            Executor = $executor
+            TaskSpecPath = $taskSpecPath
+            WorkDir = (Get-RepoContextRoot)
+        }
+        
+        if ($effectiveModel) {
+            $invokerArgs['Model'] = $effectiveModel
+        }
+        
+        & $invokerPath @invokerArgs
+        exit $LASTEXITCODE
     }
     "dispatch" {
         $intent  = if ($Arguments.Count -gt 0) { $Arguments[0] } else { '' }
