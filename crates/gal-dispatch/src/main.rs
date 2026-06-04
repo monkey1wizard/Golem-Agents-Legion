@@ -1,16 +1,32 @@
-//! `gal-dispatch` binary entry point (T-004).
+//! `gal-dispatch` binary entry point (T-004, T-007).
 //!
-//! Usage: gal-dispatch --phase <implement|test|review|verify> --task <T-NNN>
-//!                     [--workdir <path>] [--timeout <seconds>] [--routing <path>]
+//! Usage:
+//!   gal-dispatch --phase <implement|test|review|verify> --task <T-NNN>
+//!               [--workdir <path>] [--timeout <seconds>] [--routing <path>]
+//!               [--receipt <path>]
+//!
+//! The task spec is read from stdin before the executor is spawned.
+//!
+//! Exit codes:
+//!   0  — dispatch completed and write-back verified (terminal state: completed)
+//!   1  — dispatch ran but write-back unconfirmed (terminal state: no-receipt or disconnected-partial)
+//!   2  — degraded: no routing / executor unavailable / bin text dispatch (terminal state: unavailable or text-dispatch)
+//!  64  — usage error (bad CLI args)
+//!
+//! Stdout always includes a `--- GAL DISPATCH ---` header and a `Dispatch:` marker line.
+//! The marker line lets the pipeline orchestrator record the session id and receipt status.
 
-use gal_dispatch::cli::parse_args;
-use gal_dispatch::routing::{load_routing, load_routing_default};
+use std::io::Read as _;
 use std::process::ExitCode;
+
+use gal_dispatch::adapters::{self, SpecDelivery};
+use gal_dispatch::cli::parse_args;
+use gal_dispatch::dispatch::{is_available, spawn_executor, SpawnConfig, TerminalState};
+use gal_dispatch::routing::{load_routing, load_routing_default};
 
 fn main() -> ExitCode {
     let raw_args: Vec<String> = std::env::args().skip(1).collect();
 
-    // Quick help/version gate
     if raw_args.iter().any(|a| a == "--help" || a == "-h") {
         print_help();
         return ExitCode::SUCCESS;
@@ -26,49 +42,149 @@ fn main() -> ExitCode {
         Err(e) => {
             eprintln!("gal-dispatch: {e}");
             eprintln!("Run `gal-dispatch --help` for usage.");
-            return ExitCode::from(64); // EX_USAGE
+            return ExitCode::from(64);
         }
     };
+
+    // Read task spec from stdin (before spawning anything)
+    let mut spec = String::new();
+    if let Err(e) = std::io::stdin().read_to_string(&mut spec) {
+        eprintln!("gal-dispatch: failed to read spec from stdin: {e}");
+        return ExitCode::from(64);
+    }
 
     // Load routing table
     let routing = match &dispatch_args.routing_path {
         Some(p) => load_routing(p),
         None => load_routing_default(),
     };
-
     for w in &routing.warnings {
         eprintln!("warning: {w}");
     }
 
-    // Resolve role → route entry
     let role = dispatch_args.phase.role();
     let route = routing.get(role);
 
-    match route {
+    // ── T-007: Default safety gate ─────────────────────────────────────────────
+    // Only offload when: routing has an entry AND the executor CLI is in PATH.
+    // If either condition fails, degrade to text dispatch output.
+
+    let entry = match route {
         None => {
-            // No routing configured → text dispatch degradation (T-007)
+            // No routing configured for this role → text dispatch
             println!("--- GAL DISPATCH ---");
-            println!("Dispatch: phase={} task={} route=none executor=text-dispatch",
-                dispatch_args.phase.as_str(), dispatch_args.task);
-            eprintln!("gal-dispatch: no executor configured for role {role}; falling back to text dispatch");
-            ExitCode::from(2) // signal to caller: degraded
-        }
-        Some(entry) => {
-            // Phase 1 stub: executor dispatch wired in T-005 onwards.
-            // For now: print resolved route so the caller can see routing works.
-            println!("--- GAL DISPATCH ---");
-            println!("Dispatch: phase={} task={} role={role} executor={} model={}",
+            println!(
+                "Dispatch: phase={} task={} role={} executor=none reason=no-routing",
                 dispatch_args.phase.as_str(),
                 dispatch_args.task,
-                entry.executor,
-                entry.model,
+                role,
             );
-            eprintln!(
-                "gal-dispatch: executor dispatch not yet wired (T-005); route resolved to {}/{}",
-                entry.executor, entry.model
-            );
-            ExitCode::from(2) // not yet dispatching; stub exit
+            eprintln!("gal-dispatch: no executor configured for role {role}; falling back to text dispatch");
+            return ExitCode::from(2);
         }
+        Some(e) => e,
+    };
+
+    let executor_name = &entry.executor;
+    let model = &entry.model;
+
+    // Safety gate: executor must be available in PATH
+    if !is_available(executor_name) {
+        println!("--- GAL DISPATCH ---");
+        println!(
+            "Dispatch: phase={} task={} role={} executor={} model={} reason=executor-unavailable",
+            dispatch_args.phase.as_str(),
+            dispatch_args.task,
+            role,
+            executor_name,
+            model,
+        );
+        eprintln!("gal-dispatch: executor '{executor_name}' not found in PATH; falling back to text dispatch");
+        return ExitCode::from(2);
+    }
+
+    // ── Build invocation via adapter ───────────────────────────────────────────
+
+    // Build SpawnConfig. If no adapter is registered for the executor, fall back
+    // to treating it as a generic stdin-based tool.
+    let (executor_args, stdin_spec) = match adapters::get_adapter(executor_name) {
+        Some(adapter) => {
+            let inv = adapter.build_invocation(model, &dispatch_args.workdir, &spec);
+            let stdin = match inv.delivery {
+                SpecDelivery::Stdin => spec.clone(),
+                SpecDelivery::CliFlag(_) => String::new(), // spec already in args
+            };
+            (inv.args, stdin)
+        }
+        None => {
+            // Unknown executor: pass spec via stdin with no extra args
+            (vec![], spec.clone())
+        }
+    };
+
+    let log_dir = SpawnConfig::default_log_dir(&dispatch_args.workdir);
+
+    let cfg = SpawnConfig {
+        executor: executor_name.clone(),
+        executor_args,
+        spec: stdin_spec,
+        workdir: dispatch_args.workdir.clone(),
+        timeout_secs: dispatch_args.timeout_secs,
+        task_id: dispatch_args.task.clone(),
+        phase: dispatch_args.phase.as_str().to_string(),
+        actual_model: model.clone(),
+        log_dir,
+        receipt_path: dispatch_args.receipt_path.clone(),
+    };
+
+    // ── Dispatch ───────────────────────────────────────────────────────────────
+
+    let result = match spawn_executor(&cfg) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("gal-dispatch: log write failed: {e}");
+            // Still attempt to output a Dispatch: marker
+            println!("--- GAL DISPATCH ---");
+            println!(
+                "Dispatch: phase={} task={} executor={} model={} reason=log-error",
+                dispatch_args.phase.as_str(),
+                dispatch_args.task,
+                executor_name,
+                model,
+            );
+            return ExitCode::from(2);
+        }
+    };
+
+    // Refine session id using tool-specific adapter extraction
+    let session_id = if let Some(adapter) = adapters::get_adapter(executor_name) {
+        adapter.extract_session_id(&result.stdout)
+            .or(result.session_id.clone())
+    } else {
+        result.session_id.clone()
+    };
+    let session_str = session_id.as_deref().unwrap_or("none");
+
+    // ── Output Dispatch: marker ────────────────────────────────────────────────
+
+    println!("--- GAL DISPATCH ---");
+    println!(
+        "Dispatch: phase={} task={} role={} executor={} model={} state={} session_id={} log={}",
+        dispatch_args.phase.as_str(),
+        dispatch_args.task,
+        role,
+        executor_name,
+        model,
+        result.terminal_state,
+        session_str,
+        result.log_path.display(),
+    );
+
+    // ── Exit code mapping ──────────────────────────────────────────────────────
+    match result.terminal_state {
+        TerminalState::Completed => ExitCode::SUCCESS,
+        TerminalState::NoReceipt | TerminalState::DisconnectedPartial => ExitCode::from(1),
+        TerminalState::Timeout | TerminalState::Unavailable => ExitCode::from(2),
     }
 }
 
@@ -77,6 +193,7 @@ fn print_help() {
     println!();
     println!("Usage:");
     println!("  gal-dispatch --phase <phase> --task <T-NNN> [options]");
+    println!("  (Pipe the task spec to stdin)");
     println!();
     println!("Required:");
     println!("  --phase <implement|test|review|verify>   Pipeline phase");
@@ -86,6 +203,13 @@ fn print_help() {
     println!("  --workdir <path>        Working directory (default: cwd)");
     println!("  --timeout <seconds>     Execution timeout (default: 300)");
     println!("  --routing <path>        Override routing JSON path");
+    println!("  --receipt <path>        File to verify was written back (T-006)");
     println!("  --version               Print version");
     println!("  --help                  Print this help");
+    println!();
+    println!("Exit codes:");
+    println!("  0  Completed with write-back verified");
+    println!("  1  Ran but write-back unconfirmed (no-receipt or non-zero exit)");
+    println!("  2  Degraded: no routing / executor unavailable / text dispatch");
+    println!(" 64  Usage error");
 }
