@@ -886,9 +886,10 @@ switch ($Command) {
             # instead of the regular text dispatch. Dispatch itself does not spawn the process.
             # Falls through to regular Write-Dispatch when routing is absent or spec generation fails.
             if ($pipelineContext.Requested -and -not $xmachineContext.Requested -and $pipelineContext.TaskScope) {
-                $phaseRole = Get-PipelinePhaseRole -Phase $pipelineContext.Phase
-                $routing   = Read-ExecutorRouting
-                $executor  = if ($routing -and $phaseRole) { $routing[$phaseRole] } else { $null }
+                $phaseRole  = Get-PipelinePhaseRole -Phase $pipelineContext.Phase
+                $routing    = Read-ExecutorRouting
+                $routeEntry = if ($routing -and $phaseRole) { $routing[$phaseRole] } else { $null }
+                $executor   = if ($routeEntry) { $routeEntry.executor } else { $null }
 
                 if (-not [string]::IsNullOrWhiteSpace($executor)) {
                     $promptPath = $dispatchFields['ACTIVE_EXECUTION_PROMPT']

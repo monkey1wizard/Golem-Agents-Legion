@@ -1066,22 +1066,26 @@ function Ensure-SetupDirectories([string[]]$Directories) {
 }
 
 function Read-ExecutorRouting {
-    $canonicalPath = Join-Path (Get-GalUserHome) '.gal\config\executor-routing.ndjson'
+    $canonicalPath = Join-Path (Get-GalUserHome) '.gal\config\executor-routing.json'
     if (-not (Test-Path $canonicalPath)) {
         return $null
     }
 
+    try {
+        $parsed = Get-Content $canonicalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    catch {
+        return $null
+    }
+
     $routing = @{}
-    foreach ($line in (Get-Content $canonicalPath -Encoding UTF8)) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        try {
-            $obj = $line | ConvertFrom-Json
-            if ($obj.role -and $obj.executor) {
-                $routing[[string]$obj.role] = [string]$obj.executor
-            }
+    foreach ($prop in $parsed.PSObject.Properties) {
+        if ($prop.Name.StartsWith('_')) { continue }
+        $entry = $prop.Value
+        $routing[$prop.Name] = @{
+            executor = if ($entry.executor) { [string]$entry.executor } else { $null }
+            model    = if ($null -ne $entry.model -and $entry.model -ne '') { [string]$entry.model } else { $null }
         }
-        catch { continue }
     }
 
     return $routing
