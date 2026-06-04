@@ -349,9 +349,9 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 **P2 — package-manager release lane（依 M1 parity、Security review）**
 
 - [x] T-014 — release artifact（Rust/CI）+ cosign keyless。*(8d75e94)*
-- [ ] T-015 — winget manifest。
-- [ ] T-016 — Homebrew formula template。
-- [ ] T-017 — Claude marketplace 三狀態模型（doctor + docs）。
+- [x] T-015 — winget manifest。*(ccbc334)*
+- [x] T-016 — Homebrew formula template。*(ccbc334)*
+- [x] T-017 — Claude marketplace 三狀態模型（doctor + docs）。*(80731b5)*
 
 **P3 — state / plan / headless closeout（純 docs/state，隨時）**
 
@@ -361,7 +361,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **P4 — release gate（最後，依 T-012 + P2）**
 
-- [ ] T-021 — `gal doctor --release-gate` 聚合 pkg-manager metadata + marketplace classification。
+- [x] T-021 — `gal doctor --release-gate` 聚合 pkg-manager metadata + marketplace classification。*(5e7d9c2)*
 
 **跨平台（BUG-C，M2）**
 
