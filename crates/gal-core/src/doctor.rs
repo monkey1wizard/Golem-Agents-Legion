@@ -135,7 +135,10 @@ pub fn run_doctor(opts: &DoctorOptions) -> DoctorReport {
     // Check 3: Ledger freshness
     check_ledger(&mut report);
 
-    // Check 4: AGY surfaces (warning only, best-effort per OE-A)
+    // Check 4: Claude marketplace state (T-017, TP-024)
+    check_claude_marketplace(&canonical_root, &mut report);
+
+    // Check 5: AGY surfaces (warning only, best-effort per OE-A)
     check_agy_surfaces(&mut report);
 
     report
@@ -229,6 +232,87 @@ fn check_ledger(report: &mut DoctorReport) {
     }
 }
 
+/// Classification of the Claude marketplace install state (T-017, TP-024).
+///
+/// These three states are mutually distinct — a local plugin-cache hit is NOT
+/// evidence of a public marketplace install. Doctor reports each state honestly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClaudeMarketplaceState {
+    /// `~/.claude/plugins/cache/gal/` exists but canonical root is absent or
+    /// there is no `gal install` ledger entry. The cache is stale or orphaned.
+    StaleLocalCache,
+    /// Canonical root exists and ledger shows a successful `gal install`.
+    /// Installed through the local marketplace (`claude plugin marketplace add …`).
+    LocalMarketplaceInstalled,
+    /// Neither a local cache nor a canonical root was detected.
+    NotInstalled,
+}
+
+/// Classify the current Claude marketplace state for GAL.
+///
+/// Rule (R-008): local cache must NOT be reported as "public marketplace" evidence.
+pub fn classify_claude_marketplace_state(
+    canonical_root: &Path,
+    claude_cache_dir: Option<&Path>,
+    ledger_has_install: bool,
+) -> ClaudeMarketplaceState {
+    let cache_exists = claude_cache_dir
+        .map(|p| p.exists())
+        .unwrap_or(false);
+    let canonical_exists = canonical_root.exists();
+
+    if canonical_exists && ledger_has_install {
+        ClaudeMarketplaceState::LocalMarketplaceInstalled
+    } else if cache_exists && !canonical_exists {
+        ClaudeMarketplaceState::StaleLocalCache
+    } else {
+        ClaudeMarketplaceState::NotInstalled
+    }
+}
+
+fn check_claude_marketplace(canonical_root: &Path, report: &mut DoctorReport) {
+    // Resolve the Claude plugin cache path.
+    let cache_dir = dirs::home_dir().map(|h| {
+        h.join(".claude").join("plugins").join("cache").join("gal")
+    });
+
+    // Check ledger for a recorded install.
+    let ledger_has_install = ledger_path()
+        .and_then(|p| {
+            if p.exists() {
+                let ledger = crate::ledger::Ledger::load(&p);
+                Some(ledger.last.is_some())
+            } else {
+                None
+            }
+        })
+        .unwrap_or(false);
+
+    let state = classify_claude_marketplace_state(
+        canonical_root,
+        cache_dir.as_deref(),
+        ledger_has_install,
+    );
+
+    match state {
+        ClaudeMarketplaceState::StaleLocalCache => {
+            report.push(DoctorFinding::error(
+                "Claude local plugin cache found (~/.claude/plugins/cache/gal) \
+                 but canonical root is absent — cache may be stale or orphaned",
+                "run `gal install` to rebuild the canonical root; \
+                 local cache alone is not evidence of a working install",
+            ));
+        }
+        ClaudeMarketplaceState::LocalMarketplaceInstalled => {
+            // Healthy — local marketplace install verified. No finding needed.
+        }
+        ClaudeMarketplaceState::NotInstalled => {
+            // Canonical root absence is already caught by check_canonical_root.
+            // Only add a note if the cache is missing too (fully clean state).
+        }
+    }
+}
+
 fn check_agy_surfaces(report: &mut DoctorReport) {
     if let Some(home) = dirs::home_dir() {
         let cli_path = home.join(".gemini").join("antigravity-cli").join("plugins").join("gal");
@@ -305,6 +389,88 @@ mod tests {
         // run_doctor is read-only anyway; dry_run is a no-op for checks.
         // This test verifies the struct is usable.
         assert!(opts.dry_run);
+    }
+
+    // TP-024: Claude local cache stale → doctor reports stale, not public installed.
+
+    #[test]
+    fn classify_stale_local_cache_when_cache_exists_no_canonical() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("nonexistent_canonical");
+        let cache_dir = tmp.path().join("claude_cache");
+        std::fs::create_dir_all(&cache_dir).unwrap();
+
+        let state = classify_claude_marketplace_state(
+            &canonical_root,
+            Some(&cache_dir),
+            false, // no ledger install
+        );
+        assert_eq!(
+            state,
+            ClaudeMarketplaceState::StaleLocalCache,
+            "cache without canonical root must be StaleLocalCache"
+        );
+    }
+
+    #[test]
+    fn classify_local_marketplace_when_canonical_and_ledger() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("canonical");
+        std::fs::create_dir_all(&canonical_root).unwrap();
+
+        let state = classify_claude_marketplace_state(
+            &canonical_root,
+            None,
+            true, // ledger shows install
+        );
+        assert_eq!(state, ClaudeMarketplaceState::LocalMarketplaceInstalled);
+    }
+
+    #[test]
+    fn classify_not_installed_when_nothing_exists() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("nonexistent_canonical");
+        let cache_dir = tmp.path().join("nonexistent_cache");
+
+        let state = classify_claude_marketplace_state(
+            &canonical_root,
+            Some(&cache_dir),
+            false,
+        );
+        assert_eq!(state, ClaudeMarketplaceState::NotInstalled);
+    }
+
+    #[test]
+    fn stale_cache_generates_error_finding_not_marketplace_claim() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let canonical_root = tmp.path().join("no_canonical");
+        let cache_dir = tmp.path().join("cache");
+        std::fs::create_dir_all(&cache_dir).unwrap();
+
+        let mut report = DoctorReport::new();
+        // Pass the cache dir as the mock cache.
+        let state = classify_claude_marketplace_state(&canonical_root, Some(&cache_dir), false);
+        if state == ClaudeMarketplaceState::StaleLocalCache {
+            report.push(DoctorFinding::error(
+                "Claude local plugin cache found but canonical root absent — cache may be stale",
+                "run `gal install`",
+            ));
+        }
+        // TP-024: Must produce an error (not claim public installed).
+        assert!(report.has_errors(), "stale cache must produce an error finding");
+        let msg = report.findings[0].to_string();
+        assert!(
+            msg.contains("stale") || msg.contains("cache"),
+            "finding must mention stale/cache state, not public marketplace: {msg}"
+        );
+        assert!(
+            !msg.to_lowercase().contains("public"),
+            "must NOT claim public marketplace: {msg}"
+        );
     }
 
     #[test]
