@@ -7,4 +7,4 @@
 
 | Plan | Last Session | Stopped At | Next Step | Context |
 |------|-------------|-----------|----------|---------|
-| docs/plans/refactor-headless-pipeline-rust.md | 2026-06-04 | T-004 complete (77fef32) | T-005 — spawn + stdin + process-tree timeout + durable executor log | Phase 0 spike COMPLETE (all 5 tools PASS); Phase 1 T-004 done; crate at crates/gal-dispatch/ |
+| docs/plans/refactor-headless-pipeline-rust.md | 2026-06-04 | T-005 complete (9a9371c) | T-006 — write-back verification + session id capture | Phase 0 COMPLETE; T-004 routing/stage/cli; T-005 spawn/timeout/log; 31 tests pass |
