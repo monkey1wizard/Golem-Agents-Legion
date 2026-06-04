@@ -10,5 +10,6 @@
 //! - Five native Rust executor adapters (T-008)
 
 pub mod cli;
+pub mod dispatch;
 pub mod routing;
 pub mod stage;
