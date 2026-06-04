@@ -265,18 +265,24 @@ function Invoke-UpdatePersonalization {
         Write-Host "  [SKIP] $localRoles already exists"
     }
 
-    $exampleRouting = Join-Path $context.RepoRoot 'executor-routing.example.ndjson'
-    $localRouting = Join-Path $context.GalConfigRoot 'executor-routing.ndjson'
+    $exampleRouting = Join-Path $context.RepoRoot 'executor-routing.example.json'
+    $localRouting   = Join-Path $context.GalConfigRoot 'executor-routing.json'
+    $legacyRouting  = Join-Path $context.GalConfigRoot 'executor-routing.ndjson'
+
+    if ((Test-Path $legacyRouting) -and -not (Test-Path $localRouting)) {
+        Write-Host "  [MIGRATE] Old executor-routing.ndjson found at $legacyRouting but no .json present." -ForegroundColor Yellow
+        Write-Host "  [MIGRATE] Convert: copy $legacyRouting to $localRouting using the role-keyed JSON schema in executor-routing.example.json" -ForegroundColor Yellow
+    }
 
     if (-not (Test-Path $localRouting)) {
         if (Test-Path $exampleRouting) {
             New-Item -ItemType Directory -Path $context.GalConfigRoot -Force | Out-Null
             Copy-Item $exampleRouting $localRouting
-            Write-Host "  [OK] Created $localRouting from executor-routing.example.ndjson"
+            Write-Host "  [OK] Created $localRouting from executor-routing.example.json"
             Write-Host "  [ACTION REQUIRED] Edit $localRouting to map roles to your preferred executors" -ForegroundColor Yellow
         }
         else {
-            Write-Host '  [WARN] executor-routing.example.ndjson not found — skipping' -ForegroundColor Yellow
+            Write-Host '  [WARN] executor-routing.example.json not found — skipping' -ForegroundColor Yellow
         }
     }
     else {

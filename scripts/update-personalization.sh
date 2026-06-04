@@ -228,6 +228,28 @@ PY
         echo "  [SKIP] $local_roles already exists"
     fi
 
+    local example_routing="$REPO_ROOT/executor-routing.example.json"
+    local local_routing="$GAL_CONFIG_ROOT/executor-routing.json"
+    local legacy_routing="$GAL_CONFIG_ROOT/executor-routing.ndjson"
+
+    if [ -f "$legacy_routing" ] && [ ! -f "$local_routing" ]; then
+        echo "  [MIGRATE] Old executor-routing.ndjson found at $legacy_routing but no .json present."
+        echo "  [MIGRATE] Convert: copy $legacy_routing to $local_routing using the role-keyed JSON schema in executor-routing.example.json"
+    fi
+
+    if [ ! -f "$local_routing" ]; then
+        if [ -f "$example_routing" ]; then
+            mkdir -p "$GAL_CONFIG_ROOT"
+            cp "$example_routing" "$local_routing"
+            echo "  [OK] Created $local_routing from executor-routing.example.json"
+            echo "  [ACTION REQUIRED] Edit $local_routing to map roles to your preferred executors"
+        else
+            echo "  [WARN] executor-routing.example.json not found — skipping"
+        fi
+    else
+        echo "  [SKIP] $local_routing already exists"
+    fi
+
     pushd "$REPO_ROOT" >/dev/null
     git config filter.gal-config.smudge 'bash scripts/gal-smudge.sh'
     git config filter.gal-config.clean 'bash scripts/gal-clean.sh'
