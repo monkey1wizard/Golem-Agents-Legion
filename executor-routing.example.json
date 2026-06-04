@@ -1,7 +1,7 @@
 {
-  "_comment": "Single source for executor dispatch and per-role model injection. model-roles.md is human planning reference only. codex/copilot are non-headless and have no executor model entry. opencode model format is provider/model (e.g. opencode/deepseek-v4-flash). claude model accepts alias (e.g. haiku-4.5) or full model ID.",
+  "_comment": "Single source for executor dispatch and per-role model injection. model-roles.md is human planning reference only. codex/copilot are non-headless and have no executor model entry. opencode model format is provider/model (e.g. opencode/minimax-m3-free). claude model accepts alias (e.g. haiku-4.5) or full model ID.",
   "CODER":    { "executor": "claude",   "model": "haiku-4.5" },
-  "TESTER":   { "executor": "opencode", "model": "opencode/deepseek-v4-flash" },
+  "TESTER":   { "executor": "opencode", "model": "opencode/minimax-m3-free" },
   "REVIEWER": { "executor": "claude",   "model": "haiku-4.5" },
-  "VERIFIER": { "executor": "opencode", "model": "opencode/deepseek-v4-flash" }
+  "VERIFIER": { "executor": "opencode", "model": "opencode/minimax-m3-free" }
 }
