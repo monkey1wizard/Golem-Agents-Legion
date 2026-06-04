@@ -290,12 +290,12 @@ Not requested（無 customer-facing UI）。
 
 - [x] T-004 — 建 `rust/gal-dispatch` crate：routing JSON 解析（`role→{executor,model}`，安全降級）+ stage→role 對照 + CLI 入口（`--phase/--task/--workdir/--timeout`）。*(77fef32)*
 - [x] T-005 — spawn 次級 CLI + stdin 餵 spec + 逾時行程樹回收 + durable executor log（header + 終態五分類 `completed`/`no-receipt`/`timeout`/`disconnected-partial`/`unavailable`）。*(9a9371c)*
-- [ ] T-006 — 收檔驗證（讀目標檔內容才判 `completed`，半寫一律失敗）+ 擷取 provider session/job id 寫入 log header 與 `Dispatch:` 標記。
-- [ ] T-007 — 預設安全閘：僅當 provider 成功設置（routing 有角色 + adapter 可用 + spike 通過）才 offload，否則 inline；bin 自身輸出 `--- GAL DISPATCH ---` 降級文字分派。
-- [ ] T-008 — 五**純 Rust** executor adapter（claude / codex / opencode / copilot / agy）：依 spike 旗標、存在性檢查、逾時、model 注入、就地寫回（stdout 僅訊號）、擷取 session id。**`codex` adapter 為新增**。
-- [ ] T-009 — `scripts/gal.ps1` 與 `scripts/gal.sh` dispatch 分支縮為呼叫 bin 的薄 shim；bin 缺失→shim 輸出最小文字分派；不再各自重複 dispatch/降級邏輯。
-- [ ] T-010 — 更新 `commands/gal-pipeline/SKILL.template.md`（**受保護路徑**）：bin 核心、五工具、provider 可追溯、誠實三條件、降級由 bin/shim、commit 邊界、bypass-permission 警告。
-- [ ] T-011 — **確認 bin 可用後**刪除被取代的舊 dispatch 腳本（`scripts/executors/*` dispatch 部分、`Invoke-Executor.ps1`）；bin 無法取代者保留；刪前後跑既有 smoke 防回歸。
+- [x] T-006 — 收檔驗證（讀目標檔內容才判 `completed`，半寫一律失敗）+ 擷取 provider session/job id 寫入 log header 與 `Dispatch:` 標記。*(56548fe)*
+- [x] T-007 — 預設安全閘：僅當 provider 成功設置（routing 有角色 + adapter 可用 + spike 通過）才 offload，否則 inline；bin 自身輸出 `--- GAL DISPATCH ---` 降級文字分派。*(b102793)*
+- [x] T-008 — 五**純 Rust** executor adapter（claude / codex / opencode / copilot / agy）：依 spike 旗標、存在性檢查、逾時、model 注入、就地寫回（stdout 僅訊號）、擷取 session id。**`codex` adapter 為新增**。*(b102793)*
+- [x] T-009 — `scripts/gal.ps1` 與 `scripts/gal.sh` dispatch 分支縮為呼叫 bin 的薄 shim；bin 缺失→shim 輸出最小文字分派；不再各自重複 dispatch/降級邏輯。*(406abac)*
+- [x] T-010 — 更新 `commands/gal-pipeline/SKILL.template.md`（**受保護路徑**）：bin 核心、五工具、provider 可追溯、誠實三條件、降級由 bin/shim、commit 邊界、bypass-permission 警告。*(caf353d)*
+- [x] T-011 — **確認 bin 可用後**刪除被取代的舊 dispatch 腳本（`scripts/executors/*` dispatch 部分、`Invoke-Executor.ps1`）；bin 無法取代者保留；刪前後跑既有 smoke 防回歸。*(0d1e056; 7 個腳本刪除; 40/40 smoke 通過)*
 
 ### 階段二：5×4 互派測試矩陣
 
