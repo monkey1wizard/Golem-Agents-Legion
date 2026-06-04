@@ -890,6 +890,7 @@ switch ($Command) {
                 $routing    = Read-ExecutorRouting
                 $routeEntry = if ($routing -and $phaseRole) { $routing[$phaseRole] } else { $null }
                 $executor   = if ($routeEntry) { $routeEntry.executor } else { $null }
+                $model      = if ($routeEntry) { $routeEntry.model }    else { $null }
 
                 if (-not [string]::IsNullOrWhiteSpace($executor)) {
                     $promptPath = $dispatchFields['ACTIVE_EXECUTION_PROMPT']
@@ -915,17 +916,19 @@ switch ($Command) {
 
                     if (-not [string]::IsNullOrWhiteSpace($specPath) -and (Test-Path $specPath)) {
                         $invokerPath = Join-Path $scriptRoot 'executors\Invoke-Executor.ps1'
+                        $modelArg    = if (-not [string]::IsNullOrWhiteSpace($model)) { " -Model '$model'" } else { '' }
                         Write-Dispatch ([ordered]@{
                             COMMAND         = 'offload'
                             OFFLOAD         = 'headless-executor'
                             DISPATCH_MODE   = 'offload'
                             EXECUTOR        = $executor
+                            MODEL           = if ($model) { $model } else { '(default)' }
                             ROLE            = $phaseRole
                             PIPELINE_PHASE  = $pipelineContext.Phase
                             TASK_SCOPE      = $pipelineContext.TaskScope
                             TASK_SPEC       = $specPath
-                            ACTION          = "Run: & '$invokerPath' -Executor $executor -TaskSpecPath '$specPath' -Wait . Exit 0 -> verify write-back in execution prompt ($promptPath); confirm the expected phase section was written before marking stage complete. Exit 2 -> executor unavailable or timed out; fall back to role-playing the $phaseRole golem in this conversation."
-                            ON_COMPLETE     = "Record in execution prompt: Dispatch: offload(executor=$executor, receipt=<ok|no-receipt>, exit=<n>)."
+                            ACTION          = "Run: & '$invokerPath' -Executor $executor -TaskSpecPath '$specPath'${modelArg} -Wait . Exit 0 -> verify write-back in execution prompt ($promptPath); confirm the expected phase section was written before marking stage complete. Exit 2 -> executor unavailable or timed out; fall back to role-playing the $phaseRole golem in this conversation."
+                            ON_COMPLETE     = "Record in execution prompt: Dispatch: offload(executor=$executor, model=$(if ($model) { $model } else { 'default' }), receipt=<ok|no-receipt>, exit=<n>)."
                             BYPASS_PERMISSION_WARNING = 'SECURITY: headless executor runs with --dangerously-skip-permissions. Full trust of secondary CLI filesystem access. Enable only in a trusted local environment.'
                         })
                         break

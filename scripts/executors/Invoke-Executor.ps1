@@ -36,6 +36,10 @@ param(
 
     [int]$TimeoutMinutes = 10,
 
+    # Optional: model to pass to the executor adapter via -Model.
+    # When set, the adapter appends the CLI-specific model flag (e.g. --model for claude, -m for opencode).
+    [string]$Model = '',
+
     # Optional: task scope (e.g. "T-007") and phase for the durable run-record filename.
     # Auto-extracted from TaskSpecPath when omitted (e.g. .dev/task-specs/T-007-implement.md).
     [string]$TaskScope,
@@ -79,16 +83,19 @@ function Write-ExecutorLog {
         [string]$StdOut,
         [string]$StdErr,
         [datetime]$StartTime,
-        [int]$ExitCode
+        [int]$ExitCode,
+        [string]$InjectedModel = ''
     )
 
     $endTime  = Get-Date
     $duration = ($endTime - $StartTime).TotalSeconds
     $gitInfo  = Get-GitInfo
 
+    $modelDisplay = if (-not [string]::IsNullOrWhiteSpace($InjectedModel)) { $InjectedModel } else { '(default)' }
     $header = @"
 === Executor Run Record ===
 Executor:      $Executor
+Model:         $modelDisplay
 Task:          $TaskScope
 Phase:         $Phase
 Spec:          $TaskSpecPath
@@ -146,9 +153,14 @@ function Stop-ProcessTree {
 function Start-AdapterProcess {
     param([string]$AdapterFile, [string]$WorkDirectory)
 
+    $adapterArgs = "-NonInteractive -File `"$AdapterFile`" -WorkDir `"$WorkDirectory`""
+    if (-not [string]::IsNullOrWhiteSpace($Model)) {
+        $adapterArgs += " -Model `"$Model`""
+    }
+
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName               = 'pwsh'
-    $psi.Arguments              = "-NonInteractive -File `"$AdapterFile`" -WorkDir `"$WorkDirectory`""
+    $psi.Arguments              = $adapterArgs
     $psi.RedirectStandardInput  = $true
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError  = $true
@@ -199,7 +211,7 @@ $timeoutMs = $TimeoutMinutes * 60 * 1000
 if ($Executor -eq 'echo') {
     Write-Output $specContent
     $lp = New-LogPath
-    Write-ExecutorLog -LogPath $lp -TerminalState 'completed' -StdOut $specContent -StdErr '' -StartTime $runStartTime -ExitCode 0
+    Write-ExecutorLog -LogPath $lp -TerminalState 'completed' -StdOut $specContent -StdErr '' -StartTime $runStartTime -ExitCode 0 -InjectedModel $Model
     Enforce-LogRetention
     exit 0
 }
@@ -224,14 +236,14 @@ if ($Executor -eq 'sleep') {
         Stop-ProcessTree -TargetPid $sleepProc.Id
         $null = [System.Threading.Tasks.Task]::WhenAll($stdoutTask, $stderrTask)
         $lp = New-LogPath
-        Write-ExecutorLog -LogPath $lp -TerminalState 'timeout' -StdOut '' -StdErr '' -StartTime $runStartTime -ExitCode 2
+        Write-ExecutorLog -LogPath $lp -TerminalState 'timeout' -StdOut '' -StdErr '' -StartTime $runStartTime -ExitCode 2 -InjectedModel $Model
         Enforce-LogRetention
         exit 2
     }
 
     $null = [System.Threading.Tasks.Task]::WhenAll($stdoutTask, $stderrTask)
     $lp = New-LogPath
-    Write-ExecutorLog -LogPath $lp -TerminalState 'completed' -StdOut $stdoutTask.Result -StdErr $stderrTask.Result -StartTime $runStartTime -ExitCode 0
+    Write-ExecutorLog -LogPath $lp -TerminalState 'completed' -StdOut $stdoutTask.Result -StdErr $stderrTask.Result -StartTime $runStartTime -ExitCode 0 -InjectedModel $Model
     Enforce-LogRetention
     exit 0
 }
@@ -243,7 +255,7 @@ $adapterPath = Join-Path $scriptRoot "$Executor.ps1"
 if (-not (Test-Path $adapterPath)) {
     [Console]::Error.WriteLine("Invoke-Executor: executor '$Executor' not found — no adapter at '$adapterPath'")
     $lp = New-LogPath
-    Write-ExecutorLog -LogPath $lp -TerminalState 'unavailable' -StdOut '' -StdErr "No adapter at '$adapterPath'" -StartTime $runStartTime -ExitCode 2
+    Write-ExecutorLog -LogPath $lp -TerminalState 'unavailable' -StdOut '' -StdErr "No adapter at '$adapterPath'" -StartTime $runStartTime -ExitCode 2 -InjectedModel $Model
     Enforce-LogRetention
     exit 2
 }
@@ -261,7 +273,7 @@ $waited, $stdout, $stderr = Wait-ProcessWithTimeout -Process $proc -TimeoutMs $t
 if (-not $waited) {
     [Console]::Error.WriteLine("Invoke-Executor: executor '$Executor' timed out after $TimeoutMinutes min — process tree killed.")
     $lp = New-LogPath
-    Write-ExecutorLog -LogPath $lp -TerminalState 'timeout' -StdOut '' -StdErr "Timed out after $TimeoutMinutes min" -StartTime $runStartTime -ExitCode 2
+    Write-ExecutorLog -LogPath $lp -TerminalState 'timeout' -StdOut '' -StdErr "Timed out after $TimeoutMinutes min" -StartTime $runStartTime -ExitCode 2 -InjectedModel $Model
     Enforce-LogRetention
     exit 2
 }
@@ -272,7 +284,7 @@ $terminalState = if ($exitCode -eq 0) { 'completed' }
                  else { 'disconnected-partial' }
 
 $lp = New-LogPath
-Write-ExecutorLog -LogPath $lp -TerminalState $terminalState -StdOut $stdout -StdErr $stderr -StartTime $runStartTime -ExitCode $exitCode
+Write-ExecutorLog -LogPath $lp -TerminalState $terminalState -StdOut $stdout -StdErr $stderr -StartTime $runStartTime -ExitCode $exitCode -InjectedModel $Model
 Enforce-LogRetention
 
 exit $exitCode
