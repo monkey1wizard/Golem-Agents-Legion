@@ -1,5 +1,16 @@
 {
-  "_comment": "Single source for executor dispatch and per-role model injection. model-roles.md is human planning reference only. codex/copilot are non-headless and have no executor model entry. opencode model format is provider/model (e.g. opencode/minimax-m3-free). claude model accepts alias (e.g. haiku-4.5) or full model ID.",
+  "_comment": "Single source for executor dispatch and per-role model injection. Role definitions and cross-model policy are in workflows/coding.md. opencode model format is provider/model (e.g. opencode/minimax-m3-free). claude model accepts alias (e.g. haiku-4.5) or full model ID.",
+  "_roles_reference": {
+    "CODER":    "Writes implementation code following a plan",
+    "TESTER":   "Writes tests from plan spec + public API only — must differ from CODER",
+    "REVIEWER": "Reviews code for bugs, security, style — must differ from CODER; tier >= CODER",
+    "VERIFIER": "Goal-backward plan verification — must differ from CODER",
+    "ARCHITECT":"Adversarial plan review — trade-offs, over-engineering, bugs",
+    "ANALYST":  "Business logic review — ROI, domain correctness, user impact",
+    "RESEARCHER":"Investigate unknowns, synthesize findings, cross-review sources",
+    "NOTEWRITER":"Obsidian writes — diary, inbox, knowledge extraction",
+    "LOCAL":    "Privacy-sensitive or local-language tasks — runs on-device"
+  },
   "CODER":    { "executor": "claude",   "model": "haiku-4.5" },
   "TESTER":   { "executor": "opencode", "model": "opencode/minimax-m3-free" },
   "REVIEWER": { "executor": "claude",   "model": "haiku-4.5" },
