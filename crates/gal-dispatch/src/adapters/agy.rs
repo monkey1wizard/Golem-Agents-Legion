@@ -31,29 +31,40 @@ impl Adapter for AgyAdapter {
     }
 }
 
-/// Scan `~/.agy/brain/` and return the name of the most recently modified
-/// subdirectory. Returns `None` if the directory doesn't exist or is empty.
+/// Scan agy brain directory and return the name of the most recently modified
+/// subdirectory (the conversation id).
+///
+/// On Linux/macOS: `~/.agy/brain/`
+/// On Windows:     `~\.gemini\antigravity-cli\brain\`
+/// Tries both; returns `None` if neither exists or both are empty.
 fn scan_newest_brain_dir() -> Option<String> {
-    let brain_dir = dirs::home_dir()?.join(".agy").join("brain");
-    let entries = std::fs::read_dir(&brain_dir).ok()?;
+    let home = dirs::home_dir()?;
+    let candidates = [
+        home.join(".agy").join("brain"),
+        home.join(".gemini").join("antigravity-cli").join("brain"),
+    ];
+    let mut best: Option<(std::time::SystemTime, String)> = None;
+    for brain_dir in &candidates {
+        if !brain_dir.is_dir() { continue; }
+        let entries = std::fs::read_dir(brain_dir).ok()?;
 
-    let mut newest: Option<(std::time::SystemTime, String)> = None;
-
-    for entry in entries.flatten() {
-        let meta = entry.metadata().ok()?;
-        if !meta.is_dir() {
-            continue;
-        }
-        let modified = meta.modified().ok()?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        match &newest {
-            None => newest = Some((modified, name)),
-            Some((prev_time, _)) if modified > *prev_time => {
-                newest = Some((modified, name));
+        for entry in entries.flatten() {
+            let meta = entry.metadata().ok()?;
+            if !meta.is_dir() {
+                continue;
             }
-            _ => {}
+            let modified = meta.modified().ok()?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            match &best {
+                None => best = Some((modified, name)),
+                Some((prev_time, _)) if modified > *prev_time => {
+                    best = Some((modified, name));
+                }
+                _ => {}
+            }
         }
     }
 
-    newest.map(|(_, name)| name)
+    best.map(|(_, name)| name)
 }
+ 
