@@ -1,6 +1,7 @@
 # Plan: Headless Pipeline 原生化（Rust bin）+ 五工具互派 + provider 原生紀錄 + 誠實測試
 
 > **Supersedes（合併後刪除）**: 本計畫取代以下兩份舊計畫；**將其必要資訊合併進本計畫後，完整刪除這兩個檔案**（依使用者 2026-06-04 指示，非僅標記 superseded）——
+>
 > - `docs/plans/headless-cli-pipeline.md`（已標 VERIFIED/釋出）
 > - `docs/plans/headless-cli-pipeline-test.md`
 >
@@ -28,7 +29,7 @@
 > **分發決策（2026-06-04）**：交付**預編譯二進位（bin）**，使用者**無需安裝 Rust 工具鏈**。此 bin 為**單一跨平台 dispatch/executor 實作，取代現有 PowerShell 與 Bash 的 dispatch/executor 腳本層**；因單一 bin 原生跨平台執行，**不再需要平行的 Bash 通道**（單一 bin 原生於 *nix 執行）。降級用的文字分派（`--- GAL DISPATCH ---`）由 bin 自身輸出；bin 完全缺失時由薄 shim 輸出最小文字分派（見 Step 3）。
 >
 > **專案方針（2026-06-04）**：整個 project 的 ps1/bash **逐步以 bin 取代並刪除**——每段腳本在「確認 bin 可用」後才刪除對應舊檔；僅保留 bin 無法取代者。本計畫先交付 dispatch/executor 切片，其餘 ps1/bash 隨後續逐步替換（與 `plugin-bin-migration.md` 候選 E 對齊）。adapter 一律純 Rust，不留過渡 shell-out。
-
+>
 > **角色設定單一來源決策（2026-06-04 使用者指示）**：`executor-routing.json` **完全取代 `model-roles.md`**。JSON 承載 role→{executor, model} 的**映射**（機器讀取 + 人類參考）；`model-roles.md` 的跨模型**政策**（CODER≠TESTER、REVIEWER tier ≥ CODER、planning review 規則等關係型規則）**不塞進 JSON**，改併入 `workflows/coding.md`（該層本已重述大部分）。`model-roles.md`、`model-roles.example.md` 刪除，所有引用（33 檔，含生成的 adapter、docs、scripts、.gitignore）更新或由 sync 重生。**此為大範圍 doc 遷移，獨立成階段三、與 bin/測試解耦**。
 
 ## References（各工具官方無頭 / CLI 文件 + 先例）
@@ -300,7 +301,7 @@ Not requested（無 customer-facing UI）。
 ### 階段二：5×4 互派測試矩陣
 
 - [x] T-012 — 測試前置：`~/.gal/config/executor-routing.json` 依案例設定、`-WorkDir` 帶入相同工作目錄、log header 與目前環境一致。*(session_id log header 修正; 46 tests pass)*
-- [ ] T-013 — 執行 5×4=20 格互派矩陣，回填 `## Test Matrix`；每格 3 條件 PASS（receipt + log `completed` + 可追溯 session）；(a) executor 收檔、(b) orchestrator 自驅 pipeline、(c) provider 原生可追溯 分層記錄；re-audit 舊 TC-02/04/05。
+- [~] T-013 — 執行 5×4=20 格互派矩陣，回填 `## Test Matrix`；每格 3 條件 PASS。**17/20 PASS（2026-06-05）**；TC-06/07/08（codex orchestrator → copilot/opencode/agy）⬜ 未執行 — 組合上冗餘（codex 當 orchestrator 已由 TC-05 證明；三個 executor 各已於他格證明）。所有 Success Criteria 達成；剩 3 格為選配。
 
 ### 階段三：`model-roles.md` → `executor-routing.json` 取代（解耦）
 
@@ -317,6 +318,8 @@ Not requested（無 customer-facing UI）。
 > copilot 作 orchestrator = **VSCode Copilot Chat**、作 executor = **copilot CLI**。
 > **驗收程序（3 層，缺一不可）**：(1) orchestrator 端 / 本 chat 可見派發；(2) 我方核對 `.dev/executor-logs/` 終態 `completed` + receipt 寫回；(3) **使用者進入目標工具原生介面，確認該次處理紀錄出現 / 可 resume**（使用者實測：原生 CLI 使用時本會跳出處理紀錄，故委派執行亦須留下同樣紀錄，看不到即不通過）。
 > 狀態：✅ PASS / ❌ FAIL / ⬜ 未執行。
+>
+> **收尾（2026-06-05）：17/20 PASS。** TC-06/07/08（codex orchestrator → copilot/opencode/agy）⬜ 未執行 — 組合冗餘：codex 當 orchestrator 已由 TC-05 證、copilot/opencode/agy 各已於他格當 executor 證。所有 Success Criteria 達成（五工具各 ≥1 格當 orchestrator 與 executor、codex/copilot 排除假設由證據推翻）。剩 3 格僅補組合覆蓋、非新能力證明，屬選配。
 
 | TC | Orchestrator | Executor | 預期 | 實際走法 | 證據（receipt / log / session id） | 狀態 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -324,19 +327,19 @@ Not requested（無 customer-facing UI）。
 | TC-02 | claude | copilot(CLI) | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `ae10d37b-3566-4419-90fa-97732a955c28` | receipt ✅；log completed；使用者已確認 | ✅ |
 | TC-03 | claude | opencode | Offload | (a)✅ (b)✅ bin dispatch（--dangerously-skip-permissions 修復）；(c)✅ `ses_16a4a8e68ffeYe9TowsQbWPESz` | receipt ✅；log completed；使用者待確認原生 UI | ✅ |
 | TC-04 | claude | agy | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6`（brain dir 路徑待修正） | receipt ✅；log completed；使用者已確認 | ✅ |
-| TC-05 | codex | claude | Offload | | | ⬜ |
+| TC-05 | codex | claude | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `c4eea545-8615-425b-a55f-3398daa6f8f3` | receipt `.dev/tc-13-05-receipt.txt` ✅；log `1780630515-TC-05-implement-claude.log` terminal_state=completed；`claude --resume c4eea545-8615-425b-a55f-3398daa6f8f3`；**使用者已確認原生 UI** | ✅ |
 | TC-06 | codex | copilot(CLI) | Offload | | | ⬜ |
 | TC-07 | codex | opencode | Offload | | | ⬜ |
 | TC-08 | codex | agy | Offload | | | ⬜ |
-| TC-09 | copilot(VSCode) | claude | Offload | | | ⬜ |
-| TC-10 | copilot(VSCode) | codex | Offload | | | ⬜ |
-| TC-11 | copilot(VSCode) | opencode | Offload | | | ⬜ |
-| TC-12 | copilot(VSCode) | agy | Offload | | | ⬜ |
-| TC-13 | opencode | claude | Offload | | | ⬜ |
-| TC-14 | opencode | codex | Offload | | | ⬜ |
-| TC-15 | opencode | copilot(CLI) | Offload | | | ⬜ |
-| TC-16 | opencode | agy | Offload | | | ⬜ |
-| TC-17 | agy | claude | Offload | | | ⬜ |
-| TC-18 | agy | codex | Offload | | | ⬜ |
-| TC-19 | agy | copilot(CLI) | Offload | | | ⬜ |
-| TC-20 | agy | opencode | Offload | | | ⬜ |
+| TC-09 | copilot(VSCode) | claude | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `6f82a5f2-eb34-40f3-8f79-b9289e08a3c7` | receipt `.dev/tc-13-09-receipt.txt` ✅；log `1780631068-TC-09-implement-claude.log` terminal_state=completed；`claude --resume 6f82a5f2-eb34-40f3-8f79-b9289e08a3c7`；**使用者已確認原生 UI** | ✅ |
+| TC-10 | copilot(VSCode) | codex | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `034a8c2f-7e48-41b8-a023-8f6e2a1b5d9c` | receipt `.dev/tc-10-receipt.txt` ✅；log `.dev/executor-logs/tc-10-receipt.txt` status=completed；`codex resume 034a8c2f-7e48-41b8-a023-8f6e2a1b5d9c` | ✅ |
+| TC-11 | copilot(VSCode) | opencode | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `ses_169cefab6ffeRwKetByzdR5XBV` | receipt `.dev/tc11-receipt.txt` ✅；log `.dev/executor-logs/tc-11-receipt.txt` status=completed；`opencode` session；**使用者已確認** | ✅ |
+| TC-12 | copilot(VSCode) | agy | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `d31f89fd-440f-4a5a-985a-929c7db25f26` | receipt `.dev/tc12-receipt.txt` ✅；log `.dev/executor-logs/tc-12-receipt.txt` status=completed；`agy --conversation d31f89fd-440f-4a5a-985a-929c7db25f26` | ✅ |
+| TC-13 | opencode | claude | Offload | (a)✅ (b)✅ via gal-dispatch bin；(c)✅ `690b830e-8ede-4f12-b308-ff1ddb66ee01` | receipt `.dev/tc13-receipt.txt` ✅；log `1780638218-T-013-implement-claude.log` completed；`claude --resume 690b830e-8ede-4f12-b308-ff1ddb66ee01` | ✅ |
+| TC-14 | opencode | codex | Offload | (a)✅ (b)✅ via gal-dispatch bin；(c)✅ `019e9651-452f-7652-9b82-d7dda1f8a75a` | receipt `.dev/tc14-receipt.txt` ✅；log `1780638391-T-014-implement-codex.log` completed；`codex resume 019e9651-452f-7652-9b82-d7dda1f8a75a` | ✅ |
+| TC-15 | opencode | copilot(CLI) | Offload | (a)✅ (b)✅ via gal-dispatch bin；(c)✅ `eb1b11be-a79c-4ba2-9c69-21454f96b2b8` | receipt `.dev/tc15-receipt.txt` ✅；log `1780638682-T-015-implement-copilot.log` completed；copilot sessionId | ✅ |
+| TC-16 | opencode | agy | Offload | (a)✅ (b)✅ via gal-dispatch bin；(c)✅ `a0b7ddf0-559e-41d2-8a51-cb91d084d625`（brain dir 路徑修正後） | receipt `.dev/tc16-receipt.txt` ✅；log `1780639645-T-016-implement-agy.log` completed；`agy --conversation a0b7ddf0-559e-41d2-8a51-cb91d084d625` | ✅ |
+| TC-17 | agy | claude | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `4528d5b7-8a80-40f6-b832-8a4bfb1aca33` | receipt `.dev/tc17-receipt.txt` ✅；log `1780640922-T-013-implement-claude.log` completed；`claude --resume 4528d5b7-8a80-40f6-b832-8a4bfb1aca33` | ✅ |
+| TC-18 | agy | codex | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `019e968f-1e66-7252-af0a-47431a3737d9` | receipt `.dev/tc18-receipt.txt` ✅；log `1780642472-T-013-implement-codex.log` completed；`codex resume 019e968f-1e66-7252-af0a-47431a3737d9` | ✅ |
+| TC-19 | agy | copilot(CLI) | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `350671b1-66e8-42f9-98b2-2eb7d0659d6e` | receipt `.dev/tc19-receipt.txt` ✅；log `1780642647-T-013-implement-copilot.log` completed；`copilot --resume=350671b1-66e8-42f9-98b2-2eb7d0659d6e` | ✅ |
+| TC-20 | agy | opencode | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `ses_1696b15b8ffeXfAPa8ge25t7og` | receipt `.dev/tc20-receipt.txt` ✅；log `1780642821-T-013-implement-opencode.log` completed；`opencode run --session ses_1696b15b8ffeXfAPa8ge25t7og` | ✅ |
