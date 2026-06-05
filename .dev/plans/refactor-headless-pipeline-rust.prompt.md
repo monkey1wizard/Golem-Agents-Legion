@@ -278,7 +278,7 @@ No BLOCKING findings.
 | TC-03 opencode | ✅ | ✅ completed（skip-perms 修復） | ✅ `ses_16a4a8e68ffeYe9TowsQbWPESz` | ✅ （待使用者確認 native UI） |
 | TC-04 agy | ✅ | ✅ completed | ✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6` | ✅ **使用者已確認** |
 
-**Adapter 修復（2026-06-05，commit 待填）**：
+**Adapter 修復（2026-06-05，commit 2d7a310）**：
 1. **codex on Windows** ✅ FIXED：`Command::new("codex")` 找不到 `codex.cmd`（CreateProcess 只補 `.exe`）。修正：`dispatch.rs` 新增 `build_command` + `resolve_windows_executable`，解析 `.cmd`/`.bat`（透過 `cmd.exe /C`）、`.ps1`（透過 powershell），其餘 `.exe` 直接啟動。codex 成功收到 stdin prompt 並寫回。
 2. **opencode adapter** ✅ FIXED：缺 `--dangerously-skip-permissions`，headless 模式 auto-reject file write。修正：`opencode.rs` 加入該旗標（官方文件 <https://opencode.ai/docs/cli/>：「Auto-approve permissions that are not explicitly denied」）。
 3. **agy brain dir** ⬜ 待修正：adapter 掃 `~/.agy/brain/`，Windows 實際路徑為 `~/.gemini/antigravity-cli/brain/`。session_id 仍可由 dispatch generic UUID 掃描取得，不阻斷 PASS，但 adapter 路徑應補正。
