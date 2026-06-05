@@ -267,6 +267,31 @@ No BLOCKING findings.
 
 ## Test Results
 
+### [T-013] TC-01~TC-04 — 2026-06-05
+
+**Orchestrator**: claude（本 session）｜執行範圍：TC-01/02/03/04
+
+| TC | (a) executor write-back | (b) via gal-dispatch routing | (c) provider session id | 整體 |
+|--|--|--|--|--|
+| TC-01 codex | ✅ direct bash | ❌ bin .cmd PATH issue | ✅ `019e95a9-ab71-7f50-b011-d9baea842322` | ❌ |
+| TC-02 copilot | ✅ | ✅ terminal_state=completed | ✅ `ae10d37b-3566-4419-90fa-97732a955c28` | ✅ （待使用者確認 native UI） |
+| TC-03 opencode | ❌ auto-rejected | ✅ ran | ✅ `ses_16a5a0d1fffe7vQBqvWQX2xqYD` | ❌ |
+| TC-04 agy | ✅ | ✅ terminal_state=completed | ✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6` | ✅ （待使用者確認 native UI） |
+
+**發現的 adapter 問題（需後續修正）**：
+1. **codex on Windows**: `Command::new("codex")` 找不到 `.cmd`/`.ps1` wrapper。修正：透過 `cmd.exe /C codex exec ...` 或提供 `.exe` shim。
+2. **opencode adapter**: 缺 `--dangerously-skip-permissions`。opencode 執行時 auto-reject 所有 file write。修正：adapter 加入此旗標。
+3. **agy brain dir**: adapter 掃 `~/.agy/brain/`，但 Windows 實際路徑為 `~/.gemini/antigravity-cli/brain/`。修正：平台感知路徑或環境變數配置。
+4. **copilot log header session_id bug**: log header 顯示 `none`，但 `Dispatch:` 標記正確含 session_id。
+
+**Resume 指令**：
+- copilot TC-02: `copilot --resume=ae10d37b-3566-4419-90fa-97732a955c28`
+- opencode TC-03: `opencode run --session ses_16a5a0d1fffe7vQBqvWQX2xqYD`
+- agy TC-04: `agy --conversation e56a710f-b464-4509-87f8-75e8c03c8ea6`
+- codex TC-01: `codex exec resume 019e95a9-ab71-7f50-b011-d9baea842322`
+
+**使用者待確認（條件 3）**：TC-02 在 copilot 原生 UI 查看 session、TC-04 在 agy 原生 UI 查看對話。
+
 ### [T-012] 2026-06-04
 
 **TP-013: Test pre-conditions — routing + WorkDir + log header**
@@ -298,10 +323,10 @@ Verification run: `.\target\debug\gal-dispatch.exe --phase implement --task T-01
 
 | TC | Orchestrator | Executor | Expected | Actual | Evidence (receipt / log / session id) | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| TC-01 | claude | codex | Offload | | | ⬜ |
-| TC-02 | claude | copilot (CLI) | Offload | | | ⬜ |
-| TC-03 | claude | opencode | Offload | | | ⬜ |
-| TC-04 | claude | agy | Offload | | | ⬜ |
+| TC-01 | claude | codex | Offload | (a) executor ✅ via direct bash；(b) bin ❌ Windows .cmd PATH 問題；(c) session_id ✅ `019e95a9-ab71-7f50-b011-d9baea842322` | receipt `.dev/tc-13-01-receipt.txt` ✅；log: env-verifiable（bin 無法找到 codex.cmd）；`codex exec resume 019e95a9-ab71-7f50-b011-d9baea842322` | ❌ |
+| TC-02 | claude | copilot (CLI) | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `ae10d37b-3566-4419-90fa-97732a955c28`（log header bug：顯示 none，但 Dispatch: 標記正確） | receipt `.dev/tc-13-02-receipt.txt` ✅；log `1780627090-TC-02-implement-copilot.log` terminal_state=completed；`copilot --resume=ae10d37b-3566-4419-90fa-97732a955c28`；使用者待確認原生 UI | ✅ |
+| TC-03 | claude | opencode | Offload | (a) ❌ permission auto-rejected（adapter 缺 --dangerously-skip-permissions）；(b) ✅ bin dispatch 執行；(c) session_id ✅ `ses_16a5a0d1fffe7vQBqvWQX2xqYD` | log `1780627159-TC-03-implement-opencode.log` terminal_state=no-receipt；stderr: `auto-rejecting edit permission`；`opencode run --session ses_16a5a0d1fffe7vQBqvWQX2xqYD` | ❌ |
+| TC-04 | claude | agy | Offload | (a) ✅ receipt written；(b) ✅ via gal-dispatch bin；(c) session_id ✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6`（adapter 掃錯路徑，腦目錄實為 `~/.gemini/antigravity-cli/brain/`） | receipt `.dev/tc-13-04-receipt.txt` ✅；log `1780627207-TC-04-implement-agy.log` terminal_state=completed；`agy --conversation e56a710f-b464-4509-87f8-75e8c03c8ea6`；使用者待確認原生 UI | ✅ |
 | TC-05 | codex | claude | Offload | | | ⬜ |
 | TC-06 | codex | copilot (CLI) | Offload | | | ⬜ |
 | TC-07 | codex | opencode | Offload | | | ⬜ |

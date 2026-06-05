@@ -320,10 +320,10 @@ Not requested（無 customer-facing UI）。
 
 | TC | Orchestrator | Executor | 預期 | 實際走法 | 證據（receipt / log / session id） | 狀態 |
 | --- | --- | --- | --- | --- | --- | --- |
-| TC-01 | claude | codex | Offload | | | ⬜ |
-| TC-02 | claude | copilot(CLI) | Offload | | | ⬜ |
-| TC-03 | claude | opencode | Offload | | | ⬜ |
-| TC-04 | claude | agy | Offload | | | ⬜ |
+| TC-01 | claude | codex | Offload | (a)executor✅ 直接 bash；(b)bin ❌ Windows .cmd PATH；(c)✅ `019e95a9-ab71-7f50-b011-d9baea842322` | receipt ✅；bin unavailable（codex.cmd 解析問題） | ❌ |
+| TC-02 | claude | copilot(CLI) | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `ae10d37b-3566-4419-90fa-97732a955c28` | receipt ✅；log completed；使用者待確認原生 UI | ✅ |
+| TC-03 | claude | opencode | Offload | (a)❌ auto-rejected（缺 --dangerously-skip-permissions）；(b)✅；(c)✅ `ses_16a5a0d1fffe7vQBqvWQX2xqYD` | log no-receipt；opencode adapter 需修正 | ❌ |
+| TC-04 | claude | agy | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6`（brain dir 路徑需修正） | receipt ✅；log completed；使用者待確認原生 UI | ✅ |
 | TC-05 | codex | claude | Offload | | | ⬜ |
 | TC-06 | codex | copilot(CLI) | Offload | | | ⬜ |
 | TC-07 | codex | opencode | Offload | | | ⬜ |

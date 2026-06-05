@@ -1,0 +1,5 @@
+TC-01: claude→codex dispatch receipt
+Date: 2026-06-05
+Executor: codex
+Phase: implement
+Token: DISPATCH_VERIFIED_TC01

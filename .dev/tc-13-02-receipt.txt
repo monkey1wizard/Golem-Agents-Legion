@@ -1,0 +1,5 @@
+TC-02: claude→copilot-CLI dispatch receipt
+Date: 2026-06-05
+Executor: copilot-CLI
+Phase: implement
+Token: DISPATCH_VERIFIED_TC02
