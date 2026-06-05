@@ -1,5 +1,0 @@
-TC-04: claude→agy dispatch receipt
-Date: 2026-06-05
-Executor: agy
-Phase: implement
-Token: DISPATCH_VERIFIED_TC04
