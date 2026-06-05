@@ -284,13 +284,17 @@ No BLOCKING findings.
 3. **agy brain dir** ⬜ 待修正：adapter 掃 `~/.agy/brain/`，Windows 實際路徑為 `~/.gemini/antigravity-cli/brain/`。session_id 仍可由 dispatch generic UUID 掃描取得，不阻斷 PASS，但 adapter 路徑應補正。
 4. **copilot log header session_id** ✅ 已連帶解決：codex/opencode 修復後 log header session_id 正確寫入；copilot 的 `Dispatch:` 標記本就正確。
 
-**Resume 指令**：
-- codex TC-01: `codex exec resume 019e95b4-9f57-7910-bb91-95c5779bdc30`
+**Resume / 原生檢視指令**：
+- codex TC-01（**檢視**用互動式 resume，非 `codex exec resume`）：`codex resume 019e95b4-9f57-7910-bb91-95c5779bdc30`
+  - 重要：`codex exec` 建立**非互動 session**，預設被互動 picker 隱藏。用 UUID 直接開可繞過過濾；用 picker 須加 `codex resume --include-non-interactive`（不在 repo 目錄再加 `--all`）。
+  - 證據：rollout 檔 `~/.codex/sessions/2026/06/05/rollout-2026-06-05T10-55-03-019e95b4-9f57-7910-bb91-95c5779bdc30.jsonl`，session_meta `id` 與 `cwd=C:\Code\Golem-Agents-Legion` 皆相符。
 - copilot TC-02: `copilot --resume=ae10d37b-3566-4419-90fa-97732a955c28`
 - opencode TC-03: `opencode run --session ses_16a4a8e68ffeYe9TowsQbWPESz`
 - agy TC-04: `agy --conversation e56a710f-b464-4509-87f8-75e8c03c8ea6`
 
-**使用者待確認（條件 3）**：TC-01 codex、TC-03 opencode 在各自原生 UI 查看 session。TC-02/TC-04 已確認。
+**codex 可追溯性釐清（2026-06-05）**：先前以為 codex 看不到 = 失敗，實為兩個非程式原因疊加：(1) 文件先前誤記 resume 指令為 `codex exec resume`（繼續任務、非檢視）；(2) `codex exec` 的非互動 session 被 `codex resume` picker 預設隱藏，需 `--include-non-interactive` 或直接給 UUID。dispatch、寫回、session 擷取本身全部正確。
+
+**使用者待確認（條件 3）**：TC-01 codex（用上述正確指令）、TC-03 opencode 在各自原生 UI 查看 session。TC-02/TC-04 已確認。
 
 ### [T-012] 2026-06-04
 
