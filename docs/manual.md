@@ -181,16 +181,25 @@ Add matching variables to `~/.gal/config/config.local.env`; `Update-Mcp.*` merge
 
 ### Headless Executor Routing
 
-GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.json` (read by the `gal-dispatch` bin). Run `Update-Personalization.*` once to seed `executor-routing.example.json` into the local copy, then map roles to `{executor, model}`:
+GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.json` (read by the `gal-dispatch` bin). Run `Update-Personalization.*` once to seed `executor-routing.example.json` into the local copy, then configure routing:
 
 ```json
 {
-  "CODER":    { "executor": "codex",    "model": "" },
-  "TESTER":   { "executor": "opencode", "model": "opencode/minimax-m3-free" },
-  "REVIEWER": { "executor": "claude",   "model": "haiku-4.5" },
-  "VERIFIER": { "executor": "opencode", "model": "opencode/minimax-m3-free" }
+  "executors": {
+    "claude":   "claude-haiku-4-5-20251001",
+    "codex":    "gpt-5.4-mini",
+    "opencode": "opencode/minimax-m3-free",
+    "copilot":  "claude-haiku-4-5-20251001",
+    "agy":      "gemini-2.5-flash"
+  },
+  "CODER":    { "executor": "codex" },
+  "TESTER":   { "executor": "opencode" },
+  "REVIEWER": { "executor": "claude", "model": "claude-sonnet-4-6" },
+  "VERIFIER": { "executor": "opencode" }
 }
 ```
+
+**`executors` block** — defines the default model for each tool. A role entry that omits `model` inherits the default from `executors[executor]`. An explicit `model` on a role always takes precedence. The bin warns in the executor log if a role has neither.
 
 Valid executors: `claude`, `codex`, `opencode`, `copilot`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing (the bin then emits a `--- GAL DISPATCH ---` text fallback). Role definitions and cross-model policy (CODER≠TESTER, etc.) live in `workflows/coding.md`.
 
