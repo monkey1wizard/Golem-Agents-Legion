@@ -168,8 +168,9 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
     }
 
     // ── Spawn the child process ─────────────────────────────────────────────
-    let mut child = match Command::new(&cfg.executor)
-        .args(&cfg.executor_args)
+    // `build_command` resolves Windows script shims (.cmd/.bat/.ps1) that
+    // CreateProcess cannot launch directly (e.g. npm-installed `codex.cmd`).
+    let mut child = match build_command(&cfg.executor, &cfg.executor_args)
         .current_dir(&cfg.workdir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -287,6 +288,77 @@ pub fn is_available(name: &str) -> bool {
     let check = Command::new("which").arg(name).output();
 
     check.map(|o| o.status.success()).unwrap_or(false)
+}
+
+/// Build a [`Command`] for `executor`, resolving Windows script shims that
+/// `CreateProcess` cannot launch directly.
+///
+/// On Windows, an executor installed as a `.cmd`/`.bat`/`.ps1` shim (e.g.
+/// npm's `codex.cmd`) cannot be spawned by `Command::new("codex")`, because
+/// `CreateProcess` only appends `.exe` when no extension is given. This caused
+/// `spawn failed: program not found` even though `where codex` succeeded.
+///
+/// This helper resolves the full path (preferring `.exe`, then `.cmd`/`.bat`,
+/// then `.ps1`) and wraps shim scripts through their interpreter so stdin is
+/// still piped through to the underlying tool. On non-Windows it is a direct
+/// `Command::new(executor)`.
+fn build_command(executor: &str, args: &[String]) -> Command {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(resolved) = resolve_windows_executable(executor) {
+            let lower = resolved.to_ascii_lowercase();
+            if lower.ends_with(".cmd") || lower.ends_with(".bat") {
+                let mut cmd = Command::new("cmd");
+                cmd.arg("/C").arg(&resolved).args(args);
+                return cmd;
+            } else if lower.ends_with(".ps1") {
+                let mut cmd = Command::new("powershell");
+                cmd.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+                    .arg(&resolved)
+                    .args(args);
+                return cmd;
+            } else {
+                // .exe / .com or other directly-launchable image.
+                let mut cmd = Command::new(&resolved);
+                cmd.args(args);
+                return cmd;
+            }
+        }
+    }
+    let mut cmd = Command::new(executor);
+    cmd.args(args);
+    cmd
+}
+
+/// Resolve `name` to a launchable full path on Windows via `where`, preferring
+/// directly-runnable images over shell-script shims.
+///
+/// `where codex` may return several lines — the extensionless Bash shim, plus
+/// `codex.cmd` and `codex.ps1`. We must skip the extensionless shim (Rust
+/// cannot exec it) and prefer, in order: `.exe`, `.com`, `.cmd`, `.bat`, `.ps1`.
+#[cfg(target_os = "windows")]
+fn resolve_windows_executable(name: &str) -> Option<String> {
+    let output = Command::new("where").arg(name).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let candidates: Vec<String> = stdout
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    const PRIORITY: &[&str] = &[".exe", ".com", ".cmd", ".bat", ".ps1"];
+    for ext in PRIORITY {
+        if let Some(found) = candidates.iter().find(|c| c.to_ascii_lowercase().ends_with(ext)) {
+            return Some(found.clone());
+        }
+    }
+    // Fallback: first candidate carrying any extension (skip extensionless shims).
+    candidates
+        .into_iter()
+        .find(|c| std::path::Path::new(c).extension().is_some())
 }
 
 /// Kill a process tree rooted at `pid`.
