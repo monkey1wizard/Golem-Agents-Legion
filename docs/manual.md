@@ -181,18 +181,40 @@ Add matching variables to `~/.gal/config/config.local.env`; `Update-Mcp.*` merge
 
 ### Headless Executor Routing
 
-GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.ndjson`. Run `Update-Personalization.*` once to seed `executor-routing.example.ndjson` into the local copy, then map roles:
+GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.json` (read by the `gal-dispatch` bin). Run `Update-Personalization.*` once to seed `executor-routing.example.json` into the local copy, then map roles to `{executor, model}`:
 
-```jsonl
-{"role":"CODER","executor":"claude"}
-{"role":"TESTER","executor":"opencode"}
-{"role":"REVIEWER","executor":"claude"}
-{"role":"VERIFIER","executor":"claude"}
+```json
+{
+  "CODER":    { "executor": "codex",    "model": "" },
+  "TESTER":   { "executor": "opencode", "model": "opencode/minimax-m3-free" },
+  "REVIEWER": { "executor": "claude",   "model": "haiku-4.5" },
+  "VERIFIER": { "executor": "opencode", "model": "opencode/minimax-m3-free" }
+}
 ```
 
-Valid executors: `claude`, `opencode`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing. Verify with `scripts/executors/Test-Executor.ps1` (availability) and `Test-ExecutorReceipt.ps1` (acted on a spec).
+Valid executors: `claude`, `codex`, `opencode`, `copilot`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing (the bin then emits a `--- GAL DISPATCH ---` text fallback). Role definitions and cross-model policy (CODER≠TESTER, etc.) live in `workflows/coding.md`.
 
-> ⚠️ **SECURITY WARNING — bypass-permission.** Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code) or equivalent, granting **full trust** over the local filesystem and terminal — equivalent to no sandbox. Enable executor routing only on machines and in environments you fully trust, and never when the repo or agent contracts come from untrusted sources. The spec forbids the secondary CLI from running `git commit`/`git push`, but that is an instruction, not a technical enforcement.
+> ⚠️ **SECURITY WARNING — bypass-permission.** Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code, OpenCode), `--allow-all` (Copilot), or `-s workspace-write` (Codex), granting **full trust** over the local filesystem and terminal — equivalent to no sandbox. Enable executor routing only on machines and in environments you fully trust, and never when the repo or agent contracts come from untrusted sources. The spec forbids the secondary CLI from running `git commit`/`git push`, but that is an instruction, not a technical enforcement.
+
+#### Inspecting A Dispatch — Receiving And Reviewing Results
+
+Every dispatch leaves **two** durable traces. Use the right one for the job:
+
+**Tier 1 — GAL executor log (primary; uniform across all tools).** Each dispatch writes `<repo>/.dev/executor-logs/<epoch>-<task>-<phase>-<executor>.log`. The header records terminal state, exit code, actual model, git branch/HEAD, and the captured provider `session_id`; the `---STDOUT---` section captures the **full** provider event stream (every agent message, command execution, file change, and token usage). This is the canonical audit trail — to review *what the executor did*, read this log. It is identical in shape for all five tools, so one location serves every provider.
+
+This aligns with the GAL memory contract: **provider-local chat history is advisory, not authoritative.** The executor log is the repo-owned, reviewable record.
+
+**Tier 2 — provider-native session resume (secondary; for continuing/branching).** The `Dispatch:` marker and the log header record a resumable `session_id`. Use it when you want to **continue or branch** the conversation inside the provider's own UI. Each tool stores and surfaces headless sessions differently — the commands are **not** uniform:
+
+| Executor | Native-view / resume command | Default visibility of headless session |
+| --- | --- | --- |
+| **claude** | `claude --resume <session_id>` | listed |
+| **codex** | `codex resume <uuid>` (UUID bypasses the filter) | **hidden** — `codex exec` creates a *non-interactive* session that the `codex resume` picker hides by default; use `codex resume --include-non-interactive` (add `--all` to disable cwd filtering) to see it in the picker. Rollout file: `~/.codex/sessions/YYYY/MM/DD/rollout-…-<uuid>.jsonl` |
+| **opencode** | `opencode run -s <session_id>` (continue) · `opencode export <session_id>` (dump JSON) · `opencode session list` (browse) | listed — `run` sessions appear in `opencode session list` and the TUI; cannot be hidden |
+| **copilot** | `copilot --resume=<session_id>` | stored in `~/.copilot/session-store.db`; resume by id (no public list command) |
+| **agy** | `agy --conversation <uuid>` | stored under `~/.gemini/antigravity-cli/brain/<uuid>/` (Windows); no list subcommand — browse by id |
+
+**Rule of thumb:** to *audit* a dispatch, read the Tier-1 executor log (uniform, always present). To *resume* a dispatch in its native tool, use the Tier-2 command for that executor. The "hidden but resumable" behaviour you may notice with `codex` is that tool's own default, not a GAL setting; only `codex` hides headless sessions by default, and all five remain resumable by id regardless.
 
 ## Machine Operations
 

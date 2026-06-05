@@ -273,7 +273,7 @@ No BLOCKING findings.
 
 | TC | (a) executor write-back | (b) via gal-dispatch routing | (c) provider session id | 整體 |
 |--|--|--|--|--|
-| TC-01 codex | ✅ | ✅ completed（Windows shim 修復） | ✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | ✅ （待使用者確認 native UI） |
+| TC-01 codex | ✅ | ✅ completed（Windows shim 修復） | ✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | ✅ **使用者已確認**（`codex resume <uuid>`） |
 | TC-02 copilot | ✅ | ✅ completed | ✅ `ae10d37b-3566-4419-90fa-97732a955c28` | ✅ **使用者已確認** |
 | TC-03 opencode | ✅ | ✅ completed（skip-perms 修復） | ✅ `ses_16a4a8e68ffeYe9TowsQbWPESz` | ✅ （待使用者確認 native UI） |
 | TC-04 agy | ✅ | ✅ completed | ✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6` | ✅ **使用者已確認** |
@@ -294,7 +294,7 @@ No BLOCKING findings.
 
 **codex 可追溯性釐清（2026-06-05）**：先前以為 codex 看不到 = 失敗，實為兩個非程式原因疊加：(1) 文件先前誤記 resume 指令為 `codex exec resume`（繼續任務、非檢視）；(2) `codex exec` 的非互動 session 被 `codex resume` picker 預設隱藏，需 `--include-non-interactive` 或直接給 UUID。dispatch、寫回、session 擷取本身全部正確。
 
-**使用者待確認（條件 3）**：TC-01 codex（用上述正確指令）、TC-03 opencode 在各自原生 UI 查看 session。TC-02/TC-04 已確認。
+**使用者確認（條件 3）**：TC-01 codex ✅、TC-02 copilot ✅、TC-04 agy ✅ 均已確認原生 UI。TC-03 opencode 待確認（session 本就出現在 `opencode session list`）。原生檢視方法已寫入 `docs/manual.md — Headless Executor Routing > Inspecting A Dispatch`。
 
 ### [T-012] 2026-06-04
 
@@ -327,7 +327,7 @@ Verification run: `.\target\debug\gal-dispatch.exe --phase implement --task T-01
 
 | TC | Orchestrator | Executor | Expected | Actual | Evidence (receipt / log / session id) | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| TC-01 | claude | codex | Offload | (a) ✅ (b) ✅ via gal-dispatch bin（Windows shim 修復後）；(c) session_id ✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | receipt `.dev/tc-13-01-receipt.txt` ✅；log `1780628140-TC-01-implement-codex.log` terminal_state=completed；`codex exec resume 019e95b4-9f57-7910-bb91-95c5779bdc30`；使用者待確認原生 UI | ✅ |
+| TC-01 | claude | codex | Offload | (a) ✅ (b) ✅ via gal-dispatch bin（Windows shim 修復後）；(c) session_id ✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | receipt `.dev/tc-13-01-receipt.txt` ✅；log `1780628140-TC-01-implement-codex.log` terminal_state=completed；原生檢視 `codex resume 019e95b4-9f57-7910-bb91-95c5779bdc30`（非互動 session，picker 需 `--include-non-interactive`）；**使用者已確認原生 UI** | ✅ |
 | TC-02 | claude | copilot (CLI) | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `ae10d37b-3566-4419-90fa-97732a955c28` | receipt `.dev/tc-13-02-receipt.txt` ✅；log terminal_state=completed；`copilot --resume=ae10d37b-3566-4419-90fa-97732a955c28`；**使用者已確認原生 UI** | ✅ |
 | TC-03 | claude | opencode | Offload | (a) ✅ (b) ✅ via gal-dispatch bin（--dangerously-skip-permissions 修復後）；(c) session_id ✅ `ses_16a4a8e68ffeYe9TowsQbWPESz` | receipt `.dev/tc-13-03-receipt.txt` ✅；log `1780628180-TC-03-implement-opencode.log` terminal_state=completed；`opencode run --session ses_16a4a8e68ffeYe9TowsQbWPESz`；使用者待確認原生 UI | ✅ |
 | TC-04 | claude | agy | Offload | (a) ✅ (b) ✅ via gal-dispatch bin；(c) session_id ✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6`（adapter brain dir 路徑需修正：Windows 實為 `~/.gemini/antigravity-cli/brain/`） | receipt `.dev/tc-13-04-receipt.txt` ✅；log terminal_state=completed；`agy --conversation e56a710f-b464-4509-87f8-75e8c03c8ea6`；**使用者已確認原生 UI** | ✅ |

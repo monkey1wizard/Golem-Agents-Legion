@@ -320,7 +320,7 @@ Not requested（無 customer-facing UI）。
 
 | TC | Orchestrator | Executor | 預期 | 實際走法 | 證據（receipt / log / session id） | 狀態 |
 | --- | --- | --- | --- | --- | --- | --- |
-| TC-01 | claude | codex | Offload | (a)✅ (b)✅ bin dispatch（Windows shim 修復）；(c)✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | receipt ✅；log completed；使用者待確認原生 UI | ✅ |
+| TC-01 | claude | codex | Offload | (a)✅ (b)✅ bin dispatch（Windows shim 修復）；(c)✅ `019e95b4-9f57-7910-bb91-95c5779bdc30` | receipt ✅；log completed；`codex resume <uuid>`；使用者已確認 | ✅ |
 | TC-02 | claude | copilot(CLI) | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `ae10d37b-3566-4419-90fa-97732a955c28` | receipt ✅；log completed；使用者已確認 | ✅ |
 | TC-03 | claude | opencode | Offload | (a)✅ (b)✅ bin dispatch（--dangerously-skip-permissions 修復）；(c)✅ `ses_16a4a8e68ffeYe9TowsQbWPESz` | receipt ✅；log completed；使用者待確認原生 UI | ✅ |
 | TC-04 | claude | agy | Offload | (a)✅ (b)✅ bin dispatch；(c)✅ `e56a710f-b464-4509-87f8-75e8c03c8ea6`（brain dir 路徑待修正） | receipt ✅；log completed；使用者已確認 | ✅ |
