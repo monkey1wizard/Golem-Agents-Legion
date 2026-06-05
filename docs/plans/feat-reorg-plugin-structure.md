@@ -73,39 +73,64 @@ Golem-Agents-Legion/
 ### 階段 1: 目錄結構重構與腳本更新 (Directory Restructure & Scripts)
 
 #### Group 1A: 快取與輸出目錄搬移 (.tmp)
-- [x] **T-01**: 確認並清理殘留的過時設定檔（如 `config.example.env`）。你已手動刪除的 `xmachine.config.example.json` 需要復原。
+- [x] **T-01**: 確認 `xmachine.config.example.json` 存在於根目錄（準備後續移入範本區）。確認 `config.example.env` 已清理。
 - [ ] **T-02**: 將專案根目錄的 `cache/`, `gal-results/`, `graphify-out/`, `.sandbox/` 移動至 `.tmp/` 目錄內。(注意追蹤檔案需使用 `git mv` 搬移)。
-- [ ] **T-03**: 更新根目錄的 `.gitignore`，移除舊路徑忽略，並新增對 `.tmp/` 的忽略規則。
-- [ ] **T-04**: 修正腳本中的 `gal-results/` 路徑，導向 `.tmp/gal-results/` (涉及: `Invoke-XmachineTask.ps1`, `Get-XmachineRemoteResult.ps1` 等)。
+- [ ] **T-03**: 更新根目錄的 `.gitignore`，移除 `graphify-out/`, `gal-results/`, `cache/`, `.sandbox/` 的個別忽略，統一為 `.tmp/` 規則。
+- [ ] **T-04**: 修正腳本中的 `gal-results/` 路徑，導向 `.tmp/gal-results/`：
+  - `Invoke-XmachineTask.ps1` (L581)
+  - `Invoke-XmachineTask.sh` (L417, L512)
+  - `Get-XmachineRemoteResult.ps1` (L25, L71)
+  - `ProviderPlugin.ps1` (L537, L637-639) — provider leak-check 驗證字串
+  - `provider-plugin.sh` (L509, L615-617) — 同上 Bash 版
+  - `scripts/scripts.md` (L204) — 文件內路徑
 - [ ] **T-05 (TEST)**: 針對受影響的腳本進行基礎測試（如檢查 Xmachine 路徑解析是否正確），驗證 `.tmp/` 路徑變更沒有引發錯誤。
-- [ ] **T-06 (DOCS)**: 測試通過後，更新 `docs/` 與技能文件 (包含 `SKILL.template.md`) 內關於 `gal-results/` 的目錄參照。
+- [ ] **T-06 (DOCS)**: 測試通過後，更新 `docs/` 與技能文件內關於 `gal-results/` 的參照：
+  - `commands/gal-pipeline/SKILL.template.md` (L294, L389, L591)
+  - `docs/` 下任何提及 `gal-results/` 的文件
 
 #### Group 1B: 核心插件目錄建立 (plugins/gal-core)
 - [ ] **T-07**: 建立 `plugins/gal-core/` 目錄結構。
-- [ ] **T-08**: 搬移 `agent/` (改名為 `agents/`), `skills/`, `commands/`, `conventions/`, `workflows/`, `templates/`, `mcp.json`, `opencode.json` 至 `plugins/gal-core/`。同時將安裝範本檔（含 `executor-routing.example.json`, `xmachine.config.example.json` 等）移入 `plugins/gal-core/templates/`。
+- [ ] **T-08**: 搬移 `agent/` (改名為 `agents/`), `skills/`, `commands/`, `conventions/`, `workflows/`, `templates/`, `mcp.json`, `opencode.json` 至 `plugins/gal-core/`。同時將 `executor-routing.example.json` 與 `xmachine.config.example.json` 移入 `plugins/gal-core/templates/`。
 - [ ] **T-09**: 將 `.githooks/` 與 `hooks/` 合併移至 `plugins/gal-core/hooks/`，並執行 `git config core.hooksPath plugins/gal-core/hooks`。
-- [ ] **T-10**: 修正 `scripts/` 內各腳本 (`Sync-DevContext.ps1`, `Update-Personalization`, `init-repo.sh` 等)，將各功能目錄的參照導向 `plugins/gal-core/`。
+- [ ] **T-10**: 修正 `scripts/` 內各腳本路徑（按子項目逐一處理）：
+  - **T-10a**: `Sync-DevContext.ps1` / `sync-dev-context.sh` — `conventions/`, `workflows/`, `skills/` 發現路徑改為 `plugins/gal-core/` 下。
+  - **T-10b**: `ProviderPlugin.ps1` / `provider-plugin.sh` — `conventions/`, `workflows/`, `mcp.json` 來源路徑。
+  - **T-10c**: `Init-Repo.ps1` / `init-repo.sh` — `templates/project.md`, `templates/state.md` 改為 `plugins/gal-core/templates/`。
+  - **T-10d**: `Update-Personalization.ps1` / `update-personalization.sh` — 三項修正：(1) `executor-routing.example.json` 來源改為 `plugins/gal-core/templates/`；(2) `core.hooksPath` 從 `.githooks` 改為 `plugins/gal-core/hooks`；(3) 清理已廢棄的 `config.example.env` 複製邏輯。
+  - **T-10e**: `Build-CorePlugin.ps1` / `build-core-plugin.sh` — `skills/`, `commands/`, `mcp.json` 來源路徑。
+  - **T-10f**: `Get-StagedCommitMessage.ps1` / `.sh` — git staged path 檢查中的 `mcp.json`, `opencode.json`, `commands/`, `skills/` 改為新路徑。
+  - **T-10g**: `New-TaskSpec.ps1` — `agent/golem-*.agent.md` 改為 `agents/golem-*.agent.md` 並更新為 `plugins/gal-core/agents/` 路徑。
+  - **T-10h**: `Test-*.ps1` 測試腳本 — 更新 `agent/`, `skills/`, `commands/` 等的路徑。
+  - **T-10i**: `common/Common.ps1` / `common.sh` — `McpSourceFile`, `commands/` 等 GAL source 路徑。
+  - **T-10j**: `Update-Skills.ps1` / `update-skills.sh`, `update-commands.sh` — `skills/`, `commands/` 路徑。
+  - **T-10k**: `Test-Xmachine.ps1` / `.sh` — `templates/task-xmachine-*.md` 路徑。
+  - **T-10l**: `scripts/scripts.md` — 更新文件內所有舊路徑參照。
+- [ ] **T-10m**: 修正 `commands/` 與 `skills/` 內部的 Markdown 模板中 `agent/` → `agents/` 的路徑：
+  - `commands/deep-planning/SKILL.template.md` (L71)
+  - `commands/gal-pipeline/SKILL.template.md` (L612-616)
+  - `skills/godot-scripting/SKILL.md` (L17, L42) — `conventions/csharp.md` 相對路徑
 - [ ] **T-11 (TEST)**: 執行 `Sync-DevContext.ps1` 與安裝腳本，驗證是否能順利讀取 `plugins/gal-core/` 且產生正確的 Adapter 檔，並能正確找到範本。
 - [ ] **T-12 (DOCS)**: 測試通過後，修正 `docs/` 與所有 MD 文件中關於舊目錄結構（如 `agent/`, `skills/`）的參照，並更新 `manual.md` 中 `xmachine.config.example.json` 的路徑。
 
 #### Group 1C: 打包腳本搬移 (packaging)
 - [ ] **T-13**: 將 `packaging/` 移入 `scripts/` 中。
-- [ ] **T-14**: 修正腳本內關於 `packaging/` 的參照 (如 `Build-ProviderPlugins.ps1`) 改為 `scripts/packaging/`。
-- [ ] **T-15 (TEST)**: 執行打包腳本測試 (如 `Build-ProviderPlugins.ps1`) 確保能正常讀取。
+- [ ] **T-14**: 確認 `packaging/` 目錄內腳本是否使用相對路徑自引用；若有外部引用則修正。（初步搜尋未發現 `scripts/` 內有直接 `packaging/` 路徑參照，可能為空操作。）
+- [ ] **T-15 (TEST)**: 執行打包腳本測試 (如 `Build-ProviderPlugins.ps1`) 確保搬移後能正常讀取。
 
 ### 階段 2: Rust 專案重構 (Rust Reorg)
 
-#### Group 2A: 核心 Crate 重新命名與配置更新
 - [ ] **T-16**: 將 `crates/gal-core` 目錄更名為 `crates/gal-engine`。
-- [ ] **T-17**: 更新 `crates/gal-engine/Cargo.toml` 內的 package name 為 `gal-engine`。
+- [ ] **T-17**: 更新 `crates/gal-engine/Cargo.toml`：package name 改為 `gal-engine`，lib name 改為 `gal_engine`。
 - [ ] **T-18**: 更新根目錄 `Cargo.toml` 內的 members 參照改為 `crates/gal-engine`。
-- [ ] **T-19 (TEST)**: 執行 `cargo check --workspace` (或 `cargo test`) 確保 Rust 工作空間能正確載入並解析新的 Crate 配置。
-
-#### Group 2B: CLI 依賴更新與原始碼修正
-- [ ] **T-20**: 更新 `crates/gal-cli/Cargo.toml` 依賴改為 `gal-engine`。
-- [ ] **T-21**: 全面修改 `crates/gal-cli/src/main.rs` 及其餘 Rust 檔案內的 `use gal_core::...` 為 `use gal_engine::...`。
-- [ ] **T-22 (TEST)**: 執行 `cargo build --workspace` 確保整體 Rust 專案編譯正常無誤。
-- [ ] **T-23 (DOCS)**: 測試通過後，搜尋並修正 `docs/` 內（如 `devguide.md` 等）關於 `crates/gal-core` 或 `gal-core` 專案名稱的參照，改為 `gal-engine`。
+- [ ] **T-19**: 更新 `crates/gal-cli/Cargo.toml` 依賴：`gal-core = { path = "../gal-core" }` 改為 `gal-engine = { path = "../gal-engine" }`。
+- [ ] **T-20**: 全面修改所有 `use gal_core::` 為 `use gal_engine::`，涵蓋：
+  - `crates/gal-cli/src/main.rs` (12 處)
+  - `crates/gal-engine/examples/fu02_render_smoke.rs` (L22-24, 3 處)
+  - `crates/gal-engine/examples/verify_agy_surfaces.rs` (L8, 1 處)
+  - `crates/gal-engine/tests/mcp_provider_oracle_parity.rs` (L10-13, 4 處)
+- [ ] **T-21 (TEST)**: 執行 `cargo build --workspace` 確保整體 Rust 專案編譯正常無誤。
+- [ ] **T-22 (DOCS)**: 測試通過後，搜尋並修正 `docs/` 內（如 `devguide.md` 等）關於 `crates/gal-core` 或 `gal-core` 專案名稱的參照，改為 `gal-engine`。
 
 - **腳本路徑依賴斷裂**：`scripts/` 中的腳本高度依賴根目錄結構，搬移後若漏改路徑將導致 `gal init` 或打包失敗。
 - **相對路徑連結失效**：各 Markdown 檔案內的相對連結（如 `../skills/`）在結構改變後可能變成壞結尾，需要全面檢查與替換。
+
