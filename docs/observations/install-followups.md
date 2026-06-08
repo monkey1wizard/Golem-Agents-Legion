@@ -1,7 +1,9 @@
 # Install Convergence Follow-ups
 
 Observations and deferred items from the GAL Bootstrap / Install Convergence plan
-(`docs/plans/fix-gal-bootstrap-install-convergence.md`).
+(fix-gal-bootstrap-install-convergence — closed and deleted 2026-06-08 after all 22
+tasks completed; this file is the durable record of its residual follow-ups). Live
+end-to-end verification of the engine is owned by `docs/plans/feat-gal-rust-native-install.md`.
 
 These are non-blocking for P3 and documentation tasks but must be resolved before M1
 is releasable or P2 (package-manager release lane) begins.
