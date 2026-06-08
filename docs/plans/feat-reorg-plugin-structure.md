@@ -89,9 +89,9 @@ Golem-Agents-Legion/
   - `docs/` 下任何提及 `gal-results/` 的文件
 
 #### Group 1B: 核心插件目錄建立 (plugins/gal-core)
-- [ ] **T-07**: 建立 `plugins/gal-core/` 目錄結構。
-- [ ] **T-08**: 搬移 `agent/` (改名為 `agents/`), `skills/`, `commands/`, `conventions/`, `workflows/`, `templates/`, `mcp.json`, `opencode.json` 至 `plugins/gal-core/`。同時將 `executor-routing.example.json` 與 `xmachine.config.example.json` 移入 `plugins/gal-core/templates/`。
-- [ ] **T-09**: 將 `.githooks/` 與 `hooks/` 合併移至 `plugins/gal-core/hooks/`，並執行 `git config core.hooksPath plugins/gal-core/hooks`。
+- [x] **T-07**: 建立 `plugins/gal-core/` 目錄結構。
+- [x] **T-08**: 搬移 `agent/` (改名為 `agents/`), `skills/`, `commands/`, `conventions/`, `workflows/`, `templates/`, `mcp.json`, `opencode.json` 至 `plugins/gal-core/`。同時將 `executor-routing.example.json` 與 `xmachine.config.example.json` 移入 `plugins/gal-core/templates/`。
+- [x] **T-09**: 將 `.githooks/` 與 `hooks/` 合併移至 `plugins/gal-core/hooks/`，並執行 `git config core.hooksPath plugins/gal-core/hooks`。
 - [ ] **T-10**: 修正 `scripts/` 內各腳本路徑（按子項目逐一處理）：
   - **T-10a**: `Sync-DevContext.ps1` / `sync-dev-context.sh` — `conventions/`, `workflows/`, `skills/` 發現路徑改為 `plugins/gal-core/` 下。
   - **T-10b**: `ProviderPlugin.ps1` / `provider-plugin.sh` — `conventions/`, `workflows/`, `mcp.json` 來源路徑。
@@ -133,4 +133,3 @@ Golem-Agents-Legion/
 
 - **腳本路徑依賴斷裂**：`scripts/` 中的腳本高度依賴根目錄結構，搬移後若漏改路徑將導致 `gal init` 或打包失敗。
 - **相對路徑連結失效**：各 Markdown 檔案內的相對連結（如 `../skills/`）在結構改變後可能變成壞結尾，需要全面檢查與替換。
-
