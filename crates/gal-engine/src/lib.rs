@@ -1,4 +1,4 @@
-//! gal-core: shared primitives for the `gal` CLI.
+//! gal-engine: shared primitives for the `gal` CLI.
 //!
 //! Provides configuration parsing (Rust owns config truth), command enum,
 //! exit-code classification, and path resolution.

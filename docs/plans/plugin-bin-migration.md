@@ -12,7 +12,7 @@
 
 | # | 決策 | 結論 | 日期 |
 | --- | --- | --- | --- |
-| PB-001 | Rust ownership | `fix-gal-bootstrap-install-convergence.md` owns `crates/gal-cli`, `crates/gal-core`, `gal install/update/doctor`, package-manager artifacts, and script delegation | 2026-06-02 |
+| PB-001 | Rust ownership | `fix-gal-bootstrap-install-convergence.md` owns `crates/gal-cli`, `crates/gal-engine`, `gal install/update/doctor`, package-manager artifacts, and script delegation | 2026-06-02 |
 | PB-002 | 本計畫範圍 | 只把 upstream 產出的本機 OS `gal` binary 放進 plugin root `bin/`，並驗證 Claude Code PATH 行為 | 2026-06-02 |
 | PB-003 | Shell wrapper | 不新增 `bin/gal.sh` 或 `bin/gal.ps1`; plugin `bin/` 只放原生 executable | 2026-06-02 |
 | PB-004 | Renderer 行為 | Renderer 只複製已存在的 upstream binary。若 binary source 不存在須 fail-loud，不自行建立 Rust workspace 或重寫 install 編排 | 2026-06-02 |
@@ -65,11 +65,11 @@
 
 以下 Rust 工作已移出本計畫，避免與 [fix-gal-bootstrap-install-convergence.md](fix-gal-bootstrap-install-convergence.md) 重疊：
 
-- `Cargo.toml`, `crates/gal-cli/`, `crates/gal-core/` workspace 建立。
+- `Cargo.toml`, `crates/gal-cli/`, `crates/gal-engine/` workspace 建立。
 - `gal --version`, `gal install`, `gal update`, `gal doctor`, `gal uninstall`, `dispatch-script` 等 bootstrap CLI 行為。
 - GitHub Releases / winget / Homebrew package-manager payload。
 - Rust → legacy scripts invocation contract and exit-code taxonomy。
-- `gal-core` deterministic engines：doc-sync、plan/state convergence、preflight、working-hours、headless/xmachine executor unification。
+- `gal-engine` deterministic engines：doc-sync、plan/state convergence、preflight、working-hours、headless/xmachine executor unification。
 - 任何 install/update/provider projection 編排改寫。
 
 本計畫只在 upstream binary 已存在後，處理 plugin artifact 的 `bin/` exposure 與 Claude Code PATH 驗證。

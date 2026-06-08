@@ -12,7 +12,7 @@ If you cannot tell which layer you are touching, stop and resolve that first. Mo
 
 GAL uses two distinct operational modes.
 
-| Mode | Audience | `gal-core` source | External plugin source | Shortcut policy |
+| Mode | Audience | `gal-engine` source | External plugin source | Shortcut policy |
 | --- | --- | --- | --- | --- |
 | Install mode | general users | Claude-compatible canonical package + provider-native install source | `~/.gal/config/config.json` + `~/.gal/state/plugins.lock.json` resolved upstream packages | provider-specific shortcuts only to `~/.gal/active/<provider>/`; repo-root shortcut forbidden |
 | Source mode | GAL contributors | `~/.gal/config/config.json.galRoot` pointing to local GAL repo | `~/.gal/state/plugins.lock.json` resolved cache, or `~/.gal/config/xmachine.json` explicit local override | repo link allowed but must be marked as source mode |

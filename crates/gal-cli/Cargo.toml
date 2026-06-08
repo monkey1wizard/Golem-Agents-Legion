@@ -11,4 +11,4 @@ name = "gal"
 path = "src/main.rs"
 
 [dependencies]
-gal-core = { path = "../gal-core" }
+gal-engine = { path = "../gal-engine" }

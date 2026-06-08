@@ -43,7 +43,7 @@
 - [ ] **R-009 plan lifecycle closeout**：盤點 completed/VERIFIED/implemented source plans，關閉已完成者、歸檔 orphaned prompts、follow-up 移獨立文件。`.dev/state.md` 只留真正 active plan。
 - [ ] **R-010 commit-msg（已修）**：keyword-hijack 已在凍結 script 移除。Rust 化為選配（R5/T-012），可延後或移出本計畫。
 - [ ] **R-011 Rust-first 取代策略**：Rust 直接實作 config→mode→render→projection→doctor，對齊凍結 Claude/Copilot oracle，達 parity 後退休 scripts。
-- [ ] **R-012 plugin-bin 邊界重訂**：`plugin-bin-migration.md` 只做 upstream `gal` binary 的 plugin `bin/` exposure；Rust workspace / payload / `gal-core` 由本計畫擁有。
+- [ ] **R-012 plugin-bin 邊界重訂**：`plugin-bin-migration.md` 只做 upstream `gal` binary 的 plugin `bin/` exposure；Rust workspace / payload / `gal-engine` 由本計畫擁有。
 - [ ] **R-013 Rust 單一跨平台 runtime**：Rust 須涵蓋 Windows + macOS + Linux 路徑/symlink/junction。凍結 scripts 僅作 oracle、不要求對等。**跨平台 Rust 測試為 load-bearing**（見 BUG-C）。
 - [ ] **R-014 doctor 為 release gate**：`gal doctor` read-only 檢查 canonical root、provider surfaces、ledgers、package-manager metadata、plan lifecycle state、known stale host caches。
 - [ ] **R-015 headless executor truth closeout**：headless pipeline 由「已完成」改為「已實作但真實 provider receipt 未驗證」，修正或另開 follow-up。
@@ -86,7 +86,7 @@ P2（package-manager lane）以 **M1 parity** 為前置即可開始，不必等 
 | Phase | 目標 | 前置 |
 | --- | --- | --- |
 | **已完成** | T-001 skeleton、T-002 mode（oracle）、T-003 render（oracle）、commit-msg 修復 | — |
-| **R1** | gal-core 擁有 config + mode | T-001 |
+| **R1** | gal-engine 擁有 config + mode | T-001 |
 | **R2** | Rust canonical render | R1、T-003 oracle |
 | **R3** | Rust provider projection（Claude→Copilot→MCP→AGY） | R2 |
 | **R4** | Rust 入口接管 + doctor + 退休 scripts（= M1） | R3 Claude/Copilot |
@@ -95,22 +95,22 @@ P2（package-manager lane）以 **M1 parity** 為前置即可開始，不必等 
 | **P3** | state / plan / headless closeout（純 docs/state） | 隨時 |
 | **P4** | release gate 收斂 | R4 doctor、P2 |
 
-### R1：gal-core 擁有 config + mode
+### R1：gal-engine 擁有 config + mode
 
-- **Files**: `crates/gal-core/src/config.rs`, `crates/gal-core/src/mode.rs`
+- **Files**: `crates/gal-engine/src/config.rs`, `crates/gal-engine/src/mode.rs`
 - **What**: serde 讀/解析 `~/.gal/config/config.json` 成型別 model（Rust 擁有 config 真相）；缺檔/缺 key 有明確預設、不 panic。port T-002 mode predicate（devMode + galRoot usable + no-fallback error + dead-path 短逾時）。
 - **Verify**: Rust unit tests 覆蓋 mode 矩陣；對同一 config，Rust mode == 凍結 PS `Test-InstallModeAuthority` oracle。
 
 ### R2：Rust canonical render
 
-- **Files**: `crates/gal-core/src/render.rs`, `crates/gal-cli/src/`
+- **Files**: `crates/gal-engine/src/render.rs`, `crates/gal-cli/src/`
 - **What**: 從 galRoot（dev）或 packaged source 渲染 canonical root，**atomic temp dir + swap**；目錄掃描列舉 agents/skills（自動納入 `golem-dockeeper`/`doc-sync`）。
 - **Oracle 範圍（BUG-A）**：Rust render 對 **Claude/Copilot 既有正確結構**可與凍結 oracle byte-parity；但 **dockeeper/doc-sync 屬 bug-fix delta**（凍結 script 可能未渲染），以意圖斷言驗證，**不要求 match 凍結 oracle**。
 - **Verify**: 既有正確結構 == oracle；canonical root `agents/` 含 `golem-dockeeper`、`skills/` 含 `doc-sync`（意圖斷言）；kill-mid-render 重跑收斂、無半渲染/temp 殘留。
 
 ### R3：Rust provider projection（Claude → Copilot → MCP → AGY）
 
-- **Files**: `crates/gal-core/src/providers/{claude,copilot,mcp,agy}.rs`
+- **Files**: `crates/gal-engine/src/providers/{claude,copilot,mcp,agy}.rs`
 - **What**:
   - **Claude + Copilot**：skills-dir / installed-plugin projection，逐檔對齊現行可用 oracle。
   - **MCP merge**：plugin root 未完整前不寫半殘 `mcp_config.json`。**量體警示（BUG-D）**：取代的 `Update-Mcp.*` 是全 repo 最大 script（~78KB）；`/refining-plan` 須把 MCP 拆成子任務、標真實量體，勿當單一 bullet。
@@ -152,13 +152,13 @@ PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪�
 
 ### P4：release gate 收斂（最後）
 
-- **Files**: `crates/gal-core/`, `crates/gal-cli/`
+- **Files**: `crates/gal-engine/`, `crates/gal-cli/`
 - **What**: `gal doctor --release-gate` 在 R4 doctor 骨架上併入 package-manager metadata + Claude marketplace classification，聚合為單一 gate。
 - **Verify**: 發布前 `gal doctor --release-gate` exit 0；缺 Claude/Copilot projection、stale dockeeper、或缺 package-manager metadata → 非零 + 指出修復面。
 
 ## Files to Create or Modify
 
-- `[CREATE]` `Cargo.toml`、`crates/gal-cli/`、`crates/gal-core/`（含 `config.rs`/`mode.rs`/`render.rs`/`providers/`）、`.gitignore`（已建）。
+- `[CREATE]` `Cargo.toml`、`crates/gal-cli/`、`crates/gal-engine/`（含 `config.rs`/`mode.rs`/`render.rs`/`providers/`）、`.gitignore`（已建）。
 - `[CREATE]` `packaging/winget/`、`packaging/homebrew/`。
 - `[CREATE]` `docs/observations/install-followups.md`。
 - `[MODIFY]` `scripts/gal.ps1` — entry 切換到 Rust binary（R4）；其餘 `scripts/*` 僅加凍結標記，不改邏輯。
@@ -247,7 +247,7 @@ PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪�
 
 依賴與里程碑清楚：M1（Claude/Copilot native parity = R1–R4）為最小可發布 binary；P2 以 M1 為前置、不必等 AGY；AGY/MCP-全 serializer/跨平台列 M2。BUG-B（過渡期單一 entry）入 T-011；OE-A（AGY best-effort）入 T-010；OE-B（R5 選配）入 T-013。
 
-可立即開工 T-004（gal-core config model），不被任何 blocking 阻擋。架構稽核的 REVISE 為「方向 APPROVE + 折入式修正」，其 required 已於本次落地；建議實作中若觸及 MCP serializer 或 AGY 交易性再回看 R3 量體警示。
+可立即開工 T-004（gal-engine config model），不被任何 blocking 阻擋。架構稽核的 REVISE 為「方向 APPROVE + 折入式修正」，其 required 已於本次落地；建議實作中若觸及 MCP serializer 或 AGY 交易性再回看 R3 量體警示。
 
 <!-- ENG_REVIEW: CLEAR -->
 
@@ -283,7 +283,7 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 | --- | --- | --- | --- |
 | TP-001 | unit | `cargo test` 通過 | T-001 |
 | TP-002 | manual | `gal --version`→version exit 0；`--help` 列子命令；未接線回 `not wired` 非零 | T-001 |
-| TP-003 | unit | gal-core 解析真實 `config.json` 成 model；缺檔/缺 key → 明確預設、不 panic | T-004 |
+| TP-003 | unit | gal-engine 解析真實 `config.json` 成 model；缺檔/缺 key → 明確預設、不 panic | T-004 |
 | TP-004 | unit | Rust mode 矩陣：usable→dev、false/缺→normal、unusable→error 不 fallback、dead-path 短逾時 | T-005 |
 | TP-005 | parity | 同一 config，Rust mode == 凍結 PS `Test-InstallModeAuthority` oracle | T-005 |
 | TP-006 | parity | Rust render 對 **Claude/Copilot 既有正確結構** == 凍結 `build-core-plugin` oracle | T-006 |
@@ -321,10 +321,10 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 - [x] T-003 — canonical render（script，oracle）：一般/dev 都重渲染、atomic temp+swap。
 - [x] commit-msg — keyword-hijack 已移除（凍結 script，`f64f517`）。Rust 化 = R5/T-012 選配。
 
-**R1 — gal-core config + mode（依 T-001）**
+**R1 — gal-engine config + mode（依 T-001）**
 
-- [x] T-004 — gal-core config model（serde 讀 `config.json`，Rust 擁有 config 真相，缺檔/key 明確預設）。 *(b03e904)*
-- [x] T-005 — gal-core mode resolution（port T-002 predicate + no-fallback + dead-path；== 凍結 PS oracle）。 *(1172295)*
+- [x] T-004 — gal-engine config model（serde 讀 `config.json`，Rust 擁有 config 真相，缺檔/key 明確預設）。 *(b03e904)*
+- [x] T-005 — gal-engine mode resolution（port T-002 predicate + no-fallback + dead-path；== 凍結 PS oracle）。 *(1172295)*
 
 **R2 — Rust canonical render（依 R1、T-003 oracle）**
 

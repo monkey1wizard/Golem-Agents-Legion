@@ -13,15 +13,15 @@
 //! contains "install"/"setup"/"update", which breaks a non-interactive run.)
 //!
 //! Usage:
-//!   cargo run -p gal-core --example fu02_render_smoke -- <isolated-home-dir>
+//!   cargo run -p gal-engine --example fu02_render_smoke -- <isolated-home-dir>
 //!
 //! Effect:
 //!   Renders to <isolated-home-dir>/.gal/plugins/gal/ (normal mode, source
 //!   resolved from the binary location via the FU-01 resolver).
 
-use gal_core::config::GalConfig;
-use gal_core::mode::{resolve_mode, GalMode};
-use gal_core::render::render_canonical_root;
+use gal_engine::config::GalConfig;
+use gal_engine::mode::{resolve_mode, GalMode};
+use gal_engine::render::render_canonical_root;
 use std::path::Path;
 
 fn main() {

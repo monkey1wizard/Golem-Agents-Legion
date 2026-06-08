@@ -119,17 +119,17 @@ Golem-Agents-Legion/
 
 ### 階段 2: Rust 專案重構 (Rust Reorg)
 
-- [ ] **T-16**: 將 `crates/gal-core` 目錄更名為 `crates/gal-engine`。
-- [ ] **T-17**: 更新 `crates/gal-engine/Cargo.toml`：package name 改為 `gal-engine`，lib name 改為 `gal_engine`。
-- [ ] **T-18**: 更新根目錄 `Cargo.toml` 內的 members 參照改為 `crates/gal-engine`。
-- [ ] **T-19**: 更新 `crates/gal-cli/Cargo.toml` 依賴：`gal-core = { path = "../gal-core" }` 改為 `gal-engine = { path = "../gal-engine" }`。
-- [ ] **T-20**: 全面修改所有 `use gal_core::` 為 `use gal_engine::`，涵蓋：
+- [x] **T-16**: 將 `crates/gal-core` 目錄更名為 `crates/gal-engine`。
+- [x] **T-17**: 更新 `crates/gal-engine/Cargo.toml`：package name 改為 `gal-engine`，lib name 改為 `gal_engine`。
+- [x] **T-18**: 更新根目錄 `Cargo.toml` 內的 members 參照改為 `crates/gal-engine`。
+- [x] **T-19**: 更新 `crates/gal-cli/Cargo.toml` 依賴：`gal-core = { path = "../gal-core" }` 改為 `gal-engine = { path = "../gal-engine" }`。
+- [x] **T-20**: 全面修改所有 `use gal_core::` 為 `use gal_engine::`，涵蓋：
   - `crates/gal-cli/src/main.rs` (12 處)
   - `crates/gal-engine/examples/fu02_render_smoke.rs` (L22-24, 3 處)
   - `crates/gal-engine/examples/verify_agy_surfaces.rs` (L8, 1 處)
   - `crates/gal-engine/tests/mcp_provider_oracle_parity.rs` (L10-13, 4 處)
-- [ ] **T-21 (TEST)**: 執行 `cargo build --workspace` 確保整體 Rust 專案編譯正常無誤。
-- [ ] **T-22 (DOCS)**: 測試通過後，搜尋並修正 `docs/` 內（如 `devguide.md` 等）關於 `crates/gal-core` 或 `gal-core` 專案名稱的參照，改為 `gal-engine`。
+- [x] **T-21 (TEST)**: 執行 `cargo build --workspace` 確保整體 Rust 專案編譯正常無誤。
+- [x] **T-22 (DOCS)**: 測試通過後，搜尋並修正 `docs/` 內（如 `devguide.md` 等）關於 `crates/gal-core` 或 `gal-core` 專案名稱的參照，改為 `gal-engine`。
 
 - **腳本路徑依賴斷裂**：`scripts/` 中的腳本高度依賴根目錄結構，搬移後若漏改路徑將導致 `gal init` 或打包失敗。
 - **相對路徑連結失效**：各 Markdown 檔案內的相對連結（如 `../skills/`）在結構改變後可能變成壞結尾，需要全面檢查與替換。

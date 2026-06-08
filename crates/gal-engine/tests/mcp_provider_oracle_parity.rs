@@ -7,10 +7,10 @@
 //! oracle. For bug-fix deltas (like dockeeper/doc-sync), use intent assertions
 //! instead of oracle parity.
 
-use gal_core::mcp::{McpManifest, McpServer};
-use gal_core::providers::claude::ClaudeDesktopMcpConfig;
-use gal_core::providers::copilot::CopilotCliMcpConfig;
-use gal_core::providers::McpProviderConfig;
+use gal_engine::mcp::{McpManifest, McpServer};
+use gal_engine::providers::claude::ClaudeDesktopMcpConfig;
+use gal_engine::providers::copilot::CopilotCliMcpConfig;
+use gal_engine::providers::McpProviderConfig;
 use serde_json::Value;
 use std::collections::HashMap;
 

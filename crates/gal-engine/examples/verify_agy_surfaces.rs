@@ -3,9 +3,9 @@
 //! This script demonstrates that the AGY provider can create all three surfaces
 //! with necessary files as required by the best-effort implementation for M1.
 //!
-//! Run with: cargo run --example verify_agy_surfaces
+//! Run with: cargo run -p gal-engine --example verify_agy_surfaces
 
-use gal_core::providers::agy::AgyProjection;
+use gal_engine::providers::agy::AgyProjection;
 use std::fs;
 use tempfile::TempDir;
 

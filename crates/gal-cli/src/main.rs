@@ -4,11 +4,11 @@
 //! install, update, uninstall, doctor, and commit-msg. The frozen PS/Bash scripts
 //! remain as oracle only and are NOT invoked by this entry.
 //!
-//! T-011: install/update/uninstall wired to Rust-native gal_core::install.
-//! T-012: doctor wired to Rust-native gal_core::doctor.
-//! T-013: commit-msg wired to Rust-native gal_core::commit_msg (R5, optional).
+//! T-011: install/update/uninstall wired to Rust-native gal_engine::install.
+//! T-012: doctor wired to Rust-native gal_engine::doctor.
+//! T-013: commit-msg wired to Rust-native gal_engine::commit_msg (R5, optional).
 
-use gal_core::{classify_args, Action, CommandKind, ExitCode};
+use gal_engine::{classify_args, Action, CommandKind, ExitCode};
 use std::path::Path;
 use std::process::ExitCode as ProcessExitCode;
 
@@ -34,7 +34,7 @@ fn print_help() {
 
 /// Run `gal install` — Rust-native install flow (T-011).
 fn cmd_install() -> ExitCode {
-    use gal_core::{config::GalConfig, install::run_install};
+    use gal_engine::{config::GalConfig, install::run_install};
 
     let config = GalConfig::load();
     match run_install(&config) {
@@ -56,7 +56,7 @@ fn cmd_install() -> ExitCode {
 
 /// Run `gal update` — re-render and re-project all surfaces (T-011).
 fn cmd_update() -> ExitCode {
-    use gal_core::{config::GalConfig, install::run_update};
+    use gal_engine::{config::GalConfig, install::run_update};
 
     let config = GalConfig::load();
     match run_update(&config) {
@@ -78,7 +78,7 @@ fn cmd_update() -> ExitCode {
 
 /// Run `gal uninstall` — remove canonical root and surfaces (T-011).
 fn cmd_uninstall() -> ExitCode {
-    use gal_core::install::run_uninstall;
+    use gal_engine::install::run_uninstall;
 
     match run_uninstall() {
         Ok(()) => {
@@ -94,7 +94,7 @@ fn cmd_uninstall() -> ExitCode {
 
 /// Run `gal doctor [--dry-run] [--release-gate]` — read-only health checks (T-012).
 fn cmd_doctor(args: &[String]) -> ExitCode {
-    use gal_core::doctor::{run_doctor, DoctorOptions};
+    use gal_engine::doctor::{run_doctor, DoctorOptions};
 
     let dry_run = args.iter().any(|a| a == "--dry-run");
     let release_gate = args.iter().any(|a| a == "--release-gate");
@@ -122,7 +122,7 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
 /// Produces `checksums.txt` and `artifact-manifest.json` in the output directory.
 /// Cosign signing is CI-only (OIDC); locally a placeholder is written instead.
 fn cmd_release(args: &[String]) -> ExitCode {
-    use gal_core::release::{run_release, AssetSpec, ReleaseOptions};
+    use gal_engine::release::{run_release, AssetSpec, ReleaseOptions};
     use std::path::PathBuf;
 
     // Parse flags: --version <tag>, --output-dir <path>, --dry-run (implied always)
@@ -216,8 +216,8 @@ fn cmd_release(args: &[String]) -> ExitCode {
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
-fn parse_asset_name(name: &str, _version: &str) -> (String, String, gal_core::release::ArtifactKind) {
-    use gal_core::release::ArtifactKind;
+fn parse_asset_name(name: &str, _version: &str) -> (String, String, gal_engine::release::ArtifactKind) {
+    use gal_engine::release::ArtifactKind;
 
     let kind = if name.ends_with(".zip") || name.ends_with(".tar.gz") {
         ArtifactKind::Archive
@@ -244,7 +244,7 @@ fn parse_asset_name(name: &str, _version: &str) -> (String, String, gal_core::re
 
 /// Run `gal commit-msg <msg-file>` — git commit-msg hook (T-013, R5 optional).
 fn cmd_commit_msg(args: &[String]) -> ExitCode {
-    use gal_core::commit_msg::{process_commit_msg, CommitMsgResult};
+    use gal_engine::commit_msg::{process_commit_msg, CommitMsgResult};
 
     // The first argument after "commit-msg" is the message file path.
     let msg_path_str = match args.get(1) {

@@ -29,7 +29,7 @@ pub enum CommitMsgResult {
 ///
 /// Rules (no-hijack — paths only, never body keywords):
 /// 1. If all changed files share the same top-level component, use it.
-/// 2. Common mappings: `crates/gal-core` → `gal-core`, `crates/gal-cli` → `gal-cli`,
+/// 2. Common mappings: `crates/gal-engine` → `gal-engine`, `crates/gal-cli` → `gal-cli`,
 ///    `scripts/` → `scripts`, `docs/` → `docs`, `agent/` → `agent`,
 ///    `skills/` → `skills`, `commands/` → `commands`.
 /// 3. If mixed top-levels, pick the plurality component.
@@ -117,7 +117,7 @@ pub fn derive_scope_from_files(staged_files: &[&str]) -> Option<String> {
     derive_scope(staged_files)
 }
 
-/// Extract crate name from a path like `crates/gal-core/src/lib.rs` → `gal-core`.
+/// Extract crate name from a path like `crates/gal-engine/src/lib.rs` → `gal-engine`.
 fn extract_crate_name(path: &str) -> Option<String> {
     let p = path.replace('\\', "/");
     let mut parts = p.trim_start_matches('/').splitn(3, '/');
@@ -177,10 +177,10 @@ mod tests {
     // TP-019: agy body no hijack (crates files → crate scope, not antigravity)
     #[test]
     fn no_hijack_when_body_has_agy_keywords_but_files_in_crates() {
-        let files = vec!["crates/gal-core/src/install.rs", "crates/gal-core/src/ledger.rs"];
+        let files = vec!["crates/gal-engine/src/install.rs", "crates/gal-engine/src/ledger.rs"];
         let scope = derive_scope_from_files(&files);
-        assert_eq!(scope, Some("gal-core".to_string()));
-        // Even if a commit message body said "fix agy gemini thing", scope stays gal-core.
+        assert_eq!(scope, Some("gal-engine".to_string()));
+        // Even if a commit message body said "fix agy gemini thing", scope stays gal-engine.
     }
 
     // TP-019: empty staging → no-op
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn derive_scope_from_mixed_crates_falls_back_to_crates() {
         let scope = derive_scope_from_files(&[
-            "crates/gal-core/src/lib.rs",
+            "crates/gal-engine/src/lib.rs",
             "crates/gal-cli/src/main.rs",
         ]);
         // Mixed crates → top-level fallback returns "crates"
@@ -239,10 +239,10 @@ mod tests {
     fn process_commit_msg_preserves_message() {
         let tmp = TempDir::new().unwrap();
         let msg_path = tmp.path().join("COMMIT_EDITMSG");
-        let original = "feat(gal-core): add ledger module\n\nFixes the tracking gap.";
+        let original = "feat(gal-engine): add ledger module\n\nFixes the tracking gap.";
         std::fs::write(&msg_path, original).unwrap();
 
-        let files = vec!["crates/gal-core/src/ledger.rs"];
+        let files = vec!["crates/gal-engine/src/ledger.rs"];
         let result = process_commit_msg(&msg_path, &files).unwrap();
 
         assert_eq!(result, CommitMsgResult::Updated);
@@ -253,8 +253,8 @@ mod tests {
     #[test]
     fn extract_crate_name_from_path() {
         assert_eq!(
-            extract_crate_name("crates/gal-core/src/lib.rs"),
-            Some("gal-core".to_string())
+            extract_crate_name("crates/gal-engine/src/lib.rs"),
+            Some("gal-engine".to_string())
         );
         assert_eq!(
             extract_crate_name("docs/manual.md"),

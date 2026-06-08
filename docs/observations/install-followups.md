@@ -12,7 +12,7 @@ is releasable or P2 (package-manager release lane) begins.
 
 ### FU-01 (H-01) — Normal-mode packaged-source render — RESOLVED (commit 47f04c4)
 
-**File**: `crates/gal-core/src/render.rs`, `GalMode::Normal` branch
+**File**: `crates/gal-engine/src/render.rs`, `GalMode::Normal` branch
 
 **Was**: `render.rs` used `std::env::current_dir()` as the GAL source location in normal
 mode. A `gal` binary installed via winget or Homebrew and run from an arbitrary directory
@@ -38,7 +38,7 @@ packaging (T-014). FU-02 below must run end-to-end once that layout is locked.
 **Tests**: TP-014 (isolated-home `gal install` Claude+Copilot == frozen oracle),
 TP-015 (entry-switch: `gal` uses Rust binary, frozen scripts not invoked)
 
-**Done (2026-06-03)**: Render-surface smoke via `crates/gal-core/examples/fu02_render_smoke.rs`
+**Done (2026-06-03)**: Render-surface smoke via `crates/gal-engine/examples/fu02_render_smoke.rs`
 — renders the normal-mode canonical root into an isolated home (no ledger/AGY, no
 real-home pollution). PASS: 71 files, 29 skills (incl. doc-sync), 13 agents (incl.
 golem-dockeeper), Claude + Copilot manifests + `.mcp.json` present; 7/7 assertions.
@@ -61,7 +61,7 @@ one Info deferred to T-014.
 
 ### S-1 (Low) — Secret-guard backstop regex is anchored
 
-`crates/gal-core/src/providers/mod.rs::has_unresolved_secrets` uses
+`crates/gal-engine/src/providers/mod.rs::has_unresolved_secrets` uses
 `^\$\{([A-Z0-9_]+)\}$`, catching only whole-string `${SECRET}` values. Embedded
 placeholders (e.g. `"Bearer ${API_KEY}"`) bypass this backstop. Not a disclosure
 vuln — `McpVariableResolver::resolve_string` (un-anchored) already errors on
@@ -70,7 +70,7 @@ not a resolved credential. Harden by aligning the backstop regex to the embedded
 
 ### S-2 (Low) — AGY junction path `to_str().unwrap()` panics on non-UTF-8 home
 
-`crates/gal-core/src/providers/agy.rs` `create_link` / junction-removal call
+`crates/gal-engine/src/providers/agy.rs` `create_link` / junction-removal call
 `path.to_str().unwrap()` when building `cmd` argv. A non-UTF-8 home path panics.
 Robustness/DoS-class (not memory-unsafe; AGY is best-effort/non-fatal). No command
 injection (argv vector, trusted paths). Replace with a graceful best-effort error.
@@ -85,7 +85,7 @@ package-manager publication.
 
 ### FU-03 (L-01) — Uninstall ledger record is imprecise
 
-**File**: `crates/gal-core/src/install.rs`, `run_uninstall()`
+**File**: `crates/gal-engine/src/install.rs`, `run_uninstall()`
 
 `run_uninstall()` records `providers: []` and `mode: "normal"` in the ledger entry
 regardless of the actual last-known state. Should reuse `Ledger.last` values.
@@ -94,7 +94,7 @@ regardless of the actual last-known state. Should reuse `Ledger.last` values.
 
 ### FU-04 (L-03, T-005 pre-existing) — `is_readable` UNC timeout is not real
 
-**File**: `crates/gal-core/src/mode.rs`, `is_gal_root_usable()`
+**File**: `crates/gal-engine/src/mode.rs`, `is_gal_root_usable()`
 
 The function spawns a thread to check path readability but calls `join()` which blocks
 indefinitely. The documented "dead-path short timeout" (R-003) is not enforced.

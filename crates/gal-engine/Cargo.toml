@@ -1,10 +1,10 @@
 [package]
-name = "gal-core"
+name = "gal-engine"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "gal_core"
+name = "gal_engine"
 path = "src/lib.rs"
 
 [dependencies]
