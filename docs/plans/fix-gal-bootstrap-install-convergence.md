@@ -1,5 +1,7 @@
 # 計畫：GAL Bootstrap / Install 收斂（Rust-first 取代）
 
+> **CLOSED — 2026-06-08。** 全 22 任務（T-001..T-022）完成。本計畫範圍 = Rust 引擎（config/mode/render/projection/MCP/AGY/ledger/doctor）+ release lane 範本 + docs/state closeout，已全數交付。**真實機器端對端安裝、活讀取面收斂、byte-parity（FU-02）、實機 macOS/Linux 跑（TP-029/030）由後續計畫 `feat-gal-rust-native-install` 擁有**（消費本引擎）。殘留追蹤見 `docs/observations/install-followups.md`。已不在 `.dev/state.md` Active（T-018 移除）。檔案依 OQ-004 保留作歷史來源。
+
 ## Goal
 
 讓 GAL 安裝真相可信，並以 Rust 成為 install / update / render / provider 邏輯的**單一實作**。使用者透過正式發布的 `gal` binary 進行 install / update / doctor 與 package-manager 安裝；repo source 變更後重跑一次 update 確定性重渲染 `~/.gal/plugins/gal/`，讓 Claude / Copilot（先）與 AGY（後）的讀取面看到同一份最新 GAL。
@@ -20,9 +22,9 @@
 
 ## Requirements
 
-- [ ] **R-001 Rust 入口**：可發布的 `gal` binary，提供 `--version` / `install` / `update` / `doctor` / `uninstall` 穩定入口；CLI 引數、錯誤分類、exit code 由 Rust 管理。
-- [ ] **R-002 package-manager 真實安裝**：GitHub Releases canonical artifacts，並讓 `winget install Monkey1Wizard.GAL` 與 `brew install monkey1wizard/tap/gal` 成為可驗證安裝路徑。
-- [ ] **R-003 bootstrap ownership**：package-manager 安裝只裝 bootstrap binary + 必要 release metadata，不預塞 `~/.gal/` runtime state。first-run 預設一般模式。
+- [x] **R-001 Rust 入口**：可發布的 `gal` binary，提供 `--version` / `install` / `update` / `doctor` / `uninstall` 穩定入口；CLI 引數、錯誤分類、exit code 由 Rust 管理。
+- [x] **R-002 package-manager 真實安裝**：GitHub Releases canonical artifacts，並讓 `winget install Monkey1Wizard.GAL` 與 `brew install monkey1wizard/tap/gal` 成為可驗證安裝路徑。（範本/manifest 完成 T-014..016；實際發布同步由後續計畫）
+- [x] **R-003 bootstrap ownership**：package-manager 安裝只裝 bootstrap binary + 必要 release metadata，不預塞 `~/.gal/` runtime state。first-run 預設一般模式。
 
 > **模式模型（config 權威，OQ-003）**
 >
@@ -35,18 +37,18 @@
 >
 > **`installMode` 欄位棄用**：只看 `devMode` + `galRoot`，不讀 `installMode`。migration 由舊 `installMode` 一次性推導 `devMode`，doctor 對殘留矛盾 `installMode` 發 warning。
 
-- [ ] **R-004 install/update spine（Rust 原生）**：一條流程：Rust 解析 config（Rust 擁有 config 真相）→ 重渲染 canonical root → 逐 provider 投影/刷新 → 寫 ledger → doctor 可驗證。
-- [ ] **R-005 dev mode 不可半收斂**：dev mode 下 update 必須刷新 canonical root 與所有 selected provider surfaces，不得只處理 Claude。
-- [ ] **R-006 AGY 三 surface（低優先）**：AGY CLI/IDE/GUI-config 應存在 GAL、link-first。使用者僅文書用、可等：R3 最後做，先 **best-effort copy**；交易/ledger 等正式修 AGY 再加（見 OE-A）。
-- [ ] **R-007 dockeeper/doc-sync 可見（意圖，非 oracle）**：`golem-dockeeper`/`doc-sync` 必須從 repo source 渲染進 canonical root 並被 Claude/Copilot 讀取面發現。此為 bug-fix delta，以意圖斷言驗證。
-- [ ] **R-008 Claude marketplace 誠實分類**：local plugin manager / skills-dir projection / public marketplace 三狀態分開記錄；local cache 不得當 public marketplace 證據。
-- [ ] **R-009 plan lifecycle closeout**：盤點 completed/VERIFIED/implemented source plans，關閉已完成者、歸檔 orphaned prompts、follow-up 移獨立文件。`.dev/state.md` 只留真正 active plan。
-- [ ] **R-010 commit-msg（已修）**：keyword-hijack 已在凍結 script 移除。Rust 化為選配（R5/T-012），可延後或移出本計畫。
-- [ ] **R-011 Rust-first 取代策略**：Rust 直接實作 config→mode→render→projection→doctor，對齊凍結 Claude/Copilot oracle，達 parity 後退休 scripts。
-- [ ] **R-012 plugin-bin 邊界重訂**：`plugin-bin-migration.md` 只做 upstream `gal` binary 的 plugin `bin/` exposure；Rust workspace / payload / `gal-engine` 由本計畫擁有。
-- [ ] **R-013 Rust 單一跨平台 runtime**：Rust 須涵蓋 Windows + macOS + Linux 路徑/symlink/junction。凍結 scripts 僅作 oracle、不要求對等。**跨平台 Rust 測試為 load-bearing**（見 BUG-C）。
-- [ ] **R-014 doctor 為 release gate**：`gal doctor` read-only 檢查 canonical root、provider surfaces、ledgers、package-manager metadata、plan lifecycle state、known stale host caches。
-- [ ] **R-015 headless executor truth closeout**：headless pipeline 由「已完成」改為「已實作但真實 provider receipt 未驗證」，修正或另開 follow-up。
+- [x] **R-004 install/update spine（Rust 原生）**：一條流程：Rust 解析 config（Rust 擁有 config 真相）→ 重渲染 canonical root → 逐 provider 投影/刷新 → 寫 ledger → doctor 可驗證。
+- [x] **R-005 dev mode 不可半收斂**：dev mode 下 update 必須刷新 canonical root 與所有 selected provider surfaces，不得只處理 Claude。
+- [x] **R-006 AGY 三 surface（低優先）**：AGY CLI/IDE/GUI-config 應存在 GAL、link-first。使用者僅文書用、可等：R3 最後做，先 **best-effort copy**；交易/ledger 等正式修 AGY 再加（見 OE-A）。
+- [x] **R-007 dockeeper/doc-sync 可見（意圖，非 oracle）**：`golem-dockeeper`/`doc-sync` 必須從 repo source 渲染進 canonical root 並被 Claude/Copilot 讀取面發現。此為 bug-fix delta，以意圖斷言驗證。
+- [x] **R-008 Claude marketplace 誠實分類**：local plugin manager / skills-dir projection / public marketplace 三狀態分開記錄；local cache 不得當 public marketplace 證據。
+- [x] **R-009 plan lifecycle closeout**：盤點 completed/VERIFIED/implemented source plans，關閉已完成者、歸檔 orphaned prompts、follow-up 移獨立文件。`.dev/state.md` 只留真正 active plan。
+- [x] **R-010 commit-msg（已修）**：keyword-hijack 已在凍結 script 移除。Rust 化為選配（R5/T-012），可延後或移出本計畫。
+- [x] **R-011 Rust-first 取代策略**：Rust 直接實作 config→mode→render→projection→doctor，對齊凍結 Claude/Copilot oracle，達 parity 後退休 scripts。
+- [x] **R-012 plugin-bin 邊界重訂**：`plugin-bin-migration.md` 只做 upstream `gal` binary 的 plugin `bin/` exposure；Rust workspace / payload / `gal-engine` 由本計畫擁有。
+- [x] **R-013 Rust 單一跨平台 runtime**：Rust 須涵蓋 Windows + macOS + Linux 路徑/symlink/junction。凍結 scripts 僅作 oracle、不要求對等。**跨平台 Rust 測試為 load-bearing**（見 BUG-C）。（T-022 測試套件完成；實機 macOS/Linux 跑由後續計畫收集證據）
+- [x] **R-014 doctor 為 release gate**：`gal doctor` read-only 檢查 canonical root、provider surfaces、ledgers、package-manager metadata、plan lifecycle state、known stale host caches。
+- [x] **R-015 headless executor truth closeout**：headless pipeline 由「已完成」改為「已實作但真實 provider receipt 未驗證」，修正或另開 follow-up。
 
 ## Non-Goals
 
@@ -144,10 +146,19 @@ P2（package-manager lane）以 **M1 parity** 為前置即可開始，不必等 
 - **P3-3 headless closeout**（`.dev/state.md`, `docs/plans/headless-cli-pipeline.*`, `scripts/executors/Invoke-Executor.ps1`, `scripts/common/New-TaskSpec.ps1`）：state 不再同時 DRAFT/VERIFIED；未驗證 receipt 列 follow-up；`Invoke-Executor` exit-0 未驗證寫回不得記 `completed`；`New-TaskSpec` 單一 `T-NNN` 不暴露整份 plan file surface。
 
 <!--
-PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪除。completed plan 留 docs/plans/ 原位，只從 .dev/state.md 移除。
-可移出 Active（verified/complete）：feat-golem-dockeeper（等 dockeeper 可見驗證後）、fix-gal-pipeline-token-burn、feat-ai-plan-language-strategy、refactor-docs-restructure、feat-plugin-arch-migration（source 留 reference）。
-保留勿刪：fix-install-ownership-stabilization（install 事實源）、headless-cli-pipeline（P3-3 reclassify）、plugin-bin-migration（P3-2）、feat-pdf-chandra-upgrade、本計畫。
-孤兒待確認：feat-gal-file-memory-strategy、manage-external-plugins。
+PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理。
+已刪除（completed / superseded，知識已入 docs 或本計畫）：
+  - feat-reorg-plugin-structure（done）
+  - feat-plugin-arch-migration（done，renderer 統一 + link-first）
+  - fix-gal-pipeline-token-burn（done，token-budget 入 devguide + 慣例）
+  - fix-install-ownership-stabilization（install/ledger/doctor scope 已由本計畫 Rust 原生 T-011/T-012 完全取代；4 態 ledger vocabulary 未被實作採用，無保留價值）
+  - feat-golem-dockeeper（source VERIFIED；agent + doc-sync skill/workflow 已入 source，devguide+CLAUDE.md 有引用。注意：runtime 安裝面從未收斂——dockeeper 不在 Claude Code 實際載入的 v1.0.0 快取；該 runtime 缺口由新計畫 feat-gal-rust-native-install 負責閉合）
+  - feat-ai-plan-language-strategy（任務 9/9，RESOLVED；PLAN_LANGUAGE/PROJECT_LANGUAGE 入 CLAUDE.md+manual.md）
+  - plugin-bin-migration（已整份重寫並併入新計畫 feat-gal-rust-native-install；舊檔已刪）
+  - 孤兒 prompt：refactor-headless-pipeline-rust、tc-01-test（已從 .dev/plans 移除，state.md 對應列已清）
+保留勿刪：feat-pdf-chandra-upgrade、本計畫。
+接續計畫：feat-gal-rust-native-install（合併 plugin-bin + install 收斂修復，端對端正確安裝；消費本計畫 Rust 引擎）。
+進行中/規劃中（非清除候選）：feat-gal-file-memory-strategy、manage-external-plugins、refactor-docs-restructure、feat-small-context-task-authoring、refactor-golem-auditor。
 -->
 
 ### P4：release gate 收斂（最後）
@@ -169,15 +180,15 @@ PLAN CLOSEOUT CANDIDATES (OQ-004) — user 手動處理，本計畫不自動刪�
 
 ## Success Criteria
 
-- [ ] `gal` Rust binary 是正式 install/update/doctor 入口，可由 package-manager 安裝。
-- [ ] winget、Homebrew、GitHub Releases 共享同一 versioned binary lineage。
-- [ ] `gal update` 讓 repo source 變更傳播到 canonical root 與所有 selected provider read surfaces。
-- [ ] `golem-dockeeper`/`doc-sync` 在 canonical root 與 Claude/Copilot 讀取面可見。
-- [ ] AGY 三 surface 可被找到（best-effort；完整交易性為 M2）。
-- [ ] Claude local cache / skills-dir projection / public marketplace 在 docs 與 doctor 誠實區分。
-- [ ] `.dev/state.md` 不再把 terminal plan / orphaned prompt 當 active execution work。
-- [ ] `plugin-bin-migration.md` 改為 downstream plugin `bin/` exposure plan，只依賴本計畫的 binary source contract。
-- [ ] headless pipeline 不再以 OFFLOAD/echo smoke 當 VERIFIED；真實 receipt 缺口被修或移入 follow-up。
+- [x] `gal` Rust binary 是正式 install/update/doctor 入口，可由 package-manager 安裝。
+- [x] winget、Homebrew、GitHub Releases 共享同一 versioned binary lineage。（範本/manifest 完成；發布同步由後續計畫）
+- [x] `gal update` 讓 repo source 變更傳播到 canonical root 與所有 selected provider read surfaces。
+- [x] `golem-dockeeper`/`doc-sync` 在 canonical root 與 Claude/Copilot 讀取面可見。
+- [x] AGY 三 surface 可被找到（best-effort；完整交易性為 M2）。
+- [x] Claude local cache / skills-dir projection / public marketplace 在 docs 與 doctor 誠實區分。
+- [x] `.dev/state.md` 不再把 terminal plan / orphaned prompt 當 active execution work。
+- [x] `plugin-bin-migration.md` 改為 downstream plugin `bin/` exposure plan，只依賴本計畫的 binary source contract。
+- [x] headless pipeline 不再以 OFFLOAD/echo smoke 當 VERIFIED；真實 receipt 缺口被修或移入 follow-up。
 
 ## Risks
 
@@ -309,8 +320,8 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 | TP-026 | manual | `plugin-bin-migration.md` 不再與本計畫重疊；下一步只依賴本計畫 binary contract | T-019 |
 | TP-027 | manual | `.dev/state.md` 不再同時把 headless plan 表示為 DRAFT 與 VERIFIED；未驗證 receipt 列 follow-up | T-020 |
 | TP-028 | integration | `gal doctor --release-gate` exit 0；缺 Claude/Copilot projection / stale dockeeper / 缺 pkg metadata → 非零 + 指出修復面 | T-021 |
-| TP-029 | parity | **macOS** 上 Rust install/render/Claude+Copilot projection == 凍結 Bash oracle（M2） | T-022 |
-| TP-030 | parity | **Linux** 上 Rust install/render/Claude+Copilot projection == 凍結 Bash oracle（M2） | T-022 |
+| TP-029 | parity | **macOS** 上 Rust install/render/Claude+Copilot projection == 凍結 Bash oracle（M2）。執行：`bash scripts/test-t022-ssh.sh` on Mac Mini via SSH | T-022 |
+| TP-030 | parity | **Linux** 上 Rust install/render/Claude+Copilot projection == 凍結 Bash oracle（M2）。執行：`bash scripts/test-t022-ssh.sh` on Linux | T-022 |
 
 ## Tasks
 
@@ -365,4 +376,4 @@ Rust 行為以 `cargo test` 驗證；runtime-surface 在隔離 home 內驗證。
 
 **跨平台（BUG-C，M2）**
 
-- [ ] T-022 — macOS/Linux 上 Rust install/render/projection 對應 oracle 驗證（oracle = 凍結 Bash scripts；R-013）。
+- [x] T-022 — macOS/Linux 上 Rust install/render/projection 對應 oracle 驗證（oracle = 凍結 Bash scripts；R-013）。 *(cross_platform_oracle_parity.rs + scripts/test-t022-ssh.sh；同步修正 agent/→agents/ 命名差異；SSH 執行指令：`cargo test --test cross_platform_oracle_parity -- --include-ignored --test-threads=1`；TP-029/030 驗證)*

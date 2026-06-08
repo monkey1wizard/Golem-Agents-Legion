@@ -9,7 +9,7 @@
 //!   1. Non-empty string
 //!   2. Exists and is a directory
 //!   3. Readable (dead UNC/network paths fail fast via short timeout)
-//!   4. Contains `commands/`, `agent/`, and `skills/` subdirectories
+//!   4. Contains `commands/`, `agents/`, and `skills/` subdirectories
 //!
 //! Legacy `installMode` field:
 //!   - Deprecated, only read for one-time migration
@@ -114,7 +114,7 @@ fn is_gal_root_usable(gal_root: &str) -> UsableResult {
     }
 
     // 4. Contains required subdirectories
-    for required_dir in &["commands", "agent", "skills"] {
+    for required_dir in &["commands", "agents", "skills"] {
         let subdir = path.join(required_dir);
         if !subdir.is_dir() {
             return Err(ModeError::GalRootMissingStructure {
@@ -181,7 +181,7 @@ mod tests {
         let base = temp_dir.path();
 
         fs::create_dir(base.join("commands")).unwrap();
-        fs::create_dir(base.join("agent")).unwrap();
+        fs::create_dir(base.join("agents")).unwrap();
         fs::create_dir(base.join("skills")).unwrap();
 
         temp_dir
@@ -218,8 +218,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let base = temp_dir.path();
 
-        // Create only agent and skills, missing commands
-        fs::create_dir(base.join("agent")).unwrap();
+        // Create only agents and skills, missing commands
+        fs::create_dir(base.join("agents")).unwrap();
         fs::create_dir(base.join("skills")).unwrap();
 
         let path = base.to_string_lossy().to_string();
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_gal_root_usable_missing_agent() {
+    fn test_is_gal_root_usable_missing_agents() {
         let temp_dir = TempDir::new().unwrap();
         let base = temp_dir.path();
 
@@ -250,7 +250,7 @@ mod tests {
             Err(ModeError::GalRootMissingStructure {
                 missing,
                 ..
-            }) if missing == "agent"
+            }) if missing == "agents"
         ));
     }
 
@@ -260,7 +260,7 @@ mod tests {
         let base = temp_dir.path();
 
         fs::create_dir(base.join("commands")).unwrap();
-        fs::create_dir(base.join("agent")).unwrap();
+        fs::create_dir(base.join("agents")).unwrap();
 
         let path = base.to_string_lossy().to_string();
         let result = is_gal_root_usable(&path);
@@ -348,7 +348,7 @@ mod tests {
 
         // Missing 'skills' directory
         fs::create_dir(base.join("commands")).unwrap();
-        fs::create_dir(base.join("agent")).unwrap();
+        fs::create_dir(base.join("agents")).unwrap();
 
         let config = GalConfig {
             dev_mode: Some(true),

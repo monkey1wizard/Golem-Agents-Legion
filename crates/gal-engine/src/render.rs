@@ -141,8 +141,8 @@ pub fn scan_source_components(source_root: &Path) -> Result<ScannedComponents, R
     }
     command_skills.sort_by(|a, b| a.name.cmp(&b.name));
 
-    // Scan agent/ directory for agents
-    let agents_dir = source_root.join("agent");
+    // Scan agents/ directory for agents
+    let agents_dir = source_root.join("agents");
     if agents_dir.exists() {
         for entry in fs::read_dir(&agents_dir)? {
             let entry = entry?;
@@ -290,11 +290,11 @@ pub fn resolve_source_from_exe_dir(exe_dir: &Path) -> Option<PathBuf> {
 }
 
 /// Does this path look like a GAL source root? Requires the three marker
-/// directories that the renderer scans: `skills/`, `agent/`, `commands/`.
+/// directories that the renderer scans: `skills/`, `agents/`, `commands/`.
 /// Mirrors the `galRoot` usable predicate used for dev-mode validation.
 fn looks_like_source_root(path: &Path) -> bool {
     path.join("skills").is_dir()
-        && path.join("agent").is_dir()
+        && path.join("agents").is_dir()
         && path.join("commands").is_dir()
 }
 
@@ -678,7 +678,7 @@ mod tests {
     /// Create the three marker directories that mark a GAL source root.
     fn make_source_markers(root: &Path) {
         fs::create_dir_all(root.join("skills")).unwrap();
-        fs::create_dir_all(root.join("agent")).unwrap();
+        fs::create_dir_all(root.join("agents")).unwrap();
         fs::create_dir_all(root.join("commands")).unwrap();
     }
 

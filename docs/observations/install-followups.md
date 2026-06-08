@@ -21,7 +21,7 @@ would fail to locate GAL source files and could not install (R-003/R-005).
 **Fix (2026-06-03)**: Added `resolve_packaged_source_root()` resolving the source relative
 to `std::env::current_exe()`. Tries flat layout (binary + source side by side), FHS
 (`<prefix>/bin/gal` + `<prefix>/share/gal`), then a bounded ancestor walk-up. Each
-candidate is validated by `looks_like_source_root()` (requires `skills/`+`agent/`+
+candidate is validated by `looks_like_source_root()` (requires `skills/`+`agents/`+
 `commands/`). Returns `SourceRootNotFound` rather than silently using the working
 directory. Layout logic extracted to `resolve_source_from_exe_dir()` for unit testing;
 5 new tests added, 122 pass, clippy clean.
@@ -120,10 +120,20 @@ ledger integration are deferred to M2 per OE-A.
 Claude Desktop and Copilot CLI MCP serializers are done (T-009). AGY, Codex CLI,
 and OpenCode (TOML) serializers are M2.
 
-### macOS/Linux cross-platform parity (M2, T-022)
+### macOS/Linux cross-platform parity (M2, T-022 — code complete, live run pending)
 
 Windows-first for M1. macOS/Linux Rust install/render/projection vs frozen Bash oracle
-is T-022, scoped to M2 per BUG-C.
+is T-022 (BUG-C). **Test suite complete (2026-06-08)**: `crates/gal-engine/tests/cross_platform_oracle_parity.rs`
+(9 Unix-gated tests: HOME env, `agents/` naming, AGY symlink-not-junction, render
+structure, MCP serializer parity, atomic-swap cleanup) + `scripts/test-t022-ssh.sh`
+(4-stage runner). Also fixed a load-bearing `agent/`→`agents/` naming bug in
+`render.rs`/`mode.rs` (singular form would silently break dev-mode resolution against
+the real repo, which uses `agents/` plural, matching the frozen Bash oracle).
+
+**Still open (evidence collection, owned by `feat-gal-rust-native-install`)**: physical
+TP-029 (macOS) / TP-030 (Linux) runs. Execute on the target via:
+`ssh mac-mini "cd <repo> && bash scripts/test-t022-ssh.sh"`. Code passes on Windows
+(non-Unix tests compile-gated out).
 
 ---
 
