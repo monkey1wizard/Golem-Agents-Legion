@@ -534,7 +534,7 @@ function Test-ProviderPluginPackage {
         'rules/'
         'mcp_config.json'
         'hooks.json'
-        'gal-results/'
+        '.tmp/gal-results/'
         'runtimeScripts'
         'scripts/'
     )
@@ -634,9 +634,9 @@ function Test-ProviderPluginPackage {
         }
     }
 
-    # --- T-002: Explicit gal-results/ check ---
-    if ($jsonText -match [regex]::Escape('gal-results/')) {
-        $errors.Add("gal-results/ path leaked into provider-neutral package model")
+    # --- T-002: Explicit .tmp/gal-results/ check ---
+    if ($jsonText -match [regex]::Escape('.tmp/gal-results/')) {
+        $errors.Add(".tmp/gal-results/ path leaked into provider-neutral package model")
     }
 
     # --- T-002: Local-only artifact boundary validation ---

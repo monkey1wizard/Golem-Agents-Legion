@@ -578,6 +578,6 @@ if (-not $Wait) {
     exit 0
 }
 
-$resolvedLocalOutputDir = if ($LocalOutputDir) { $LocalOutputDir } else { Join-Path (Get-Location) "gal-results\$taskId" }
+$resolvedLocalOutputDir = if ($LocalOutputDir) { $LocalOutputDir } else { Join-Path (Get-Location) ".tmp\gal-results\$taskId" }
 Wait-ForPosixTaskCompletion -SshTarget $resolvedWorkNodeTarget -RemoteOutputDir $remoteOutputDir -TaskId $taskId -TimeoutMinutes ([Math]::Max($TimeoutMinutes, 60))
 Receive-PosixTaskArtifacts -SshTarget $resolvedWorkNodeTarget -TaskId $taskId -RemoteOutputDir $remoteOutputDir -RemoteProjectRepoPath $resolvedProjectRepoPath -RemoteRuntimeRepoPath $resolvedRemoteRuntimeRepoPath -LocalOutputDir $resolvedLocalOutputDir -RemoteRuntimeStagePath $remoteRuntimeStagePath -KeepRemote:$KeepRemote

@@ -414,7 +414,7 @@ if [[ "$resolved_platform" == "windows" ]]; then
     fi
 
     if [[ "$WAIT" -eq 1 ]]; then
-        resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/gal-results/$task_id}"
+        resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/.tmp/gal-results/$task_id}"
         wait_for_windows_task_completion "${remote_user}@${remote_host}" "$remote_output_dir" "$task_id" "$(( TIMEOUT_MINUTES > 60 ? TIMEOUT_MINUTES : 60 ))"
         receive_windows_task_artifacts "${remote_user}@${remote_host}" "$task_id" "$remote_output_dir" "$resolved_project_repo_path" "$resolved_local_output_dir" "$KEEP_REMOTE"
     fi
@@ -509,6 +509,6 @@ if [[ "$WAIT" -eq 0 ]]; then
     exit 0
 fi
 
-resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/gal-results/$task_id}"
+resolved_local_output_dir="${LOCAL_OUTPUT_DIR:-$(pwd)/.tmp/gal-results/$task_id}"
 wait_for_posix_task_completion "$resolved_work_node_target" "$remote_output_dir" "$task_id" "$(( TIMEOUT_MINUTES > 60 ? TIMEOUT_MINUTES : 60 ))"
 receive_posix_task_artifacts "$resolved_work_node_target" "$task_id" "$remote_output_dir" "$resolved_project_repo_path" "$resolved_remote_runtime_repo_path" "$resolved_local_output_dir" "$remote_runtime_stage_path" "$KEEP_REMOTE"

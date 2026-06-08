@@ -292,7 +292,7 @@ xmachine 不會自行發想有邊界的任務規格 (task specs)。它只執行�
   -Wait
 ```
 
-這個 wrapper 會透過 `~/.gal/config/xmachine.json` 解析節點別名，偵測遠端平台，透過適當的 xmachine 通道派發，並在指定 `-Wait` 時將 `status.json`、`summary.md`、`runtime.log` 與 `result.patch` 取回到本機的 `gal-results\<TaskId>` 目錄。
+這個 wrapper 會透過 `~/.gal/config/xmachine.json` 解析節點別名，偵測遠端平台，透過適當的 xmachine 通道派發，並在指定 `-Wait` 時將 `status.json`、`summary.md`、`runtime.log` 與 `result.patch` 取回到本機的 `.tmp\gal-results\<TaskId>` 目錄。
 
 ### Windows 工作節點
 

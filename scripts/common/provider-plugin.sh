@@ -506,7 +506,7 @@ validate_provider_plugin_package() {
     local errors_json='[]'
 
     # --- Reject provider-specific paths ---
-    local provider_paths=('rules/' 'mcp_config.json' 'hooks.json' 'gal-results/' 'runtimeScripts' 'scripts/')
+    local provider_paths=('rules/' 'mcp_config.json' 'hooks.json' '.tmp/gal-results/' 'runtimeScripts' 'scripts/')
     local path
     for path in "${provider_paths[@]}"; do
         if [ "$path" = 'runtimeScripts' ]; then
@@ -612,9 +612,9 @@ validate_provider_plugin_package() {
         fi
     done
 
-    # --- T-002: Explicit gal-results/ check ---
-    if printf '%s' "$package_json" | grep -qF 'gal-results/'; then
-        local msg="gal-results/ path leaked into provider-neutral package model"
+    # --- T-002: Explicit .tmp/gal-results/ check ---
+    if printf '%s' "$package_json" | grep -qF '.tmp/gal-results/'; then
+        local msg=".tmp/gal-results/ path leaked into provider-neutral package model"
         errors_json="$(printf '%s' "$errors_json" | jq --arg msg "$msg" '. + [$msg]')"
     fi
 

@@ -284,7 +284,7 @@ Dispatch a task spec to a configured work node alias from a Windows control node
   -Wait
 ```
 
-This wrapper resolves the node alias through `~/.gal/config/xmachine.json`, detects the remote platform, dispatches through the appropriate xmachine lane, and retrieves `status.json`, `summary.md`, `runtime.log`, and `result.patch` into a local `gal-results\<TaskId>` directory when `-Wait` is specified.
+This wrapper resolves the node alias through `~/.gal/config/xmachine.json`, detects the remote platform, dispatches through the appropriate xmachine lane, and retrieves `status.json`, `summary.md`, `runtime.log`, and `result.patch` into a local `.tmp\gal-results\<TaskId>` directory when `-Wait` is specified.
 
 ### Windows Work Node
 

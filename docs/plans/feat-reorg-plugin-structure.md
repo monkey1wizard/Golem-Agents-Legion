@@ -76,15 +76,15 @@ Golem-Agents-Legion/
 - [x] **T-01**: 確認 `xmachine.config.example.json` 存在於根目錄（準備後續移入範本區）。確認 `config.example.env` 已清理。
 - [x] **T-02**: 將專案根目錄的 `cache/`, `gal-results/`, `graphify-out/`, `.sandbox/` 移動至 `.tmp/` 目錄內。(注意追蹤檔案需使用 `git mv` 搬移)。
 - [x] **T-03**: 更新根目錄的 `.gitignore`，移除 `graphify-out/`, `gal-results/`, `cache/`, `.sandbox/` 的個別忽略，統一為 `.tmp/` 規則。
-- [ ] **T-04**: 修正腳本中的 `gal-results/` 路徑，導向 `.tmp/gal-results/`：
+- [x] **T-04**: 修正腳本中的 `gal-results/` 路徑，導向 `.tmp/gal-results/`：
   - `Invoke-XmachineTask.ps1` (L581)
   - `Invoke-XmachineTask.sh` (L417, L512)
   - `Get-XmachineRemoteResult.ps1` (L25, L71)
   - `ProviderPlugin.ps1` (L537, L637-639) — provider leak-check 驗證字串
   - `provider-plugin.sh` (L509, L615-617) — 同上 Bash 版
   - `scripts/scripts.md` (L204) — 文件內路徑
-- [ ] **T-05 (TEST)**: 針對受影響的腳本進行基礎測試（如檢查 Xmachine 路徑解析是否正確），驗證 `.tmp/` 路徑變更沒有引發錯誤。
-- [ ] **T-06 (DOCS)**: 測試通過後，更新 `docs/` 與技能文件內關於 `gal-results/` 的參照：
+- [x] **T-05 (TEST)**: 針對受影響的腳本進行基礎測試（如檢查 Xmachine 路徑解析是否正確），驗證 `.tmp/` 路徑變更沒有引發錯誤。
+- [x] **T-06 (DOCS)**: 測試通過後，更新 `docs/` 與技能文件內關於 `gal-results/` 的參照：
   - `commands/gal-pipeline/SKILL.template.md` (L294, L389, L591)
   - `docs/` 下任何提及 `gal-results/` 的文件
 

@@ -291,7 +291,7 @@ When a task hits repeated failure or an immediate human-required stop, append or
   - Test Results: <latest task-scoped subsection or `not-applicable`>
   - Review Results: <latest task-scoped subsection or `not-applicable`>
   - Security Review: <latest task-scoped subsection or `not-applicable`>
-  - xmachine Artifacts: <`gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`>
+  - xmachine Artifacts: <`.tmp/gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`>
 - Attempts:
   1. <YYYY-MM-DD> — <attempt summary>
      - Result: <what changed or why it still failed>
@@ -386,7 +386,7 @@ The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELI
 
 The implementation commit created for `T-NNN` must stay scoped to the implementation itself. Do not use the implementation commit to record source-plan, execution-prompt, or `.dev/state.md` completion state for the task. Cross-surface progress or completion state belongs to the convergence step after all gates pass.
 
-**xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
+**xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `.tmp/gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
 
 ### 2d — Test (TESTER model — different vendor from CODER)
 
@@ -588,7 +588,7 @@ Evidence to inspect:
 - Test Results: [latest task-scoped subsection or `not-applicable`]
 - Review Results: [latest task-scoped subsection or `not-applicable`]
 - Security Review: [latest task-scoped subsection or `not-applicable`]
-- xmachine Artifacts: [`gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`]
+- xmachine Artifacts: [`.tmp/gal-results/<task-id>/status.json`, `summary.md`, `runtime.log`, `result.patch` or `not-applicable`]
 
 Action required: [what the user needs to do]
 ```

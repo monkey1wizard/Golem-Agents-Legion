@@ -201,7 +201,7 @@ Rerun guidance:
 - `scripts/`
 - Marketplace metadata
 - Provider stubs moved out of the shared root
-- `gal-results/`
+- `.tmp/gal-results/`
 
 ### Usage
 

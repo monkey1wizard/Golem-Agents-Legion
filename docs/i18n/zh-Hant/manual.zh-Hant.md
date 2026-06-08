@@ -402,7 +402,7 @@ GAL 使用供應商中立的外掛程式套件模型（provider-neutral plugin p
 - 供應商專屬的輸出路徑
 - 已解析的機器本機機密或路徑
 - `runtimeScripts` 或外掛程式根目錄 `scripts/`
-- `gal-results/`
+- `.tmp/gal-results/`
 - Hooks（自 v1 推遲）
 
 ### AGY surface 投影 (AGY Surface Projection)

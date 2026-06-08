@@ -22,7 +22,7 @@
     Path to the task output directory on the remote machine (printed by Invoke-XmachineRemoteTask).
 
 .PARAMETER LocalOutputDir
-    Local directory to write retrieved output files. Defaults to .\gal-results\{TaskId}.
+    Local directory to write retrieved output files. Defaults to .\.tmp\gal-results\{TaskId}.
 
 .PARAMETER KeepRemote
     If specified, do not clean up the remote worktree and output directory after retrieval.
@@ -68,7 +68,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ($LocalOutputDir -eq "") {
-    $LocalOutputDir = Join-Path (Get-Location) "gal-results\$TaskId"
+    $LocalOutputDir = Join-Path (Get-Location) ".tmp\gal-results\$TaskId"
 }
 
 New-Item -ItemType Directory -Force -Path $LocalOutputDir | Out-Null
