@@ -1,12 +1,13 @@
 //! `gal` CLI entry point — Rust-native install/update/doctor/uninstall/commit-msg.
 //!
-//! Entry switch (T-011, BUG-B): the Rust binary is now the single entry for
-//! install, update, uninstall, doctor, and commit-msg. The frozen PS/Bash scripts
-//! remain as oracle only and are NOT invoked by this entry.
+//! Entry switch (T-011, BUG-B): the Rust binary is the single entry for
+//! install, update, uninstall, doctor, and commit-msg.
 //!
 //! T-011: install/update/uninstall wired to Rust-native gal_engine::install.
 //! T-012: doctor wired to Rust-native gal_engine::doctor.
-//! T-013: commit-msg wired to Rust-native gal_engine::commit_msg (R5, optional).
+//! commit-msg: Rust-native generator + non-destructive hook in
+//! gal_engine::commit_msg. This fully replaces the retired
+//! Get-StagedCommitMessage.ps1 / get-staged-commit-message.sh helpers.
 
 use gal_engine::{classify_args, Action, CommandKind, ExitCode};
 use std::path::Path;
@@ -242,16 +243,40 @@ fn parse_asset_name(name: &str, _version: &str) -> (String, String, gal_engine::
     }
 }
 
-/// Run `gal commit-msg <msg-file>` — git commit-msg hook (T-013, R5 optional).
+/// Run `gal commit-msg` — git commit-msg hook + message generator.
+///
+/// Modes:
+/// - `gal commit-msg --print`  → write a generated message to stdout (for the
+///   `git-commits` skill / `git-commit-msg` command). Replaces the retired
+///   `Get-StagedCommitMessage.ps1` / `get-staged-commit-message.sh`.
+/// - `gal commit-msg <file>`   → git commit-msg hook. Non-destructive: an
+///   existing author message is preserved; only a blank message is filled.
 fn cmd_commit_msg(args: &[String]) -> ExitCode {
-    use gal_engine::commit_msg::{process_commit_msg, CommitMsgResult};
+    use gal_engine::commit_msg::{fill_commit_msg_file, generate_commit_message, CommitMsgResult};
 
-    // The first argument after "commit-msg" is the message file path.
-    let msg_path_str = match args.get(1) {
+    let entries = get_staged_entries();
+
+    // --print mode: emit the generated message (or a friendly note) to stdout.
+    if args.iter().any(|a| a == "--print" || a == "--generate") {
+        match generate_commit_message(&entries) {
+            Some(msg) => {
+                println!("{msg}");
+                return ExitCode::Success;
+            }
+            None => {
+                println!("No changes staged for commit.");
+                return ExitCode::Success;
+            }
+        }
+    }
+
+    // Hook mode: first positional arg is the commit message file path.
+    let msg_path_str = match args.iter().skip(1).find(|a| !a.starts_with("--")) {
         Some(p) => p.clone(),
         None => {
             eprintln!("gal commit-msg: missing message file argument");
             eprintln!("usage: gal commit-msg <path-to-commit-message-file>");
+            eprintln!("       gal commit-msg --print");
             return ExitCode::Usage;
         }
     };
@@ -262,16 +287,8 @@ fn cmd_commit_msg(args: &[String]) -> ExitCode {
         return ExitCode::Error;
     }
 
-    // Get staged files from git.
-    let staged_files = get_staged_files();
-    let staged_refs: Vec<&str> = staged_files.iter().map(|s| s.as_str()).collect();
-
-    match process_commit_msg(msg_path, &staged_refs) {
-        Ok(CommitMsgResult::NoOp) => {
-            // Empty staging — no-op (TP-019).
-            ExitCode::Success
-        }
-        Ok(CommitMsgResult::Updated) => ExitCode::Success,
+    match fill_commit_msg_file(msg_path, &entries) {
+        Ok(CommitMsgResult::NoOp | CommitMsgResult::Updated) => ExitCode::Success,
         Err(e) => {
             eprintln!("gal commit-msg: {e}");
             ExitCode::Error
@@ -279,19 +296,17 @@ fn cmd_commit_msg(args: &[String]) -> ExitCode {
     }
 }
 
-/// Retrieve staged file paths from git (no-op list on error).
-fn get_staged_files() -> Vec<String> {
+/// Retrieve staged entries (status + path, rename-aware) from git.
+/// Returns an empty list when git is unavailable or nothing is staged.
+fn get_staged_entries() -> Vec<gal_engine::commit_msg::StagedEntry> {
     let output = std::process::Command::new("git")
-        .args(["diff", "--staged", "--name-only"])
+        .args(["diff", "--cached", "--name-status", "--find-renames"])
         .output();
 
     match output {
         Ok(out) if out.status.success() => {
             let text = String::from_utf8_lossy(&out.stdout);
-            text.lines()
-                .map(|l| l.trim().to_string())
-                .filter(|l| !l.is_empty())
-                .collect()
+            gal_engine::commit_msg::parse_name_status(&text)
         }
         _ => Vec::new(), // git unavailable or not a repo → treat as empty staging
     }

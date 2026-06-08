@@ -11,7 +11,9 @@ description: Write commit messages that follow this project's Conventional Commi
 
 ## Overview
 
-When the repo helper is available, use it as the single source of truth for commit-message generation. Do not independently summarize the staged diff when `scripts/Get-StagedCommitMessage.ps1` or `scripts/get-staged-commit-message.sh` can produce the final message.
+Use `gal commit-msg --print` as the deterministic baseline for `type` and `scope`, then author a descriptive subject and body from the actual staged diff. The Rust `gal commit-msg` command (in `crates/gal-engine`) replaces the retired `Get-StagedCommitMessage.ps1` / `get-staged-commit-message.sh` helpers.
+
+The baseline is a path-and-status classifier: it gets the conventional-commit `type` and `scope` right (no-hijack — never inspects the diff body), but its subject is intentionally generic (e.g. `refactor crates`). Do not ship that generic subject verbatim — read the staged diff and write a subject that says **what actually changed** (e.g. `rename gal-core crate to gal-engine`), keeping the baseline's `type(scope)` prefix unless it is clearly wrong.
 
 This repo's local rules override generic Conventional Commits guidance when they conflict. The final output must use a scoped header and stay in this repo's no-footer format unless the user explicitly asks for generic Conventional Commits instead.
 
@@ -38,11 +40,11 @@ If the user intent is clearly to produce commit-message wording from staged chan
 
 ## Instructions
 
-1. If the repo helper exists, run `pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1` on Windows or `./scripts/get-staged-commit-message.sh` when the PowerShell helper is unavailable.
-2. When the helper returns a commit message, return that output exactly.
-3. Do not add explanations, markdown fences, reasoning tags, JSON, or extra prose around helper output.
-4. Do not rewrite the helper result. If the helper omits a body, do not invent one. If the helper includes bullets, preserve them exactly.
-5. Only fall back to manual analysis when the helper is unavailable or the user supplied a diff outside this repo.
+1. Run `gal commit-msg --print` to get the baseline `type(scope)` header. If `gal` is not on PATH, fall back to manual classification (step 6).
+2. Read the staged diff and write a subject that describes what actually changed, keeping the baseline's `type(scope):` prefix unless the diff shows it is wrong.
+3. Do not add explanations, markdown fences, reasoning tags, JSON, or extra prose around the message.
+4. Add a body (up to three bullets) only for broader changes, summarizing the most important changes — not file names.
+5. Never ship the baseline's generic subject (e.g. `refactor crates`, `update scripts`) verbatim when the diff supports something more specific.
 6. In fallback mode, inspect staged diffs or the provided patch to classify the commit type based on the nature of changes:
     - feat: new functionality visible to users
     - fix: bug correction
@@ -130,7 +132,7 @@ Bullet rules:
 
 When asked for a commit message:
 
-1. Use the repo helper output when it is available.
+1. Use `gal commit-msg --print` for the `type(scope)` baseline, then author the subject/body from the staged diff.
 2. Return only the commit message unless the user asks for explanation.
-3. Do not rewrite, expand, or decorate helper output.
-4. Only fall back to manual diff analysis when the helper is unavailable or the user supplied an external diff.
+3. Keep the baseline `type(scope)` prefix unless the diff clearly contradicts it.
+4. Fall back to fully manual diff analysis only when `gal` is unavailable or the user supplied an external diff.

@@ -9,26 +9,21 @@ Generate a dynamic Conventional Commit message for the current staged diff.
 
 ## Goal
 
-Run the repo helper that classifies the current staged diff and return its output exactly.
+Run `gal commit-msg --print` for the deterministic `type(scope)` baseline, then author a subject that describes what actually changed.
 
-## Windows Helper Output
+## Baseline Output
 
-!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`
-
-## Non-Windows Helper Output
-
-Run `./scripts/get-staged-commit-message.sh` when the PowerShell helper is unavailable.
+!`gal commit-msg --print`
 
 ## Instructions
 
-- Return the helper output exactly.
-- The helper decides whether the result is header-only or includes a body.
-- Do not invent bullets or extend the body beyond helper output.
+- Use the baseline above for the `type(scope):` prefix (it is a no-hijack path/status classifier — it never reads the diff body).
+- Read the staged diff and write a subject that says what actually changed; do not ship the baseline's generic subject (e.g. `refactor crates`) verbatim.
+- Keep the baseline `type(scope)` prefix unless the diff clearly contradicts it.
+- Add a body of up to three bullets only for broader changes, summarizing the most important changes — not file names.
 - Do not add explanations, markdown fences, reasoning tags, or extra prose.
-- If the helper reports `No changes staged for commit.` or `Not a git repository.`, return that text exactly.
+- If the baseline reports `No changes staged for commit.` or `Not a git repository.`, return that text exactly.
 
 ## Output
 
-The helper already returns the final commit message in this repo's format.
-
-Return only that final text.
+Return only the final commit message in this repo's `type(scope): subject` format.

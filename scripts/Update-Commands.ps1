@@ -121,9 +121,9 @@ function New-OpenCodeCommandFileContent([string]$SkillPath, [string]$CommandName
 
     $body = if ($CommandName -eq 'git-commit-msg') {
         @(
-            'Run the repo helper below and return its output exactly. The helper decides whether the output is header-only or includes a body, so do not invent bullets or rewrite the summary. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the helper reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS'
+            'Use the baseline below for the type(scope) prefix (it is a no-hijack path/status classifier that never reads the diff body), then read the staged diff and write a subject describing what actually changed. Do not ship the generic baseline subject verbatim. Keep the type(scope) prefix unless the diff clearly contradicts it. Add up to three body bullets only for broader changes. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the baseline reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS'
             ''
-            '!`pwsh -NoProfile -File ./scripts/Get-StagedCommitMessage.ps1`'
+            '!`gal commit-msg --print`'
         ) -join "`n"
     }
     else {

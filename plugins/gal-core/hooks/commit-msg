@@ -1,31 +1,22 @@
 #!/usr/bin/env sh
 # GAL commit-msg hook — delegates to the `gal commit-msg` Rust command.
-# T-013: rewire git hook to Rust implementation (R5, optional).
+#
+# Non-destructive contract: `gal commit-msg <file>` preserves an existing author
+# message and only fills a blank one. It never overwrites what you wrote.
 #
 # Installation:
 #   cp hooks/commit-msg .git/hooks/commit-msg
 #   chmod +x .git/hooks/commit-msg
 #
-# Or use `gal install` to set this up automatically (when supported).
+# Or set core.hooksPath to this directory (see Update-Personalization).
 
 set -eu
-
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)"
 
 if command -v gal >/dev/null 2>&1; then
 	exec gal commit-msg "$1"
 fi
 
-if command -v pwsh >/dev/null 2>&1 && [ -f "$REPO_ROOT/scripts/Get-StagedCommitMessage.ps1" ]; then
-	pwsh -NoProfile -File "$REPO_ROOT/scripts/Get-StagedCommitMessage.ps1" > "$1"
-	exit 0
-fi
-
-if [ -f "$REPO_ROOT/scripts/get-staged-commit-message.sh" ]; then
-	"$REPO_ROOT/scripts/get-staged-commit-message.sh" > "$1"
-	exit 0
-fi
-
-echo "commit-msg hook could not find gal or a local staged-commit helper" >&2
-exit 1
+# `gal` is not on PATH (binary not installed yet): leave the author's message
+# untouched. We deliberately do NOT fall back to overwriting the message — the
+# retired PS/Bash helpers used `> "$1"`, which clobbered every commit message.
+exit 0
