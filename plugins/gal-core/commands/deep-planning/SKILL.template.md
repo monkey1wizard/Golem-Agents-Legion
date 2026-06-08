@@ -68,7 +68,7 @@ Do not create or mutate `.dev/plans/<plan-slug>.prompt.md` here.
 
 ### Step 3a — Architect Review (Always Mandatory)
 
-Read `agent/golem-architect.agent.md` and apply its review standards to the converged source plan.
+Read `plugins/gal-core/agents/golem-architect.agent.md` and apply its review standards to the converged source plan.
 
 Write architecture review narrative in the same resolved language used for the source plan. Keep technical identifiers, file paths, command names, code snippets, and other literal machine-facing tokens untranslated.
 

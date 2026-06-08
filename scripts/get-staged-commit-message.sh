@@ -62,19 +62,19 @@ elif [[ "$is_rename" == true ]]; then
   type="refactor"
 elif printf '%s' "$lower_diff" | grep -Eq 'broken|stale|invalid|repair|fix|reasoning|<think>|code fence|plain text|corrected commit|local model|stabil'; then
   type="fix"
-elif paste <(printf '%s\n' "${statuses[@]}") <(printf '%s\n' "${paths[@]}") | grep -Eq '^A[^[:space:]]*[[:space:]]+(commands|agent|skills|workflows|templates)/'; then
+elif paste <(printf '%s\n' "${statuses[@]}") <(printf '%s\n' "${paths[@]}") | grep -Eq '^A[^[:space:]]*[[:space:]]+(plugins/gal-core/(commands|agents|skills|workflows|templates)/|(commands|agent|skills|workflows|templates)/)'; then
   type="feat"
-elif printf '%s\n' "${paths[@]}" | grep -Eq '^(scripts/|opencode\.json$|mcp\.json$)'; then
+elif printf '%s\n' "${paths[@]}" | grep -Eq '^(scripts/|plugins/gal-core/(opencode\.json|mcp\.json)$|opencode\.json$|mcp\.json$)'; then
   type="chore"
 fi
 
 scope=''
-if printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$'; then
+if printf '%s\n' "${paths[@]}" | grep -Eq '^(plugins/gal-core/opencode\.json|opencode\.json)$'; then
   scope='opencode'
 
 else
-  command_names="$(printf '%s\n' "${paths[@]}" | sed -n 's#^commands/\([^/]*\)/.*#\1#p' | sort -u)"
-  skill_names="$(printf '%s\n' "${paths[@]}" | sed -n 's#^skills/\([^/]*\)/.*#\1#p' | sort -u)"
+  command_names="$(printf '%s\n' "${paths[@]}" | sed -n -e 's#^plugins/gal-core/commands/\([^/]*\)/.*#\1#p' -e 's#^commands/\([^/]*\)/.*#\1#p' | sort -u)"
+  skill_names="$(printf '%s\n' "${paths[@]}" | sed -n -e 's#^plugins/gal-core/skills/\([^/]*\)/.*#\1#p' -e 's#^skills/\([^/]*\)/.*#\1#p' | sort -u)"
 
   if [[ -n "$command_names" && "$(printf '%s\n' "$command_names" | wc -l)" -eq 1 ]]; then
     scope="$command_names"
@@ -137,9 +137,9 @@ else
 fi
 
 declare -a bullets=()
-if printf '%s\n' "${paths[@]}" | grep -Eq '^commands/git-commit-msg/'; then
+if printf '%s\n' "${paths[@]}" | grep -Eq '^(plugins/gal-core/commands/git-commit-msg/|commands/git-commit-msg/)'; then
   bullets+=('add a source-of-truth git-commit-msg command under commands/')
-elif printf '%s\n' "${paths[@]}" | grep -Eq '^opencode\.json$'; then
+elif printf '%s\n' "${paths[@]}" | grep -Eq '^(plugins/gal-core/opencode\.json|opencode\.json)$'; then
   bullets+=('route the repo OpenCode git-commit-msg command through staged helper output')
 elif printf '%s' "$lower_diff" | grep -Eq '<think>|code fence|plain text|reasoning'; then
   bullets+=('block reasoning-tag and fenced-output regressions in commit responses')

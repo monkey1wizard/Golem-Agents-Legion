@@ -92,7 +92,7 @@ Golem-Agents-Legion/
 - [x] **T-07**: 建立 `plugins/gal-core/` 目錄結構。
 - [x] **T-08**: 搬移 `agent/` (改名為 `agents/`), `skills/`, `commands/`, `conventions/`, `workflows/`, `templates/`, `mcp.json`, `opencode.json` 至 `plugins/gal-core/`。同時將 `executor-routing.example.json` 與 `xmachine.config.example.json` 移入 `plugins/gal-core/templates/`。
 - [x] **T-09**: 將 `.githooks/` 與 `hooks/` 合併移至 `plugins/gal-core/hooks/`，並執行 `git config core.hooksPath plugins/gal-core/hooks`。
-- [ ] **T-10**: 修正 `scripts/` 內各腳本路徑（按子項目逐一處理）：
+- [x] **T-10**: 修正 `scripts/` 內各腳本路徑（按子項目逐一處理）：
   - **T-10a**: `Sync-DevContext.ps1` / `sync-dev-context.sh` — `conventions/`, `workflows/`, `skills/` 發現路徑改為 `plugins/gal-core/` 下。
   - **T-10b**: `ProviderPlugin.ps1` / `provider-plugin.sh` — `conventions/`, `workflows/`, `mcp.json` 來源路徑。
   - **T-10c**: `Init-Repo.ps1` / `init-repo.sh` — `templates/project.md`, `templates/state.md` 改為 `plugins/gal-core/templates/`。
@@ -105,12 +105,12 @@ Golem-Agents-Legion/
   - **T-10j**: `Update-Skills.ps1` / `update-skills.sh`, `update-commands.sh` — `skills/`, `commands/` 路徑。
   - **T-10k**: `Test-Xmachine.ps1` / `.sh` — `templates/task-xmachine-*.md` 路徑。
   - **T-10l**: `scripts/scripts.md` — 更新文件內所有舊路徑參照。
-- [ ] **T-10m**: 修正 `commands/` 與 `skills/` 內部的 Markdown 模板中 `agent/` → `agents/` 的路徑：
+- [x] **T-10m**: 修正 `commands/` 與 `skills/` 內部的 Markdown 模板中 `agent/` → `agents/` 的路徑：
   - `commands/deep-planning/SKILL.template.md` (L71)
   - `commands/gal-pipeline/SKILL.template.md` (L612-616)
   - `skills/godot-scripting/SKILL.md` (L17, L42) — `conventions/csharp.md` 相對路徑
-- [ ] **T-11 (TEST)**: 執行 `Sync-DevContext.ps1` 與安裝腳本，驗證是否能順利讀取 `plugins/gal-core/` 且產生正確的 Adapter 檔，並能正確找到範本。
-- [ ] **T-12 (DOCS)**: 測試通過後，修正 `docs/` 與所有 MD 文件中關於舊目錄結構（如 `agent/`, `skills/`）的參照，並更新 `manual.md` 中 `xmachine.config.example.json` 的路徑。
+- [x] **T-11 (TEST)**: 執行 `Sync-DevContext.ps1` 與安裝腳本，驗證是否能順利讀取 `plugins/gal-core/` 且產生正確的 Adapter 檔，並能正確找到範本。
+- [x] **T-12 (DOCS)**: 測試通過後，修正 `docs/` 與所有 MD 文件中關於舊目錄結構（如 `agent/`, `skills/`）的參照，並更新 `manual.md` 中 `xmachine.config.example.json` 的路徑。
 
 #### Group 1C: 打包腳本搬移 (packaging)
 - [ ] **T-13**: 將 `packaging/` 移入 `scripts/` 中。

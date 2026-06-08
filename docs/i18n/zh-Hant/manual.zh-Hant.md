@@ -16,7 +16,7 @@ status: stale
 
 - `selectedRuntimes` 記錄了 GAL 應該管理哪些機器層級的目標。
 - `primaryRuntime` 記錄了哪一個執行環境應該作為你的預設進入點。
-- GAL 儲存庫仍然是 `agent/`、`skills/` 和 `commands/` 的唯一真相來源（source of truth）。主要執行環境（primary runtime）只會影響預設值和摘要，不會改變底層原始內容。
+- GAL 儲存庫仍然是 `plugins/gal-core/agents/`、`plugins/gal-core/skills/` 和 `plugins/gal-core/commands/` 的唯一真相來源（source of truth）。主要執行環境（primary runtime）只會影響預設值和摘要，不會改變底層原始內容。
 
 Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL 透過把各 AGY surface 連到共享的 superset canonical root `~/.gal/plugins/gal/` 來安裝至 AGY，此正本承載 skills、agents、rules 與 MCP 設定。正本由供應商中立的核心渲染器 `Build-CorePlugin` / `build-core-plugin.sh` 渲染（單一渲染器服務所有供應商，而非各供應商各自的渲染器）。AGY 的 CLI 與 IDE surface 是指向正本的 junction；Antigravity 2.0 GUI surface 則由 `agy plugin install` 從同一份正本安裝為 host-managed copy。`Update-Personalization` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
 
@@ -188,11 +188,11 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 
 ### 2a. 命令技能的本機覆寫 (Command skill local overlays)
 
-如果你想為特定的命令技能（command skill）加入要在 `Setup-Machine` 之後依然保留的機器本機自訂內容，請建立 `commands/<command>/SKILL.local.md`。
+如果你想為特定的命令技能（command skill）加入要在 `Setup-Machine` 之後依然保留的機器本機自訂內容，請建立 `plugins/gal-core/commands/<command>/SKILL.local.md`。
 
 - `SKILL.local.md` 會被 Git 忽略，並被視為使用者擁有的機器本機輸入。
 - `Setup-Machine` 會處理 `SKILL.template.md`，然後在重新生成 legacy Gemini 與 Claude 命令檔案之前，將 `SKILL.local.md` 附加到生成的 `SKILL.md` 中。
-- **請勿**直接編輯 `commands/<command>/SKILL.md`。它仍是產生的檔案，且會在下次執行 setup 時被覆蓋。
+- **請勿**直接編輯 `plugins/gal-core/commands/<command>/SKILL.md`。它仍是產生的檔案，且會在下次執行 setup 時被覆蓋。
 - `SKILL.local.md` 僅能包含額外的指示內容。請勿在裡面加入第二個 frontmatter 區塊。
 
 ### 2b. Obsidian 路由 (Obsidian routing)
@@ -233,7 +233,7 @@ Obsidian 支援是機器本機且可選的。GAL 將儲存庫擁有的狀態與�
 
 xmachine 節點定義是機器本機的，位於 `~/.gal/config/xmachine.json`。
 
-- 將 `xmachine.config.example.json` 複製到 `~/.gal/config/xmachine.json`。
+- 將 `plugins/gal-core/templates/xmachine.config.example.json` 複製到 `~/.gal/config/xmachine.json`。
 - 在頂層的 `nodes` 物件下定義每個工作節點。
 - 將節點別名作為鍵值（key），並設定至少 `target` 和 `repoPath`。
 - 當遠端 GAL runtime checkout 與目標 repo checkout 路徑不同時，加入 `runtimeRepoPath`。
@@ -345,9 +345,9 @@ GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯
 當下列任何項目發生變更時，請重新執行 setup：
 
 - `~/.gal/config/config.local.env`
-- `mcp.json`
+- `plugins/gal-core/mcp.json`
 - `~/.gal/config/mcp.local.json`
-- 任何 `commands/*/SKILL.local.md`
+- 任何 `plugins/gal-core/commands/*/SKILL.local.md`
 - `~/.gal/install-state.json`
 - Obsidian 路由路徑或 Guide 模式
 - 工作時間（working-hours）設定
@@ -359,13 +359,13 @@ GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯
 如果只有單一關注點發生變更，請使用較狹窄範圍的腳本：
 
 - 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/Update-Personalization.ps1`
-- 更改 `agent/` 或 `skills/` 後，執行 `scripts/Update-Skills.ps1`
-- 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/Update-Commands.ps1`
-- 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
+- 更改 `plugins/gal-core/agents/` 或 `plugins/gal-core/skills/` 後，執行 `scripts/Update-Skills.ps1`
+- 更改 `plugins/gal-core/commands/*/SKILL.template.md` 或 `plugins/gal-core/commands/*/SKILL.local.md` 後，執行 `scripts/Update-Commands.ps1`
+- 更改 `plugins/gal-core/mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
 - 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/update-personalization.sh`
-- 更改 `agent/` 或 `skills/` 後，執行 `scripts/update-skills.sh`
-- 更改 `commands/*/SKILL.template.md` 或 `commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
-- 更改 `mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
+- 更改 `plugins/gal-core/agents/` 或 `plugins/gal-core/skills/` 後，執行 `scripts/update-skills.sh`
+- 更改 `plugins/gal-core/commands/*/SKILL.template.md` 或 `plugins/gal-core/commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
+- 更改 `plugins/gal-core/mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
 
 如果你變更了會餵給 repo-local 產生 adapter 的 source-of-truth 內容，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料，請另外重新執行 `scripts/Sync-DevContext.ps1` 或 `scripts/sync-dev-context.sh`。`Update-Mcp` 不會重新產生這些 adapter 檔案。
 

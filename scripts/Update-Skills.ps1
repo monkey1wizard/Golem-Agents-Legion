@@ -133,7 +133,7 @@ function Invoke-UpdateSkills {
         $context.GalGeneratedProvidersRoot
     )
 
-    $agentSourceDir = Join-Path $context.RepoRoot 'agent'
+    $agentSourceDir = Join-Path $context.RepoRoot 'plugins\gal-core\agents'
     $agentFiles = Get-ChildItem $agentSourceDir -Filter '*.agent.md' -File
     Write-Host ''
     Write-Host ("=== Agents ({0} files) ===" -f $agentFiles.Count)
@@ -179,7 +179,7 @@ function Invoke-UpdateSkills {
         }
     }
 
-    $skillSourceDir = Join-Path $context.RepoRoot 'skills'
+    $skillSourceDir = Join-Path $context.RepoRoot 'plugins\gal-core\skills'
     $skillDirs = Get-ChildItem $skillSourceDir -Directory
     Write-Host ''
     Write-Host ("=== Skills ({0} directories) ===" -f $skillDirs.Count)

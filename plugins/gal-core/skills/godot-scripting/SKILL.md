@@ -14,7 +14,7 @@ Use this skill for Godot gameplay code written in C#.
 
 ## First Rule
 
-Read the Godot runtime section in `conventions/csharp.md` before changing gameplay scripts.
+Read the Godot runtime section in `../../conventions/csharp.md` before changing gameplay scripts.
 
 ## Core Rules
 
@@ -39,7 +39,7 @@ Read the Godot runtime section in `conventions/csharp.md` before changing gamepl
 
 ```text
 Need to write or refactor Godot C# code?
-    -> Follow conventions/csharp.md first
+    -> Follow ../../conventions/csharp.md first
 
 Need live confirmation that a signal, property, or method behaves correctly?
     -> Use godot4-runtime-mcp after the game is running

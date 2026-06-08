@@ -255,8 +255,8 @@ Use these assets to verify xmachine functionality:
 
 - [../../scripts/Test-Xmachine.ps1](../../scripts/Test-Xmachine.ps1): Control-node wrapper for node verification.
 - [../../scripts/Test-Xmachine.sh](../../scripts/Test-Xmachine.sh): POSIX work-node smoke wrapper.
-- [../../templates/task-xmachine-remote-smoke.md](../../templates/task-xmachine-remote-smoke.md): Windows remote smoke template.
-- [../../templates/task-xmachine-local-smoke.md](../../templates/task-xmachine-local-smoke.md): POSIX local smoke template.
+- [../../plugins/gal-core/templates/task-xmachine-remote-smoke.md](../../plugins/gal-core/templates/task-xmachine-remote-smoke.md): Windows remote smoke template.
+- [../../plugins/gal-core/templates/task-xmachine-local-smoke.md](../../plugins/gal-core/templates/task-xmachine-local-smoke.md): POSIX local smoke template.
 
 ## Entry Points
 
@@ -280,7 +280,7 @@ Dispatch a task spec to a configured work node alias from a Windows control node
 ```powershell
 .\scripts\Invoke-XmachineTask.ps1 `
   -WorkNode node-name `
-  -TaskSpec ".\templates\task-xmachine-local-smoke.md" `
+  -TaskSpec ".\plugins\gal-core\templates\task-xmachine-local-smoke.md" `
   -Wait
 ```
 
@@ -317,7 +317,7 @@ This wrapper resolves the node alias through `~/.gal/config/xmachine.json`, dete
 
 ```bash
 bash scripts/Invoke-XmachineLocalTask.sh \
-    --task-spec ./templates/task-xmachine-local-smoke.md \
+  --task-spec ./plugins/gal-core/templates/task-xmachine-local-smoke.md \
     --repo-path /Users/yourname/Code/Golem-Agents-Legion \
     --timeout-minutes 30
 ```
@@ -370,5 +370,5 @@ When the control node retrieves xmachine artifacts, read the minimum needed to a
 
 - [checking-contract.md](checking-contract.md): Shared preflight model.
 - [../../scripts/scripts.md](../../scripts/scripts.md): Script inventory.
-- [../../commands/commands.md](../../commands/commands.md): Public command surface.
-- [../../workflows/coding.md](../../workflows/coding.md): Execution lifecycle and ownership.
+- [../../plugins/gal-core/commands/commands.md](../../plugins/gal-core/commands/commands.md): Public command surface.
+- [../../plugins/gal-core/workflows/coding.md](../../plugins/gal-core/workflows/coding.md): Execution lifecycle and ownership.

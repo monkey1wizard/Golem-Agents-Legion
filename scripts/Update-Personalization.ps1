@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 
 function Invoke-UpdatePersonalization {
     $context = $script:SetupContext
-    $skillDirs = Get-ChildItem (Join-Path $context.RepoRoot 'skills') -Directory
+    $skillDirs = Get-ChildItem (Join-Path $context.RepoRoot 'plugins\gal-core\skills') -Directory
     $installMode = Test-InstallModeFromContext -Context $context
 
     Ensure-SetupDirectories @($context.GalStateRoot, $context.GeminiRoot, $context.AntigravityRoot)
@@ -222,7 +222,6 @@ function Invoke-UpdatePersonalization {
     Write-Host ''
     Write-Host '=== Personalization ==='
 
-    $exampleEnv = Join-Path $context.RepoRoot 'config.example.env'
     $primaryLocalEnv = Join-Path $context.GalConfigRoot 'config.local.env'
     $legacyLocalEnv = Join-Path $context.RepoRoot 'config.local.env'
     $localEnv = $primaryLocalEnv
@@ -232,21 +231,14 @@ function Invoke-UpdatePersonalization {
         Write-Host "  [LEGACY] Using existing legacy config.local.env at $localEnv" -ForegroundColor Yellow
     }
 
-    if (-not (Test-Path $localEnv)) {
-        if (Test-Path $exampleEnv) {
-            Copy-Item $exampleEnv $localEnv
-            Write-Host "  [OK] Created $localEnv from config.example.env"
-            Write-Host "  [ACTION REQUIRED] Edit $localEnv with your paths" -ForegroundColor Yellow
-        }
-        else {
-            Write-Host '  [WARN] config.example.env not found — skipping' -ForegroundColor Yellow
-        }
-    }
-    else {
+    if (Test-Path $localEnv) {
         Write-Host "  [SKIP] $localEnv already exists"
     }
+    else {
+        Write-Host "  [INFO] No config.local.env seed template is provided; manage local settings via $($context.GalConfigFile) or create $localEnv manually if needed."
+    }
 
-    $exampleRouting = Join-Path $context.RepoRoot 'executor-routing.example.json'
+    $exampleRouting = Join-Path $context.RepoRoot 'plugins\gal-core\templates\executor-routing.example.json'
     $localRouting   = Join-Path $context.GalConfigRoot 'executor-routing.json'
     $legacyRouting  = Join-Path $context.GalConfigRoot 'executor-routing.ndjson'
 
@@ -263,7 +255,7 @@ function Invoke-UpdatePersonalization {
             Write-Host "  [ACTION REQUIRED] Edit $localRouting to map roles to your preferred executors" -ForegroundColor Yellow
         }
         else {
-            Write-Host '  [WARN] executor-routing.example.json not found — skipping' -ForegroundColor Yellow
+            Write-Host '  [WARN] plugins/gal-core/templates/executor-routing.example.json not found — skipping' -ForegroundColor Yellow
         }
     }
     else {
@@ -277,8 +269,8 @@ function Invoke-UpdatePersonalization {
         git config filter.gal-config.required true
         Write-Host "  [OK] Registered git filter 'gal-config' (smudge/clean)"
 
-        git config core.hooksPath .githooks
-        Write-Host '  [OK] Set core.hooksPath to .githooks'
+        git config core.hooksPath plugins/gal-core/hooks
+        Write-Host '  [OK] Set core.hooksPath to plugins/gal-core/hooks'
 
         if (Test-Path $localEnv) {
             $hasValues = Get-Content $localEnv | Where-Object {

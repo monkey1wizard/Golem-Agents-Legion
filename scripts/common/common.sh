@@ -8,6 +8,7 @@ GAL_SETUP_COMMON_SH_LOADED=1
 COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$(cd "$COMMON_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
+PLUGIN_ROOT="$REPO_ROOT/plugins/gal-core"
 
 GAL_STATE_ROOT="$HOME/.gal"
 GAL_CONFIG_ROOT="$GAL_STATE_ROOT/config"
@@ -80,7 +81,7 @@ OPENCODE_AGENTS_TARGET="$OPENCODE_ROOT/agents"
 OPENCODE_COMMANDS_TARGET="$OPENCODE_ROOT/commands"
 OPENCODE_CONFIG_FILE="$OPENCODE_ROOT/opencode.json"
 
-MCP_SOURCE_FILE="$REPO_ROOT/mcp.json"
+MCP_SOURCE_FILE="$PLUGIN_ROOT/mcp.json"
 MCP_LOCAL_FILE="$GAL_CONFIG_ROOT/mcp.local.json"
 
 GAL_ROOT_COPILOT="$COPILOT_ROOT/gal"
@@ -276,9 +277,13 @@ def gal_root_usable_error(root):
         return 'galRoot path does not exist or is not a directory: %s' % root
     if not os.access(root, os.R_OK):
         return 'galRoot is not readable: %s' % root
-    for sub in ('commands', 'agent', 'skills'):
-        if not os.path.isdir(os.path.join(root, sub)):
-            return "galRoot is not a GAL source checkout (missing '%s/'): %s" % (sub, root)
+    legacy_paths = ('commands', 'agent', 'skills')
+    if all(os.path.isdir(os.path.join(root, sub)) for sub in legacy_paths):
+        return None
+    plugin_root = os.path.join(root, 'plugins', 'gal-core')
+    for sub in ('commands', 'agents', 'skills'):
+        if not os.path.isdir(os.path.join(plugin_root, sub)):
+            return "galRoot is not a GAL source checkout (missing 'plugins/gal-core/%s/'): %s" % (sub, root)
     return None
 
 
@@ -473,7 +478,7 @@ initialize_command_skill_names() {
         [ "$name" = "gal" ] && continue
         [ -f "$command_dir/SKILL.template.md" ] || [ -f "$command_dir/SKILL.md" ] || continue
         COMMAND_ALIAS_NAMES+=("$name")
-    done < <(find "$REPO_ROOT/commands" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
+    done < <(find "$PLUGIN_ROOT/commands" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
 
     COMMAND_SKILL_NAMES=(gal)
     if [ "${#COMMAND_ALIAS_NAMES[@]}" -gt 0 ]; then

@@ -263,8 +263,8 @@ xmachine 不會自行發想有邊界的任務規格 (task specs)。它只執行�
 
 - [../../scripts/Test-Xmachine.ps1](../../scripts/Test-Xmachine.ps1)：用於節點驗證的控制節點 wrapper。
 - [../../scripts/Test-Xmachine.sh](../../scripts/Test-Xmachine.sh)：POSIX 工作節點 smoke wrapper。
-- [../../templates/task-xmachine-remote-smoke.md](../../templates/task-xmachine-remote-smoke.md)：Windows 遠端 smoke 範本。
-- [../../templates/task-xmachine-local-smoke.md](../../templates/task-xmachine-local-smoke.md)：POSIX 本機 smoke 範本。
+- [../../plugins/gal-core/templates/task-xmachine-remote-smoke.md](../../plugins/gal-core/templates/task-xmachine-remote-smoke.md)：Windows 遠端 smoke 範本。
+- [../../plugins/gal-core/templates/task-xmachine-local-smoke.md](../../plugins/gal-core/templates/task-xmachine-local-smoke.md)：POSIX 本機 smoke 範本。
 
 ## 進入點 (Entry Points)
 
@@ -288,7 +288,7 @@ xmachine 不會自行發想有邊界的任務規格 (task specs)。它只執行�
 ```powershell
 .\scripts\Invoke-XmachineTask.ps1 `
   -WorkNode node-name `
-  -TaskSpec ".\templates\task-xmachine-local-smoke.md" `
+  -TaskSpec ".\plugins\gal-core\templates\task-xmachine-local-smoke.md" `
   -Wait
 ```
 
@@ -378,5 +378,5 @@ git apply path/to/result.patch
 
 - [checking-contract.md](checking-contract.md)：共用的 preflight 模型。
 - [../../scripts/scripts.md](../../scripts/scripts.md)：腳本清清單。
-- [../../commands/commands.md](../../commands/commands.md)：公開命令介面。
-- [../../workflows/coding.md](../../workflows/coding.md)：執行生命週期與所有權。
+- [../../plugins/gal-core/commands/commands.md](../../plugins/gal-core/commands/commands.md)：公開命令介面。
+- [../../plugins/gal-core/workflows/coding.md](../../plugins/gal-core/workflows/coding.md)：執行生命週期與所有權。

@@ -38,7 +38,7 @@ Godot game code and GAL's external tools have different compatibility targets:
 - **Godot runtime code** — should stay on the version the project actually supports, usually `.NET 8 / C# 12`.
 - **External tools and MCP servers** — may use a newer runtime, because Godot does not load them.
 
-When writing gameplay code, defer to the Godot runtime section in `conventions/csharp.md`.
+When writing gameplay code, defer to the Godot runtime section in `../../plugins/gal-core/conventions/csharp.md`.
 
 ## Detecting a Godot Project
 

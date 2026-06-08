@@ -89,19 +89,20 @@ function Get-ByteCount {
 }
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$opencodePath = Join-Path $repoRoot 'opencode.json'
+$opencodePath = Join-Path $repoRoot 'plugins\gal-core\opencode.json'
 $agentsPath = Join-Path $repoRoot 'AGENTS.md'
 $copilotPath = Join-Path (Join-Path $repoRoot '.github') 'copilot-instructions.md'
 $claudePath = Join-Path $repoRoot 'CLAUDE.md'
 $geminiPath = Join-Path $repoRoot 'GEMINI.md'
+$pluginRoot = Join-Path $repoRoot 'plugins\gal-core'
 $pipelineSkillCandidates = @(
-    (Join-Path $repoRoot 'commands\gal-pipeline\SKILL.md'),
-    (Join-Path $repoRoot 'commands\gal-pipeline\SKILL.template.md')
+    (Join-Path $pluginRoot 'commands\gal-pipeline\SKILL.md'),
+    (Join-Path $pluginRoot 'commands\gal-pipeline\SKILL.template.md')
 )
 $pipelineSkillPath = $pipelineSkillCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if (-not $pipelineSkillPath) {
-    throw 'Missing gal-pipeline command contract source. Expected commands\gal-pipeline\SKILL.md or commands\gal-pipeline\SKILL.template.md.'
+    throw 'Missing gal-pipeline command contract source. Expected plugins\gal-core\commands\gal-pipeline\SKILL.md or plugins\gal-core\commands\gal-pipeline\SKILL.template.md.'
 }
 
 $baselineStartupPayloadBytes = 111207
@@ -140,11 +141,11 @@ try {
     $startupPayloadBytes = (Get-Item (Join-Path $repoRoot $instructions[0])).Length
     Assert-True -Condition ($startupPayloadBytes -le 60000) -Label 'OpenCode startup payload is at or below 60 KB'
 
-    $implementerContract = Get-Content (Join-Path $repoRoot 'agent\golem-implementer.agent.md') -Raw
-    $testerContract = Get-Content (Join-Path $repoRoot 'agent\golem-tester.agent.md') -Raw
-    $reviewerContract = Get-Content (Join-Path $repoRoot 'agent\golem-reviewer.agent.md') -Raw
-    $securityContract = Get-Content (Join-Path $repoRoot 'agent\golem-security.agent.md') -Raw
-    $verifierContract = Get-Content (Join-Path $repoRoot 'agent\golem-verifier.agent.md') -Raw
+    $implementerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-implementer.agent.md') -Raw
+    $testerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-tester.agent.md') -Raw
+    $reviewerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-reviewer.agent.md') -Raw
+    $securityContract = Get-Content (Join-Path $pluginRoot 'agents\golem-security.agent.md') -Raw
+    $verifierContract = Get-Content (Join-Path $pluginRoot 'agents\golem-verifier.agent.md') -Raw
 
     Assert-Contains -Text $implementerContract -Needle '.dev/project.md' -Label 'Implementer fallback references .dev/project.md'
     Assert-Contains -Text $testerContract -Needle '.dev/project.md' -Label 'Tester fallback references .dev/project.md'
@@ -156,17 +157,17 @@ try {
     $goHints = Split-SemicolonList $goDispatch.Fields['CONVENTION_HINTS']
     Assert-Equal -Expected 'true' -Actual $goDispatch.Fields['CONTEXT_CARRY'] -Label 'Go task dispatch emits CONTEXT_CARRY'
     Assert-Equal -Expected 'full' -Actual $goDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Implement phase uses full context mode'
-    Assert-True -Condition ($goHints -contains (Join-Path $repoRoot 'conventions\go.md')) -Label 'Go task dispatch includes go.md convention'
-    Assert-True -Condition ($goHints -notcontains (Join-Path $repoRoot 'conventions\csharp.md')) -Label 'Go task dispatch excludes csharp.md convention'
-    Assert-True -Condition ($goHints -notcontains (Join-Path $repoRoot 'conventions\rust.md')) -Label 'Go task dispatch excludes rust.md convention'
-    Assert-True -Condition ($goHints -notcontains (Join-Path $repoRoot 'conventions\typescript.md')) -Label 'Go task dispatch excludes typescript.md convention'
+    Assert-True -Condition ($goHints -contains (Join-Path $pluginRoot 'conventions\go.md')) -Label 'Go task dispatch includes go.md convention'
+    Assert-True -Condition ($goHints -notcontains (Join-Path $pluginRoot 'conventions\csharp.md')) -Label 'Go task dispatch excludes csharp.md convention'
+    Assert-True -Condition ($goHints -notcontains (Join-Path $pluginRoot 'conventions\rust.md')) -Label 'Go task dispatch excludes rust.md convention'
+    Assert-True -Condition ($goHints -notcontains (Join-Path $pluginRoot 'conventions\typescript.md')) -Label 'Go task dispatch excludes typescript.md convention'
 
     $csharpDispatch = Get-DispatchFields -Arguments @('implementer', '.tmp/pipeline-token-burn-tests/csharp-task-plan.md', '--pipeline-phase', 'implement', '--task-scope', 'T-200')
     $csharpHints = Split-SemicolonList $csharpDispatch.Fields['CONVENTION_HINTS']
-    Assert-True -Condition ($csharpHints -contains (Join-Path $repoRoot 'conventions\csharp.md')) -Label 'C# task dispatch includes csharp.md convention'
-    Assert-True -Condition ($csharpHints -notcontains (Join-Path $repoRoot 'conventions\go.md')) -Label 'C# task dispatch excludes go.md convention'
-    Assert-True -Condition ($csharpHints -notcontains (Join-Path $repoRoot 'conventions\rust.md')) -Label 'C# task dispatch excludes rust.md convention'
-    Assert-True -Condition ($csharpHints -notcontains (Join-Path $repoRoot 'conventions\typescript.md')) -Label 'C# task dispatch excludes typescript.md convention'
+    Assert-True -Condition ($csharpHints -contains (Join-Path $pluginRoot 'conventions\csharp.md')) -Label 'C# task dispatch includes csharp.md convention'
+    Assert-True -Condition ($csharpHints -notcontains (Join-Path $pluginRoot 'conventions\go.md')) -Label 'C# task dispatch excludes go.md convention'
+    Assert-True -Condition ($csharpHints -notcontains (Join-Path $pluginRoot 'conventions\rust.md')) -Label 'C# task dispatch excludes rust.md convention'
+    Assert-True -Condition ($csharpHints -notcontains (Join-Path $pluginRoot 'conventions\typescript.md')) -Label 'C# task dispatch excludes typescript.md convention'
 
     $boundedPipelineDispatch = Get-DispatchFields -Arguments @('pipeline', 'docs/plans/fix-gal-pipeline-token-burn.md', 'from', 'T-001', 'stop-at', 'T-001')
     Assert-Equal -Expected 'docs/plans/fix-gal-pipeline-token-burn.md' -Actual $boundedPipelineDispatch.Fields['PLAN'] -Label 'Pipeline dispatch preserves explicit plan path'

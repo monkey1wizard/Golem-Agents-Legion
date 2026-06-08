@@ -5,6 +5,7 @@ set -euo pipefail
 target_path="${1:-$PWD}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
+plugin_root="$repo_root/plugins/gal-core"
 
 if [[ ! -d "$target_path" ]]; then
   echo "Target path does not exist: $target_path" >&2
@@ -18,9 +19,9 @@ copilot_path="$copilot_dir/copilot-instructions.md"
 gemini_path="$target_path/GEMINI.md"
 claude_path="$target_path/CLAUDE.md"
 agents_path="$target_path/AGENTS.md"
-conventions_dir="$repo_root/conventions"
-workflow_path="$repo_root/workflows/coding.md"
-skills_root="$repo_root/skills"
+conventions_dir="$plugin_root/conventions"
+workflow_path="$plugin_root/workflows/coding.md"
+skills_root="$plugin_root/skills"
 
 require_file() {
   local path="$1"

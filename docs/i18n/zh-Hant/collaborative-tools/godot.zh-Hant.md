@@ -46,7 +46,7 @@ Godot 遊戲程式碼和 GAL 外部工具的相容性目標不一樣：
 - **Godot runtime code** — 應維持在專案實際支援的版本，通常是 `.NET 8 / C# 12`
 - **外部工具和 MCP server** — 可以使用較新的 runtime，因為 Godot 不會載入它們
 
-寫 gameplay code 時，以 `conventions/csharp.md` 中的 Godot runtime section 為準。
+寫 gameplay code 時，以 `../../plugins/gal-core/conventions/csharp.md` 中的 Godot runtime section 為準。
 
 ## 偵測 Godot 專案
 

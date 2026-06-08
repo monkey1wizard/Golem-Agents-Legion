@@ -90,11 +90,12 @@ fi
 mkdir -p "$target_path/.dev"
 mkdir -p "$target_path/docs/plans"
 
-project_template="$repo_root/templates/project.md"
-state_template="$repo_root/templates/state.md"
+templates_root="$repo_root/plugins/gal-core/templates"
+project_template="$templates_root/project.md"
+state_template="$templates_root/state.md"
 
 if [[ ! -f "$project_template" || ! -f "$state_template" ]]; then
-  echo "Missing project or state template under $repo_root/templates" >&2
+  echo "Missing project or state template under $templates_root" >&2
   exit 1
 fi
 

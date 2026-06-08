@@ -609,11 +609,11 @@ If the script cannot be run (e.g. macOS / Linux), run:
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
 
-- `agent/golem-implementer.agent.md`
-- `agent/golem-tester.agent.md`
-- `agent/golem-reviewer.agent.md`
-- `agent/golem-security.agent.md`
-- `agent/golem-verifier.agent.md`
+- `plugins/gal-core/agents/golem-implementer.agent.md`
+- `plugins/gal-core/agents/golem-tester.agent.md`
+- `plugins/gal-core/agents/golem-reviewer.agent.md`
+- `plugins/gal-core/agents/golem-security.agent.md`
+- `plugins/gal-core/agents/golem-verifier.agent.md`
 
 ---
 

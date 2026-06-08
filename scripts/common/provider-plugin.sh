@@ -326,7 +326,7 @@ build_provider_plugin_package() {
     fi
 
     # --- Reusable skills ---
-    local skills_dir="$repo_root/skills"
+    local skills_dir="$plugin_root/skills"
     local seen_skill_names=()
     if [ -d "$skills_dir" ]; then
         local skill_dirs=()
@@ -379,7 +379,7 @@ build_provider_plugin_package() {
     fi
 
     # --- Command skills ---
-    local commands_dir="$repo_root/commands"
+    local commands_dir="$plugin_root/commands"
     if [ -d "$commands_dir" ]; then
         local cmd_dirs=()
         while IFS= read -r -d '' dir; do
@@ -410,7 +410,8 @@ build_provider_plugin_package() {
     fi
 
     # --- MCP spec ---
-    local mcp_file="$repo_root/mcp.json"
+    local plugin_root="$repo_root/plugins/gal-core"
+    local mcp_file="$plugin_root/mcp.json"
     local mcp_local_file="$GAL_CONFIG_ROOT/mcp.local.json"
     if [ -f "$mcp_file" ]; then
         local has_local=false
@@ -421,7 +422,7 @@ build_provider_plugin_package() {
     # --- Instruction corpus sources ---
     local corpus_sources=()
     local corpus_file
-    for corpus_file in "$repo_root/.dev/project.md" "$repo_root/conventions/conventions.md" "$repo_root/conventions/token-budget.md" "$repo_root/workflows/coding.md"; do
+    for corpus_file in "$repo_root/.dev/project.md" "$plugin_root/conventions/conventions.md" "$plugin_root/conventions/token-budget.md" "$plugin_root/workflows/coding.md"; do
         if [ -f "$corpus_file" ]; then
             corpus_sources+=("$(jq -R . <<< "$corpus_file")")
         fi
@@ -431,7 +432,7 @@ build_provider_plugin_package() {
     fi
 
     # --- Agents ---
-    local agents_dir="$repo_root/agent"
+    local agents_dir="$plugin_root/agents"
     if [ -d "$agents_dir" ]; then
         local agent_files=()
         while IFS= read -r -d '' file; do

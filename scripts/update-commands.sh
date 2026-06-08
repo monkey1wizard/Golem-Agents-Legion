@@ -154,7 +154,22 @@ new_opencode_command_file_content() {
     }
 }
 
+resolve_command_skill_content_path() {
+    local command_root="$1"
+    if [ -f "$command_root/SKILL.md" ]; then
+        printf '%s\n' "$command_root/SKILL.md"
+        return 0
+    fi
+    if [ -f "$command_root/SKILL.template.md" ]; then
+        printf '%s\n' "$command_root/SKILL.template.md"
+        return 0
+    fi
+    printf '%s\n' "$command_root/SKILL.md"
+}
+
 invoke_update_commands() {
+    local commands_root="$PLUGIN_ROOT/commands"
+
     ensure_setup_directories \
         "$SKILLS_TARGET" \
         "$CODEX_SKILLS_TARGET" \
@@ -168,7 +183,7 @@ invoke_update_commands() {
     local command_skill_name command_skill_source command_skill_template local_override_path baked_skill baked
     if $UNINSTALL || ! $NEEDS_BAKED_COMMAND_SKILLS; then
         for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
-            baked_skill="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+            baked_skill="$commands_root/$command_skill_name/SKILL.md"
             [ -f "$baked_skill" ] || continue
             if $DRY_RUN; then
                 echo "  [DRY RUN] Would remove baked: $baked_skill"
@@ -179,7 +194,7 @@ invoke_update_commands() {
         done
     else
         for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
-            command_skill_source="$REPO_ROOT/commands/$command_skill_name"
+            command_skill_source="$commands_root/$command_skill_name"
             command_skill_template="$command_skill_source/SKILL.template.md"
             local_override_path="$command_skill_source/SKILL.local.md"
             if [ ! -f "$command_skill_template" ]; then
@@ -202,7 +217,7 @@ invoke_update_commands() {
     echo '=== GAL command skill symlinks (legacy Copilot cleanup + Codex) ==='
     local copilot_target codex_target
     for command_skill_name in "${COMMAND_SKILL_NAMES[@]}"; do
-        command_skill_source="$REPO_ROOT/commands/$command_skill_name"
+        command_skill_source="$commands_root/$command_skill_name"
         copilot_target="$SKILLS_TARGET/$command_skill_name"
         codex_target="$CODEX_SKILLS_TARGET/$command_skill_name"
 
@@ -269,7 +284,7 @@ invoke_update_commands() {
                 echo "  [REMOVED] $command_file"
             fi
         else
-            skill_path="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+            skill_path="$(resolve_command_skill_content_path "$commands_root/$command_skill_name")"
             if $DRY_RUN; then
                 echo "  [DRY RUN] Would write: $command_file"
             else
@@ -318,7 +333,7 @@ invoke_update_commands() {
                 echo "  [REMOVED] $command_file"
             fi
         else
-            skill_path="$REPO_ROOT/commands/$command_skill_name/SKILL.md"
+            skill_path="$(resolve_command_skill_content_path "$commands_root/$command_skill_name")"
             if $DRY_RUN; then
                 echo "  [DRY RUN] Would write: $command_file"
             else

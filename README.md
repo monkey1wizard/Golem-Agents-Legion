@@ -67,11 +67,11 @@ A one-glance mental model. Each row links to the doc that owns the full contract
 
 ### Commands
 
-`/gal init · status · whats-next · wrap-up · research · deep-research · pipeline` plus `/planning · deep-planning · refining-plan · plan-to-prompt`. Full contract: [commands/commands.md](commands/commands.md).
+`/gal init · status · whats-next · wrap-up · research · deep-research · pipeline` plus `/planning · deep-planning · refining-plan · plan-to-prompt`. Full contract: [plugins/gal-core/commands/commands.md](plugins/gal-core/commands/commands.md).
 
 ### Golem agents
 
-12 specialized agents in three categories — **Utility** (debugger, notewriter), **Domain** (architect, analyst, designer, researcher, security, releaser), **Pipeline** (implementer, tester, reviewer, verifier). Independent tester/reviewer/verifier (different models) keep verification credible. Full roster and rules: [agent/agents.md](agent/agents.md) and [workflows/coding.md](workflows/coding.md).
+12 specialized agents in three categories — **Utility** (debugger, notewriter), **Domain** (architect, analyst, designer, researcher, security, releaser), **Pipeline** (implementer, tester, reviewer, verifier). Independent tester/reviewer/verifier (different models) keep verification credible. Full roster and rules: [plugins/gal-core/agents/agents.md](plugins/gal-core/agents/agents.md) and [plugins/gal-core/workflows/coding.md](plugins/gal-core/workflows/coding.md).
 
 ### Pipeline
 
@@ -81,7 +81,7 @@ T-NNN → implementer → tester → reviewer → [conditional security] → git
 all tasks done → verifier → confirm goal
 ```
 
-`golem-security` is inserted only for auth / data / input / public-API / trust-boundary changes. The full workflow semantics live in [workflows/coding.md](workflows/coding.md).
+`golem-security` is inserted only for auth / data / input / public-API / trust-boundary changes. The full workflow semantics live in [plugins/gal-core/workflows/coding.md](plugins/gal-core/workflows/coding.md).
 
 ### Research
 
@@ -126,7 +126,7 @@ Preflight contract: [checking-contract](docs/collaborative-tools/checking-contra
 | --- | --- |
 | [user manual](docs/manual.md) | machine setup, runtime selection, config, model routing, MCP, Obsidian, working hours, backup/uninstall — everything for running GAL |
 | [developer guide](docs/devguide.md) | maintainer: codebase + `~/.gal/` structure, distribution & release, making changes |
-| [commands/commands.md](commands/commands.md) · [agent/agents.md](agent/agents.md) · [workflows/coding.md](workflows/coding.md) | canonical control-plane, agent, and workflow contracts |
+| [plugins/gal-core/commands/commands.md](plugins/gal-core/commands/commands.md) · [plugins/gal-core/agents/agents.md](plugins/gal-core/agents/agents.md) · [plugins/gal-core/workflows/coding.md](plugins/gal-core/workflows/coding.md) | canonical control-plane, agent, and workflow contracts |
 | [docs/collaborative-tools/](docs/collaborative-tools/) | one contract per optional tool |
 
 ## References

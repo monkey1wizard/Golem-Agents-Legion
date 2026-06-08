@@ -26,7 +26,7 @@ The machine installer persists runtime selection in `~/.gal/install-state.json`:
 - `selectedRuntimes` — which machine-layer targets GAL should manage.
 - `primaryRuntime` — your default entry point (affects defaults and summaries only).
 
-The GAL repo remains the single source of truth for `agent/`, `skills/`, and `commands/`. Antigravity CLI (AGY) is the primary Google terminal runtime; GAL links each AGY surface to the canonical root at `~/.gal/plugins/gal/`. Use setup again with `-Reconfigure` (Windows) or `--reconfigure` (macOS/Linux) to change selected or primary runtimes.
+The GAL repo remains the single source of truth for `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, and `plugins/gal-core/commands/`. Antigravity CLI (AGY) is the primary Google terminal runtime; GAL links each AGY surface to the canonical root at `~/.gal/plugins/gal/`. Use setup again with `-Reconfigure` (Windows) or `--reconfigure` (macOS/Linux) to change selected or primary runtimes.
 
 The machine setup surface is split by concern; the full-sequence entry points are `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh`, with `Update-Personalization`, `Update-Skills`, `Update-Commands`, and `Update-Mcp` (and their `.sh` peers) for single-concern refreshes. See [When To Rerun Setup](#when-to-rerun-setup).
 
@@ -73,7 +73,7 @@ Known companion candidates (all `curated-upstream`, opt-in): `dart-lang/skills`,
 ### Model Routing
 
 - Copy `executor-routing.example.json` into `~/.gal/config/executor-routing.json`.
-- Change role-to-executor mappings in `~/.gal/config/executor-routing.json`. Role definitions and cross-model policy are in `workflows/coding.md`.
+- Change role-to-executor mappings in `~/.gal/config/executor-routing.json`. Role definitions and cross-model policy are in `plugins/gal-core/workflows/coding.md`.
 
 ### Local Secrets, Paths, and Doc Language
 
@@ -86,11 +86,11 @@ Put secrets, absolute paths, and machine-specific values in `~/.gal/config/confi
 
 ### Command Skill Local Overlays
 
-For a machine-local customization of a command skill that should survive `Setup-Machine`, create `commands/<command>/SKILL.local.md`:
+For a machine-local customization of a command skill that should survive `Setup-Machine`, create `plugins/gal-core/commands/<command>/SKILL.local.md`:
 
 - It is gitignored and treated as user-owned machine-local input.
 - `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md`.
-- Do not edit `commands/<command>/SKILL.md` directly — it is generated and will be replaced.
+- Do not edit `plugins/gal-core/commands/<command>/SKILL.md` directly — it is generated and will be replaced.
 - Keep `SKILL.local.md` to additional instruction content only; no second frontmatter block.
 
 ### Obsidian Routing
@@ -114,7 +114,7 @@ Working-hours enforcement is disabled by default. To respect your own workday bo
 
 xmachine node definitions are machine-local in `~/.gal/config/xmachine.json`:
 
-- Copy `xmachine.config.example.json` into `~/.gal/config/xmachine.json`.
+- Copy `plugins/gal-core/templates/xmachine.config.example.json` into `~/.gal/config/xmachine.json`.
 - Define each work node under the top-level `nodes` object, keyed by node alias, with at least `target` and `repoPath`.
 - Add `runtimeRepoPath` when the remote GAL runtime checkout differs from the target repo checkout.
 - Add `repoMappings` when one node hosts multiple target repositories.
@@ -142,7 +142,7 @@ xmachine node definitions are machine-local in `~/.gal/config/xmachine.json`:
 
 ### MCP Overrides
 
-Keep the tracked GAL source in `mcp.json`; put machine-specific MCP differences in `~/.gal/config/mcp.local.json`. Project- or database-specific MCP servers usually belong in `mcp.local.json`, not the tracked manifest.
+Keep the tracked GAL source in `plugins/gal-core/mcp.json`; put machine-specific MCP differences in `~/.gal/config/mcp.local.json`. Project- or database-specific MCP servers usually belong in `mcp.local.json`, not the tracked manifest.
 
 For Playwright MCP, keep the tracked entry conservative and machine-agnostic; put local-only browser behavior (headed mode, viewport/device emulation, storage-state paths, output dirs, persistent profiles, extension/CDP wiring) in `mcp.local.json`. A local override replaces the full `args` list, so keep the safe defaults you still want (`--isolated`, `--headless`):
 
@@ -201,7 +201,7 @@ GAL can offload pipeline phases (implement / test / review / verify) to a second
 
 **`executors` block** — defines the default model for each tool. A role entry that omits `model` inherits the default from `executors[executor]`. An explicit `model` on a role always takes precedence. The bin warns in the executor log if a role has neither.
 
-Valid executors: `claude`, `codex`, `opencode`, `copilot`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing (the bin then emits a `--- GAL DISPATCH ---` text fallback). Role definitions and cross-model policy (CODER≠TESTER, etc.) live in `workflows/coding.md`.
+Valid executors: `claude`, `codex`, `opencode`, `copilot`, `agy`. Omit a role to keep it in the conversation loop; delete the file to disable routing (the bin then emits a `--- GAL DISPATCH ---` text fallback). Role definitions and cross-model policy (CODER≠TESTER, etc.) live in `plugins/gal-core/workflows/coding.md`.
 
 > ⚠️ **SECURITY WARNING — bypass-permission.** Headless executor adapters invoke secondary CLIs with `--dangerously-skip-permissions` (Claude Code, OpenCode), `--allow-all` (Copilot), or `-s workspace-write` (Codex), granting **full trust** over the local filesystem and terminal — equivalent to no sandbox. Enable executor routing only on machines and in environments you fully trust, and never when the repo or agent contracts come from untrusted sources. The spec forbids the secondary CLI from running `git commit`/`git push`, but that is an instruction, not a technical enforcement.
 
@@ -229,9 +229,9 @@ This aligns with the GAL memory contract: **provider-local chat history is advis
 
 ### When To Rerun Setup
 
-Rerun setup when any of these change: `~/.gal/config/config.local.env`, `mcp.json`, `~/.gal/config/mcp.local.json`, any `commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
+Rerun setup when any of these change: `~/.gal/config/config.local.env`, `plugins/gal-core/mcp.json`, `~/.gal/config/mcp.local.json`, any `plugins/gal-core/commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
 
-Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `executor-routing.json`), `Update-Skills` (`agent/`, `skills/`), `Update-Commands` (`commands/*/SKILL.*`), `Update-Mcp` (`mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
+Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `executor-routing.json`), `Update-Skills` (`plugins/gal-core/agents/`, `plugins/gal-core/skills/`), `Update-Commands` (`plugins/gal-core/commands/*/SKILL.*`), `Update-Mcp` (`plugins/gal-core/mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
 
 ```bash
 # Windows                         # macOS / Linux

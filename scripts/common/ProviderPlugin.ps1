@@ -388,7 +388,8 @@ function New-ProviderPluginPackage {
     }
 
     # --- Reusable skills ---
-    $skillsDir = Join-Path $RepoRoot 'skills'
+    $pluginRoot = Join-Path $RepoRoot 'plugins\gal-core'
+    $skillsDir = Join-Path $pluginRoot 'skills'
     $knownSkillNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     if (Test-Path $skillsDir) {
         foreach ($skillDir in Get-ChildItem $skillsDir -Directory | Sort-Object Name) {
@@ -424,7 +425,7 @@ function New-ProviderPluginPackage {
     }
 
     # --- Command skills (rendered as skills in the common model) ---
-    $commandsDir = Join-Path $RepoRoot 'commands'
+    $commandsDir = Join-Path $pluginRoot 'commands'
     if (Test-Path $commandsDir) {
         foreach ($cmdDir in Get-ChildItem $commandsDir -Directory | Sort-Object Name) {
             $skillFile = Join-Path $cmdDir.FullName 'SKILL.md'
@@ -440,7 +441,8 @@ function New-ProviderPluginPackage {
     }
 
     # --- MCP spec (canonical only; local overrides flagged but not resolved) ---
-    $mcpFile = Join-Path $RepoRoot 'mcp.json'
+    $pluginRoot = Join-Path $RepoRoot 'plugins\gal-core'
+    $mcpFile = Join-Path $pluginRoot 'mcp.json'
     $mcpLocalFile = Join-Path $env:USERPROFILE '.gal\config\mcp.local.json'
     if (Test-Path $mcpFile) {
         $package.mcpSpec = [ordered]@{
@@ -452,16 +454,16 @@ function New-ProviderPluginPackage {
     # --- Instruction corpus sources ---
     $corpusSources = @(
         Join-Path $RepoRoot '.dev/project.md'
-        Join-Path $RepoRoot 'conventions/conventions.md'
-        Join-Path $RepoRoot 'conventions/token-budget.md'
-        Join-Path $RepoRoot 'workflows/coding.md'
+        Join-Path $pluginRoot 'conventions\conventions.md'
+        Join-Path $pluginRoot 'conventions\token-budget.md'
+        Join-Path $pluginRoot 'workflows\coding.md'
     ) | Where-Object { Test-Path $_ }
     foreach ($src in $corpusSources) {
         $package.instructionCorpus.sources.Add($src)
     }
 
     # --- Agents (optional payload; Codex explicitly skipped at renderer level) ---
-    $agentsDir = Join-Path $RepoRoot 'agent'
+    $agentsDir = Join-Path $pluginRoot 'agents'
     if (Test-Path $agentsDir) {
         foreach ($agentFile in Get-ChildItem $agentsDir -Filter '*.agent.md' | Sort-Object Name) {
             $package.agents.Add([ordered]@{

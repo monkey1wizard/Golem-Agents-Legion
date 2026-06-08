@@ -144,10 +144,10 @@ if (-not $writeBackInstruction) { $writeBackInstruction = $writeBackMap['impleme
 # Agent contract path per phase
 # ---------------------------------------------------------------------------
 $agentMap = @{
-    implement = 'agent/golem-implementer.agent.md'
-    test      = 'agent/golem-tester.agent.md'
-    review    = 'agent/golem-reviewer.agent.md'
-    verify    = 'agent/golem-verifier.agent.md'
+    implement = 'plugins/gal-core/agents/golem-implementer.agent.md'
+    test      = 'plugins/gal-core/agents/golem-tester.agent.md'
+    review    = 'plugins/gal-core/agents/golem-reviewer.agent.md'
+    verify    = 'plugins/gal-core/agents/golem-verifier.agent.md'
 }
 $agentContract = Join-Path $repoRoot ($agentMap[$Phase.ToLower()] ?? $agentMap['implement'])
 $agentContractDisplay = $agentMap[$Phase.ToLower()] ?? $agentMap['implement']

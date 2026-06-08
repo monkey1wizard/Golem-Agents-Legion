@@ -21,6 +21,8 @@
     Optional work-node platform override. Defaults to `auto`.
 #>
 
+# The dispatched smoke task spec lives under plugins/gal-core/templates/
+
 param(
     [Alias("RemoteHost")]
     [string]$WorkNode,

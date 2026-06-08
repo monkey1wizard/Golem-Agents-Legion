@@ -78,7 +78,7 @@ gstack does not own GAL's execution-stage public surface.
 
 These are GAL-native agent contracts, whether or not gstack is installed.
 
-For the current public command surface, execution ownership map, and runtime surface, use [../../commands/commands.md](../../commands/commands.md). For the exact agent prompts, use [../../agent/agents.md](../../agent/agents.md).
+For the current public command surface, execution ownership map, and runtime surface, use [../../plugins/gal-core/commands/commands.md](../../plugins/gal-core/commands/commands.md). For the exact agent prompts, use [../../plugins/gal-core/agents/agents.md](../../plugins/gal-core/agents/agents.md).
 
 ## Upstream Semantics Mapped Into GAL
 
@@ -94,7 +94,7 @@ GAL does not claim full equivalence with upstream gstack. The goal is narrower: 
 ## Read Next
 
 - [../../README.md](../../README.md) for the main repo entry point.
-- [../../commands/commands.md](../../commands/commands.md) for the public command surface, execution ownership, aliases, and runtime surface.
-- [../../agent/agents.md](../../agent/agents.md) for the specialist routing map and agent responsibilities.
-- [../../workflows/coding.md](../../workflows/coding.md) for the execution lifecycle.
-- `../../commands/<command>/SKILL.template.md` for the exact prompt and write-back behavior of a specific command.
+- [../../plugins/gal-core/commands/commands.md](../../plugins/gal-core/commands/commands.md) for the public command surface, execution ownership, aliases, and runtime surface.
+- [../../plugins/gal-core/agents/agents.md](../../plugins/gal-core/agents/agents.md) for the specialist routing map and agent responsibilities.
+- [../../plugins/gal-core/workflows/coding.md](../../plugins/gal-core/workflows/coding.md) for the execution lifecycle.
+- `../../plugins/gal-core/commands/<command>/SKILL.template.md` for the exact prompt and write-back behavior of a specific command.

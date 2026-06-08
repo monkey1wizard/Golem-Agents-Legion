@@ -34,14 +34,17 @@ This section is the single map of where everything lives. The two annotated tree
 
 ```text
 Golem-Agents-Legion/
-├── commands/        public /gal command surface · source contract · changing it affects every runtime   [protected]
-├── conventions/     portable rules all golems follow · source contract                                   [protected]
-├── workflows/       workflow contracts (coding, doc-sync, research) · source contract                     [protected]
-├── templates/       durable repo-state templates · changing them reshapes every initialized repo          [protected]
-├── agent/           golem agent contracts (*.agent.md) + agents.md index · source contract
-├── skills/          skill bodies (skills/<name>/SKILL.md) · source contract
+├── plugins/
+│   └── gal-core/                canonical source-contract root
+│       ├── commands/            public /gal command surface · source contract · changing it affects every runtime   [protected]
+│       ├── conventions/         portable rules all golems follow · source contract                                   [protected]
+│       ├── workflows/           workflow contracts (coding, doc-sync, research) · source contract                   [protected]
+│       ├── templates/           durable repo-state templates · changing them reshapes every initialized repo        [protected]
+│       ├── agents/              golem agent contracts (*.agent.md) + agents.md index · source contract
+│       ├── skills/              skill bodies (skills/<name>/SKILL.md) · source contract
+│       ├── mcp.json             tracked MCP manifest · source contract
+│       └── opencode.json        tracked OpenCode runtime config shipped with gal-core
 ├── scripts/         PowerShell + Bash runtime: setup, install, build, sync · some protected*
-├── plugins/         catalog.json + provider plugin packaging
 ├── docs/            documentation
 │   ├── manual.md            user operations manual (canonical EN)
 │   ├── devguide.md          this file — maintainer guide
@@ -75,10 +78,10 @@ If a completed plan contains knowledge that should survive, extract it back into
 
 | If you are changing... | Ask first... | Read these source files |
 | --- | --- | --- |
-| `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../commands/commands.md](../commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
-| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../commands/commands.md](../commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../workflows/coding.md](../workflows/coding.md) |
+| `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
+| planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
 | setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/Update-*.ps1`, `scripts/setup-machine.sh`, `scripts/update-*.sh` |
-| templates and plan lifecycle | which file should own this information? | [../templates/templates.md](../templates/templates.md), [../workflows/coding.md](../workflows/coding.md) |
+| templates and plan lifecycle | which file should own this information? | [../plugins/gal-core/templates/templates.md](../plugins/gal-core/templates/templates.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
 | user-facing install copy | who owns the words users read? | [../README.md](../README.md), [manual.md](manual.md), `Release Artifact Matrix` below |
 | machine-local restore, mode switching, backup | which doc owns the user's machine intent? | [manual.md](manual.md), this guide |
 | release channel lineage | where is the canonical release contract? | `Release Artifact Matrix` below, [../README.md](../README.md) |
@@ -203,7 +206,7 @@ Machine-local binding file for xmachine routing. Not a team-shared configuration
 
 #### `~/.gal/generated/mcp/managed.json` — GAL-Produced MCP Projection
 
-Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `mcp.json` + `~/.gal/config/mcp.local.json` boundary info with machine-local values resolved.
+Generated file owned by GAL that replaces repo-root `mcp.local.json` in install mode. Rendered from `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` boundary info with machine-local values resolved.
 
 | Field | Required | Type | Notes |
 | --- | --- | --- | --- |
@@ -357,7 +360,7 @@ These are the remaining Gemini CLI compatibility surfaces that still exist on pu
 | Archived surface | Owning files | Why it still exists | Expected retirement path |
 | --- | --- | --- | --- |
 | Gemini runtime selection, path constants, and install-state detection | `scripts/common/Common.ps1`, `scripts/common/common.sh` | Setup still needs to detect and manage Gemini-specific compatibility outputs such as `~/.gemini/commands/`, `~/.gemini/settings.json`, `~/.gemini/gal-context.md`, and `~/.gemini/gal/`. | Remove once no GAL-managed Gemini install target remains. |
-| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
+| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `plugins/gal-core/commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
 | Gemini shared-skill context bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
 | Gemini settings.json bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
 | Gemini `GAL_ROOT` link and legacy skill cleanup | `scripts/Update-Skills.ps1`, `scripts/update-skills.sh` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
@@ -381,7 +384,7 @@ The MCP manifest is a separate install concern from skills.
 
 | File | Scope | Role |
 | --- | --- | --- |
-| `mcp.json` | tracked | single GAL MCP source of truth |
+| `plugins/gal-core/mcp.json` | tracked | single GAL MCP source of truth |
 | `~/.gal/config/mcp.local.json` | local only | machine-specific overrides and enablement |
 | `~/.gal/config/config.local.env` | local only | secrets and local values referenced by the manifest |
 | `~/.gal/config/xmachine.json` | local only | machine-local xmachine node definitions keyed by work-node alias |
@@ -390,7 +393,7 @@ The merged MCP manifest is centered on `servers` and may also include optional t
 
 For Playwright MCP specifically:
 
-- Keep `mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
+- Keep `plugins/gal-core/mcp.json` limited to the tracked safe startup contract: canonical `playwright` key plus conservative core flags such as `--isolated` and `--headless`.
 - Put headed mode, viewport or device emulation, storage-state paths, output directories, optional capability flags, persistent profile paths, extension or CDP wiring, and similar machine-local behavior in `~/.gal/config/mcp.local.json`.
 - Put secret-like paths or environment-backed local values referenced by those overrides in `~/.gal/config/config.local.env`.
 - Do not track browser artifacts, storage-state files, persistent profile directories, or secret files in the repo.

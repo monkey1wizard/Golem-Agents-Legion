@@ -15,9 +15,10 @@ $geminiPath = Join-Path $resolvedTarget "GEMINI.md"
 $claudePath = Join-Path $resolvedTarget "CLAUDE.md"
 $agentsPath = Join-Path $resolvedTarget "AGENTS.md"
 
-$conventionsDir = Join-Path $repoRoot "conventions"
-$workflowPath = Join-Path $repoRoot "workflows\coding.md"
-$skillsRoot = Join-Path $repoRoot "skills"
+$pluginRoot = Join-Path $repoRoot "plugins\gal-core"
+$conventionsDir = Join-Path $pluginRoot "conventions"
+$workflowPath = Join-Path $pluginRoot "workflows\coding.md"
+$skillsRoot = Join-Path $pluginRoot "skills"
 
 function Read-NormalizedFile([string]$Path) {
     if (-not (Test-Path $Path)) {

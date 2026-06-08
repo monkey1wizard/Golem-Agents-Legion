@@ -157,7 +157,7 @@ invoke_update_skills() {
     while IFS= read -r agent_file; do
         [ -n "$agent_file" ] || continue
         agent_files+=("$agent_file")
-    done < <(find "$REPO_ROOT/agent" -maxdepth 1 -type f -name '*.agent.md' -print | LC_ALL=C sort)
+    done < <(find "$PLUGIN_ROOT/agents" -maxdepth 1 -type f -name '*.agent.md' -print | LC_ALL=C sort)
 
     echo ''
     echo "=== Agents (${#agent_files[@]} files) ==="
@@ -217,7 +217,7 @@ invoke_update_skills() {
     while IFS= read -r skill_dir; do
         [ -n "$skill_dir" ] || continue
         skill_dirs+=("$skill_dir")
-    done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
+    done < <(find "$PLUGIN_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
 
     echo ''
     echo "=== Skills (${#skill_dirs[@]} directories) ==="

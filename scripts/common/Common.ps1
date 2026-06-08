@@ -26,8 +26,9 @@ function New-SetupContext {
     $galGeneratedProvidersRoot = Join-Path $galDistRoot 'providers'
     $galSourceRoot = Join-Path $galStateRoot 'source'
 
-    $galSource = Join-Path $repoRoot 'commands\gal'
-    $commandsSourceDir = Join-Path $repoRoot 'commands'
+    $pluginRoot = Join-Path $repoRoot 'plugins\gal-core'
+    $galSource = Join-Path $pluginRoot 'commands\gal'
+    $commandsSourceDir = Join-Path $pluginRoot 'commands'
     $commandAliasNames = Get-ChildItem $commandsSourceDir -Directory |
         Where-Object {
             $_.Name -ne 'gal' -and (
@@ -46,7 +47,7 @@ function New-SetupContext {
             CodexTarget   = Join-Path $codexRoot 'skills\gal'
         }
     ) + ($commandAliasNames | ForEach-Object {
-        $source = Join-Path $repoRoot ("commands\{0}" -f $_)
+        $source = Join-Path $commandsSourceDir $_
         [pscustomobject]@{
             Name          = $_
             Source        = $source
@@ -127,7 +128,7 @@ function New-SetupContext {
         AgyPluginArtifactRoot = Join-Path $galDistRoot 'provider-plugins\agy\gal'
         AgyPluginInstallTarget = Join-Path $env:USERPROFILE '.gemini/antigravity-cli/plugins/gal'
 
-        McpSourceFile = Join-Path $repoRoot 'mcp.json'
+        McpSourceFile = Join-Path $pluginRoot 'mcp.json'
         McpLocalFile = Join-Path $galConfigRoot 'mcp.local.json'
 
         GalSource = $galSource
@@ -377,9 +378,25 @@ function Get-GalRootUsableError {
     if (-not (Test-GalRootReadable -Path $GalRoot)) {
         return "galRoot is not readable or timed out (e.g. dead network path): $GalRoot"
     }
-    foreach ($relativePath in @('commands', 'agent', 'skills')) {
+    $legacySourcePaths = @('commands', 'agent', 'skills')
+    $pluginRoot = Join-Path $GalRoot 'plugins\gal-core'
+    $pluginSourcePaths = @('commands', 'agents', 'skills')
+
+    $legacyLayoutOk = $true
+    foreach ($relativePath in $legacySourcePaths) {
         if (-not (Test-Path -LiteralPath (Join-Path $GalRoot $relativePath) -PathType Container)) {
-            return "galRoot is not a GAL source checkout (missing '$relativePath/'): $GalRoot"
+            $legacyLayoutOk = $false
+            break
+        }
+    }
+
+    if ($legacyLayoutOk) {
+        return $null
+    }
+
+    foreach ($relativePath in $pluginSourcePaths) {
+        if (-not (Test-Path -LiteralPath (Join-Path $pluginRoot $relativePath) -PathType Container)) {
+            return "galRoot is not a GAL source checkout (missing 'plugins/gal-core/$relativePath/'): $GalRoot"
         }
     }
 

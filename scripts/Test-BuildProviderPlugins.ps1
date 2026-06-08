@@ -62,13 +62,7 @@ function Copy-TestSourceRoot {
     )
 
     $entries = @(
-        'skills',
-        'commands',
-        'agent',
         'plugins',
-        'conventions',
-        'workflows',
-        'mcp.json',
         '.dev\project.md'
     )
 
@@ -235,7 +229,7 @@ Assert-True -Condition ($releaseMatrix.Contains('if Codex review or publication 
         Assert-True -Condition ($claudeManifest.displayName -eq 'Golem Agents Legion') -Label 'TP-002: Claude manifest preserves plugin display name'
 
         $rerunMarker = 'T-013 agy rerun propagation marker'
-        Add-Content -LiteralPath (Join-Path $mutableRepoRoot 'skills\defuddle\SKILL.md') -Value "`n$rerunMarker`n" -Encoding utf8
+        Add-Content -LiteralPath (Join-Path $mutableRepoRoot 'plugins\gal-core\skills\defuddle\SKILL.md') -Value "`n$rerunMarker`n" -Encoding utf8
 
         & (Join-Path $PSScriptRoot 'Build-ProviderPlugins.ps1') -RepoRoot $mutableRepoRoot -ConfigPath $configPath -LockfilePath $lockfilePath -Providers @('agy') | Out-Null
         $agyLedgerAfterRerun = Get-Content -LiteralPath $agyLedgerPath -Raw | ConvertFrom-Json

@@ -83,11 +83,16 @@ function Get-CommitType([object[]]$Entries, [string]$LowerDiff) {
         return 'fix'
     }
 
-    if ($Entries.Where({ $_.Status -like 'A*' -and $_.Top -in @('commands', 'agent', 'skills', 'workflows', 'templates') }).Count -gt 0) {
+    if ($Entries.Where({
+        $_.Status -like 'A*' -and (
+            $_.Path -match '^plugins/gal-core/(commands|agents|skills|workflows|templates)/' -or
+            $_.Top -in @('commands', 'agent', 'skills', 'workflows', 'templates')
+        )
+    }).Count -gt 0) {
         return 'feat'
     }
 
-    if ($Entries.Top -contains 'scripts' -or $Entries.Path -contains 'opencode.json' -or $Entries.Path -contains 'mcp.json') {
+    if ($Entries.Top -contains 'scripts' -or $Entries.Path -match '(^|/)plugins/gal-core/(opencode|mcp)\.json$' -or $Entries.Path -contains 'opencode.json' -or $Entries.Path -contains 'mcp.json') {
         return 'chore'
     }
 
@@ -95,21 +100,27 @@ function Get-CommitType([object[]]$Entries, [string]$LowerDiff) {
 }
 
 function Get-CommitScope([object[]]$Entries, [string]$LowerDiff) {
-    if ($Entries.Path -contains 'opencode.json') {
+    if (($Entries.Path -match '(^|/)plugins/gal-core/opencode\.json$') -contains $true -or $Entries.Path -contains 'opencode.json') {
         return 'opencode'
     }
 
-    $commandEntries = @($Entries | Where-Object { $_.Path -match '^commands/[^/]+/' })
+    $commandEntries = @($Entries | Where-Object { $_.Path -match '^plugins/gal-core/commands/[^/]+/' -or $_.Path -match '^commands/[^/]+/' })
     if ($commandEntries.Count -gt 0) {
-        $names = @($commandEntries | ForEach-Object { ($_.Path -split '/')[1].ToLowerInvariant() } | Select-Object -Unique)
+        $names = @($commandEntries | ForEach-Object {
+            if ($_.Path -match '^plugins/gal-core/commands/([^/]+)/') { $Matches[1].ToLowerInvariant() }
+            elseif ($_.Path -match '^commands/([^/]+)/') { $Matches[1].ToLowerInvariant() }
+        } | Where-Object { $_ } | Select-Object -Unique)
         if ($names.Count -eq 1) {
             return $names[0]
         }
     }
 
-    $skillEntries = @($Entries | Where-Object { $_.Path -match '^skills/[^/]+/' })
+    $skillEntries = @($Entries | Where-Object { $_.Path -match '^plugins/gal-core/skills/[^/]+/' -or $_.Path -match '^skills/[^/]+/' })
     if ($skillEntries.Count -gt 0) {
-        $names = @($skillEntries | ForEach-Object { ($_.Path -split '/')[1].ToLowerInvariant() } | Select-Object -Unique)
+        $names = @($skillEntries | ForEach-Object {
+            if ($_.Path -match '^plugins/gal-core/skills/([^/]+)/') { $Matches[1].ToLowerInvariant() }
+            elseif ($_.Path -match '^skills/([^/]+)/') { $Matches[1].ToLowerInvariant() }
+        } | Where-Object { $_ } | Select-Object -Unique)
         if ($names.Count -eq 1) {
             return $names[0]
         }
@@ -192,11 +203,11 @@ function Get-CommitSubject([string]$Type, [string]$Scope, [object[]]$Entries, [s
 function Get-CommitBullets([object[]]$Entries, [string]$LowerDiff) {
     $bullets = New-Object System.Collections.Generic.List[string]
 
-    if (($Entries.Path -match '^commands/git-commit-msg/') -contains $true) {
+    if (($Entries.Path -match '^plugins/gal-core/commands/git-commit-msg/' -or $Entries.Path -match '^commands/git-commit-msg/') -contains $true) {
         $bullets.Add('add a source-of-truth git-commit-msg command under commands/')
     }
 
-    if ($Entries.Path -contains 'opencode.json') {
+    if (($Entries.Path -match '(^|/)plugins/gal-core/opencode\.json$') -contains $true -or $Entries.Path -contains 'opencode.json') {
         $bullets.Add('route the repo OpenCode git-commit-msg command through staged helper output')
     }
 

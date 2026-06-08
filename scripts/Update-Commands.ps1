@@ -145,6 +145,19 @@ function New-OpenCodeCommandFileContent([string]$SkillPath, [string]$CommandName
     ) -join "`n"
 }
 
+function Resolve-CommandSkillContentPath([pscustomobject]$CommandSkill) {
+    $bakedSkillPath = Join-Path $CommandSkill.Source 'SKILL.md'
+    if (Test-Path $bakedSkillPath) {
+        return $bakedSkillPath
+    }
+
+    if (Test-Path $CommandSkill.Template) {
+        return $CommandSkill.Template
+    }
+
+    return $bakedSkillPath
+}
+
 function Invoke-UpdateCommands {
     $context = $script:SetupContext
     Ensure-SetupDirectories @(
@@ -258,7 +271,7 @@ function Invoke-UpdateCommands {
             }
         }
         else {
-            $commandContent = New-GeminiCommandFileContent (Join-Path $commandSkill.Source 'SKILL.md')
+            $commandContent = New-GeminiCommandFileContent (Resolve-CommandSkillContentPath -CommandSkill $commandSkill)
             if ($script:SetupOptions.DryRun) {
                 Write-Host "  [DRY RUN] Would write: $commandFile"
             }
@@ -307,7 +320,7 @@ function Invoke-UpdateCommands {
             }
         }
         else {
-            $commandContent = New-OpenCodeCommandFileContent -SkillPath (Join-Path $commandSkill.Source 'SKILL.md') -CommandName $commandSkill.Name
+            $commandContent = New-OpenCodeCommandFileContent -SkillPath (Resolve-CommandSkillContentPath -CommandSkill $commandSkill) -CommandName $commandSkill.Name
             if ($script:SetupOptions.DryRun) {
                 Write-Host "  [DRY RUN] Would write: $commandFile"
             }

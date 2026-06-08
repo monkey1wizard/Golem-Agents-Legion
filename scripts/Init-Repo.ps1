@@ -77,8 +77,9 @@ if (-not $ProjectName) {
 
 $devDir = Join-Path $resolvedTarget ".dev"
 $plansDir = Join-Path $resolvedTarget "docs\plans"
-$projectTemplatePath = Join-Path $repoRoot "templates\project.md"
-$stateTemplatePath = Join-Path $repoRoot "templates\state.md"
+$templatesRoot = Join-Path $repoRoot "plugins\gal-core\templates"
+$projectTemplatePath = Join-Path $templatesRoot "project.md"
+$stateTemplatePath = Join-Path $templatesRoot "state.md"
 
 if (-not (Test-Path $projectTemplatePath)) {
     throw "Missing template: $projectTemplatePath"

@@ -12,7 +12,7 @@ invoke_update_personalization() {
     while IFS= read -r skill_dir; do
         [ -n "$skill_dir" ] || continue
         skill_dirs+=("$skill_dir")
-    done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
+    done < <(find "$PLUGIN_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | LC_ALL=C sort)
 
     ensure_setup_directories "$GAL_STATE_ROOT" "$GEMINI_ROOT" "$ANTIGRAVITY_ROOT"
 
@@ -188,7 +188,6 @@ PY
     echo ''
     echo '=== Personalization ==='
 
-    local example_env="$REPO_ROOT/config.example.env"
     local primary_local_env="$GAL_CONFIG_ROOT/config.local.env"
     local legacy_local_env="$REPO_ROOT/config.local.env"
     local local_env="$primary_local_env"
@@ -198,19 +197,13 @@ PY
         echo "  [LEGACY] Using existing legacy config.local.env at $local_env"
     fi
 
-    if [ ! -f "$local_env" ]; then
-        if [ -f "$example_env" ]; then
-            cp "$example_env" "$local_env"
-            echo "  [OK] Created $local_env from config.example.env"
-            echo "  [ACTION REQUIRED] Edit $local_env with your paths"
-        else
-            echo '  [WARN] config.example.env not found — skipping'
-        fi
-    else
+    if [ -f "$local_env" ]; then
         echo "  [SKIP] $local_env already exists"
+    else
+        echo "  [INFO] No config.local.env seed template is provided; manage local settings via $GAL_CONFIG_FILE or create $local_env manually if needed."
     fi
 
-    local example_routing="$REPO_ROOT/executor-routing.example.json"
+    local example_routing="$REPO_ROOT/plugins/gal-core/templates/executor-routing.example.json"
     local local_routing="$GAL_CONFIG_ROOT/executor-routing.json"
     local legacy_routing="$GAL_CONFIG_ROOT/executor-routing.ndjson"
 
@@ -223,10 +216,10 @@ PY
         if [ -f "$example_routing" ]; then
             mkdir -p "$GAL_CONFIG_ROOT"
             cp "$example_routing" "$local_routing"
-            echo "  [OK] Created $local_routing from executor-routing.example.json"
+            echo "  [OK] Created $local_routing from plugins/gal-core/templates/executor-routing.example.json"
             echo "  [ACTION REQUIRED] Edit $local_routing to map roles to your preferred executors"
         else
-            echo "  [WARN] executor-routing.example.json not found — skipping"
+            echo "  [WARN] plugins/gal-core/templates/executor-routing.example.json not found — skipping"
         fi
     else
         echo "  [SKIP] $local_routing already exists"
@@ -238,8 +231,8 @@ PY
     git config filter.gal-config.required true
     echo "  [OK] Registered git filter 'gal-config' (smudge/clean)"
 
-    git config core.hooksPath .githooks
-    echo '  [OK] Set core.hooksPath to .githooks'
+    git config core.hooksPath plugins/gal-core/hooks
+    echo '  [OK] Set core.hooksPath to plugins/gal-core/hooks'
 
     if [ -f "$local_env" ]; then
         local has_values

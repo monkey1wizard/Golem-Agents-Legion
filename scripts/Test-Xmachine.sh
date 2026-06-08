@@ -41,7 +41,7 @@ fi
 
 INVOKE_SCRIPT="$REPO_PATH/scripts/Invoke-XmachineLocalTask.sh"
 RETRIEVE_SCRIPT="$REPO_PATH/scripts/Get-XmachineLocalResult.sh"
-DEFAULT_TASK_SPEC="$REPO_PATH/templates/task-xmachine-local-smoke.md"
+DEFAULT_TASK_SPEC="$REPO_PATH/plugins/gal-core/templates/task-xmachine-local-smoke.md"
 
 TASK_SPEC="${TASK_SPEC:-$DEFAULT_TASK_SPEC}"
 
