@@ -9,7 +9,6 @@ Desktop.ini
 *.swp
 *~
 .venv/
-.sandbox/
 
 # Local GAL workflow state (keep .dev/project.md tracked)
 .dev/*
@@ -28,15 +27,11 @@ mcp.local.json
 xmachine.config.json
 commands/*/SKILL.local.md
 
-# Local graphify outputs and virtual environment
-graphify-out/
-
-# xmachine generated local logs and results
-gal-results/
+# Local temporary outputs, caches, and sandboxes
+.tmp/
 
 # Generated provider plugin artifacts
 dist/
-cache/
 
 # Rust build output
 /target/

@@ -74,8 +74,8 @@ Golem-Agents-Legion/
 
 #### Group 1A: 快取與輸出目錄搬移 (.tmp)
 - [x] **T-01**: 確認 `xmachine.config.example.json` 存在於根目錄（準備後續移入範本區）。確認 `config.example.env` 已清理。
-- [ ] **T-02**: 將專案根目錄的 `cache/`, `gal-results/`, `graphify-out/`, `.sandbox/` 移動至 `.tmp/` 目錄內。(注意追蹤檔案需使用 `git mv` 搬移)。
-- [ ] **T-03**: 更新根目錄的 `.gitignore`，移除 `graphify-out/`, `gal-results/`, `cache/`, `.sandbox/` 的個別忽略，統一為 `.tmp/` 規則。
+- [x] **T-02**: 將專案根目錄的 `cache/`, `gal-results/`, `graphify-out/`, `.sandbox/` 移動至 `.tmp/` 目錄內。(注意追蹤檔案需使用 `git mv` 搬移)。
+- [x] **T-03**: 更新根目錄的 `.gitignore`，移除 `graphify-out/`, `gal-results/`, `cache/`, `.sandbox/` 的個別忽略，統一為 `.tmp/` 規則。
 - [ ] **T-04**: 修正腳本中的 `gal-results/` 路徑，導向 `.tmp/gal-results/`：
   - `Invoke-XmachineTask.ps1` (L581)
   - `Invoke-XmachineTask.sh` (L417, L512)
