@@ -154,9 +154,9 @@ pub fn run_doctor(opts: &DoctorOptions) -> DoctorReport {
 // Release gate checks (T-021, P4)
 // ---------------------------------------------------------------------------
 
-/// Resolve the `packaging/` directory relative to the running binary.
+/// Resolve the `scripts/packaging/` directory relative to the running binary.
 ///
-/// In a local dev run, the binary is in `target/debug/` and `packaging/` is
+/// In a local dev run, the binary is in `target/debug/` and `scripts/packaging/` is
 /// three or four levels up (repo root). The FU-01 `resolve_source_from_exe_dir`
 /// walk-up logic already locates a GAL source root; we can reuse that to find
 /// the packaging dir alongside the source root.
@@ -164,18 +164,18 @@ fn packaging_dir() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let exe_dir = exe.parent()?;
     crate::render::resolve_source_from_exe_dir(exe_dir)
-        .map(|source_root| source_root.join("packaging"))
+        .map(|source_root| source_root.join("scripts").join("packaging"))
 }
 
-/// Check that the `packaging/winget/` manifest templates exist (release gate).
+/// Check that the `scripts/packaging/winget/` manifest templates exist (release gate).
 ///
-/// A missing `packaging/winget/` directory or missing template files means the
+/// A missing `scripts/packaging/winget/` directory or missing template files means the
 /// winget submission is not ready — the release gate must block publication.
 fn check_release_gate_packaging(report: &mut DoctorReport) {
     match packaging_dir() {
         None => {
             report.push(DoctorFinding::error(
-                "release gate: cannot locate packaging/ directory relative to binary",
+                "release gate: cannot locate scripts/packaging/ directory relative to binary",
                 "ensure the binary is run from a GAL source checkout or installed package",
             ));
             return;
@@ -185,8 +185,8 @@ fn check_release_gate_packaging(report: &mut DoctorReport) {
             let winget_dir = pkg_dir.join("winget");
             if !winget_dir.exists() {
                 report.push(DoctorFinding::error(
-                    "release gate: packaging/winget/ not found — winget manifests missing",
-                    "run `gal release --winget` or add packaging/winget/ templates to the repo",
+                    "release gate: scripts/packaging/winget/ not found — winget manifests missing",
+                    "run `gal release --winget` or add scripts/packaging/winget/ templates to the repo",
                 ));
             } else {
                 // Check at least one template exists.
@@ -202,8 +202,8 @@ fn check_release_gate_packaging(report: &mut DoctorReport) {
                     .unwrap_or(false);
                 if !has_template {
                     report.push(DoctorFinding::error(
-                        "release gate: packaging/winget/ exists but contains no YAML manifest templates",
-                        "add Monkey1Wizard.GAL.*.yaml.template files to packaging/winget/",
+                        "release gate: scripts/packaging/winget/ exists but contains no YAML manifest templates",
+                        "add Monkey1Wizard.GAL.*.yaml.template files to scripts/packaging/winget/",
                     ));
                 }
             }
@@ -213,7 +213,7 @@ fn check_release_gate_packaging(report: &mut DoctorReport) {
             let rb_template = homebrew_dir.join("gal.rb.template");
             if !rb_template.exists() {
                 report.push(DoctorFinding::error(
-                    "release gate: packaging/homebrew/gal.rb.template not found",
+                    "release gate: scripts/packaging/homebrew/gal.rb.template not found",
                     "run `gal release --homebrew` or add the formula template to the repo",
                 ));
             }
@@ -624,7 +624,7 @@ mod tests {
         let winget_dir = pkg_dir.join("winget");
         if !winget_dir.exists() {
             report.push(DoctorFinding::error(
-                "release gate: packaging/winget/ not found",
+                "release gate: scripts/packaging/winget/ not found",
                 "add manifest templates",
             ));
         }
@@ -646,7 +646,7 @@ mod tests {
         let rb_template = pkg_dir.join("homebrew").join("gal.rb.template");
         if !rb_template.exists() {
             report.push(DoctorFinding::error(
-                "release gate: packaging/homebrew/gal.rb.template not found",
+                "release gate: scripts/packaging/homebrew/gal.rb.template not found",
                 "add the formula template",
             ));
         }

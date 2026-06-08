@@ -258,7 +258,7 @@ pub struct WingetHashes {
 
 /// Fill the winget manifest templates and return the three YAML strings.
 ///
-/// Corresponds to TP-022. Templates live in `packaging/winget/`.
+/// Corresponds to TP-022. Templates live in `scripts/packaging/winget/`.
 /// This function returns (version_yaml, installer_yaml, locale_yaml).
 pub fn generate_winget_manifests(version: &str, hashes: &WingetHashes) -> (String, String, String) {
     let version_yaml = format!(

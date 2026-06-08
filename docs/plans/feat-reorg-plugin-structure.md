@@ -113,9 +113,9 @@ Golem-Agents-Legion/
 - [x] **T-12 (DOCS)**: 測試通過後，修正 `docs/` 與所有 MD 文件中關於舊目錄結構（如 `agent/`, `skills/`）的參照，並更新 `manual.md` 中 `xmachine.config.example.json` 的路徑。
 
 #### Group 1C: 打包腳本搬移 (packaging)
-- [ ] **T-13**: 將 `packaging/` 移入 `scripts/` 中。
-- [ ] **T-14**: 確認 `packaging/` 目錄內腳本是否使用相對路徑自引用；若有外部引用則修正。（初步搜尋未發現 `scripts/` 內有直接 `packaging/` 路徑參照，可能為空操作。）
-- [ ] **T-15 (TEST)**: 執行打包腳本測試 (如 `Build-ProviderPlugins.ps1`) 確保搬移後能正常讀取。
+- [x] **T-13**: 將 `packaging/` 移入 `scripts/` 中。
+- [x] **T-14**: 確認 `packaging/` 目錄內腳本是否使用相對路徑自引用；若有外部引用則修正。（初步搜尋未發現 `scripts/` 內有直接 `packaging/` 路徑參照，可能為空操作。）
+- [x] **T-15 (TEST)**: 執行打包腳本測試 (如 `Build-ProviderPlugins.ps1`) 確保搬移後能正常讀取。
 
 ### 階段 2: Rust 專案重構 (Rust Reorg)
 
