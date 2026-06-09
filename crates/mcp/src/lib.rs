@@ -262,11 +262,258 @@ pub struct McpUpdateReport {
     pub warnings: Vec<String>,
 }
 
+/// Build the MCP variable map used to resolve `${VAR}` placeholders.
+///
+/// Resolution layers, lowest priority first (later layers overlay earlier):
+/// 1. process environment — faithful to `Get-ConfiguredValue`'s env fallback;
+/// 2. `~/.gal/config/config.local.env` (`Read-KeyValueEnvFile`);
+/// 3. machine config (`~/.gal/config/config.json`) mapped keys.
+///
+/// Ports the common-case behaviour of `Get-McpVariableMap` from `Update-Mcp.ps1`.
+/// The `MCP_FILESYSTEM_PATHS` RepoRoot-parent derivation is intentionally
+/// deferred (it depends on install context, not MCP state) — see plan R-02.
+fn build_variable_map() -> HashMap<String, String> {
+    let env_file = base::paths::gal_home().map(|h| h.join("config").join("config.local.env"));
+    let machine_cfg = base::paths::machine_config_path();
+    build_variable_map_from(env_file.as_deref(), machine_cfg.as_deref())
+}
+
+/// Testable core of [`build_variable_map`] with explicit source paths.
+fn build_variable_map_from(
+    env_file: Option<&Path>,
+    machine_cfg_path: Option<&Path>,
+) -> HashMap<String, String> {
+    // Layer 1: process environment.
+    let mut map: HashMap<String, String> = std::env::vars().collect();
+
+    // Layer 2: config.local.env.
+    if let Some(env_file) = env_file {
+        for (k, v) in base::env_config::read_key_value_env(env_file) {
+            map.insert(k, v);
+        }
+    }
+
+    // Layer 3: machine config (camelCase config key → UPPER_SNAKE placeholder).
+    if let Some(cfg_path) = machine_cfg_path {
+        if let Ok(content) = std::fs::read_to_string(cfg_path) {
+            if let Ok(serde_json::Value::Object(obj)) =
+                serde_json::from_str::<serde_json::Value>(&content)
+            {
+                const MACHINE_MAP: &[(&str, &str)] = &[
+                    ("OBSIDIAN_VAULT", "obsidianVault"),
+                    ("OBSIDIAN_VAULT_NAME", "obsidianVaultName"),
+                    ("OBSIDIAN_GUIDE_PATH", "obsidianGuidePath"),
+                    ("OBSIDIAN_GUIDE_MODE", "obsidianGuideMode"),
+                    ("CONTEXT7_API_KEY", "context7ApiKey"),
+                    ("TEMP_DIR", "tempDir"),
+                    ("LOCAL_SEARCH_PROJECT", "localSearchProject"),
+                ];
+                for (placeholder, cfg_key) in MACHINE_MAP {
+                    if let Some(s) = obj.get(*cfg_key).and_then(|v| v.as_str()) {
+                        if !s.trim().is_empty() {
+                            map.insert((*placeholder).to_string(), s.to_string());
+                        }
+                    }
+                }
+                if let Some(v) = obj.get("mcpFilesystemPaths") {
+                    let joined = match v {
+                        serde_json::Value::Array(a) => a
+                            .iter()
+                            .filter_map(|x| x.as_str())
+                            .collect::<Vec<_>>()
+                            .join(","),
+                        serde_json::Value::String(s) => s.clone(),
+                        _ => String::new(),
+                    };
+                    if !joined.trim().is_empty() {
+                        map.insert("MCP_FILESYSTEM_PATHS".to_string(), joined);
+                    }
+                }
+            }
+        }
+    }
+
+    map
+}
+
+/// Overlay `~/.gal/config/mcp.local.json` server entries onto `manifest`.
+///
+/// Local entries add to or override managed entries by name (local wins),
+/// matching `Merge-OrderedMap $manifest $localManifest` in `Update-Mcp.ps1`.
+fn merge_local_overrides(manifest: McpManifest) -> McpManifest {
+    let local_path = base::paths::gal_home().map(|h| h.join("config").join("mcp.local.json"));
+    match local_path {
+        Some(p) => apply_local_overrides(manifest, &p),
+        None => manifest,
+    }
+}
+
+/// Testable core of [`merge_local_overrides`] with an explicit override path.
+fn apply_local_overrides(mut manifest: McpManifest, local_path: &Path) -> McpManifest {
+    if let Ok(local) = load_manifest(local_path) {
+        for (name, server) in local.servers {
+            manifest.servers.insert(name, server);
+        }
+    }
+    manifest
+}
+
+/// Non-destructively overlay GAL-managed entries into a JSON provider config.
+///
+/// Preserves user-owned server entries and any unrelated top-level keys.
+/// `servers_key` is the provider's server-map field (`mcpServers` / `mcp`).
+/// `generated` is the freshly serialized provider config (`{servers_key: {…}}`).
+/// Returns the number of managed entries written. An existing file that is not
+/// a JSON object is treated as an error rather than being overwritten.
+fn write_json_provider_merged(
+    dest: &Path,
+    servers_key: &str,
+    generated: &serde_json::Value,
+) -> std::result::Result<usize, McpUpdateError> {
+    let managed = generated
+        .get(servers_key)
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut root = if dest.exists() {
+        let content = std::fs::read_to_string(dest)?;
+        if content.trim().is_empty() {
+            serde_json::Value::Object(serde_json::Map::new())
+        } else {
+            match serde_json::from_str::<serde_json::Value>(&content)? {
+                v @ serde_json::Value::Object(_) => v,
+                _ => {
+                    return Err(McpUpdateError::Io(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("{} is not a JSON object — refusing to overwrite", dest.display()),
+                    )))
+                }
+            }
+        }
+    } else {
+        serde_json::Value::Object(serde_json::Map::new())
+    };
+
+    let obj = root.as_object_mut().expect("root is an object");
+    let servers = obj
+        .entry(servers_key.to_string())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+    if !servers.is_object() {
+        *servers = serde_json::Value::Object(serde_json::Map::new());
+    }
+    let servers_obj = servers.as_object_mut().expect("servers slot is an object");
+
+    let count = managed.len();
+    for (name, entry) in managed {
+        servers_obj.insert(name, entry);
+    }
+
+    ensure_parent(dest)?;
+    std::fs::write(dest, serde_json::to_string_pretty(&root)?)?;
+    Ok(count)
+}
+
+/// Extract the server name from a Codex TOML table header line.
+///
+/// Returns `Some(name)` for `[mcp_servers.NAME]` / `[mcp_servers.NAME.env]`
+/// (bare or quoted), else `None`. Ports `Get-CodexTableServerName`.
+fn codex_table_server_name(line: &str) -> Option<String> {
+    let t = line.trim();
+    let inner = t.strip_prefix('[')?.strip_suffix(']')?;
+    let remainder = inner.strip_prefix("mcp_servers.")?;
+    if remainder.is_empty() {
+        return None;
+    }
+    if let Some(rest) = remainder.strip_prefix('"') {
+        let mut out = String::new();
+        let mut prev = '"';
+        for c in rest.chars() {
+            if c == '"' && prev != '\\' {
+                return Some(out.replace("\\\"", "\"").replace("\\\\", "\\"));
+            }
+            out.push(c);
+            prev = c;
+        }
+        return None;
+    }
+    Some(remainder.split('.').next().unwrap_or(remainder).to_string())
+}
+
+/// True for a single-bracket TOML table header `[name]` (not `[[array]]`).
+fn is_toml_table_header(line: &str) -> bool {
+    let t = line.trim();
+    t.starts_with('[') && !t.starts_with("[[") && t.ends_with(']') && t.len() > 2
+}
+
+/// Remove managed `[mcp_servers.NAME]` sections (and their sub-tables) for the
+/// given names, preserving all other content (user MCP entries + non-MCP config).
+///
+/// Ports `Remove-CodexManagedServersFromToml`.
+fn remove_codex_managed_sections(
+    raw: &str,
+    managed: &std::collections::HashSet<String>,
+) -> String {
+    if raw.trim().is_empty() {
+        return String::new();
+    }
+    let mut out: Vec<&str> = Vec::new();
+    let mut skip = false;
+    for line in raw.split('\n') {
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        if let Some(name) = codex_table_server_name(line) {
+            skip = managed.contains(&name);
+        } else if is_toml_table_header(line) {
+            skip = false;
+        }
+        if !skip {
+            out.push(line);
+        }
+    }
+    out.join("\r\n").trim_end_matches(['\r', '\n']).to_string()
+}
+
+/// Write Codex `config.toml` by removing managed sections then appending fresh
+/// ones, preserving non-MCP content. `sections` is the codex serializer output
+/// (already `\r\n`-joined with a trailing newline).
+fn write_codex_merged(
+    dest: &Path,
+    managed_names: &std::collections::HashSet<String>,
+    sections: &str,
+) -> std::result::Result<(), McpUpdateError> {
+    let existing = if dest.exists() {
+        std::fs::read_to_string(dest)?
+    } else {
+        String::new()
+    };
+    let remaining = remove_codex_managed_sections(&existing, managed_names);
+
+    let mut new_raw = remaining;
+    if !new_raw.trim().is_empty() {
+        new_raw = new_raw.trim_end_matches(['\r', '\n']).to_string();
+        new_raw.push_str("\r\n\r\n");
+    }
+    new_raw.push_str(sections);
+    if !new_raw.ends_with("\r\n") {
+        new_raw.push_str("\r\n");
+    }
+
+    ensure_parent(dest)?;
+    std::fs::write(dest, new_raw)?;
+    Ok(())
+}
+
 /// Run the MCP config update for all available providers.
 ///
-/// Ports `Invoke-UpdateMcp` from `Update-Mcp.ps1` (R-02).
-/// Reads the manifest from `manifest_path`, resolves variables, then
-/// dispatches per-provider serializers that write provider config files.
+/// Ports `Invoke-UpdateMcp` from `Update-Mcp.ps1` (R-02). Reads the manifest,
+/// merges `mcp.local.json` overrides, resolves `${VAR}` placeholders from the
+/// environment + `config.local.env` + machine config, then writes each
+/// provider config **non-destructively** (preserving user-owned entries and,
+/// for Codex, non-MCP TOML content).
+///
+/// Deferred from full PS parity (advanced cleanup, not data-loss/blocking):
+/// legacy-alias removal, deprecated-key cleanup, Codex bridge-profile key
+/// remapping, and the previous-projection delta guard. See plan R-02.
 pub fn run_mcp_update(manifest_path: &Path) -> std::result::Result<McpUpdateReport, McpUpdateError> {
     use providers::claude::ClaudeDesktopMcpConfig;
     use providers::codex::CodexMcpConfig;
@@ -275,21 +522,24 @@ pub fn run_mcp_update(manifest_path: &Path) -> std::result::Result<McpUpdateRepo
     use providers::McpProviderConfig;
 
     let manifest = load_manifest(manifest_path)?;
-    let resolver = McpVariableResolver::empty();
+    let manifest = merge_local_overrides(manifest);
+
+    let resolver = McpVariableResolver::new(build_variable_map());
     let resolved = resolver.resolve_manifest(&manifest)?;
 
     let servers_written = resolved.servers.len();
     let mut providers_updated = Vec::new();
     let mut warnings = Vec::new();
 
-    // Claude Desktop
+    // Claude Desktop (mcpServers) — non-destructive overlay.
     match ClaudeDesktopMcpConfig::from_manifest(&resolved) {
-        Ok(cfg) => match cfg.to_config_string() {
-            Ok(json) => {
+        Ok(cfg) => match serde_json::to_value(&cfg) {
+            Ok(val) => {
                 if let Some(dest) = claude_desktop_mcp_path() {
-                    ensure_parent(&dest)?;
-                    std::fs::write(&dest, json)?;
-                    providers_updated.push("claude".to_string());
+                    match write_json_provider_merged(&dest, "mcpServers", &val) {
+                        Ok(_) => providers_updated.push("claude".to_string()),
+                        Err(e) => warnings.push(format!("claude write error: {e}")),
+                    }
                 }
             }
             Err(e) => warnings.push(format!("claude serialization error: {e}")),
@@ -297,14 +547,15 @@ pub fn run_mcp_update(manifest_path: &Path) -> std::result::Result<McpUpdateRepo
         Err(e) => warnings.push(format!("claude manifest error: {e}")),
     }
 
-    // Copilot CLI
+    // Copilot CLI (mcpServers) — non-destructive overlay.
     match CopilotCliMcpConfig::from_manifest(&resolved) {
-        Ok(cfg) => match cfg.to_config_string() {
-            Ok(json) => {
+        Ok(cfg) => match serde_json::to_value(&cfg) {
+            Ok(val) => {
                 if let Some(dest) = copilot_cli_mcp_path() {
-                    ensure_parent(&dest)?;
-                    std::fs::write(&dest, json)?;
-                    providers_updated.push("copilot".to_string());
+                    match write_json_provider_merged(&dest, "mcpServers", &val) {
+                        Ok(_) => providers_updated.push("copilot".to_string()),
+                        Err(e) => warnings.push(format!("copilot write error: {e}")),
+                    }
                 }
             }
             Err(e) => warnings.push(format!("copilot serialization error: {e}")),
@@ -312,37 +563,38 @@ pub fn run_mcp_update(manifest_path: &Path) -> std::result::Result<McpUpdateRepo
         Err(e) => warnings.push(format!("copilot manifest error: {e}")),
     }
 
-    // Codex
-    match CodexMcpConfig::from_manifest(&resolved) {
-        Ok(cfg) => match cfg.to_config_string() {
-            Ok(toml) => {
-                if let Some(dest) = codex_config_path() {
-                    ensure_parent(&dest)?;
-                    // Codex config.toml: append managed sections (simplified — full
-                    // remove-then-append from Remove-CodexManagedServersFromToml
-                    // is handled in the test path; here we just write the sections).
-                    std::fs::write(&dest, toml)?;
-                    providers_updated.push("codex".to_string());
-                }
-            }
-            Err(e) => warnings.push(format!("codex serialization error: {e}")),
-        },
-        Err(e) => warnings.push(format!("codex manifest error: {e}")),
-    }
-
-    // OpenCode
+    // OpenCode (mcp) — non-destructive overlay, preserves other top-level keys.
     match OpenCodeMcpConfig::from_manifest(&resolved) {
-        Ok(cfg) => match cfg.to_config_string() {
-            Ok(json) => {
+        Ok(cfg) => match serde_json::to_value(&cfg) {
+            Ok(val) => {
                 if let Some(dest) = opencode_config_path() {
-                    ensure_parent(&dest)?;
-                    std::fs::write(&dest, json)?;
-                    providers_updated.push("opencode".to_string());
+                    match write_json_provider_merged(&dest, "mcp", &val) {
+                        Ok(_) => providers_updated.push("opencode".to_string()),
+                        Err(e) => warnings.push(format!("opencode write error: {e}")),
+                    }
                 }
             }
             Err(e) => warnings.push(format!("opencode serialization error: {e}")),
         },
         Err(e) => warnings.push(format!("opencode manifest error: {e}")),
+    }
+
+    // Codex (TOML) — remove managed sections then append, preserving non-MCP.
+    match CodexMcpConfig::from_manifest(&resolved) {
+        Ok(cfg) => match cfg.to_config_string() {
+            Ok(sections) => {
+                if let Some(dest) = codex_config_path() {
+                    let managed_names: std::collections::HashSet<String> =
+                        resolved.servers.keys().cloned().collect();
+                    match write_codex_merged(&dest, &managed_names, &sections) {
+                        Ok(()) => providers_updated.push("codex".to_string()),
+                        Err(e) => warnings.push(format!("codex write error: {e}")),
+                    }
+                }
+            }
+            Err(e) => warnings.push(format!("codex serialization error: {e}")),
+        },
+        Err(e) => warnings.push(format!("codex manifest error: {e}")),
     }
 
     Ok(McpUpdateReport { providers_updated, servers_written, warnings })
@@ -398,6 +650,8 @@ pub enum McpUpdateError {
     Manifest(#[from] McpError),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -637,5 +891,180 @@ mod tests {
         let findings = check.check();
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Error);
+    }
+
+    // ── run_mcp_update orchestration: variable resolution ─────────────────────
+
+    #[test]
+    fn build_variable_map_resolves_secret_from_env() {
+        // Defect-1 regression: an empty resolver hard-failed on secret-named
+        // placeholders. The map must pick up a secret from the environment so
+        // resolve_manifest succeeds instead of returning UnresolvedSecret.
+        let key = "GAL_TEST_MCP_API_KEY";
+        std::env::set_var(key, "sekret");
+        let map = build_variable_map_from(None, None);
+        let r = McpVariableResolver::new(map);
+        assert_eq!(r.resolve_string("${GAL_TEST_MCP_API_KEY}").unwrap(), "sekret");
+        std::env::remove_var(key);
+    }
+
+    #[test]
+    fn build_variable_map_reads_env_file_and_machine_config() {
+        let tmp = TempDir::new().unwrap();
+        let env_file = tmp.path().join("config.local.env");
+        fs::write(&env_file, "MY_TOKEN=from_file\n").unwrap();
+        let cfg = tmp.path().join("config.json");
+        fs::write(&cfg, r#"{"context7ApiKey":"ctx-123"}"#).unwrap();
+
+        let map = build_variable_map_from(Some(&env_file), Some(&cfg));
+        assert_eq!(map.get("MY_TOKEN").map(String::as_str), Some("from_file"));
+        assert_eq!(map.get("CONTEXT7_API_KEY").map(String::as_str), Some("ctx-123"));
+    }
+
+    // ── apply_local_overrides ─────────────────────────────────────────────────
+
+    #[test]
+    fn apply_local_overrides_adds_and_overrides_servers() {
+        let mut servers = HashMap::new();
+        servers.insert(
+            "github".to_string(),
+            McpServer {
+                server_type: Some("http".to_string()),
+                command: None,
+                args: None,
+                env: None,
+                url: Some("https://managed".to_string()),
+                headers: None,
+            },
+        );
+        let manifest = McpManifest { servers, inputs: None };
+
+        let tmp = TempDir::new().unwrap();
+        let local = tmp.path().join("mcp.local.json");
+        // Override `github` url and add a new local-only `mylocal` server.
+        fs::write(
+            &local,
+            r#"{"servers":{"github":{"type":"http","url":"https://local"},"mylocal":{"command":"node"}}}"#,
+        )
+        .unwrap();
+
+        let merged = apply_local_overrides(manifest, &local);
+        assert_eq!(merged.servers.len(), 2);
+        assert_eq!(merged.servers["github"].url.as_deref(), Some("https://local"));
+        assert_eq!(merged.servers["mylocal"].command.as_deref(), Some("node"));
+    }
+
+    #[test]
+    fn apply_local_overrides_noop_when_file_absent() {
+        let mut servers = HashMap::new();
+        servers.insert(
+            "a".to_string(),
+            McpServer {
+                server_type: None,
+                command: Some("x".to_string()),
+                args: None,
+                env: None,
+                url: None,
+                headers: None,
+            },
+        );
+        let manifest = McpManifest { servers, inputs: None };
+        let merged = apply_local_overrides(manifest, Path::new("/nonexistent/mcp.local.json"));
+        assert_eq!(merged.servers.len(), 1);
+    }
+
+    // ── write_json_provider_merged (non-destructive) ──────────────────────────
+
+    #[test]
+    fn json_merge_preserves_user_entries_and_other_keys() {
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("claude_desktop_config.json");
+        // Pre-existing config: a user MCP server + an unrelated top-level key.
+        fs::write(
+            &dest,
+            r#"{"mcpServers":{"user-server":{"command":"mine"}},"theme":"dark"}"#,
+        )
+        .unwrap();
+
+        let generated = serde_json::json!({
+            "mcpServers": { "gal-managed": { "command": "npx", "args": [] } }
+        });
+        let n = write_json_provider_merged(&dest, "mcpServers", &generated).unwrap();
+        assert_eq!(n, 1);
+
+        let written: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&dest).unwrap()).unwrap();
+        // User server preserved.
+        assert_eq!(written["mcpServers"]["user-server"]["command"], "mine");
+        // Managed server added.
+        assert_eq!(written["mcpServers"]["gal-managed"]["command"], "npx");
+        // Unrelated top-level key preserved.
+        assert_eq!(written["theme"], "dark");
+    }
+
+    #[test]
+    fn json_merge_creates_file_when_absent() {
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("sub").join("mcp-config.json");
+        let generated = serde_json::json!({ "mcp": { "s": { "type": "local" } } });
+        let n = write_json_provider_merged(&dest, "mcp", &generated).unwrap();
+        assert_eq!(n, 1);
+        let written: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&dest).unwrap()).unwrap();
+        assert_eq!(written["mcp"]["s"]["type"], "local");
+    }
+
+    #[test]
+    fn json_merge_refuses_to_overwrite_non_object() {
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("bad.json");
+        fs::write(&dest, "[1,2,3]").unwrap();
+        let generated = serde_json::json!({ "mcpServers": { "x": {} } });
+        let err = write_json_provider_merged(&dest, "mcpServers", &generated);
+        assert!(err.is_err(), "must not clobber a non-object config");
+        // Original content untouched.
+        assert_eq!(fs::read_to_string(&dest).unwrap(), "[1,2,3]");
+    }
+
+    // ── Codex TOML section parsing + non-destructive merge ────────────────────
+
+    #[test]
+    fn codex_table_server_name_parses_bare_and_quoted() {
+        assert_eq!(codex_table_server_name("[mcp_servers.memory]").as_deref(), Some("memory"));
+        assert_eq!(
+            codex_table_server_name("[mcp_servers.memory.env]").as_deref(),
+            Some("memory")
+        );
+        assert_eq!(
+            codex_table_server_name(r#"[mcp_servers."upstash/context7"]"#).as_deref(),
+            Some("upstash/context7")
+        );
+        assert_eq!(codex_table_server_name("[model]"), None);
+        assert_eq!(codex_table_server_name("command = \"npx\""), None);
+    }
+
+    #[test]
+    fn codex_remove_preserves_non_mcp_and_user_servers() {
+        let raw = "[model]\nname = \"gpt\"\n\n[mcp_servers.gal_managed]\ncommand = \"npx\"\n\n[mcp_servers.user_kept]\ncommand = \"mine\"\n";
+        let managed: std::collections::HashSet<String> =
+            ["gal_managed".to_string()].into_iter().collect();
+        let out = remove_codex_managed_sections(raw, &managed);
+        assert!(out.contains("[model]"), "non-MCP [model] must survive");
+        assert!(out.contains("name = \"gpt\""));
+        assert!(out.contains("[mcp_servers.user_kept]"), "user MCP server must survive");
+        assert!(!out.contains("gal_managed"), "managed section must be removed");
+    }
+
+    #[test]
+    fn codex_write_merge_appends_and_preserves() {
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("config.toml");
+        fs::write(&dest, "[model]\nname = \"gpt\"\n").unwrap();
+        let managed: std::collections::HashSet<String> = ["memory".to_string()].into_iter().collect();
+        let sections = "[mcp_servers.memory]\r\ncommand = \"npx\"\r\n";
+        write_codex_merged(&dest, &managed, sections).unwrap();
+        let written = fs::read_to_string(&dest).unwrap();
+        assert!(written.contains("[model]"), "non-MCP content preserved");
+        assert!(written.contains("[mcp_servers.memory]"), "managed section appended");
     }
 }
