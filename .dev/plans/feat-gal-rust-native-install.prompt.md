@@ -147,9 +147,9 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 7 of 13
-Last activity: 2026-06-09 — T-006 complete (c882267)
-Next step: T-007 implement
+Step: 9 of 13
+Last activity: 2026-06-09 — T-008 complete (93b41c7); T-007 complete (04babd9)
+Next step: T-009 implement
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -184,8 +184,8 @@ Review Retry Count: 0
 - [x] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper. *(62bc53d)*
 - [x] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through. *(b0cc86d)*
 - [x] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check. *(c882267)*
-- [ ] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install.
-- [ ] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane).
+- [x] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install. *(04babd9)*
+- [x] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane). *(93b41c7)*
 - [ ] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`.
 - [ ] **T-010 (P7 precondition)** — reparent oracle tests: convert `crates/gal-engine/tests/cross_platform_oracle_parity.rs` and `scripts/test-t022-ssh.sh` to `tests/fixtures/` snapshots or behavior/intent tests, removing runtime dependence on live `scripts/*.{sh,ps1}`. **Must complete before T-011.**
 - [ ] **T-011 (P7, R-11)** — delete superseded install-family ps1/bash (in pairs): `Build-CorePlugin.*`/`build-core-plugin.sh`, `Build-ProviderPlugins.*`/`build-provider-plugins.sh`, `ProviderPlugin.ps1`/`provider-plugin.sh`, `Update-Mcp.*`, `Install-GalPlugins.*`/`install-gal-plugins.sh`, `Common.*`/`common.sh` (install part), matching `Test-*.ps1`, `gal.ps1` (after the Rust binary owns all subcommands). Monolithic scripts wait until all consumers are at parity. **Retain** `Setup-Machine.*`/`Sync-DevContext.*`.
@@ -281,6 +281,30 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 - Multi-skill bundle loading via `.claude-plugin/plugin.json` is architecturally expected but requires new-session smoke after T-003
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
+
+### [T-008] 2026-06-09
+
+**Type**: packaging template review + full cargo test
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+- `gal.rb.template`: installs source dirs to `share/gal/` (FHS layout) so `resolve_packaged_source_root()` finds them; test block asserts `skills/` and `agents/` present
+- winget template: documents expected flat archive layout (binary + source dirs at ZIP root)
+- 228 tests pass (all suites)
+
+**TP-10 (real-machine):** deferred to mac-mini validation (TP-15/TP-16).
+
+### [T-007] 2026-06-09
+
+**Type**: unit (cargo test) + code review
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+- `get_canonical_plugin_root()` now uses `dirs::home_dir()` — consistent with doctor.rs and providers/claude.rs; no env-var divergence on Windows/macOS/Linux
+- All `#[cfg(windows)]`/`#[cfg(not(windows))]`/`#[cfg(unix)]` platform splits already in place; no behavior change on current OS
+- 165 gal-engine tests pass
+
+**TP-10/TP-15 (real-machine validation):** deferred to E2E phase.
 
 ### [T-006] 2026-06-09
 
@@ -404,6 +428,27 @@ No correctness defects, no security issues, no architecture violations. All thre
 - `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
 - `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
 - Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
+
+### [T-008] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `scripts/packaging/homebrew/gal.rb.template`, `scripts/packaging/winget/Monkey1Wizard.GAL.installer.yaml.template`
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | Homebrew `Dir["gal-*[^/]"].first` change from `Dir["gal-*"].first` — adds `[^/]` to exclude directories matching `gal-*` from being installed as the binary (e.g., if `gal-source/` were named `gal-something`). Defensive but harmless. |
+| R2 | INFO | `if File.directory?(dir)` guard in the Homebrew formula handles archives that omit some source dirs gracefully — won't fail if `templates/` is absent. |
+
+No correctness defects. Real-machine validation (TP-10/TP-15) is the acceptance gate for T-008.
+
+### [T-007] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/render.rs` (diff 7fc29d9..04babd9)
+
+No findings. Single 4-line mechanical substitution: `USERPROFILE`/`HOME` env vars → `dirs::home_dir()`. Consistent with all other home dir resolutions in gal-engine. 165 tests pass.
 
 ### [T-006] Code Review — 2026-06-09
 

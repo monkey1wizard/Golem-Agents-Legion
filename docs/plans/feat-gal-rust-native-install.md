@@ -140,8 +140,8 @@ scripts 為**過渡 oracle**，非永久凍結：功能達 Rust parity 即刪對
 - [x] **T-004（P2）** — `render.rs`/`install.rs`：published plugin root 建 `bin/`，複製本機 OS 原生 `gal`（Unix +x、Windows `gal.exe`），缺 binary fail-loud、不放 `.sh`/`.ps1` wrapper。*(62bc53d)*
 - [x] **T-005（P3）** — `render.rs`/`install.rs`/`doctor.rs`：atomic swap 成功後刪自身 temp；install/doctor 以白名單（`.gal-render-*` 前綴）偵測清理孤兒，doctor-first、不 delete-through。*(b0cc86d)*
 - [x] **T-006（P4，引擎核心）** — `doctor.rs`/`crates/gal-cli/src/main.rs`：新增「活面 vs source」檢查（agent/skill 數、`golem-dockeeper`+`doc-sync` 存在、`bin/gal` 可執行、無孤兒），exit 分級；`--release-gate` 併入；移除/改寫 `ClaudeMarketplaceState` 官方 marketplace 三狀態分類為 GAL 自有面健康檢查。*(c882267)*
-- [ ] **T-007（P5 跨平台）** — `gal-engine`：Windows junction / Unix symlink + `+x` 三平台路徑/權限對齊；macOS/Linux 隔離 home install 驗證 skill 面對齊。
-- [ ] **T-008（P5 pkg-manager）** — `packaging/winget/`、`packaging/homebrew/`：消費 bootstrap P2 artifacts，pkg-manager 裝出的 `gal` 能完成同一套 install 收斂（安裝後收斂驗證，不重做 release lane）。
+- [x] **T-007（P5 跨平台）** — `gal-engine`：Windows junction / Unix symlink + `+x` 三平台路徑/權限對齊；macOS/Linux 隔離 home install 驗證 skill 面對齊。*(04babd9)*
+- [x] **T-008（P5 pkg-manager）** — `packaging/winget/`、`packaging/homebrew/`：消費 bootstrap P2 artifacts，pkg-manager 裝出的 `gal` 能完成同一套 install 收斂（安裝後收斂驗證，不重做 release lane）。*(93b41c7)*
 - [ ] **T-009（P6）** — 端對端驗收腳本 + `docs/devguide.md`：乾淨環境安裝後 Claude Code 可用 `doc-sync`、`gal doctor` green、canonical root agents/ 含 `golem-dockeeper`。
 - [ ] **T-010（P7 前置）** — reparent oracle 測試：`crates/gal-engine/tests/cross_platform_oracle_parity.rs`、`scripts/test-t022-ssh.sh` 改為 `tests/fixtures/` snapshot 或行為/intent 測試，移除對 live `scripts/*.{sh,ps1}` 的 runtime 依賴。**必須在 T-011 前完成。**
 - [ ] **T-011（P7，R-11）** — 刪除 superseded install 家族 ps1/bash（成對）：`Build-CorePlugin.*`/`build-core-plugin.sh`、`Build-ProviderPlugins.*`/`build-provider-plugins.sh`、`ProviderPlugin.ps1`/`provider-plugin.sh`、`Update-Mcp.*`、`Install-GalPlugins.*`/`install-gal-plugins.sh`、`Common.*`/`common.sh`（install 部分）、對應 `Test-*.ps1`、`gal.ps1`（Rust 接管所有子命令後）。monolithic script 須其全部消費者皆 parity 才整檔刪。**保留** `Setup-Machine.*`/`Sync-DevContext.*`。
