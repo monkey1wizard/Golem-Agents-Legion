@@ -764,7 +764,9 @@ Claude Desktop is an MCP-only host. It **cannot** load GAL agents, skills, or co
 
 Antigravity CLI uses a managed junction (Windows) or symlink (Unix) from the AGY plugin path to the canonical root `~/.gal/plugins/gal`, so canonical-root updates (via `gal install` or `gal update`) reflect without reinstall. Antigravity's MCP config uses `serverUrl` (not `url`) for HTTP servers; the Rust MCP serializer handles this correctly.
 
-Promotion gates for public marketplace listing: Claude Code — GitHub Release tag published + `/plugin marketplace add anthropics/claude-plugins-community` + `/plugin install gal@claude-community` tested; Claude Desktop — `.mcpb` packaging verified and submitted to the Desktop extension gallery; Antigravity — GAL plugin installed and verified, `agy inspect` confirms component load.
+**Current install path (GAL-owned, not official marketplace):** `gal install` → `~/.claude/skills/gal` (symlink/junction → canonical root). Verify with `gal doctor`. See [Clean-Install Acceptance Bar](#clean-install-acceptance-bar).
+
+**Future public marketplace listing gates (deferred):** Claude Code — GitHub Release tag published + community marketplace submission verified; Claude Desktop — `.mcpb` packaging verified and submitted; Antigravity — GAL plugin installed and verified via `agy inspect`.
 
 #### GAL-Owned Live Read Surfaces (per Provider)
 
