@@ -5,7 +5,7 @@
 ## Approval
 
 - Human approval: [approved at 2026-06-09]
-- Architect review: **APPROVE(方向;二審架構分解 + 四審真機驗收方法論修正 CORR-01 均折入,2026-06-09)** — 見 ## Review Results。CORR-01:真機驗收 = 純 end-user 裝預編譯 artifact,絕不在測試機 build;新增 R-13 release 管線為前置。實作期 R-00/R-03/R-04/R-05 受保護核心須 architect 簽核。**Tasks 已變動 → 須重跑 `/plan-to-prompt` 刷新執行 prompt。**
+- Architect review: **APPROVE(方向;二審架構分解 + 四審真機驗收方法論修正 CORR-01 均折入,2026-06-09)** — 見 ## Review Results。CORR-01:真機驗收 = 純 end-user 裝預編譯 artifact,絕不在測試機 build;新增 R-13 release 管線為前置。實作期 R-00/R-03/R-04/R-05 受保護核心須 architect 簽核。**~~Tasks 已變動 → 須重跑 `/plan-to-prompt` 刷新執行 prompt。~~ 已完成:prompt 已刷新,R-00 實作期 architect 批次簽核 APPROVE(3 條件,見 prompt ## Review Results),T-003..T-008 已執行完成。**
 - Additional domain review: [not triggered]（無 customer-facing / business-rule）
 
 ## Goal
@@ -31,7 +31,9 @@
 
 install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台/pkg-manager 收斂/oracle reparent，共 a192df7..bcc755a(228 test 綠)。
 
-**未竟(本計畫接手)**:真機 TP-15(mac-mini normal)/TP-16(Windows 雙模式)從未跑;本機 `gal install` 已拆除(`~/.gal/plugins/` 空、skill 面懸空、`gal doctor` exit 1),需重裝重驗。
+**R-00 架構解耦完成(本計畫,2026-06-09,T-003..T-008)**:6577 行 `gal-engine` god-crate 開始退役 —— 抽出 `base`(config/mode/ledger/paths/mcp 型別/platform/render/health 含 `HealthCheck` trait)與 `providers`(claude/copilot/agy 投影)兩個無前綴 crate;`gal-cli`→`cli`、`gal-dispatch`→`dispatch` 去前綴。workspace 現為 `base · providers · cli · gal-engine · dispatch`(gal-engine 以 `pub use` 過渡再匯出,呼叫面零改)。依賴鐵律驗證:base 無 GAL dep、providers 僅依 base、無環。commits:T-003 1ffd3de、T-004 5c1514e、T-005 8f78581、T-006 ba5fc69、T-007 c0f1f37、T-008 b190cf7;每步 `cargo test --workspace` = 228/0。architect 三條件閉合:BUG-01(MCP 型別入 base 先解環)、OE-01(base::render 範圍圍欄)、BUG-02(dispatch bin 名保留,gal.ps1 不動)。
+
+**未竟(本計畫接手)**:真機 TP-02(mac-mini)/TP-03(Windows)端 end-user artifact 驗收待 R-13 管線(T-034)就緒;R-08 oracle reparent(T-009)為刪除任務前置,尚未開始。本機開發基準(T-002)已綠。
 
 ## Rust 目標架構
 
@@ -88,7 +90,7 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 
 ## Requirements
 
-- [ ] **R-00 架構解耦（JIT,非大爆炸,受保護）** — 先抽**最小高槓桿**:`base`(config/mode/paths/install-state/provider-selection + `platform`/`render` 模組 + `HealthCheck` trait;render.rs 跨平台原語下沉)、確立 `providers`、`gal-cli`/`gal-dispatch` 去前綴。**其餘 domain crate(install/mcp/adapters/release/vcs/setup)的拆分排在各自 port phase 起點 JIT 做,不一次拆完** —— 避免對 228-test 綠基線做零功能大爆炸重構。依賴鐵律:base 無 GAL dep、無環、無 god-crate;doctor 走 `HealthCheck` trait 聚合。須 architect 簽核。
+- [x] **R-00 架構解耦（JIT,非大爆炸,受保護）** — 先抽**最小高槓桿**:`base`(config/mode/paths/install-state/provider-selection + `platform`/`render` 模組 + `HealthCheck` trait;render.rs 跨平台原語下沉)、確立 `providers`、`gal-cli`/`gal-dispatch` 去前綴。**其餘 domain crate(install/mcp/adapters/release/vcs/setup)的拆分排在各自 port phase 起點 JIT 做,不一次拆完** —— 避免對 228-test 綠基線做零功能大爆炸重構。依賴鐵律:base 無 GAL dep、無環、無 god-crate;doctor 走 `HealthCheck` trait 聚合。須 architect 簽核。 **✅ 基礎抽取完成(2026-06-09,T-003..T-008,1ffd3de..b190cf7,228 test 綠):base/providers 抽出、platform/render/health 下沉、cli/dispatch 去前綴。architect 批次簽核 APPROVE 三條件全閉合(BUG-01/OE-01/BUG-02)。剩餘 JIT domain 拆分(install/mcp/adapters/release/vcs/setup)依設計於各 port phase(R-02..R-06)起點進行;R-08 oracle reparent(T-009)為下一步。**
 - [ ] **R-01 共用核心 → `base`** — `common.{ps1,sh}` 的安裝/設定函式(install mode、provider 選擇、symlink、install state、plugin root)落 `base`,供 install/setup/mcp/adapters 複用;xmachine 專屬函式不在此。
 - [ ] **R-02 `gal mcp`** — `update-mcp.{ps1,sh}` 全面 Rust 化為 `gal mcp`,接 `mcp.rs`,四 provider parity。
 - [ ] **R-03 adapter-regen + Sync-DevContext → `adapters`（受保護）** — `update-skills/commands/personalization` 與 `Sync-DevContext.{ps1,sh}` 收斂為**單一 `adapters` 後端**(皆生成 adapter 檔,語義同類);CLI 以 `gal sync`(init-time 生成)/`gal update`(增量 regen)暴露,共用 `adapters` + `base::render`。須 architect。
@@ -227,7 +229,7 @@ Not triggered（無 customer-facing UI）。
 
 **Verdict: CLEAR.**（四審 2026-06-09:粒度 + 真機驗收方法論修正後)**35 個 T-NNN** 對映 R-00..R-13 / P0..P8。每個 = 獨立可驗、commit-size 單元(R-00 解耦 7 步 T-003..T-009;adapters 逐腳本;install 逐 provider;R-06 雜項逐項)。**CORR-01 折入**:T-002 收斂為開發機 dev 基準;新增 T-034(release artifact 管線)/T-035(純 end-user 真機驗收,裝預編譯 artifact,前置 T-034)。27 條 TP(含 TP-26 管線產出、TP-02/03 改為 end-user 裝 artifact、TP-26b 開發機基準)。實作約束新增:**真機/end-user 驗證一律純 end-user 裝預編譯檔,絕不在測試機 build/裝工具鏈**;T-034 是 T-035 硬前置。architect 四審 APPROVE。
 
-**注意:本次 deep-planning 改了 Tasks/Test Plan(加 T-034/035、TP-26/26b、re-scope T-002/033)→ 執行 prompt 已過時,須重跑 `/plan-to-prompt` 刷新後才續實作。**
+**~~注意:本次 deep-planning 改了 Tasks/Test Plan...→ 執行 prompt 已過時,須重跑 `/plan-to-prompt` 刷新後才續實作。~~ 已解決(2026-06-09):prompt 已刷新並執行 R-00(T-003..T-008)完成,228 test 綠。**
 
 **實作期約束(prompt 與執行須遵守):**
 
