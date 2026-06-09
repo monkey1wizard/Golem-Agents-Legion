@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 8 of 35
-Last activity: 2026-06-09 — T-007 complete (commit: c0f1f37) — `providers` crate extracted (claude/copilot/agy); GAL-deps=[base] only, no cycle (BUG-01 payoff); install→providers via re-export; 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-008 (rename gal-cli→cli, gal-dispatch→dispatch) — BUG-02: preserve gal-dispatch bin name / update gal.ps1 shim in same commit
+Step: 9 of 35
+Last activity: 2026-06-09 — T-008 complete (commit: b190cf7) — de-prefix cli/dispatch; BUG-02 closed (gal-dispatch bin name preserved); `gal --version` ok; 228 green. **STOP-AT boundary reached — pipeline run T-003..T-008 complete (R-00 architecture decomposition done, all 6 protected-core steps green).** Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: T-009 — reparent oracle tests (R-08, before any deletion) — NOT started this run; resume with `/gal pipeline from T-009`
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -140,7 +140,7 @@ R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green. *(8f78581; OE-01: only the atomic-render staging primitive moved; install-domain render stayed)*
 - [x] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged. *(ba5fc69; 9 checks → per-surface HealthCheck impls; run_doctor drives Vec<Box<dyn HealthCheck>>, byte-identical order)*
 - [x] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles. *(c0f1f37; GAL-deps=[base] only, BUG-01 payoff = no providers↔engine cycle; gal-engine re-exports via `pub use providers`)*
-- [ ] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green.
+- [x] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green. *(b190cf7; BUG-02: gal-dispatch bin output name preserved → gal.ps1 shim unaffected; both gal.exe + gal-dispatch.exe produced)*
 - [ ] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests.
 
 R-01 shared core
@@ -284,6 +284,16 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-08 (after extracting
 - **install depends on providers** — via gal-engine `providers` dep + `pub use providers` re-export; `crate::providers::{agy,claude}` in install.rs resolve unchanged.
 - **Build** clean, 0 warnings.
 
+### [T-008] 2026-06-09 — PASS (TP-09)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming cli/dispatch, 228 green; `gal --version` works; no external dep name clash).
+
+- **228 / 0** — full suite green after rename.
+- **`gal --version`** → `gal 0.1.0` (cli bin still named `gal`).
+- **BUG-02 verified** — both `target/debug/gal.exe` AND `target/debug/gal-dispatch.exe` produced. Dispatch bin output name preserved despite package/lib de-prefix; `scripts/gal.ps1` (`$binName = 'gal-dispatch'`) unaffected. No live-dispatch break.
+- **No dep name clash** — workspace built clean; members `[base, providers, cli, gal-engine, dispatch]`; `dispatch`/`cli`/`base` are internal path crates, no external dependency by those names.
+- **Build** clean, 0 warnings.
+
 ## Review Results
 
 ### Architecture Review
@@ -369,6 +379,18 @@ Scope: commit range `6f1c0de..c0f1f37` (extract `providers` crate). Verification
 - **No BLOCKING.** 23 provider tests run in the new crate; 228 total green.
 
 Verdict: **APPROVE** — proceed to T-008 (rename `gal-cli`→`cli`, `gal-dispatch`→`dispatch`). **Carry-forward: BUG-02 — T-008 must preserve the `gal-dispatch` bin output name (or update the gal.ps1 shim in the same commit) so live dispatch does not break.**
+
+### [T-008] 2026-06-09 — APPROVE
+
+Scope: commit range `21bae5b..b190cf7` (de-prefix cli/dispatch). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **BUG-02 closed — the key risk of this task.** Dispatch package + lib de-prefixed to `dispatch`, but `[[bin]] name="gal-dispatch"` deliberately preserved (documented inline). Verified empirically: both `gal.exe` and `gal-dispatch.exe` are produced; `gal.ps1`'s `$binName = 'gal-dispatch'` PATH lookup still resolves. Live pipeline dispatch is not broken — no shim edit required.
+- **Correctness**: `gal --version` → `gal 0.1.0`; cli bin name unchanged (`gal`). main.rs imports repointed `gal_dispatch::`→`dispatch::` (only 4 lines; no tests dir; no other refs).
+- **No name clash / no external consumer**: nothing depended on `gal-cli`/`gal-dispatch` by name; root members updated; build clean.
+- **Scope**: dir + package/lib rename + import repoint + members. No drift.
+- **No BLOCKING.**
+
+Verdict: **APPROVE** — T-008 complete. **STOP-AT boundary reached (run requested T-003..T-008).** Next task T-009 (oracle-test reparent) not started this run.
 
 ## Debug Log
 
