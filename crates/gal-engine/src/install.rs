@@ -16,6 +16,7 @@ use crate::config::GalConfig;
 use crate::ledger::{ledger_path, now_timestamp, Ledger, LedgerEntry};
 use crate::mode::{resolve_mode, GalMode, ModeError};
 use crate::providers::agy::AgyProjection;
+use crate::providers::claude::ClaudeSkillProjection;
 use crate::render::{render_canonical_root, RenderError};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -101,11 +102,22 @@ fn run_update_with_op(config: &GalConfig, op: &str) -> Result<InstallReport, Ins
     // Step 2: Render canonical root (atomic temp+swap, TP-014 parity surface).
     let canonical_root = render_canonical_root(config, mode)?;
 
-    // Claude and Copilot surfaces live inside canonical_root.
-    let mut providers = vec!["claude".to_string(), "copilot".to_string()];
+    let mut providers = vec!["copilot".to_string()];
     let mut warnings = Vec::new();
 
-    // Step 3: AGY three-surface projection — best-effort (OE-A), never fatal.
+    // Step 3: Claude skill surface projection — `~/.claude/skills/gal` → canonical root.
+    // Best-effort: a link failure does not void the canonical root render, but is
+    // surfaced as a warning so `gal doctor` (T-006) can detect the gap.
+    // Never touches `~/.claude/plugins/gal` (oracle legacy path).
+    match ClaudeSkillProjection::new(canonical_root.clone()) {
+        Ok(proj) => match proj.apply() {
+            Ok(_) => providers.push("claude".to_string()),
+            Err(e) => warnings.push(format!("Claude skill surface (best-effort): {e}")),
+        },
+        Err(e) => warnings.push(format!("Claude skill surface init (best-effort): {e}")),
+    }
+
+    // Step 4: AGY three-surface projection — best-effort (OE-A), never fatal.
     match AgyProjection::new(canonical_root.clone()) {
         Ok(agy) => match agy.apply() {
             Ok(_) => providers.push("agy".to_string()),
@@ -114,7 +126,7 @@ fn run_update_with_op(config: &GalConfig, op: &str) -> Result<InstallReport, Ins
         Err(e) => warnings.push(format!("AGY init (best-effort): {e}")),
     }
 
-    // Step 4: Write ledger.
+    // Step 5: Write ledger.
     write_ledger_entry(op, &canonical_root, &providers, mode_str, &mut warnings);
 
     Ok(InstallReport {

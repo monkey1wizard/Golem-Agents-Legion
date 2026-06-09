@@ -1,24 +1,22 @@
-//! Claude Desktop MCP configuration serializer
+//! Claude provider: MCP config serializer + skill surface projection.
 //!
+//! # MCP config (ClaudeDesktopMcpConfig)
 //! Converts portable `.mcp.json` manifest to Claude Desktop's config format.
-//! On Windows, wraps env vars into PowerShell wrapper for stdio servers.
+//! On Windows, wraps env vars into a PowerShell wrapper for stdio servers.
 //!
-//! Output format:
-//! ```json
-//! {
-//!   "mcpServers": {
-//!     "server-name": {
-//!       "command": "...",
-//!       "args": ["..."]
-//!     }
-//!   }
-//! }
-//! ```
+//! # Skill surface (ClaudeSkillProjection)
+//! Creates and maintains `~/.claude/skills/gal` → canonical root.
+//! This is the GAL-owned persistent projection surface loaded by Claude Code
+//! for skills (e.g. `doc-sync`). Never touches `~/.claude/plugins/gal` (oracle
+//! legacy, removed on every refresh).
 
 use crate::mcp::{McpManifest, McpServer, Result};
 use crate::providers::{has_unresolved_secrets, McpProviderConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+use thiserror::Error;
 
 /// Claude Desktop server entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,5 +242,277 @@ mod tests {
 
         let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
         assert_eq!(config.mcp_servers.len(), 0);
+    }
+}
+
+// ─── Claude skill surface projection ────────────────────────────────────────
+
+/// Error type for Claude skill surface projection operations.
+#[derive(Debug, Error)]
+pub enum ClaudeSkillError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("home directory not found")]
+    NoHome,
+    #[error("skills directory creation failed: {0}")]
+    SkillsDirCreation(String),
+    #[error("skill surface link operation failed: {0}")]
+    LinkOp(String),
+}
+
+/// Manages `~/.claude/skills/gal` → canonical root (T-003 / R-03).
+///
+/// On Windows: NTFS directory junction (`mklink /J`).
+/// On Unix: symlink (`std::os::unix::fs::symlink`).
+///
+/// Invariants:
+/// - Never reads or writes `~/.claude/plugins/gal` (legacy, oracle removes it).
+/// - `apply()` is idempotent: removes any existing link before recreating.
+/// - `remove()` removes only the link, never the canonical root target.
+pub struct ClaudeSkillProjection {
+    /// Rendered canonical plugin root (`~/.gal/plugins/gal`).
+    pub canonical_root: PathBuf,
+    /// Skill surface link (`~/.claude/skills/gal`).
+    pub skill_surface: PathBuf,
+}
+
+impl ClaudeSkillProjection {
+    /// Construct using the real home directory.
+    pub fn new(canonical_root: PathBuf) -> std::result::Result<Self, ClaudeSkillError> {
+        let home = dirs::home_dir().ok_or(ClaudeSkillError::NoHome)?;
+        let skill_surface = home.join(".claude").join("skills").join("gal");
+        Ok(Self {
+            canonical_root,
+            skill_surface,
+        })
+    }
+
+    /// Create or update `~/.claude/skills/gal` → `canonical_root`.
+    pub fn apply(&self) -> std::result::Result<(), ClaudeSkillError> {
+        // Ensure ~/.claude/skills/ exists.
+        let skills_dir = self.skill_surface.parent().ok_or_else(|| {
+            ClaudeSkillError::SkillsDirCreation("invalid skill surface path".to_string())
+        })?;
+        fs::create_dir_all(skills_dir).map_err(|e| {
+            ClaudeSkillError::SkillsDirCreation(format!("{}: {e}", skills_dir.display()))
+        })?;
+
+        // Remove any existing link at the surface path.
+        self.remove_link()?;
+
+        // Create new link.
+        self.create_link()
+    }
+
+    /// Return `true` if the skill surface exists (link resolves).
+    pub fn verify_aligned(&self) -> bool {
+        self.skill_surface.exists()
+    }
+
+    /// Remove `~/.claude/skills/gal` (link only, never the canonical root).
+    pub fn remove(&self) -> std::result::Result<(), ClaudeSkillError> {
+        self.remove_link()
+    }
+
+    fn remove_link(&self) -> std::result::Result<(), ClaudeSkillError> {
+        // Nothing to remove.
+        if !self.skill_surface.exists() && !is_symlink_or_junction(&self.skill_surface) {
+            return Ok(());
+        }
+
+        #[cfg(windows)]
+        {
+            if self.skill_surface.is_dir() {
+                let out = std::process::Command::new("cmd")
+                    .args(["/C", "rmdir", self.skill_surface.to_str().unwrap_or("")])
+                    .output()
+                    .map_err(|e| ClaudeSkillError::LinkOp(format!("rmdir failed: {e}")))?;
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    return Err(ClaudeSkillError::LinkOp(format!(
+                        "rmdir failed: {stderr}"
+                    )));
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            if self.skill_surface.is_symlink() {
+                fs::remove_file(&self.skill_surface).map_err(|e| {
+                    ClaudeSkillError::LinkOp(format!("remove symlink failed: {e}"))
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn create_link(&self) -> std::result::Result<(), ClaudeSkillError> {
+        let out = std::process::Command::new("cmd")
+            .args([
+                "/C",
+                "mklink",
+                "/J",
+                self.skill_surface.to_str().unwrap_or(""),
+                self.canonical_root.to_str().unwrap_or(""),
+            ])
+            .output()
+            .map_err(|e| ClaudeSkillError::LinkOp(format!("mklink /J failed: {e}")))?;
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            return Err(ClaudeSkillError::LinkOp(format!(
+                "mklink /J failed: {stderr}"
+            )));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(windows))]
+    fn create_link(&self) -> std::result::Result<(), ClaudeSkillError> {
+        std::os::unix::fs::symlink(&self.canonical_root, &self.skill_surface).map_err(|e| {
+            ClaudeSkillError::LinkOp(format!("symlink creation failed: {e}"))
+        })
+    }
+}
+
+/// Return `true` if `path` is a symlink or NTFS junction even when the target is absent.
+fn is_symlink_or_junction(path: &std::path::Path) -> bool {
+    #[cfg(windows)]
+    {
+        // On Windows, metadata() follows junctions; symlink_metadata() does not.
+        path.symlink_metadata()
+            .map(|m| m.file_type().is_dir() || m.file_type().is_symlink())
+            .unwrap_or(false)
+    }
+    #[cfg(not(windows))]
+    {
+        path.is_symlink()
+    }
+}
+
+#[cfg(test)]
+mod skill_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_claude_skill_projection_new_paths() {
+        let temp = TempDir::new().unwrap();
+        let canonical = temp.path().join("canonical");
+        fs::create_dir_all(&canonical).unwrap();
+
+        let proj = ClaudeSkillProjection {
+            canonical_root: canonical.clone(),
+            skill_surface: temp.path().join(".claude").join("skills").join("gal"),
+        };
+
+        assert!(proj.canonical_root.ends_with("canonical"));
+        assert!(proj.skill_surface.to_string_lossy().contains("skills"));
+        assert!(proj.skill_surface.to_string_lossy().ends_with("gal"));
+    }
+
+    #[test]
+    fn test_apply_creates_skill_surface() {
+        let temp = TempDir::new().unwrap();
+        let canonical = temp.path().join("canonical");
+        fs::create_dir_all(&canonical).unwrap();
+
+        let skill_surface = temp.path().join(".claude").join("skills").join("gal");
+
+        let proj = ClaudeSkillProjection {
+            canonical_root: canonical.clone(),
+            skill_surface: skill_surface.clone(),
+        };
+
+        proj.apply().unwrap();
+
+        // Surface must exist (link resolves to canonical which exists).
+        assert!(skill_surface.exists(), "skill surface must exist after apply");
+    }
+
+    #[test]
+    fn test_apply_is_idempotent() {
+        let temp = TempDir::new().unwrap();
+        let canonical = temp.path().join("canonical");
+        fs::create_dir_all(&canonical).unwrap();
+
+        let skill_surface = temp.path().join(".claude").join("skills").join("gal");
+
+        let proj = ClaudeSkillProjection {
+            canonical_root: canonical.clone(),
+            skill_surface: skill_surface.clone(),
+        };
+
+        proj.apply().unwrap();
+        // Second apply must not error.
+        proj.apply().unwrap();
+
+        assert!(skill_surface.exists());
+    }
+
+    #[test]
+    fn test_verify_aligned_false_when_absent() {
+        let temp = TempDir::new().unwrap();
+        let proj = ClaudeSkillProjection {
+            canonical_root: temp.path().join("canonical"),
+            skill_surface: temp.path().join(".claude").join("skills").join("gal"),
+        };
+        assert!(!proj.verify_aligned());
+    }
+
+    #[test]
+    fn test_remove_after_apply() {
+        let temp = TempDir::new().unwrap();
+        let canonical = temp.path().join("canonical");
+        fs::create_dir_all(&canonical).unwrap();
+
+        let skill_surface = temp.path().join(".claude").join("skills").join("gal");
+
+        let proj = ClaudeSkillProjection {
+            canonical_root: canonical.clone(),
+            skill_surface: skill_surface.clone(),
+        };
+
+        proj.apply().unwrap();
+        assert!(skill_surface.exists());
+
+        proj.remove().unwrap();
+        // After remove, the surface link is gone but canonical root is untouched.
+        assert!(!skill_surface.exists(), "skill surface must be gone after remove");
+        assert!(canonical.exists(), "canonical root must survive remove");
+    }
+
+    #[test]
+    fn test_remove_when_absent_is_noop() {
+        let temp = TempDir::new().unwrap();
+        let proj = ClaudeSkillProjection {
+            canonical_root: temp.path().join("canonical"),
+            skill_surface: temp.path().join(".claude").join("skills").join("gal"),
+        };
+        // Must not error when nothing exists.
+        proj.remove().unwrap();
+    }
+
+    #[test]
+    fn test_never_touches_legacy_plugins_path() {
+        let temp = TempDir::new().unwrap();
+        let canonical = temp.path().join("canonical");
+        fs::create_dir_all(&canonical).unwrap();
+
+        let skill_surface = temp.path().join(".claude").join("skills").join("gal");
+        let legacy_plugins = temp.path().join(".claude").join("plugins").join("gal");
+
+        let proj = ClaudeSkillProjection {
+            canonical_root: canonical,
+            skill_surface,
+        };
+
+        proj.apply().unwrap();
+        // Legacy path must never be created.
+        assert!(
+            !legacy_plugins.exists(),
+            "legacy ~/.claude/plugins/gal must never be touched"
+        );
     }
 }
