@@ -301,7 +301,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-012** — 對齊 fixture 後刪 `update-mcp.{ps1,sh}`,驗無 consumer 失依。*(bda5fb7)*
 
 **R-03 adapters（受保護,architect）**
-- [ ] **T-013（R-03）** — 拆 `adapters` crate + port `update-skills` → 後端(共用 `base::render`)+ `HealthCheck`;parity。
+- [x] **T-013（R-03）** — 拆 `adapters` crate + port `update-skills` → 後端(共用 `base::render`)+ `HealthCheck`;parity。*(T-013 closeout: `crates/adapters` 最小 crate 落地，`update-skills` parity/HealthCheck/reviewer 修正完成；workspace 測試綠)*
 - [ ] **T-014** — port `update-commands` → `adapters`;parity。
 - [ ] **T-015** — port `update-personalization` → `adapters`;parity。
 - [ ] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。
