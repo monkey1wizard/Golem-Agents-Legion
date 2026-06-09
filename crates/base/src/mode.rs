@@ -198,6 +198,10 @@ pub fn resolve_mode(config: &GalConfig) -> Result<GalMode, ModeError> {
     }
 }
 
+// T-009 reparent note: `scripts/tests/Test-InstallModeAuthority.ps1` is the oracle
+// script for install-mode authority behavior.  The tests below are the fixture-based
+// Rust replacement.  `cargo test` does NOT spawn the PS1 script — all coverage comes
+// from TempDir-fixture-based assertions here (TP-10).
 #[cfg(test)]
 mod tests {
     use super::*;
