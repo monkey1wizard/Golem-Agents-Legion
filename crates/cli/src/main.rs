@@ -10,7 +10,7 @@
 //! Get-StagedCommitMessage.ps1 / get-staged-commit-message.sh helpers.
 
 use gal_engine::{classify_args, Action, CommandKind, ExitCode};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
 
 fn print_help() {
@@ -27,10 +27,77 @@ fn print_help() {
     println!();
     println!("Options:");
     println!("  doctor --dry-run                  Read-only health check (no filesystem changes)");
+    println!("  sync [repo-root]                  Regenerate repo-local adapter files");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
     println!("  release --output-dir <path>       Output directory (default: release-artifacts/)");
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct UpdateCliOptions {
+    dry_run: bool,
+    machine_only: bool,
+    uninstall: bool,
+    replace: bool,
+    selected_runtimes: Option<Vec<String>>,
+    primary_runtime: Option<String>,
+}
+
+fn parse_update_options(args: &[String]) -> Result<UpdateCliOptions, String> {
+    let mut opts = UpdateCliOptions {
+        dry_run: false,
+        machine_only: false,
+        uninstall: false,
+        replace: false,
+        selected_runtimes: None,
+        primary_runtime: None,
+    };
+    let mut i = 1usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--dry-run" => opts.dry_run = true,
+            "--machine-only" => opts.machine_only = true,
+            "--uninstall" => opts.uninstall = true,
+            "--replace" => opts.replace = true,
+            "--selected-runtimes" => {
+                i += 1;
+                let value = args.get(i).ok_or_else(|| "--selected-runtimes requires a value".to_string())?;
+                opts.selected_runtimes = Some(
+                    value
+                        .split(',')
+                        .map(|item| item.trim().to_ascii_lowercase())
+                        .filter(|item| !item.is_empty())
+                        .collect(),
+                );
+            }
+            "--primary-runtime" => {
+                i += 1;
+                let value = args.get(i).ok_or_else(|| "--primary-runtime requires a value".to_string())?;
+                opts.primary_runtime = Some(value.trim().to_ascii_lowercase());
+            }
+            unknown if unknown.starts_with("--") => return Err(format!("unknown option '{unknown}'")),
+            _ => {}
+        }
+        i += 1;
+    }
+    Ok(opts)
+}
+
+fn finalize_machine_options(
+    config: &base::config::GalConfig,
+    parsed: &UpdateCliOptions,
+) -> Result<adapters::MachineUpdateOptions, String> {
+    let mut opts = adapters::machine_options_from_config(config, parsed.dry_run).map_err(|e| e.to_string())?;
+    opts.uninstall = parsed.uninstall;
+    opts.replace = parsed.replace;
+    if let Some(selected) = &parsed.selected_runtimes {
+        opts.selected_runtimes = selected.clone();
+    }
+    if let Some(primary) = &parsed.primary_runtime {
+        opts.primary_runtime = primary.clone();
+    }
+    Ok(opts)
 }
 
 /// Run `gal install` — Rust-native install flow (T-011).
@@ -40,6 +107,27 @@ fn cmd_install() -> ExitCode {
     let config = GalConfig::load();
     match run_install(&config) {
         Ok(report) => {
+            let machine_opts = match finalize_machine_options(
+                &config,
+                &UpdateCliOptions {
+                    dry_run: false,
+                    machine_only: false,
+                    uninstall: false,
+                    replace: false,
+                    selected_runtimes: None,
+                    primary_runtime: None,
+                },
+            ) {
+                Ok(opts) => opts,
+                Err(e) => {
+                    eprintln!("gal install: {e}");
+                    return ExitCode::Error;
+                }
+            };
+            if let Err(e) = adapters::run_machine_update(&machine_opts) {
+                eprintln!("gal install: {e}");
+                return ExitCode::Error;
+            }
             println!("GAL installed to {}", report.canonical_root.display());
             println!("Mode: {}", report.mode);
             println!("Providers: {}", report.providers.join(", "));
@@ -55,23 +143,79 @@ fn cmd_install() -> ExitCode {
     }
 }
 
-/// Run `gal update` — re-render and re-project all surfaces (T-011).
-fn cmd_update() -> ExitCode {
+/// Run `gal update` — re-render and re-project all surfaces (T-011/T-016).
+fn cmd_update(args: &[String]) -> ExitCode {
     use gal_engine::{config::GalConfig, install::run_update};
 
+    let parsed = match parse_update_options(args) {
+        Ok(parsed) => parsed,
+        Err(e) => {
+            eprintln!("gal update: {e}");
+            return ExitCode::Usage;
+        }
+    };
     let config = GalConfig::load();
-    match run_update(&config) {
+    if !parsed.machine_only {
+        match run_update(&config) {
+            Ok(report) => {
+                println!("GAL updated at {}", report.canonical_root.display());
+                println!("Mode: {}", report.mode);
+                println!("Providers: {}", report.providers.join(", "));
+                for w in &report.warnings {
+                    eprintln!("warning: {w}");
+                }
+            }
+            Err(e) => {
+                eprintln!("gal update: {e}");
+                return ExitCode::Error;
+            }
+        };
+    }
+    let machine_opts = match finalize_machine_options(&config, &parsed) {
+        Ok(opts) => opts,
+        Err(e) => {
+            eprintln!("gal update: {e}");
+            return ExitCode::Error;
+        }
+    };
+    match adapters::run_machine_update(&machine_opts) {
         Ok(report) => {
-            println!("GAL updated at {}", report.canonical_root.display());
-            println!("Mode: {}", report.mode);
-            println!("Providers: {}", report.providers.join(", "));
-            for w in &report.warnings {
-                eprintln!("warning: {w}");
+            for warning in &report.warnings {
+                eprintln!("warning: {}", warning.message);
             }
             ExitCode::Success
         }
         Err(e) => {
             eprintln!("gal update: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+fn cmd_sync(args: &[String]) -> ExitCode {
+    use gal_engine::config::GalConfig;
+
+    let config = GalConfig::load();
+    let target = args
+        .iter()
+        .skip(1)
+        .find(|arg| !arg.starts_with("--"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    let opts = match adapters::sync_options_from_config(&config, target, false) {
+        Ok(opts) => opts,
+        Err(e) => {
+            eprintln!("gal sync: {e}");
+            return ExitCode::Error;
+        }
+    };
+    match adapters::run_sync(&opts) {
+        Ok(report) => {
+            println!("gal sync: updated {} adapter file(s)", report.written_files.len());
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal sync: {e}");
             ExitCode::Error
         }
     }
@@ -405,7 +549,8 @@ fn run(args: &[String]) -> ExitCode {
         }
         // T-011: wired install/update/uninstall
         Action::NotWired(CommandKind::Install) => cmd_install(),
-        Action::NotWired(CommandKind::Update) => cmd_update(),
+        Action::NotWired(CommandKind::Update) => cmd_update(args),
+        Action::NotWired(CommandKind::Sync) => cmd_sync(args),
         Action::NotWired(CommandKind::Uninstall) => cmd_uninstall(),
         // T-012: wired doctor
         Action::NotWired(CommandKind::Doctor) => cmd_doctor(args),
@@ -471,6 +616,12 @@ mod tests {
     fn update_is_wired_not_not_wired() {
         let result = run(&["update".to_string()]);
         assert_ne!(result, ExitCode::NotWired, "update must be wired (T-011)");
+    }
+
+    #[test]
+    fn sync_is_wired_not_not_wired() {
+        let result = run(&["sync".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "sync must be wired");
     }
 
     #[test]

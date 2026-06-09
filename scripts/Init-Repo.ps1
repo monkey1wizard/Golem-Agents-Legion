@@ -9,6 +9,10 @@ $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptRoot
+$galExe = (Get-Command 'gal.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if ([string]::IsNullOrWhiteSpace($galExe)) {
+    throw 'gal.exe not found on PATH.'
+}
 $graphifyVersionFileName = 'GAL_GRAPHIFY_VERSION.txt'
 
 function Test-CommandAvailable([string]$Name) {
@@ -181,7 +185,7 @@ $stateContent = Get-Content -Path $stateTemplatePath -Raw
 Set-Content -Path $projectTargetPath -Value $projectContent
 Set-Content -Path $stateTargetPath -Value $stateContent
 
-& (Join-Path $scriptRoot "Sync-DevContext.ps1") -TargetPath $resolvedTarget
+& $galExe sync $resolvedTarget
 Invoke-GraphifyAutoInit -RepoPath $resolvedTarget
 
 Write-Host "Initialized repo context in: $resolvedTarget"

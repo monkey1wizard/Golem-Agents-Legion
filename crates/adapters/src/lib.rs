@@ -3,8 +3,10 @@
 use base::config::GalConfig;
 use base::health::{DoctorFinding, HealthCheck};
 use base::json_util::read_json_map;
+use base::mode::{resolve_gal_source_root, resolve_mode, GalMode};
 use base::platform::{atomic_swap, create_dir_link, is_symlink_or_junction, remove_dir_link};
 use base::render::create_temp_render_dir;
+use base::runtime::{default_primary_runtime, VALID_RUNTIMES};
 use serde_json::{Map, Value};
 use std::ffi::OsStr;
 use std::fs;
@@ -52,12 +54,288 @@ pub struct PersonalizationUpdateOptions {
     pub uninstall: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MachineUpdateOptions {
+    pub repo_root: PathBuf,
+    pub source_root: PathBuf,
+    pub user_home: PathBuf,
+    pub appdata_root: PathBuf,
+    pub selected_runtimes: Vec<String>,
+    pub primary_runtime: String,
+    pub dry_run: bool,
+    pub replace: bool,
+    pub uninstall: bool,
+    pub include_source_projections: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncOptions {
+    pub repo_root: PathBuf,
+    pub source_root: PathBuf,
+    pub dry_run: bool,
+}
+
 #[derive(Debug, Error)]
 pub enum AdapterError {
     #[error("{0}")]
     Message(String),
     #[error("{0}")]
     Io(#[from] io::Error),
+}
+
+pub fn machine_options_from_config(config: &GalConfig, dry_run: bool) -> Result<MachineUpdateOptions, AdapterError> {
+    let (repo_root, source_root, mode) = resolve_runtime_roots(config)?;
+    let user_home = user_home()?;
+    let appdata_root = appdata_root(&user_home);
+    let selected_runtimes = load_selected_runtimes(&user_home)?;
+    let primary_runtime = load_primary_runtime(&selected_runtimes, &user_home)?;
+    Ok(MachineUpdateOptions {
+        repo_root,
+        source_root,
+        user_home,
+        appdata_root,
+        selected_runtimes,
+        primary_runtime,
+        dry_run,
+        replace: false,
+        uninstall: false,
+        include_source_projections: mode == GalMode::Dev,
+    })
+}
+
+pub fn sync_options_from_config(config: &GalConfig, repo_root: PathBuf, dry_run: bool) -> Result<SyncOptions, AdapterError> {
+    let (_, source_root, _) = resolve_runtime_roots(config)?;
+    Ok(SyncOptions { repo_root, source_root, dry_run })
+}
+
+pub fn run_machine_update(opts: &MachineUpdateOptions) -> Result<ProjectionReport, AdapterError> {
+    let mut report = run_update_personalization(&PersonalizationUpdateOptions {
+        repo_root: opts.repo_root.clone(),
+        source_root: opts.source_root.clone(),
+        user_home: opts.user_home.clone(),
+        appdata_root: opts.appdata_root.clone(),
+        selected_runtimes: opts.selected_runtimes.clone(),
+        dry_run: opts.dry_run,
+        replace: opts.replace,
+        uninstall: opts.uninstall,
+    })?;
+
+    if opts.include_source_projections {
+        extend_report(
+            &mut report,
+            run_update_skills(&SkillUpdateOptions {
+                repo_root: opts.repo_root.clone(),
+                source_root: opts.source_root.clone(),
+                user_home: opts.user_home.clone(),
+                selected_runtimes: opts.selected_runtimes.clone(),
+                dry_run: opts.dry_run,
+                replace: opts.replace,
+            })?,
+        );
+        extend_report(
+            &mut report,
+            run_update_commands(&CommandUpdateOptions {
+                repo_root: opts.repo_root.clone(),
+                source_root: opts.source_root.clone(),
+                user_home: opts.user_home.clone(),
+                selected_runtimes: opts.selected_runtimes.clone(),
+                dry_run: opts.dry_run,
+                replace: opts.replace,
+            })?,
+        );
+    }
+
+    Ok(report)
+}
+
+pub fn run_sync(opts: &SyncOptions) -> Result<ProjectionReport, AdapterError> {
+    let project_path = opts.repo_root.join(".dev").join("project.md");
+    if !project_path.is_file() {
+        return Err(AdapterError::Message(format!(
+            "missing required file: {}",
+            project_path.display()
+        )));
+    }
+
+    let project_content = read_markdown_required(&project_path)?;
+    let convention_names = project_convention_file_names(&project_path)?;
+    let conventions = read_selected_markdown(&opts.source_root.join("conventions"), &convention_names)?;
+    let workflow = read_markdown_required(&opts.source_root.join("workflows").join("coding.md"))?;
+    let skill_names = list_named_children(&opts.source_root.join("skills"))?;
+
+    let copilot_content = render_adapter_document(
+        "Copilot Instructions",
+        &[
+            "This is the repo-local adapter for GitHub Copilot.",
+            "Skills in this repo's `skills/` directory are listed by name only — Copilot discovers GAL commands from the global runtime install.",
+            "This generator never modifies `~/.copilot/skills/` or any other machine-level configuration.",
+        ],
+        &project_content,
+        &conventions,
+        &workflow,
+        &skill_names,
+        false,
+    );
+    let gemini_content = render_adapter_document(
+        "GEMINI Context",
+        &[
+            "This is the repo-local Google CLI adapter consumed by Antigravity CLI and retained under the `GEMINI.md` filename for Google-runtime compatibility.",
+            "Repo-local skills are indexed below by name so Antigravity CLI and remaining Google CLI surfaces can discover them without duplicating every skill body in the adapter.",
+            "This generator does not mutate `~/.gemini/gal-context.md` or other machine-level Google CLI configuration.",
+        ],
+        &project_content,
+        &conventions,
+        &workflow,
+        &skill_names,
+        true,
+    );
+    let claude_content = render_adapter_document(
+        "CLAUDE Context",
+        &[
+            "This is the repo-local adapter for Claude Code.",
+            "Repo-local skills are indexed below by name so Claude Code can find the right skill file without duplicating every skill body in the adapter.",
+            "This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `Setup-Machine`.",
+        ],
+        &project_content,
+        &conventions,
+        &workflow,
+        &skill_names,
+        true,
+    );
+    let agents_content = render_adapter_document(
+        "GAL Agent Instructions",
+        &[
+            "This is the shared cross-CLI contract generated from repo sources for Copilot CLI, Codex CLI, Antigravity workspace rules, remaining Google CLI bridges, and Claude Code CLI.",
+            "Repo-local skills are indexed below by name so runtimes can discover the right skill file without duplicating every skill body in this shared adapter.",
+            "This file is generated by `/gal init`. Do not edit manually.",
+        ],
+        &project_content,
+        &conventions,
+        &workflow,
+        &skill_names,
+        true,
+    );
+
+    let mut report = ProjectionReport::default();
+    write_text_with_report(
+        &opts.repo_root.join(".github").join("copilot-instructions.md"),
+        &copilot_content,
+        opts.dry_run,
+        &mut report,
+    )?;
+    write_text_with_report(&opts.repo_root.join("GEMINI.md"), &gemini_content, opts.dry_run, &mut report)?;
+    write_text_with_report(&opts.repo_root.join("CLAUDE.md"), &claude_content, opts.dry_run, &mut report)?;
+    write_text_with_report(&opts.repo_root.join("AGENTS.md"), &agents_content, opts.dry_run, &mut report)?;
+    Ok(report)
+}
+
+fn extend_report(report: &mut ProjectionReport, mut next: ProjectionReport) {
+    report.written_files.append(&mut next.written_files);
+    report.removed_paths.append(&mut next.removed_paths);
+    report.created_links.append(&mut next.created_links);
+    report.warnings.append(&mut next.warnings);
+}
+
+fn resolve_runtime_roots(config: &GalConfig) -> Result<(PathBuf, PathBuf, GalMode), AdapterError> {
+    let mode = resolve_mode(config).map_err(|e| AdapterError::Message(e.to_string()))?;
+    match mode {
+        GalMode::Dev => {
+            let raw_repo = config
+                .gal_root()
+                .ok_or_else(|| AdapterError::Message("dev mode requires galRoot".into()))?;
+            let repo_root = PathBuf::from(raw_repo);
+            let source_root = resolve_gal_source_root(raw_repo).map_err(|e| AdapterError::Message(e.to_string()))?;
+            Ok((repo_root, source_root, mode))
+        }
+        GalMode::Normal => {
+            let exe = std::env::current_exe()
+                .map_err(|e| AdapterError::Message(format!("could not resolve current executable: {e}")))?;
+            for candidate in exe.ancestors() {
+                if looks_like_gal_core(candidate) {
+                    return Ok((candidate.to_path_buf(), candidate.to_path_buf(), mode));
+                }
+                let plugin = candidate.join("plugins").join("gal-core");
+                if looks_like_gal_core(&plugin) {
+                    return Ok((candidate.to_path_buf(), plugin, mode));
+                }
+            }
+            Err(AdapterError::Message(
+                "could not resolve GAL source root from packaged executable".into(),
+            ))
+        }
+    }
+}
+
+fn looks_like_gal_core(path: &Path) -> bool {
+    ["commands", "agents", "skills", "conventions", "workflows"]
+        .iter()
+        .all(|name| path.join(name).is_dir())
+}
+
+fn user_home() -> Result<PathBuf, AdapterError> {
+    #[cfg(windows)]
+    {
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .ok_or_else(|| AdapterError::Message("USERPROFILE is not set".into()))
+    }
+    #[cfg(not(windows))]
+    {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .ok_or_else(|| AdapterError::Message("HOME is not set".into()))
+    }
+}
+
+fn appdata_root(user_home: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| user_home.join("AppData").join("Roaming"))
+    }
+    #[cfg(not(windows))]
+    {
+        user_home.join(".config")
+    }
+}
+
+fn load_selected_runtimes(user_home: &Path) -> Result<Vec<String>, AdapterError> {
+    let install_state = user_home.join(".gal").join("install-state.json");
+    let raw = read_json_map(&install_state)?;
+    let mut selected = raw
+        .get("selectedRuntimes")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|value| value.trim().to_ascii_lowercase())
+                .filter(|value| VALID_RUNTIMES.contains(&value.as_str()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if selected.is_empty() {
+        selected = VALID_RUNTIMES.iter().map(|value| (*value).to_string()).collect();
+    }
+    selected.sort();
+    selected.dedup();
+    Ok(selected)
+}
+
+fn load_primary_runtime(selected_runtimes: &[String], user_home: &Path) -> Result<String, AdapterError> {
+    let install_state = user_home.join(".gal").join("install-state.json");
+    let raw = read_json_map(&install_state)?;
+    if let Some(primary) = raw.get("primaryRuntime").and_then(Value::as_str) {
+        let normalized = primary.trim().to_ascii_lowercase();
+        if selected_runtimes.iter().any(|value| value == &normalized) {
+            return Ok(normalized);
+        }
+    }
+    let refs = selected_runtimes.iter().map(String::as_str).collect::<Vec<_>>();
+    default_primary_runtime(&refs)
+        .map(str::to_string)
+        .ok_or_else(|| AdapterError::Message("could not resolve primary runtime".into()))
 }
 
 #[derive(Debug, Clone)]
@@ -879,6 +1157,105 @@ fn list_command_dirs(root: &Path) -> Result<Vec<PathBuf>, AdapterError> {
 
 fn read_markdown_required(path: &Path) -> Result<String, AdapterError> {
     fs::read_to_string(path).map_err(AdapterError::from)
+}
+
+fn read_selected_markdown(root: &Path, file_names: &[String]) -> Result<Vec<(String, String)>, AdapterError> {
+    let mut docs = Vec::new();
+    for name in file_names {
+        let path = root.join(name);
+        if path.is_file() {
+            docs.push((format!("conventions/{name}"), read_markdown_required(&path)?));
+        }
+    }
+    Ok(docs)
+}
+
+fn project_convention_file_names(project_path: &Path) -> Result<Vec<String>, AdapterError> {
+    let project = read_markdown_required(project_path)?;
+    let language_line = project
+        .lines()
+        .find(|line| line.trim_start().starts_with("| Language |"))
+        .map(str::to_ascii_lowercase);
+    let mut names = vec![
+        "conventions.md".to_string(),
+        "token-budget.md".to_string(),
+        "working-hours.md".to_string(),
+    ];
+    match language_line {
+        None => {
+            names.extend([
+                "csharp.md".to_string(),
+                "go.md".to_string(),
+                "rust.md".to_string(),
+                "typescript.md".to_string(),
+            ]);
+        }
+        Some(line) => {
+            if line.contains("c#") || line.contains(".net") {
+                names.push("csharp.md".to_string());
+            }
+            if line.contains("typescript") || line.contains("javascript") {
+                names.push("typescript.md".to_string());
+            }
+            if line.contains("golang") || line.contains("go") {
+                names.push("go.md".to_string());
+            }
+            if line.contains("rust") {
+                names.push("rust.md".to_string());
+            }
+        }
+    }
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+fn render_adapter_document(
+    title: &str,
+    preamble: &[&str],
+    project_content: &str,
+    conventions: &[(String, String)],
+    workflow_content: &str,
+    skill_names: &[String],
+    include_skill_index: bool,
+) -> String {
+    let mut lines = Vec::new();
+    lines.push(format!("# {title}"));
+    lines.push(String::new());
+    lines.push("> Generated by `/gal init`. Do not edit manually.".to_string());
+    lines.push("> Update `.dev/project.md` or the GAL source docs, then rerun `/gal init`.".to_string());
+    lines.push(String::new());
+    lines.push("## Adapter Rules".to_string());
+    lines.push(String::new());
+    for entry in preamble {
+        lines.push(format!("- {entry}"));
+    }
+    lines.push(String::new());
+    append_source_block(&mut lines, ".dev/project.md", project_content);
+    for (label, content) in conventions {
+        append_source_block(&mut lines, label, content);
+    }
+    append_source_block(&mut lines, "workflows/coding.md", workflow_content);
+    if include_skill_index && !skill_names.is_empty() {
+        lines.push("## Repo Skills".to_string());
+        lines.push(String::new());
+        lines.push(
+            "The following repo-local skills are available by name. Read the corresponding `skills/<name>/SKILL.md` file when full instructions are needed."
+                .to_string(),
+        );
+        lines.push(String::new());
+        for skill in skill_names {
+            lines.push(format!("- `{skill}` - `skills/{skill}/SKILL.md`"));
+        }
+        lines.push(String::new());
+    }
+    format!("{}\n", lines.join("\n").trim_end())
+}
+
+fn append_source_block(lines: &mut Vec<String>, label: &str, content: &str) {
+    lines.push(format!("<!-- Source: {label} -->"));
+    lines.push(content.trim().to_string());
+    lines.push(String::new());
 }
 
 fn resolve_command_skill_content_path(command_dir: &Path) -> PathBuf {

@@ -176,7 +176,7 @@ fi
 echo -e "$project_content" > "$project_target"
 cp "$state_template" "$state_target"
 
-"$script_dir/sync-dev-context.sh" "$target_path"
+gal sync "$target_path"
 run_graphify_auto_init "$target_path"
 
 echo "Initialized repo context in: $target_path"

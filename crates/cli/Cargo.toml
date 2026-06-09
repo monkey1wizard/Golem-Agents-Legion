@@ -11,6 +11,7 @@ name = "gal"
 path = "src/main.rs"
 
 [dependencies]
+adapters = { path = "../adapters" }
 base = { path = "../base" }
 gal-engine = { path = "../gal-engine" }
 mcp = { path = "../mcp" }

@@ -304,7 +304,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-013（R-03）** — 拆 `adapters` crate + port `update-skills` → 後端(共用 `base::render`)+ `HealthCheck`;parity。*(T-013 closeout: `crates/adapters` 最小 crate 落地，`update-skills` parity/HealthCheck/reviewer 修正完成；workspace 測試綠)*
 - [x] **T-014** — port `update-commands` → `adapters`;parity。
 - [x] **T-015** — port `update-personalization` → `adapters`;parity。
-- [ ] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。
+- [x] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。*(T-016 closeout: `crates/adapters` 新增 sync/machine-update orchestration，`crates/cli` 接上 `gal sync` 與 `gal update --machine-only`，`Init-Repo` / `Setup-Machine` caller scripts 改走 Rust binary；reviewer APPROVE，workspace 測試綠)*
 - [ ] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。
 
 **R-04 setup（受保護,architect）**

@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# setup-machine.sh — Orchestrate GAL machine setup by invoking concern-specific update scripts.
+# setup-machine.sh — Orchestrate GAL machine setup by invoking GAL machine update + MCP refresh.
 #
-# Runs the shell concern scripts in order:
-#   1. update-personalization.sh
-#   2. update-skills.sh
-#   3. update-commands.sh
-#   4. gal mcp update
-#   5. install-gal-plugins.sh
+# Runs the setup chain in order:
+#   1. gal update --machine-only
+#   2. gal mcp update
+#   3. install-gal-plugins.sh
 #
 # `--check` / `--doctor` short-circuit that chain and delegate directly to
 # install-gal-plugins.sh so the provider doctor surface stays read-only.
@@ -150,19 +148,30 @@ if ! $UNINSTALL; then
     shared_args+=(--selected-runtimes "$SELECTED_RUNTIMES_CSV" --primary-runtime "$PRIMARY_RUNTIME")
 fi
 
-step_names=(Personalization Skills Commands MCP 'Install Orchestration')
-step_scripts=(update-personalization.sh update-skills.sh update-commands.sh '' install-gal-plugins.sh)
+step_names=('Machine Surfaces' MCP 'Install Orchestration')
+step_scripts=('' '' install-gal-plugins.sh)
 
 for index in "${!step_scripts[@]}"; do
-    if [ "$SETUP_INSTALL_MODE" = 'install' ] && ! $UNINSTALL && { [ "${step_names[$index]}" = 'Skills' ] || [ "${step_names[$index]}" = 'Commands' ]; }; then
-        echo ''
-        echo ">>> Skipping ${step_names[$index]}"
-        echo "  [SKIP] ${step_names[$index]} stay source-mode-only because install mode must not depend on repo-root links or baked {{GAL_ROOT}} paths."
-        continue
-    fi
-
     echo ''
     echo ">>> Running ${step_names[$index]}"
+
+    if [ "${step_names[$index]}" = 'Machine Surfaces' ]; then
+        update_args=(update --machine-only)
+        if $DRY_RUN; then
+            update_args+=(--dry-run)
+        fi
+        if $UNINSTALL; then
+            update_args+=(--uninstall)
+        fi
+        if $REPLACE; then
+            update_args+=(--replace)
+        fi
+        if ! $UNINSTALL; then
+            update_args+=(--selected-runtimes "$SELECTED_RUNTIMES_CSV" --primary-runtime "$PRIMARY_RUNTIME")
+        fi
+        gal "${update_args[@]}"
+        continue
+    fi
 
     if [ "${step_names[$index]}" = 'MCP' ]; then
         if ! $UNINSTALL; then
@@ -205,7 +214,7 @@ elif $DRY_RUN; then
 else
     echo "Setup complete: runtimes=$(format_runtime_csv "$SELECTED_RUNTIMES_CSV"); primary=$PRIMARY_RUNTIME"
     if [ "$SETUP_INSTALL_MODE" = 'source' ]; then
-        echo 'Note: If SKILL.template.md or SKILL.local.md changes, rerun update-commands.sh or setup-machine.sh.'
+        echo 'Note: If SKILL.template.md or SKILL.local.md changes, rerun gal update --machine-only or setup-machine.sh.'
     else
         echo 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'
         if $BOOTSTRAP_INSTALL; then

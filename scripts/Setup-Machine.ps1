@@ -4,13 +4,11 @@
 
 .DESCRIPTION
     `Setup-Machine.ps1` resolves runtime selection once, then runs:
-      1. `Update-Personalization.ps1`
-      2. `Update-Skills.ps1`
-      3. `Update-Commands.ps1`
-      4. `gal mcp update`
-            5. `Install-GalPlugins.ps1`
+      1. `gal update --machine-only`
+      2. `gal mcp update`
+      3. `Install-GalPlugins.ps1`
 
-    Each update script can also run standalone. `mcp.json` plus optional
+    `mcp.json` plus optional
         `~/.gal/config/mcp.local.json` remains the MCP source of truth, while Copilot MCP is
         written separately for VS Code Copilot and Copilot CLI.
 
@@ -61,6 +59,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'common\Common.ps1')
+$galExe = (Get-Command 'gal.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if ([string]::IsNullOrWhiteSpace($galExe)) {
+    throw 'gal.exe not found on PATH.'
+}
 
 function Get-ConfiguredInstallMode {
     param(
@@ -173,14 +175,10 @@ if (-not $Uninstall) {
 }
 
 $steps = @(
-    [pscustomobject]@{ Name = 'Personalization'; Path = Join-Path $PSScriptRoot 'Update-Personalization.ps1' },
-    [pscustomobject]@{ Name = 'Skills'; Path = Join-Path $PSScriptRoot 'Update-Skills.ps1' },
-    [pscustomobject]@{ Name = 'Commands'; Path = Join-Path $PSScriptRoot 'Update-Commands.ps1' },
+    [pscustomobject]@{ Name = 'Machine Surfaces'; Path = $null },
     [pscustomobject]@{ Name = 'MCP'; Path = $null },
     [pscustomobject]@{ Name = 'Install Orchestration'; Path = Join-Path $PSScriptRoot 'Install-GalPlugins.ps1' }
 )
-
-$sourceOnlySteps = @('Skills', 'Commands')
 
 if ($Purge -and -not $Uninstall) {
     throw 'Purge is only supported together with -Uninstall.'
@@ -191,19 +189,25 @@ if ($ConfirmPurge -and -not $Purge) {
 }
 
 foreach ($step in $steps) {
-    if (-not $Uninstall -and $installMode -eq 'install' -and $sourceOnlySteps -contains $step.Name) {
-        Write-Host ''
-        Write-Host ('>>> Skipping {0}' -f $step.Name)
-        Write-Host ('  [SKIP] {0} stay source-mode-only because install mode must not depend on repo-root links or baked {{GAL_ROOT}} paths.' -f $step.Name)
-        continue
-    }
-
     Write-Host ''
     Write-Host ('>>> Running {0}' -f $step.Name)
 
+    if ($step.Name -eq 'Machine Surfaces') {
+        $updateArgs = @('update', '--machine-only')
+        if ($DryRun) { $updateArgs += '--dry-run' }
+        if ($Uninstall) { $updateArgs += '--uninstall' }
+        if ($Replace) { $updateArgs += '--replace' }
+        if (-not $Uninstall) {
+            $updateArgs += @('--selected-runtimes', (@($context.SelectedRuntimes) -join ','))
+            $updateArgs += @('--primary-runtime', $context.PrimaryRuntime)
+        }
+        & $galExe @updateArgs
+        continue
+    }
+
     if ($step.Name -eq 'MCP') {
         if (-not $Uninstall) {
-            & gal mcp update
+            & $galExe mcp update
         }
         else {
             Write-Host '  [SKIP] MCP config files are preserved during uninstall.'
@@ -250,7 +254,7 @@ elseif ($DryRun) {
 else {
     Write-Host ('Setup complete: runtimes={0}; primary={1}' -f (@($context.SelectedRuntimes) -join ', '), $context.PrimaryRuntime)
     if ($installMode -eq 'source') {
-        Write-Host 'Note: If SKILL.template.md or SKILL.local.md changes, rerun Update-Commands.ps1 or Setup-Machine.ps1.'
+        Write-Host 'Note: If SKILL.template.md or SKILL.local.md changes, rerun gal update --machine-only or Setup-Machine.ps1.'
     }
     else {
         Write-Host 'Note: Source-only skills and commands updates were skipped because install mode uses provider-native projections.'

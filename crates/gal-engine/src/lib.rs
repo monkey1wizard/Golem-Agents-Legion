@@ -26,6 +26,7 @@ pub use base::{config, ledger, mode, paths};
 pub enum CommandKind {
     Install,
     Update,
+    Sync,
     Doctor,
     Uninstall,
     /// `gal commit-msg <msg-file>` — git commit-msg hook (T-013, optional/R5).
@@ -40,9 +41,10 @@ pub enum CommandKind {
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 8] = [
+    pub const ALL: [CommandKind; 9] = [
         CommandKind::Install,
         CommandKind::Update,
+        CommandKind::Sync,
         CommandKind::Doctor,
         CommandKind::Uninstall,
         CommandKind::CommitMsg,
@@ -56,6 +58,7 @@ impl CommandKind {
         match self {
             CommandKind::Install => "install",
             CommandKind::Update => "update",
+            CommandKind::Sync => "sync",
             CommandKind::Doctor => "doctor",
             CommandKind::Uninstall => "uninstall",
             CommandKind::CommitMsg => "commit-msg",
@@ -70,6 +73,7 @@ impl CommandKind {
         match input.trim().to_ascii_lowercase().as_str() {
             "install" => Some(CommandKind::Install),
             "update" => Some(CommandKind::Update),
+            "sync" => Some(CommandKind::Sync),
             "doctor" => Some(CommandKind::Doctor),
             "uninstall" => Some(CommandKind::Uninstall),
             "commit-msg" => Some(CommandKind::CommitMsg),
@@ -138,6 +142,7 @@ mod tests {
     fn parses_every_known_command() {
         assert_eq!(CommandKind::parse("install"), Some(CommandKind::Install));
         assert_eq!(CommandKind::parse("update"), Some(CommandKind::Update));
+        assert_eq!(CommandKind::parse("sync"), Some(CommandKind::Sync));
         assert_eq!(CommandKind::parse("doctor"), Some(CommandKind::Doctor));
         assert_eq!(CommandKind::parse("uninstall"), Some(CommandKind::Uninstall));
         assert_eq!(CommandKind::parse("mcp"), Some(CommandKind::Mcp));

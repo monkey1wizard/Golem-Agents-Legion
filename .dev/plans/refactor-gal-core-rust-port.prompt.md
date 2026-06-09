@@ -103,15 +103,15 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IMPLEMENT — T-016 active after T-015 closeout
-Step: 15 of 35
-Last activity: 2026-06-11 — T-015 complete — `crates/adapters` now covers `update-personalization`; reviewer approve after bridge merge + dry-run safety fixes; workspace tests green.
-Next step: T-016 — port `Sync-DevContext` into `adapters`, then wire `gal sync` / `gal update` with the same task-scoped parity/review flow
-Current Task: T-016
+Workflow: IMPLEMENT — T-017 active after T-016 closeout
+Step: 16 of 35
+Last activity: 2026-06-11 — T-016 complete — `crates/adapters` now owns Sync-DevContext parity plus machine/repo update orchestration; `gal sync` and `gal update --machine-only` wired through `cli`; workspace tests green and reviewer approve.
+Next step: T-017 — delete the remaining legacy R-03 script pairs after the new sync/update path is the only live consumer
+Current Task: T-017
 Task Base Commit: bda5fb7
-Task Final Commit: —
-Test Retry Count: 2
-Review Retry Count: 2
+Task Final Commit: pending T-016 closeout commit
+Test Retry Count: 1
+Review Retry Count: 1
 
 ### Deviations
 
@@ -155,7 +155,7 @@ R-03 adapters (protected, architect)
 - [x] T-013 (R-03) — Split `adapters` crate + port `update-skills` → backend (shares `base::render`) + `HealthCheck`; parity.
 - [x] T-014 — Port `update-commands` → `adapters`; parity.
 - [x] T-015 — Port `update-personalization` → `adapters`; parity.
-- [ ] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
+- [x] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
 - [ ] T-017 — After all four pairs reach parity green, delete them.
 
 R-04 setup (protected, architect)
@@ -192,6 +192,23 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-016] 2026-06-11 — APPROVE
+
+Reviewed: 2026-06-11
+Commit range: unstaged diff — `crates/adapters/**`, `crates/cli/**`, `crates/gal-engine/src/lib.rs`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh`, `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`
+Verdict: APPROVE
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 0
 
 ### [T-014] 2026-06-09 — REQUEST_CHANGES (superseded)
 
@@ -476,6 +493,15 @@ _(none)_
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-016] 2026-06-11 — PASS (TP-14/TP-15 slice: Sync-DevContext + CLI wiring)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-14/TP-15 sliced to T-016 only (`Sync-DevContext` parity plus `gal sync` / `gal update --machine-only` orchestration).
+
+- **Targeted and workspace suites green** — `cargo test -p gal-engine --quiet`, `cargo test -p cli --quiet`, `cargo test -p adapters --quiet`, and `cargo test --workspace --quiet` all passed after wiring the new path.
+- **Repo-local vs machine-local boundaries held** — `run_sync` now renders repo adapter files, while `run_machine_update` only refreshes machine projections and is invoked from `gal update --machine-only`.
+- **Caller scripts moved to Rust entrypoints** — `Init-Repo` now calls `gal sync`; `Setup-Machine` now calls `gal update --machine-only` plus `gal mcp update`, with Windows using `gal.exe`.
+- **Scope held to T-016** — legacy script deletion remains deferred to T-017; this task only ports the live sync/update path and its callers.
 
 ### [T-015] 2026-06-11 — PASS (TP-14 slice: update-personalization)
 
