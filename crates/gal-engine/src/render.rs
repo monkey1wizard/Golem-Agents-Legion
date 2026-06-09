@@ -309,12 +309,16 @@ fn looks_like_source_root(path: &Path) -> bool {
 }
 
 /// Get the canonical plugin root path.
+///
+/// Uses `dirs::home_dir()` for consistent resolution on Windows, macOS, and Linux
+/// (avoids raw `USERPROFILE`/`HOME` env var divergence across platforms).
 fn get_canonical_plugin_root() -> PathBuf {
     // ~/.gal/plugins/gal/
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_else(|_| ".".to_string());
-    Path::new(&home).join(".gal").join("plugins").join("gal")
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".gal")
+        .join("plugins")
+        .join("gal")
 }
 
 /// Create a temp directory for atomic rendering.
