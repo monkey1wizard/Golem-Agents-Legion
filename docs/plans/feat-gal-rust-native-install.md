@@ -137,7 +137,7 @@ scripts 為**過渡 oracle**，非永久凍結：功能達 Rust parity 即刪對
 - [x] **T-001（P0，gate）** — 實機探測並在 `docs/devguide.md` 寫「每 provider GAL 自有載入面」對照表：證實 `~/.claude/skills/gal` 被 Claude 當 skill 來源載入（`doc-sync` 可見）；列出 Copilot（manifest/host copy）、AGY（junction）各自實際自有面。**go/no-go**：skill 面無法載入則阻斷，回報後重評（不採官方流程）。*(f83f071)*
 - [x] **T-002（R-10/RC-6，引擎核心）** — `crates/gal-engine/src/mode.rs`：galRoot 在 repo root 下自動解析 `plugins/gal-core`；容忍 galRoot 已是 gal-core 的舊形式（不雙重 append）。**同一 commit** 把本機 config `galRoot` 還原為 repo root。須 bootstrap 邊界 architect 簽核。*(a192df7)*
 - [x] **T-003（P1，引擎核心）** — `crates/gal-engine/src/providers/claude.rs`（+`install.rs`/`render.rs`）：skill projection 目標改為 `~/.claude/skills/gal`（symlink → canonical root），不碰 legacy `~/.claude/plugins/gal`；`gal install`/`update` 後 skill 面即時對齊 source。依賴 T-001 證實面正確。須 bootstrap 邊界 architect 簽核。*(c3bf950)*
-- [ ] **T-004（P2）** — `render.rs`/`install.rs`：published plugin root 建 `bin/`，複製本機 OS 原生 `gal`（Unix +x、Windows `gal.exe`），缺 binary fail-loud、不放 `.sh`/`.ps1` wrapper。
+- [x] **T-004（P2）** — `render.rs`/`install.rs`：published plugin root 建 `bin/`，複製本機 OS 原生 `gal`（Unix +x、Windows `gal.exe`），缺 binary fail-loud、不放 `.sh`/`.ps1` wrapper。*(62bc53d)*
 - [ ] **T-005（P3）** — `render.rs`/`install.rs`/`doctor.rs`：atomic swap 成功後刪自身 temp；install/doctor 以白名單（`.gal-render-*` 前綴）偵測清理孤兒，doctor-first、不 delete-through。
 - [ ] **T-006（P4，引擎核心）** — `doctor.rs`/`crates/gal-cli/src/main.rs`：新增「活面 vs source」檢查（agent/skill 數、`golem-dockeeper`+`doc-sync` 存在、`bin/gal` 可執行、無孤兒），exit 分級；`--release-gate` 併入；移除/改寫 `ClaudeMarketplaceState` 官方 marketplace 三狀態分類為 GAL 自有面健康檢查。
 - [ ] **T-007（P5 跨平台）** — `gal-engine`：Windows junction / Unix symlink + `+x` 三平台路徑/權限對齊；macOS/Linux 隔離 home install 驗證 skill 面對齊。

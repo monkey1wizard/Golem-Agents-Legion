@@ -147,9 +147,9 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 4 of 13
-Last activity: 2026-06-09 — T-003 complete (c3bf950)
-Next step: T-004 implement
+Step: 5 of 13
+Last activity: 2026-06-09 — T-004 complete (62bc53d)
+Next step: T-005 implement
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -181,7 +181,7 @@ Review Retry Count: 0
 - [x] **T-001 (P0, gate)** — Real-machine probe and write the per-provider GAL-owned load-surface table in `docs/devguide.md`: confirm `~/.claude/skills/gal` is loaded by Claude as a skill source (`doc-sync` visible); list Copilot (manifest/host copy) and AGY (junction) actual surfaces. **go/no-go**: if the skill surface cannot be loaded, block and report, then re-evaluate (no official flow). *(f83f071)*
 - [x] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off. *(a192df7)*
 - [x] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off. *(c3bf950)*
-- [ ] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper.
+- [x] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper. *(62bc53d)*
 - [ ] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through.
 - [ ] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check.
 - [ ] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install.
@@ -282,6 +282,23 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
 
+### [T-004] 2026-06-09
+
+**Type**: unit (cargo test -p gal-engine -- render::tests)
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+| Test | Result |
+| --- | --- |
+| `test_render_bin_exposure_copies_binary` | PASS — bin/gal[.exe] exists after call |
+| `test_render_bin_exposure_correct_os_filename` | PASS — Windows=gal.exe, Unix=gal |
+| `test_render_bin_exposure_fail_loud_on_missing_binary` | PASS — BinaryNotFound returned |
+| `test_render_bin_exposure_no_shell_wrappers` | PASS — no .sh/.ps1 in bin/ |
+
+**Full suite:** `cargo test -p gal-engine` → 160 passed, 1 ignored, 0 failed.
+
+**TP-05 (bare `gal --version` via plugin `bin/`):** deferred to E2E validation (TP-15/TP-16) — requires a running Claude Code session with plugin enabled.
+
 ### [T-003] 2026-06-09
 
 **Type**: unit (cargo test -p gal-engine -- skill_tests) + full suite
@@ -351,6 +368,25 @@ No correctness defects, no security issues, no architecture violations. All thre
 - `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
 - `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
 - Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
+
+### [T-004] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/render.rs` (diff cb5dd35..62bc53d)
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | `current_exe()` inside `render_to_temp()` is called unconditionally — in tests that invoke `render_canonical_root()` directly, this returns the test binary, not the GAL binary. The copy will succeed (test binary is a file) but produce a test binary in `bin/`. This is benign: isolated-home tests are the integration gate (TP-15/16); unit tests use temp dirs and don't expose the result to Claude. |
+| R2 | INFO | `render_bin_exposure` is `pub` — correct, needed by doctor (T-006) to locate the installed binary path for validation. |
+
+No correctness defects, no security issues, no architecture violations.
+
+**Rationale:**
+- `BinaryNotFound` correctly fails the render before temp→swap, preventing a half-product (R-04 invariant: no half-product on missing binary).
+- `cfg!(windows)` / `#[cfg(unix)]` split is correct: Windows produces `.exe`, Unix gets `+x`.
+- No shell wrappers created anywhere; test explicitly verifies the invariant.
+- `render_to_temp()` integration point is correct: `current_exe()` → `render_bin_exposure()` at the end, after all other rendering.
 
 ### [T-003] Code Review — 2026-06-09
 
