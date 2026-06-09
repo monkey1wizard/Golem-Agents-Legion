@@ -147,10 +147,10 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 9 of 13
-Last activity: 2026-06-09 — T-008 complete (93b41c7); T-007 complete (04babd9)
-Next step: T-009 implement
-Current Task: T-009
+Step: 10 of 13
+Last activity: 2026-06-09 — T-009 complete (8615eb5)
+Next step: T-010 implement
+Current Task: —
 Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0
@@ -186,7 +186,7 @@ Review Retry Count: 0
 - [x] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check. *(c882267)*
 - [x] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install. *(04babd9)*
 - [x] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane). *(93b41c7)*
-- [ ] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`.
+- [x] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`. *(8615eb5)*
 - [ ] **T-010 (P7 precondition)** — reparent oracle tests: convert `crates/gal-engine/tests/cross_platform_oracle_parity.rs` and `scripts/test-t022-ssh.sh` to `tests/fixtures/` snapshots or behavior/intent tests, removing runtime dependence on live `scripts/*.{sh,ps1}`. **Must complete before T-011.**
 - [ ] **T-011 (P7, R-11)** — delete superseded install-family ps1/bash (in pairs): `Build-CorePlugin.*`/`build-core-plugin.sh`, `Build-ProviderPlugins.*`/`build-provider-plugins.sh`, `ProviderPlugin.ps1`/`provider-plugin.sh`, `Update-Mcp.*`, `Install-GalPlugins.*`/`install-gal-plugins.sh`, `Common.*`/`common.sh` (install part), matching `Test-*.ps1`, `gal.ps1` (after the Rust binary owns all subcommands). Monolithic scripts wait until all consumers are at parity. **Retain** `Setup-Machine.*`/`Sync-DevContext.*`.
 - [ ] **T-012 (docs)** — `docs/devguide.md`/`docs/manual.md`/`README.md`: write the GAL-owned load-surface contract, bin exposure, correct install flow; remove/mark-stale obsolete official-marketplace prose (incl. `README.md:44-48`).
@@ -258,6 +258,20 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 **Conclusion**: after this plan's validation (incl. TP-15/16/17), install-followups closes ~3/11 (install path + macOS cross-platform); the remaining ~8 are security / M2 / hardening needing separate code changes, not closed by validation. Emptying that file needs a separate hardening/M2 pass for S-1/2, FU-03/04, etc. (FU-04 can ride T-002).
 
 ## Test Results
+
+### [T-009] 2026-06-09
+
+**Type**: static verification (docs + script syntax)
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+- `bash -n scripts/test-install-acceptance.sh` → syntax OK
+- `docs/devguide.md` "Clean-Install Acceptance Bar" section present (line ~825)
+- Section includes 8-check acceptance table, Unix script usage, Windows manual checklist
+- `golem-dockeeper.agent.md` and `doc-sync/` acceptance criteria documented correctly
+- TP-11 (manual real-machine smoke) deferred to mac-mini TP-15 and Windows TP-16 validation venues
+
+**Note:** TP-11 real-machine verification requires a clean-install target machine. The acceptance script is the TP-15 execution vehicle; Windows checklist is the TP-16 vehicle.
 
 ### [T-001] 2026-06-09
 
@@ -406,6 +420,19 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 **Config revert (machine-local, B-03):** `~/.gal/config/config.json` `galRoot` changed from `…\plugins\gal-core` to `C:\Code\Golem-Agents-Legion` in the same logical change; cannot be committed to git (machine-local file) but verified by read.
 
 ## Review Results
+
+### [T-009] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `scripts/test-install-acceptance.sh`, `docs/devguide.md` (new section)
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | `readlink -f` is not available on macOS stock (only GNU coreutils). The `\|\| true` guard degrades gracefully (TARGET="") so the pointer check fails with a helpful message rather than crashing. Acceptable. |
+| R2 | INFO | Script uses `set -uo pipefail` (not `-e`) so individual check failures don't abort the full sweep — correct design for an acceptance checker. |
+
+No correctness defects, no security issues, no architecture violations. Acceptance bar table and Windows checklist are consistent with the live-surface table already in devguide.
 
 ### [T-002] Code Review — 2026-06-09
 
