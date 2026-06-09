@@ -316,78 +316,30 @@ impl ClaudeSkillProjection {
 
     fn remove_link(&self) -> std::result::Result<(), ClaudeSkillError> {
         // Nothing to remove.
-        if !self.skill_surface.exists() && !is_symlink_or_junction(&self.skill_surface) {
+        if !self.skill_surface.exists()
+            && !base::platform::is_symlink_or_junction(&self.skill_surface)
+        {
             return Ok(());
         }
 
+        // Only remove when the surface is the link/junction we own — never delete
+        // a real directory. Windows guards on is_dir (junction), Unix on is_symlink.
         #[cfg(windows)]
-        {
-            if self.skill_surface.is_dir() {
-                let out = std::process::Command::new("cmd")
-                    .args(["/C", "rmdir", self.skill_surface.to_str().unwrap_or("")])
-                    .output()
-                    .map_err(|e| ClaudeSkillError::LinkOp(format!("rmdir failed: {e}")))?;
-                if !out.status.success() {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    return Err(ClaudeSkillError::LinkOp(format!(
-                        "rmdir failed: {stderr}"
-                    )));
-                }
-            }
-        }
+        let should_remove = self.skill_surface.is_dir();
         #[cfg(not(windows))]
-        {
-            if self.skill_surface.is_symlink() {
-                fs::remove_file(&self.skill_surface).map_err(|e| {
-                    ClaudeSkillError::LinkOp(format!("remove symlink failed: {e}"))
-                })?;
-            }
+        let should_remove = self.skill_surface.is_symlink();
+
+        if should_remove {
+            base::platform::remove_dir_link(&self.skill_surface)
+                .map_err(|e| ClaudeSkillError::LinkOp(format!("link removal failed: {e}")))?;
         }
 
         Ok(())
     }
 
-    #[cfg(windows)]
     fn create_link(&self) -> std::result::Result<(), ClaudeSkillError> {
-        let out = std::process::Command::new("cmd")
-            .args([
-                "/C",
-                "mklink",
-                "/J",
-                self.skill_surface.to_str().unwrap_or(""),
-                self.canonical_root.to_str().unwrap_or(""),
-            ])
-            .output()
-            .map_err(|e| ClaudeSkillError::LinkOp(format!("mklink /J failed: {e}")))?;
-        if !out.status.success() {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            return Err(ClaudeSkillError::LinkOp(format!(
-                "mklink /J failed: {stderr}"
-            )));
-        }
-        Ok(())
-    }
-
-    #[cfg(not(windows))]
-    fn create_link(&self) -> std::result::Result<(), ClaudeSkillError> {
-        std::os::unix::fs::symlink(&self.canonical_root, &self.skill_surface).map_err(|e| {
-            ClaudeSkillError::LinkOp(format!("symlink creation failed: {e}"))
-        })
-    }
-}
-
-/// Return `true` if `path` is a symlink or NTFS junction even when the target is absent.
-fn is_symlink_or_junction(path: &std::path::Path) -> bool {
-    #[cfg(windows)]
-    {
-        // On Windows, metadata() follows junctions; symlink_metadata() does not.
-        path.symlink_metadata()
-            .map(|m| m.file_type().is_dir() || m.file_type().is_symlink())
-            .unwrap_or(false)
-    }
-    #[cfg(not(windows))]
-    {
-        path.is_symlink()
+        base::platform::create_dir_link(&self.canonical_root, &self.skill_surface)
+            .map_err(|e| ClaudeSkillError::LinkOp(format!("link creation failed: {e}")))
     }
 }
 

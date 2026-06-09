@@ -691,49 +691,21 @@ fn render_instruction_corpus(
 
 /// Atomic swap: move temp directory to canonical root.
 ///
-/// Uses backup-move-restore pattern for kill-mid-swap recovery.
+/// Delegates to `base::platform::atomic_swap` (R-00/T-004), mapping its error
+/// back to `RenderError` with the existing message text preserved.
 fn atomic_swap(temp_dir: &Path, canonical_root: &Path) -> Result<(), RenderError> {
-    let parent = canonical_root
-        .parent()
-        .ok_or_else(|| {
+    use base::platform::AtomicSwapError;
+    base::platform::atomic_swap(temp_dir, canonical_root).map_err(|e| match e {
+        AtomicSwapError::NoParent => {
             RenderError::InvalidSourceStructure("Canonical root has no parent".to_string())
-        })?;
-
-    // Create backup path
-    let uuid = uuid::Uuid::new_v4().simple().to_string();
-    let backup_name = format!(".gal-plugin-backup-{}", uuid);
-    let backup_path = parent.join(backup_name);
-
-    let had_existing_root = canonical_root.exists();
-
-    // Backup existing root if it exists
-    if had_existing_root {
-        fs::rename(canonical_root, &backup_path)
-            .map_err(|e| RenderError::AtomicSwapFailed(format!("Backup failed: {}", e)))?;
-    }
-
-    // Move temp to canonical
-    let move_result = fs::rename(temp_dir, canonical_root);
-
-    match move_result {
-        Ok(()) => {
-            // Success: remove backup
-            if backup_path.exists() {
-                let _ = fs::remove_dir_all(&backup_path);
-            }
-            Ok(())
         }
-        Err(e) => {
-            // Failure: restore backup
-            if had_existing_root && backup_path.exists() && !canonical_root.exists() {
-                let _ = fs::rename(&backup_path, canonical_root);
-            }
-            Err(RenderError::AtomicSwapFailed(format!(
-                "Move failed: {}",
-                e
-            )))
+        AtomicSwapError::BackupFailed(msg) => {
+            RenderError::AtomicSwapFailed(format!("Backup failed: {}", msg))
         }
-    }
+        AtomicSwapError::MoveFailed(msg) => {
+            RenderError::AtomicSwapFailed(format!("Move failed: {}", msg))
+        }
+    })
 }
 
 #[cfg(test)]

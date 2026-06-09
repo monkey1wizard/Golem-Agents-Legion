@@ -204,39 +204,10 @@ skill_path = "{}"
         Ok(())
     }
     
-    /// Cross-platform link/junction creation
-    #[cfg(windows)]
+    /// Cross-platform link/junction creation (delegates to `base::platform`).
     fn create_link(&self, target: &Path, link: &Path, label: &str) -> Result<(), AgyError> {
-        // On Windows, create a directory junction using mklink /J
-        let output = std::process::Command::new("cmd")
-            .args([
-                "/C",
-                "mklink",
-                "/J",
-                link.to_str().unwrap(),
-                target.to_str().unwrap(),
-            ])
-            .output()
-            .map_err(|e| AgyError::LinkCreation(format!("{} junction creation failed: {}", label, e)))?;
-        
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(AgyError::LinkCreation(format!(
-                "{} junction creation failed: {}",
-                label, stderr
-            )));
-        }
-        
-        Ok(())
-    }
-    
-    #[cfg(not(windows))]
-    fn create_link(&self, target: &Path, link: &Path, label: &str) -> Result<(), AgyError> {
-        // On Unix-like systems, create a symbolic link
-        std::os::unix::fs::symlink(target, link)
-            .map_err(|e| AgyError::LinkCreation(format!("{} symlink creation failed: {}", label, e)))?;
-        
-        Ok(())
+        base::platform::create_dir_link(target, link)
+            .map_err(|e| AgyError::LinkCreation(format!("{} link creation failed: {}", label, e)))
     }
     
     /// Check if all three surfaces exist
@@ -251,30 +222,12 @@ skill_path = "{}"
     pub fn remove(&self) -> Result<(), AgyError> {
         // Remove CLI junction/symlink
         if self.cli_target.exists() || self.cli_target.is_symlink() {
-            #[cfg(windows)]
-            {
-                let _ = std::process::Command::new("cmd")
-                    .args(["/C", "rmdir", self.cli_target.to_str().unwrap_or("")])
-                    .output();
-            }
-            #[cfg(not(windows))]
-            {
-                let _ = fs::remove_file(&self.cli_target);
-            }
+            let _ = base::platform::remove_dir_link(&self.cli_target);
         }
 
         // Remove IDE junction/symlink
         if self.ide_target.exists() || self.ide_target.is_symlink() {
-            #[cfg(windows)]
-            {
-                let _ = std::process::Command::new("cmd")
-                    .args(["/C", "rmdir", self.ide_target.to_str().unwrap_or("")])
-                    .output();
-            }
-            #[cfg(not(windows))]
-            {
-                let _ = fs::remove_file(&self.ide_target);
-            }
+            let _ = base::platform::remove_dir_link(&self.ide_target);
         }
 
         // GUI config TOML files are preserved (user may have customized them).
