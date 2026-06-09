@@ -794,6 +794,34 @@ Antigravity CLI (`agy` v1.0.2) is available; GAL plugin install at `~/.gemini/an
 
 Promotion gates for public marketplace listing: Claude Code — GitHub Release tag published + `/plugin marketplace add anthropics/claude-plugins-community` + `/plugin install gal@claude-community` tested; Claude Desktop — `.mcpb` packaging verified and submitted to the Desktop extension gallery; Antigravity — GAL plugin installed and verified, `agy inspect` confirms component load.
 
+#### GAL-Owned Live Read Surfaces (per Provider)
+
+This table documents the **authoritative live read surface** — the path from which each provider **actually reads** GAL content at runtime after `gal install`. It is the governing source for T-001 go/no-go and the install convergence acceptance bar. Updated: 2026-06-09 (T-001 real-machine probe, Windows dev machine).
+
+**Governing principle**: install success = live read surface matches source. A correct render that never converges into the surface the provider actually loads = not installed. `gal doctor` uses this table as its verification baseline.
+
+| Provider | GAL-owned live read surface | Surface type | Stale-proof? | This machine (2026-06-09) |
+| --- | --- | --- | --- | --- |
+| **Claude Code (skills)** | `~/.claude/skills/gal` → `~/.gal/plugins/gal` | symlink / junction | **YES** — skills update immediately when canonical root changes; no cache layer | ⚠ **not yet created** — created by T-003 / `gal install`; final skill-load verification requires a new Claude Code session after T-003 |
+| **Claude Code (legacy, AVOID)** | `~/.claude/plugins/gal` | symlink | YES (but LEGACY) | EXISTS but treated as legacy; oracle removes it on every refresh (`common.sh:76`) |
+| **Claude Code (stale actual load, AVOID)** | `~/.claude/plugins/cache/gal/gal/1.0.0` | versioned cache | **NO** — frozen at install date; does NOT include `doc-sync` or `golem-dockeeper` | LOADED by `enabledPlugins: {gal@gal: true}` but stale (2026-05-30, pre-dockeeper/doc-sync); superseded by `~/.claude/skills/gal` after T-003 |
+| **Copilot CLI** | `~/.copilot/installed-plugins/gal-copilot/gal` → `~/.gal/plugins/gal` | symlink | YES | ✓ EXISTS (symlink confirmed 2026-06-01) |
+| **AGY CLI** | `~/.gemini/antigravity-cli/plugins/gal` → `~/.gal/plugins/gal` | symlink / junction | YES | ✓ EXISTS (symlink confirmed 2026-06-09) |
+| **OpenCode** | `~/.config/opencode/skills/`, `~/.config/opencode/agents/`, `~/.config/opencode/commands/` | host copy | NO — requires `gal update` to refresh | not verified on this machine |
+| **Codex** | `~/.codex/skills/` | host copy | NO — requires `gal update` to refresh | not verified on this machine |
+
+**Claude Code skill surface notes (T-001 real-machine probe):**
+
+- **`~/.claude/skills/` is auto-scanned** by Claude Code without any `enabledPlugins` entry (confirmed: `graphify` and `codebase-memory` load from `~/.claude/skills/` without settings.json registration).
+- **Oracle designation**: `CLAUDE_PLUGIN_INSTALL_TARGET = ~/.claude/skills/gal` (`common.sh:73`). `CLAUDE_LEGACY_PLUGIN_INSTALL_TARGET = ~/.claude/plugins/gal` (`common.sh:76`) is removed every refresh by `safe_unlink`.
+- **`~/.claude/skills/gal` is NOT yet created** on this machine — it is created by `gal install` (T-003). Creation was blocked from this session because modifying `~/.claude/skills/` requires explicit user permission (correctly blocked as self-modification).
+- **Multi-skill bundle loading**: the canonical root contains `.claude-plugin/plugin.json` listing all 29 skills. Whether Claude Code's `skills/` auto-scan respects this bundle format (vs flat single-skill dirs like `graphify`) is **confirmed architecturally** by oracle design but requires a new-session smoke test after T-003 creates the symlink.
+- **Supersession**: after T-003, the `enabledPlugins: {gal@gal: true}` / versioned-cache mechanism should be superseded by the `~/.claude/skills/gal` symlink. The stale cache at `~/.claude/plugins/cache/gal/gal/1.0.0` should not be removed manually; it is orphaned once the skills surface is authoritative.
+
+**How GAL-managed symlink updates are re-read by Claude Code:**
+
+When `~/.claude/skills/gal` → `~/.gal/plugins/gal` exists, any change to the canonical root (from `gal install` or `gal update`) is **immediately reflected** in the next Claude Code session — no cache layer, no version bump required. This is the key advantage of the symlink surface over the `enabledPlugins` versioned-cache mechanism.
+
 #### Raw PowerShell and Shell Convenience Installer Policy
 
 Raw PowerShell or shell installers such as `irm ... | iex` and `curl ... | sh` are convenience entrypoints only. They are not canonical install channels, they do not define an independent package shape, and they must not become the only supported way to get GAL onto a machine.
