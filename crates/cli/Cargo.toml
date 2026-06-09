@@ -1,8 +1,8 @@
 [package]
-name = "gal-cli"
+name = "cli"
 version = "0.1.0"
 edition = "2021"
-description = "GAL — Golem Agents Legion bootstrap CLI"
+description = "GAL — Golem Agents Legion bootstrap CLI (binary: gal)"
 license = "MIT"
 repository = "https://github.com/monkey1wizard/golem-agents-legion"
 

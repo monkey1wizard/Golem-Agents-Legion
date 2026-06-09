@@ -19,10 +19,10 @@
 use std::io::Read as _;
 use std::process::ExitCode;
 
-use gal_dispatch::adapters::{self, SpecDelivery};
-use gal_dispatch::cli::parse_args;
-use gal_dispatch::dispatch::{is_available, spawn_executor, SpawnConfig, TerminalState};
-use gal_dispatch::routing::{load_routing, load_routing_default};
+use dispatch::adapters::{self, SpecDelivery};
+use dispatch::cli::parse_args;
+use dispatch::dispatch::{is_available, spawn_executor, SpawnConfig, TerminalState};
+use dispatch::routing::{load_routing, load_routing_default};
 
 fn main() -> ExitCode {
     let raw_args: Vec<String> = std::env::args().skip(1).collect();
