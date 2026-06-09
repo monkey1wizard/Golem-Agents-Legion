@@ -322,6 +322,9 @@ fn get_canonical_plugin_root() -> PathBuf {
 }
 
 /// Create a temp directory for atomic rendering.
+///
+/// Domain validation (canonical root must have a parent) stays here; the staging
+/// mechanism delegates to `base::render::create_temp_render_dir` (R-00/T-005).
 fn create_temp_render_dir(canonical_root: &Path) -> Result<PathBuf, RenderError> {
     let parent = canonical_root
         .parent()
@@ -329,16 +332,7 @@ fn create_temp_render_dir(canonical_root: &Path) -> Result<PathBuf, RenderError>
             RenderError::InvalidSourceStructure("Canonical root has no parent".to_string())
         })?;
 
-    fs::create_dir_all(parent)?;
-
-    // Create temp dir with unique name
-    let uuid = uuid::Uuid::new_v4().simple().to_string();
-    let temp_name = format!(".gal-render-{}", uuid);
-    let temp_dir = parent.join(temp_name);
-
-    fs::create_dir(&temp_dir)?;
-
-    Ok(temp_dir)
+    Ok(base::render::create_temp_render_dir(parent)?)
 }
 
 /// Render all components to the temp directory.

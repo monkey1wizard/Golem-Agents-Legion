@@ -10,6 +10,7 @@ pub mod ledger;
 pub mod mcp;
 pub mod mode;
 pub mod platform;
+pub mod render;
 
 pub mod paths {
     //! Path *location* resolution only — never reads or parses config content.
