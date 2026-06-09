@@ -79,7 +79,7 @@ xmachine 被 GAL 契約直接引用,Rust 化後引用改指 `gal xmachine`/`gal 
 - [ ] **R-04 契約面同步（受保護）** — gal-pipeline SKILL、task-xmachine 模板、agents.md 引用改指 `gal xmachine`/`gal pipeline`。須 architect。
 - [ ] **R-05 前提 preflight（只檢查不代設）** — 遠端調用前 preflight SSH 可連 / zellij 已裝 / 遠端 `gal` 相容,缺失 fail-loud 附修復指引。**GAL 不代設 SSH、不代裝 zellij、不代 scp gal。** 以 `base::HealthCheck` 暴露供 `gal doctor` 聚合。
 - [ ] **R-06 session 紀錄（追述）** — 遠端執行留 session 紀錄(host、transport、SSH/zellij session id、時間、結果路徑),**延伸 dispatch 的 `.dev/executor-logs/`,不另建 store**。
-- [ ] **R-07 跨機 SSH parity** — 真實跨機驗遠端執行/結果回收與舊腳本等價:win→mac-mini(Unix,涵蓋 win→linux) + win→win(Win11 筆電)。
+- [ ] **R-07 跨機 SSH parity** — 真實跨機驗遠端執行/結果回收與舊腳本等價:win→mac-mini(Unix,涵蓋 win→linux) + win→win(Win11 筆電)。**遠端 `gal` = 純 end-user 安裝核心計畫 R-13 release 管線的預編譯 artifact(絕不在遠端 build/跨編譯;對齊核心 CORR-01),前置 = R-13 artifact 存在。**
 - [ ] **R-08 oracle reparent 前置** — `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` 刪前改 fixture/行為測試。
 - [ ] **R-09 共用檔協調刪除** — `common.{ps1,sh}` xmachine 函式搬 Rust 後,與核心計畫共同在兩計畫皆 done 時整檔刪 `common.*`、`gal.{ps1,sh}`。
 - [ ] **R-10 終態零 ps1/sh（xmachine 層）** — 結束時 `scripts/` 不留任何 xmachine 家族 ps1/sh。
@@ -247,6 +247,6 @@ Not triggered（無 customer-facing UI）。
 - [ ] **T-012（R-04,受保護,architect）** — 改契約面(gal-pipeline SKILL/task-xmachine 模板/agents.md)引用指 Rust binary。
 
 **parity / 刪除 / 收尾**
-- [ ] **T-013（R-07,硬 gate）** — 跨機 SSH parity:win→mac-mini(涵蓋 win→linux)+ win→win(Win11 筆電);對齊 fixture;順手做 TP-17 write-back spike。
+- [ ] **T-013（R-07,硬 gate;前置=核心 R-13 artifact）** — 跨機 SSH parity:win→mac-mini(涵蓋 win→linux)+ win→win(Win11 筆電),遠端裝**核心 R-13 預編譯 artifact**(純 end-user,不在遠端 build);對齊 fixture;順手做 TP-17 write-back spike。
 - [ ] **T-014（R-10/P4）** — 對齊 fixture 後刪 xmachine 家族 ps1/sh + `common/New-TaskSpec.ps1`。
 - [ ] **T-015（R-09/P5,跨計畫尾端）** — 與核心計畫共同刪 `common/Common.{ps1,sh}` + `gal.{ps1,sh}`(兩計畫皆 done 才整檔刪)。

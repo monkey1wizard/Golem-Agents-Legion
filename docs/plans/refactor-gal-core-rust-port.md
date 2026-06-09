@@ -5,7 +5,7 @@
 ## Approval
 
 - Human approval: [approved at 2026-06-09]
-- Architect review: **APPROVE(方向;REVISE 折入 2026-06-09 二審)** — 見 ## Review Results。二審補上首審缺的「整體架構分解」評估:doctor 依賴反轉、render 原語共用、base 內聚已折入架構。實作期 R-00/R-03/R-04/R-05 受保護核心須 architect 簽核。下一步 `/refining-plan`。
+- Architect review: **APPROVE(方向;二審架構分解 + 四審真機驗收方法論修正 CORR-01 均折入,2026-06-09)** — 見 ## Review Results。CORR-01:真機驗收 = 純 end-user 裝預編譯 artifact,絕不在測試機 build;新增 R-13 release 管線為前置。實作期 R-00/R-03/R-04/R-05 受保護核心須 architect 簽核。**Tasks 已變動 → 須重跑 `/plan-to-prompt` 刷新執行 prompt。**
 - Additional domain review: [not triggered]（無 customer-facing / business-rule）
 
 ## Goal
@@ -98,15 +98,16 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 - [ ] **R-07 `gal` 入口核心子命令** — `gal.{ps1,sh}` 核心子命令(install/update/doctor/setup/mcp/sync/uninstall/clean/smudge)全走 Rust;入口檔整檔刪除待姊妹計畫 xmachine/dispatch 入口也 parity(跨計畫尾端共同收尾)。
 - [ ] **R-08 oracle reparent 前置** — 以 live script 為 oracle 的測試,刪前改 fixture/行為測試。
 - [ ] **R-09 跨平台正確** — Windows junction / Unix symlink / 權限 三平台對齊;隔離 home 驗證。
-- [ ] **R-10 真機驗收（接前計畫未竟,硬 gate）** — 乾淨環境 `gal install` 後 mac-mini(normal packaged-source) + Windows(normal+dev) 皆 doctor green、skill 面載入、canonical root 完整。
+- [ ] **R-10 真機驗收 = 純 end-user 安裝 release artifact（硬 gate；修正）** — 真機(mac-mini、Windows normal)以**純 end-user** 身分安裝 **R-13 release 管線產出的預編譯 artifact**(brew / GitHub Releases / scp 該 release 檔),**絕不在測試機上裝 rust、build、或臨時跨編譯**。驗 doctor green、skill 面載入、canonical root 完整、packaged-source 自解析。**前置 = R-13 artifact 存在。**
 - [ ] **R-11 doctor 涵蓋新面** — 各 domain 實作 `HealthCheck`;`gal doctor` 聚合並擴及 mcp/setup/sync/filter 健康檢查,缺口 fail-loud。
 - [ ] **R-12 終態零 ps1/sh（硬性,無例外）** — 結束時 `scripts/` 不留任何核心家族 ps1/sh。
+- [ ] **R-13 跨平台 release artifact 管線（新增；R-10 前置）** — 以 **CI(macOS/Linux/Windows runner,如 GitHub Actions matrix)** 產出各 target 的預編譯 `gal` artifact(macOS-arm64 至少)+ 打包 source(FHS/flat),發佈到 GitHub Releases / brew tap。end-user 與真機測試**只安裝這些 artifact**,永不在目標機 build。`gal release` 不能只產當前平台 —— 須有真正的跨平台產線。**治理原則:絕不在 end-user/測試機安裝工具鏈或 build。**
 
 ## Approach（逐期 parity→reparent→刪除）
 
 | Phase | 目標 | 前置 |
 | --- | --- | --- |
-| **P0 盤點凍結 + 真機重裝** | 每核心 script 凍結 parity fixture;重裝 `gal install` 並補做 TP-15/16,確立已完成面真實基準 | — |
+| **P0 盤點凍結 + 本機 dev 基準** | 每核心 script 凍結 parity fixture;在**開發機(Windows,有 rust)**重裝 dev-mode `gal install` 確立本機綠基準。**真機 end-user 驗收不在此**(見 P8/R-10/R-13) | — |
 | **P0.5 架構解耦（R-00,受保護,JIT）** | 只抽 `base`+`providers`+去前綴,驗 228 test 綠;domain crate 拆分延到各 port phase | P0、architect |
 | **P1 共用核心（R-01）** | common.{ps1,sh} 安裝/設定函式 → `base` | P0.5 |
 | **P2 `gal mcp`（R-02）** | port update-mcp;parity;刪對 | P1 |
@@ -115,7 +116,8 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 | **P5 安裝家族刪除（R-05）** | 四 provider parity;刪 install-gal-plugins/build-core/build-provider/provider-plugin | P1–P4 |
 | **P6 雜項（R-06）** | clean/smudge、uninstall、init-repo、catalog、release packaging、translation;成對刪除 | P1 |
 | **P7 入口核心子命令（R-07）** | gal 入口核心子命令全 Rust;入口檔刪除掛跨計畫尾端 | P2–P6 |
-| **P8 真機驗收 + 清空（R-10/R-12）** | 三平台真機;`scripts/` 核心家族清空;`cargo test` 不再 spawn 核心 live script | P1–P7 |
+| **P7.5 release artifact 管線（R-13,R-10 前置）** | CI 跨平台產線產出預編譯 artifact(macOS-arm64 等)+ 打包 source,發佈 Releases/brew | P1–P7 |
+| **P8 純 end-user 真機驗收 + 清空（R-10/R-12）** | 真機**安裝 R-13 artifact**(非 build):mac-mini normal + Windows normal;`scripts/` 核心家族清空;`cargo test` 不再 spawn 核心 live script | P7.5 |
 
 每期 Verify:`cargo test` 綠;該期 superseded script 成對刪除;測試碼不再 spawn 該期 live script;隔離 home 對齊凍結 fixture。
 
@@ -138,7 +140,7 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 - [ ] `gal mcp`/`gal setup`/`gal sync`/`gal clean`/`gal smudge` 子命令存在且與舊腳本 parity(對照 fixture)。
 - [ ] 四 provider 安裝、adapter 生成、MCP 配置、機器設定全走 Rust,活讀取面與 source 一致。
 - [ ] git filter 改 `gal clean`/`gal smudge`,smudge/clean 行為不變。
-- [ ] mac-mini(normal)+ Windows(normal+dev)真機 `gal install` doctor green、skill 面載入、canonical root 完整。
+- [ ] **跨平台 release artifact 管線(R-13)產出 macOS-arm64 等預編譯 `gal`**;mac-mini + Windows 以**純 end-user** 裝該 artifact(無 rust/build)後 doctor green、skill 面載入、canonical root 完整。
 - [ ] `cargo test` 綠且測試碼不再 spawn 任何核心 live `scripts/*.{ps1,sh}`。
 - [ ] 各 domain 實作 `HealthCheck`,`gal doctor` 聚合,缺口 fail-loud。
 
@@ -146,7 +148,9 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 
 - **範圍大 + 受保護路徑（高）**:gal-engine 核心、Setup-Machine/Sync-DevContext(推翻 KEEP)。Mitigation:R-00/R-03/R-04/R-05 走 architect;CODER≠REVIEWER;推翻 KEEP 記入 Key Decisions。
 - **跨計畫共用檔（高）**:`common.*`/`gal.{ps1,sh}` 與 xmachine 計畫共用。Mitigation:只搬出核心函式/子命令,物理刪除掛跨計畫尾端共同 gate。
-- **真機驗收延宕重演（中）**:前計畫正是真機沒驗就標完成。Mitigation:P0 即重裝補驗,P8 三平台硬 gate。
+- **真機驗收方法論(高,CORR-01)**:測試機若被當 build host(裝 rust/跨編譯)即違反「end-user 純裝 artifact」本質。Mitigation:R-13 先產 CI artifact;R-10/T-035 真機只裝預編譯檔;治理原則明令絕不在測試機 build。
+- **無 macOS artifact / CI 未建(中)**:目前無 macOS 預編譯產物,真機 end-user 驗收阻斷直到 R-13 管線(macOS CI runner)就緒;連動 GitHub 公開 + Actions(見 git-publish-strategy 私記)。Mitigation:T-034 為 T-035 硬前置。
+- **真機驗收延宕重演（中）**:前計畫真機沒驗就標完成。Mitigation:T-035 硬 gate,且只認 end-user artifact 安裝結果。
 - **Bash/PS 行為分歧（中）**:雙實作本就可能不一致。Mitigation:P0 並列輸出明確裁基準並記錄。
 - **與活躍計畫相鄰檔（中）**:`refactor-golem-auditor`/`feat-small-context`/`fix-install-followups`。Mitigation:排序協調。
 
@@ -156,6 +160,7 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 - **Sync-DevContext + update-* 合一為 `adapters`** — 皆生成 adapter 檔,單一後端;`gal sync`/`gal update` 為其 CLI 面。
 - **setup-tools 納入 `gal setup`** — 雙實作即納入;工具下載副作用是實作關注非排除理由。
 - **dispatch / 外部直呼 / bootstrap 腳本** — dispatch 屬姊妹計畫(`dispatch` crate 已完成,不重做);無外部直呼需遷移期保活;bootstrap 不留腳本。
+- **真機驗收 = 純 end-user 裝預編譯 artifact(CORR-01)** — 測試機(mac-mini 等)一律當 end-user,裝 R-13 CI 產出的 artifact,**絕不在其上裝 rust/工具鏈或 build/跨編譯**。build host(開發機/CI)與 end-user 機角色嚴格分離。R-13 release 管線是真機驗收的硬前置。
 
 ## Review Results
 
@@ -198,8 +203,17 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 
 #### 三審：task/test 粒度（2026-06-09,使用者要求最終檢查）
 
-- **[GRAN-01] 初版 task 過粗** → 已重切:T-003(原綁 7 單元的架構解耦)拆為 base/platform/render/HealthCheck/providers/rename 六步逐步驗綠;adapters 由「四對一起」拆為逐腳本 T-013..T-017;install 家族 parity 逐 provider;R-06 六項雜項各自成 task。33 task,每個 commit-size 可獨立驗。
+- **[GRAN-01] 初版 task 過粗** → 已重切:T-003(原綁 7 單元的架構解耦)拆為 base/platform/render/HealthCheck/providers/rename 六步逐步驗綠;adapters 由「四對一起」拆為逐腳本 T-013..T-017;install 家族 parity 逐 provider;R-06 六項雜項各自成 task。每個 commit-size 可獨立驗。
 - **[GRAN-02] 完整性補洞** → 補:workspace `Cargo.toml` members 維護(T-003)、各拆分後 import 重指、HealthCheck 改為**各 domain 在自己 port task 內實作**(非最後集中)、混合態不變量抽查 TP-25、git filter 跨平台 TP-17、每次拆 crate「拆後綠」TP-04..TP-09。
+
+#### 四審：真機驗收方法論修正（2026-06-09,使用者裁決 —— 根本性,非執行誤)
+
+- **[CORR-01](阻斷級修正)真機驗收必須是純 end-user 安裝預編譯 artifact,絕不在測試機 build/裝工具鏈。** 初版計畫把「真機驗收」寫成「乾淨環境 `gal install`」卻沒指明 binary 從何而來,導致執行時誤入「在 mac-mini 裝 rust / 從 Windows 跨編譯」的歧路 —— **這違反「mac-mini = 純 end-user」的本質**。end-user 不 build,只裝 release artifact。
+- **根本缺口**:計畫從未要求「產出跨平台 release artifact」。前計畫僅做 homebrew/winget *模板*,無實體 artifact、無 macOS CI。沒有 artifact,根本無法以 end-user 身分測 mac-mini。
+- **修正(已折入)**:新增 **R-13(跨平台 release artifact 管線,CI macOS/Linux/Windows runner)** 為 R-10 前置;R-10 改寫為「裝 R-13 artifact 的純 end-user 驗收」;拆 **T-034(管線)/T-035(end-user 真機驗收)**;T-002 收斂為「開發機 dev 基準」(開發機有 rust 合理),與 end-user 真機驗收分離;TP-02/03 改為「裝預編譯 artifact」。
+- **治理原則(新增,永久)**:**任何 GAL 真機/end-user 驗證,測試機一律純 end-user 安裝預編譯檔,絕不在其上裝 rust/工具鏈或 build。** 開發機(build host)與 end-user 機(裝 artifact)角色嚴格分離。
+
+**Verdict 維持 APPROVE** —— 修正為加法式(補 R-13 前置 + 角色分離),不動既有架構 DAG;反而補上「真機驗收方法論」這個一直缺的前提。
 
 <!-- ARCH_REVIEW: APPROVE -->
 
@@ -211,7 +225,9 @@ Not triggered（無 customer-facing UI）。
 
 ### Engineering Review
 
-**Verdict: CLEAR.**（三審 2026-06-09 重切粒度後) 33 個 T-NNN 對映 R-00..R-12 / P0..P8,**每個 = 一個獨立可驗、commit-size 單元**(R-00 解耦切為 7 個逐步驗綠步驟 T-003..T-009;adapters 逐腳本 T-013..T-017;install 家族逐 provider parity;R-06 雜項逐項 port→parity→刪);25 條 TP 覆蓋(含每次拆 crate 的「拆後綠」、逐 provider parity、git filter 跨平台、混合態不變量抽查、接管真機硬 gate TP-02/03)。architect 三審 APPROVE。可進 `/plan-to-prompt`。
+**Verdict: CLEAR.**（四審 2026-06-09:粒度 + 真機驗收方法論修正後)**35 個 T-NNN** 對映 R-00..R-13 / P0..P8。每個 = 獨立可驗、commit-size 單元(R-00 解耦 7 步 T-003..T-009;adapters 逐腳本;install 逐 provider;R-06 雜項逐項)。**CORR-01 折入**:T-002 收斂為開發機 dev 基準;新增 T-034(release artifact 管線)/T-035(純 end-user 真機驗收,裝預編譯 artifact,前置 T-034)。27 條 TP(含 TP-26 管線產出、TP-02/03 改為 end-user 裝 artifact、TP-26b 開發機基準)。實作約束新增:**真機/end-user 驗證一律純 end-user 裝預編譯檔,絕不在測試機 build/裝工具鏈**;T-034 是 T-035 硬前置。architect 四審 APPROVE。
+
+**注意:本次 deep-planning 改了 Tasks/Test Plan(加 T-034/035、TP-26/26b、re-scope T-002/033)→ 執行 prompt 已過時,須重跑 `/plan-to-prompt` 刷新後才續實作。**
 
 **實作期約束(prompt 與執行須遵守):**
 
@@ -229,8 +245,10 @@ Not triggered（無 customer-facing UI）。
 | ID | Type | Description | Covers |
 | --- | --- | --- | --- |
 | TP-01 | integration | fixture freeze:每核心 script 的 `tests/fixtures/` 可重現現況可觀察輸出/副作用(刪除 oracle) | T-001 |
-| TP-02 | integration（硬 gate） | mac-mini(Unix)純 normal mode 乾淨安裝:packaged-source 自解析、`~/.claude/skills/gal` symlink + doc-sync 載入、canonical root 正確、無孤兒、doctor green（=接管 TP-15） | T-002, T-033 |
-| TP-03 | integration（硬 gate） | Windows 雙模式:normal(packaged-source+junction)→ dev(galRoot repo-root),兩模式 canonical root + skill 面 + doctor green（=接管 TP-16） | T-002, T-033 |
+| TP-02 | integration（硬 gate） | **mac-mini 純 end-user**:無 rust/無 repo,**安裝 T-034 預編譯 macOS-arm64 artifact**(brew/Releases/scp release 檔)→ packaged-source 自解析、`~/.claude/skills/gal` Unix symlink + doc-sync 載入、canonical root 正確、無孤兒、doctor green。**不在測試機 build** | T-035 |
+| TP-03 | integration（硬 gate） | **Windows 純 end-user**:安裝 T-034 預編譯 artifact(normal mode,packaged-source + junction)→ canonical root + skill 面 + doctor green。(開發機 dev-mode 基準另由 T-002/TP-26b 覆蓋) | T-035 |
+| TP-26 | integration | T-034 release 管線:CI 產出各 target(至少 macOS-arm64)預編譯 `gal` + 打包 source,可從 Releases/brew 取得安裝 | T-034 |
+| TP-26b | integration | 開發機(Windows,有 rust)dev-mode `gal install` doctor green(本機基準) | T-002 |
 | TP-04 | unit | 抽 `base` 後 228 test 綠;`base` 不依賴任何 GAL crate;workspace `Cargo.toml` members 正確 | T-003 |
 | TP-05 | unit | `base::platform` 下沉後 render/install 路徑改用之,228 test 綠;Windows junction / Unix symlink / 權限行為不變 | T-004 |
 | TP-06 | unit | `base::render` 下沉後既有 render 改用之,228 test 綠,輸出 byte 不變 | T-005 |
@@ -254,15 +272,15 @@ Not triggered（無 customer-facing UI）。
 | TP-24 | perf | binary cold-start vs 腳本路徑量測(驗證 Motivation #2,非 gate) | T-032 |
 | TP-25 | integration | 混合態不變量抽查:在 P2/P4 中途狀態(部分 Rust 部分腳本)系統完整可運作,無 consumer 呼到已刪/半搬面 | T-011..T-030 |
 
-**真機驗證順序**:① mac-mini(SSH,純 normal,專測最未驗的 packaged-source 路徑)→ ② 複製 `~/.gal/config/` 帶 `*.local.*` → ③ Windows(normal + dev)。Linux normal 有 host 時經 SSH 補。
+**真機 end-user 驗證(T-035,前置 T-034 artifact)**:① T-034 CI 產出 macOS-arm64 預編譯 artifact → ② mac-mini 以 end-user 裝該 artifact(brew/Releases/scp;**無 rust、無 repo、無 build**),經 SSH 驗 packaged-source 自解析 + Unix symlink + doc-sync + doctor green → ③ Windows normal 裝 artifact 驗。Linux 有 host 時補。**核心修正:測試機一律純 end-user 安裝預編譯檔,絕不在其上裝工具鏈或 build。**
 
 ## Tasks
 
 > 切割原則:**一個 task = 一個獨立可驗、commit-size 的單元**。每個拆 crate / port 任務以「拆後 `cargo test` 綠」收尾;每個 domain 在自己的 port task 內**就實作 `HealthCheck`**(不留到最後)。
 
 **P0 — 基準**
-- [ ] **T-001（P0）** — 凍結 parity fixtures:每個核心 script 抓現況可觀察輸出/副作用存 `tests/fixtures/`(刪除 oracle 基線)。
-- [ ] **T-002（P0,硬 gate）** — 乾淨重裝 `gal install` 重建本機綠基線;跑 TP-02(mac-mini)+ TP-03(Windows 雙模式)確立已完成引擎面真實基準。
+- [x] **T-001（P0）** — fixtures 捕捉慣例已建(`tests/fixtures/README.md`);per-domain JIT 捕捉(approach A)。已 Rust 化面以現有 Rust 行為契約測試為 oracle。
+- [x] **T-002（P0,本機 dev 基準）** — **開發機(Windows,有 rust)** dev-mode 重裝 + `gal doctor` exit 0(本機綠基線)。**真機 end-user 驗收移至 T-035(裝 R-13 artifact,非在測試機 build);本任務只負責開發機基準。**
 
 **R-00 架構解耦（受保護,architect;逐步驗綠,JIT）**
 - [ ] **T-003** — 建 workspace 骨架 + 抽 `base` crate:移入 config/mode/paths/install-state/provider-selection;更新 root `Cargo.toml` members;repoint importers;`cargo test` 綠。
@@ -309,4 +327,8 @@ Not triggered（無 customer-facing UI）。
 **R-11/R-07/R-10 收尾**
 - [ ] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。
 - [ ] **T-032（R-07）** — port `gal.{ps1,sh}` 核心子命令進 `cli`(名詞分組);改 `gal`/`gal-init` SKILL.template 引用指 binary。入口檔物理刪除掛跨計畫尾端。
-- [ ] **T-033（R-09/R-10/R-12,硬 gate）** — 三平台真機驗收;`scripts/` 核心家族清空(共用 `common.*`/`gal.{ps1,sh}` 與姊妹計畫共同尾端刪);`cargo test` 綠且測試碼不再 spawn 核心 live script(grep 驗)。
+- [ ] **T-033（R-09/R-12,硬 gate）** — `scripts/` 核心家族清空(共用 `common.*`/`gal.{ps1,sh}` 與姊妹計畫共同尾端刪);`cargo test` 綠且測試碼不再 spawn 核心 live script(grep 驗)。
+
+**R-13/R-10 純 end-user 真機驗收（修正:絕不在測試機 build）**
+- [ ] **T-034（R-13,T-035 前置）** — 建跨平台 release artifact 管線:CI(macOS/Linux/Windows runner,如 GitHub Actions matrix)產出各 target 預編譯 `gal` + 打包 source(FHS/flat),發佈 GitHub Releases / brew tap。`gal release` 接線到 CI,不只產當前平台。
+- [ ] **T-035（R-10,硬 gate;前置=T-034)** — **純 end-user 真機驗收**:在 mac-mini(macOS-arm64,無 rust/無 repo)與 Windows(normal)以 **end-user 身分安裝 T-034 的預編譯 artifact**(brew/Releases/scp release 檔),驗 packaged-source 自解析、Unix symlink/junction skill 面、doc-sync 載入、canonical root 完整、無孤兒、`gal doctor` green。**絕不在測試機裝 rust/build/跨編譯。**
