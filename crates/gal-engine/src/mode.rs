@@ -9,7 +9,16 @@
 //!   1. Non-empty string
 //!   2. Exists and is a directory
 //!   3. Readable (dead UNC/network paths fail fast via short timeout)
-//!   4. Contains `commands/`, `agents/`, and `skills/` subdirectories
+//!   4. Contains `commands/`, `agents/`, and `skills/` subdirectories, either
+//!      directly (galRoot already points at gal-core) OR under `plugins/gal-core/`
+//!      (galRoot is the repo root — auto-resolved, aligning with the frozen Bash oracle
+//!      which appends `plugins/gal-core` internally via `provider-plugin.sh:413`).
+//!
+//! galRoot resolution (R-10/RC-6):
+//!   `resolve_gal_source_root(galRoot)` returns the actual source directory:
+//!   - If galRoot already contains the required dirs → returns galRoot (old form tolerated)
+//!   - If galRoot/plugins/gal-core contains the required dirs → returns that sub-path
+//!   - Otherwise → error
 //!
 //! Legacy `installMode` field:
 //!   - Deprecated, only read for one-time migration
@@ -19,6 +28,8 @@
 use crate::config::GalConfig;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::Duration;
 
 /// GAL operating mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,77 +65,95 @@ pub enum ModeError {
 /// Result of testing whether `galRoot` is usable.
 type UsableResult = Result<(), ModeError>;
 
-/// Check if a path is readable with a short timeout for network paths.
+/// Check if a path is readable with a short timeout for network/UNC paths.
 ///
-/// Local paths are checked inline. UNC paths (starting with `\\`) or other network
-/// paths are checked with a 2-second timeout to avoid blocking mode resolution on
-/// dead network paths.
+/// Local paths are checked inline. UNC paths (Windows `\\`) use a channel-based
+/// 2-second timeout so a dead network path fails fast instead of blocking mode
+/// resolution indefinitely (FU-04).
 fn is_readable(path: &Path) -> bool {
     #[cfg(windows)]
     {
-        // UNC paths start with \\ on Windows
         if path.to_string_lossy().starts_with("\\\\") {
-            // Use a timeout for network paths
-            use std::thread;
-
-            let path = path.to_owned();
-            let handle = thread::spawn(move || fs::read_dir(&path).is_ok());
-
-            handle.join().unwrap_or_default()
+            let path_owned = path.to_owned();
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(fs::read_dir(&path_owned).is_ok());
+            });
+            rx.recv_timeout(Duration::from_secs(2)).unwrap_or(false)
         } else {
-            // Local path: check inline
             fs::read_dir(path).is_ok()
         }
     }
 
     #[cfg(not(windows))]
     {
-        // On non-Windows, network paths are harder to detect reliably.
-        // For now, just check readability directly.
-        // TODO: Add proper network path detection for macOS/Linux if needed.
         fs::read_dir(path).is_ok()
     }
 }
 
-/// Test if `galRoot` is usable according to the usability predicate.
+/// Required subdirectories that identify a GAL source (gal-core) root.
+const REQUIRED_DIRS: &[&str] = &["commands", "agents", "skills"];
+
+/// Returns the first missing required subdirectory name, or `None` if all present.
+fn first_missing_dir(dir: &Path) -> Option<String> {
+    REQUIRED_DIRS
+        .iter()
+        .find(|&&d| !dir.join(d).is_dir())
+        .map(|&d| d.to_string())
+}
+
+/// Resolve the actual GAL source root from a raw `galRoot` config value.
 ///
-/// Returns `Ok(())` if usable, or the first failed check as an error.
+/// Accepts two forms (R-10/RC-6):
+/// - **gal-core form** (old): galRoot already points at `plugins/gal-core` (or any
+///   directory that directly contains `commands/`, `agents/`, `skills/`). Returned as-is.
+/// - **repo-root form** (canonical): galRoot points at the repo root, which contains
+///   `plugins/gal-core/` with the required structure. The sub-path is returned.
 ///
-/// Predicate (all must pass):
-/// 1. Non-empty string
-/// 2. Exists and is a directory
-/// 3. Readable (with timeout for network paths)
-/// 4. Contains `commands/`, `agent/`, and `skills/` subdirectories
-fn is_gal_root_usable(gal_root: &str) -> UsableResult {
-    // 1. Non-empty string
-    if gal_root.trim().is_empty() {
+/// This aligns with the frozen Bash oracle (`provider-plugin.sh:413`) which appends
+/// `plugins/gal-core` internally, so both old configs and repo-root configs work.
+///
+/// Returns the resolved `PathBuf` on success, or the first failing `ModeError`.
+pub fn resolve_gal_source_root(gal_root_str: &str) -> Result<PathBuf, ModeError> {
+    if gal_root_str.trim().is_empty() {
         return Err(ModeError::GalRootEmpty);
     }
 
-    let path = PathBuf::from(gal_root);
+    let path = PathBuf::from(gal_root_str);
 
-    // 2. Exists and is a directory
     if !path.is_dir() {
         return Err(ModeError::GalRootNotDirectory(path));
     }
 
-    // 3. Readable (with timeout for network paths)
     if !is_readable(&path) {
         return Err(ModeError::GalRootUnreadable(path));
     }
 
-    // 4. Contains required subdirectories
-    for required_dir in &["commands", "agents", "skills"] {
-        let subdir = path.join(required_dir);
-        if !subdir.is_dir() {
-            return Err(ModeError::GalRootMissingStructure {
-                path: path.clone(),
-                missing: required_dir.to_string(),
-            });
-        }
+    // Old form: galRoot already points at gal-core (has required dirs directly).
+    if let None = first_missing_dir(&path) {
+        return Ok(path);
     }
 
-    Ok(())
+    // Repo-root form: try plugins/gal-core sub-path (aligns with Bash oracle).
+    let sub = path.join("plugins").join("gal-core");
+    if sub.is_dir() {
+        if let Some(missing) = first_missing_dir(&sub) {
+            return Err(ModeError::GalRootMissingStructure {
+                path: sub,
+                missing,
+            });
+        }
+        return Ok(sub);
+    }
+
+    // Neither form has the required structure — report from the original path.
+    let missing = first_missing_dir(&path).unwrap_or_else(|| "commands".to_string());
+    Err(ModeError::GalRootMissingStructure { path, missing })
+}
+
+/// Test if `galRoot` is usable (delegates to `resolve_gal_source_root`).
+fn is_gal_root_usable(gal_root: &str) -> UsableResult {
+    resolve_gal_source_root(gal_root).map(|_| ())
 }
 
 /// Resolve the GAL operating mode from configuration.
@@ -431,5 +460,80 @@ mod tests {
 
         // devMode=false takes precedence over legacy installMode
         assert_eq!(resolve_mode(&config).unwrap(), GalMode::Normal);
+    }
+
+    // ── R-10 / RC-6: resolve_gal_source_root repo-root form ─────────────────
+
+    /// Helper: create a repo-root structure (source lives under plugins/gal-core/).
+    fn create_repo_root_structure() -> TempDir {
+        let temp_dir = TempDir::new().unwrap();
+        let base = temp_dir.path();
+        let gal_core = base.join("plugins").join("gal-core");
+        fs::create_dir_all(&gal_core).unwrap();
+        fs::create_dir(gal_core.join("commands")).unwrap();
+        fs::create_dir(gal_core.join("agents")).unwrap();
+        fs::create_dir(gal_core.join("skills")).unwrap();
+        temp_dir
+    }
+
+    #[test]
+    fn test_resolve_gal_source_root_old_form_tolerated() {
+        // galRoot already IS gal-core (old workaround form) — should return as-is.
+        let temp_dir = create_gal_source_structure();
+        let path_str = temp_dir.path().to_string_lossy().to_string();
+        let result = resolve_gal_source_root(&path_str).unwrap();
+        assert_eq!(result, temp_dir.path());
+    }
+
+    #[test]
+    fn test_resolve_gal_source_root_repo_root_form() {
+        // galRoot is repo root containing plugins/gal-core/ — should resolve to sub-path.
+        let temp_dir = create_repo_root_structure();
+        let repo_root = temp_dir.path().to_string_lossy().to_string();
+        let result = resolve_gal_source_root(&repo_root).unwrap();
+        assert_eq!(result, temp_dir.path().join("plugins").join("gal-core"));
+    }
+
+    #[test]
+    fn test_resolve_gal_source_root_repo_root_no_double_append() {
+        // galRoot is gal-core itself — should NOT append plugins/gal-core again.
+        let temp_dir = create_gal_source_structure();
+        let gal_core_str = temp_dir.path().to_string_lossy().to_string();
+        let result = resolve_gal_source_root(&gal_core_str).unwrap();
+        // Result must equal gal_core itself, not gal_core/plugins/gal-core.
+        assert_eq!(result, temp_dir.path());
+        assert!(!result.ends_with("plugins/gal-core"));
+    }
+
+    #[test]
+    fn test_resolve_mode_dev_with_repo_root_gal_root() {
+        // devMode=true, galRoot = repo root (not gal-core) — must still resolve to Dev.
+        let temp_dir = create_repo_root_structure();
+        let repo_root = temp_dir.path().to_string_lossy().to_string();
+        let config = GalConfig {
+            dev_mode: Some(true),
+            gal_root: Some(repo_root),
+            ..Default::default()
+        };
+        assert_eq!(resolve_mode(&config).unwrap(), GalMode::Dev);
+    }
+
+    #[test]
+    fn test_tp09_repo_root_galroot_resolves_and_converges() {
+        // TP-09: galRoot = repo root installs successfully; old gal-core form does not double-append.
+        let repo_dir = create_repo_root_structure();
+        let repo_root = repo_dir.path().to_string_lossy().to_string();
+
+        // Repo-root form resolves to plugins/gal-core.
+        let resolved_from_repo = resolve_gal_source_root(&repo_root).unwrap();
+        assert_eq!(
+            resolved_from_repo,
+            repo_dir.path().join("plugins").join("gal-core")
+        );
+
+        // Old gal-core form resolves to itself (no double-append).
+        let gal_core_str = resolved_from_repo.to_string_lossy().to_string();
+        let resolved_from_gal_core = resolve_gal_source_root(&gal_core_str).unwrap();
+        assert_eq!(resolved_from_gal_core, resolved_from_repo);
     }
 }

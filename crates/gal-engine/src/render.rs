@@ -7,7 +7,7 @@
 //! Uses atomic temp directory + swap to ensure kill-mid-render recovery.
 
 use crate::config::GalConfig;
-use crate::mode::GalMode;
+use crate::mode::{resolve_gal_source_root, GalMode};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -178,16 +178,14 @@ pub fn render_canonical_root(
     // Determine source root based on mode
     let source_root = match mode {
         GalMode::Dev => {
-            // Dev mode: use galRoot from config
-            config
-                .gal_root
-                .as_ref()
-                .map(PathBuf::from)
-                .ok_or_else(|| {
-                    RenderError::InvalidSourceStructure(
-                        "Dev mode requires galRoot in config".to_string(),
-                    )
-                })?
+            // Dev mode: resolve galRoot (handles both gal-core form and repo-root form — R-10/RC-6).
+            let gal_root = config.gal_root.as_deref().ok_or_else(|| {
+                RenderError::InvalidSourceStructure(
+                    "Dev mode requires galRoot in config".to_string(),
+                )
+            })?;
+            resolve_gal_source_root(gal_root)
+                .map_err(|e| RenderError::InvalidSourceStructure(format!("{e}")))?
         }
         GalMode::Normal => {
             // Normal mode: resolve the packaged source relative to the installed
