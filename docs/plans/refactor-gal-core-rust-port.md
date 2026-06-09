@@ -1,0 +1,312 @@
+# Plan: GAL 核心腳本層 Rust 原生化（refactor-gal-core-rust-port）
+
+> **直接取代** `feat-gal-rust-native-install.md`（已刪）。前計畫只把安裝引擎寫成 Rust（~1000 行已 commit），卻把「取代 ps1/sh」當尾端任務延後 —— 與使用者「全面轉 Rust」要求不符。本計畫接管其全部成果,把**核心腳本層全部 Rust 化並刪除對應 ps1/sh**。xmachine 遠端執行子系統由姊妹計畫 `refactor-gal-xmachine-rust-port.md` 負責(該計畫依賴本計畫先抽出的 `base`/`dispatch`)。
+
+## Approval
+
+- Human approval: [approved at 2026-06-09]
+- Architect review: **APPROVE(方向;REVISE 折入 2026-06-09 二審)** — 見 ## Review Results。二審補上首審缺的「整體架構分解」評估:doctor 依賴反轉、render 原語共用、base 內聚已折入架構。實作期 R-00/R-03/R-04/R-05 受保護核心須 architect 簽核。下一步 `/refining-plan`。
+- Additional domain review: [not triggered]（無 customer-facing / business-rule）
+
+## Goal
+
+`scripts/` 中**所有非 xmachine** 的 Bash+PowerShell 功能由 Rust 原生實作並達行為 parity,對應 `.ps1`+`.sh` 成對刪除。終態:安裝/設定/MCP/regen/catalog/release/filter/translation 一律走 `gal` binary,`scripts/` **核心家族零 ps1/sh,無例外**。
+
+## Motivation（兩個驅動,所有取捨的根據）
+
+1. **消除雙實作維護成本** —— 現況每功能寫兩份(`.ps1`+`.sh`),改一處要同步兩處、已見行為飄移。單一 Rust = 寫一次,跨平台靠 `cfg!`。**鐵律:凡雙實作一律進 Rust,無「是否納入」餘地。**
+2. **單一二進位加速 AI 呼叫** —— AI 高頻呼叫這些命令,編譯 binary 啟動即用,免 spawn bash/pwsh + source 共用 lib。binary 須精簡、低啟動延遲。
+
+**零 ps1/sh 是硬性的,無例外**(經誠實檢驗):bootstrap 由 pkg-manager/Releases/cargo 取得 binary,免 GAL 腳本;git filter 改 `gal clean`/`gal smudge`(git config 指向 binary);shell completion 是 `gal completions` 的輸出檔非 source;遠端執行體即 binary;工具鏈安裝由 `gal setup` 呼系統 pkg-manager。`curl|sh` 便利安裝器(若提供)是 `gal release` 發佈產物,非 tracked source。
+
+## 治理原則
+
+- parity = 行為等價 **且** 活讀取面與 source 一致,不接受「Rust 能編譯」當完成。
+- **刪除硬 gate = fixture-parity 綠**:fixture 於 P0 由現況可運作的腳本凍結;script 刪除前提是 Rust 輸出對齊該 fixture。
+- monolithic script 須**全部** live consumer(非註解)皆 parity 才整檔刪。
+- **混合態不變量**:遷移期任一 phase 邊界不得讓 consumer 呼到「已刪/半搬」面;每 phase 結束系統完整可運作。
+- oracle-parity 測試刪 script 前先 reparent 為 `tests/fixtures/` snapshot 或行為測試。
+
+## 已完成成果（接管 `feat-gal-rust-native-install`,引擎側已 commit）
+
+install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台/pkg-manager 收斂/oracle reparent，共 a192df7..bcc755a(228 test 綠)。
+
+**未竟(本計畫接手)**:真機 TP-15(mac-mini normal)/TP-16(Windows 雙模式)從未跑;本機 `gal install` 已拆除(`~/.gal/plugins/` 空、skill 面懸空、`gal doctor` exit 1),需重裝重驗。
+
+## Rust 目標架構
+
+> **現況問題**:`gal-engine` 是 6577 行 god-crate(十個不相關 domain),"engine" 在 code 出現 **0 次** = 垃圾名 → **退役**。先解耦再 port。
+>
+> **命名慣例**:crate 為單一 `gal` binary 內部實作、不個別發佈 → workspace **無前綴**(同 rust-analyzer 的 `hir`/`ide`/`vfs`)。硬約束:foundation 不可叫 `core`(保留字)→ `base`;名錨定 domain 詞彙(`provider` 54× vs `runtime` 3× → `providers`)。binary 仍 `gal`(`cli` package + `[[bin]] name="gal"`)。現有 `gal-cli`/`gal-engine`/`gal-dispatch` 一併去前綴。
+
+| 層 | crate | 職責 | 依賴 |
+| --- | --- | --- | --- |
+| foundation | `base` | config/mode/paths/install-state/provider-selection;`platform` 模組(symlink·junction·perms·atomic-swap);`render` 模組(模板渲染原語);`HealthCheck` trait | 無 GAL crate |
+| capability | `providers` | Provider trait + claude/copilot/codex/agy 投影 | base |
+| capability | `install` | canonical_root render + bin 暴露 + 孤兒清理 + uninstall ledger | base, providers |
+| capability | `mcp` | MCP 配置 | base |
+| capability | `adapters` | adapter/skill/command/personalization regen（Sync-DevContext + Update-*）,共用 `base::render` | base |
+| capability | `release` | release packaging | base |
+| capability | `vcs` | git filter(clean/smudge) + commit-msg 生成 | base |
+| orchestrator | `setup` | 機器設定:**只編排** install+mcp+adapters + git-filter 註冊,無 domain 邏輯 | base, install, mcp, adapters, vcs |
+| edge | `cli` | 薄入口,名詞分組子命令,`[[bin]] name="gal"`;聚合各 domain 的 `HealthCheck` 為 `gal doctor` | base + 各 domain |
+
+**依賴鐵律**:`base` 不依賴任何 GAL crate;所有 domain 只依賴 `base`(+ install 依 providers);**無環,無 god-crate**。
+
+**架構決定(本次 architect 審查折入)**:
+- **doctor 依賴反轉** —— `HealthCheck` trait 定義在 `base`,各 domain 實作之;`cli`/doctor **聚合 trait 物件**,不直接依賴每個 domain 的內部。doctor 不變成 import 全 workspace 的 crate。
+- **render 原語共用** —— `install`(canonical_root)與 `adapters`(CLAUDE.md 等)都渲染模板檔 → 渲染原語下沉 `base::render`,兩者複用,杜絕重複。
+- **platform 自足** —— OS 原語(symlink/junction/perms)為 `base::platform` 自足模組,不與 config 糾纏;體量成長到需編譯隔離時再升 crate。
+- **crate-vs-module 紀律** —— 只有具獨立依賴集/編譯隔離理由才升 crate;`vcs`/`release` 體量小,預設模組,architect 確認最終粒度。
+
+子命令名詞分組:`gal install|update|doctor`、`gal mcp`、`gal setup`、`gal sync`、`gal release`、`gal git {clean,smudge}`。
+
+## 全面盤點:每個核心 script 的 Rust 目標（「哪裡沒改到」總表）
+
+> 狀態:✅ Rust 已有 / 🟡 模組存在但未接子命令或未 parity / ❌ Rust 完全沒有。xmachine 家族見姊妹計畫。
+
+| Script（.ps1+.sh 成對,除非註明） | 職責 | Rust 目標 | 狀態 |
+| --- | --- | --- | --- |
+| `install-gal-plugins.{ps1,sh}` | 四 provider 安裝編排 | `install` / `gal install` | 🟡 Claude skill 面 parity;Copilot/Codex/AGY 編排未證 |
+| `build-core-plugin.{ps1,sh}` | core plugin render | `install`(render) | 🟡 canonical render 有;AGY core-plugin build 未證 |
+| `build-provider-plugins.{ps1,sh}` | provider plugin render | `install`/`providers` | 🟡 內部,隨上層 |
+| `common/provider-plugin.{ps1,sh}` | provider 投影共用 | `providers` | 🟡 內部 lib |
+| `update-mcp.{ps1,sh}`(1225/2014) | 跨 provider MCP 配置 | `mcp` / `gal mcp`(後端 `mcp.rs` 已存在) | 🟡 模組在,無子命令,未 parity |
+| `update-skills/commands/personalization.{ps1,sh}` | adapter 再生 | `adapters` / `gal sync`·`gal update` | ❌ 無對應 |
+| `Sync-DevContext.{ps1,sh}`(受保護) | repo-local adapter 生成 | `adapters` / `gal sync` | ❌ 無對應(與 update-* 同 `adapters` 後端) |
+| `setup-machine.{ps1,sh}`(受保護) | 機器設定編排 | `setup` / `gal setup` | ❌ 無對應(推翻前計畫 KEEP) |
+| `setup-tools.{ps1,sh}`(668/740) | 工具鏈安裝 | `setup` / `gal setup --tools` | ❌ 無對應 |
+| `uninstall-machine.{ps1,sh}` | 解除安裝 | `install` ledger / `gal uninstall` | 🟡 存在,精確度未證 |
+| `init-repo.{ps1,sh}` | repo `.dev/`/plans 初始化 | `install` / `gal init-repo` | 🟡 部分涵蓋,須確認 |
+| `Resolve-GalCatalog.ps1`(單) | GAL catalog 解析 | `base`/`install` | ❌ 無對應 |
+| `gal-clean.sh`/`gal-smudge.sh`(git filter) | personalizable smudge/clean | `vcs` / `gal clean`·`gal smudge` | ❌ 無對應;`setup` 註冊 filter |
+| `Package-ReleaseArtifacts.{ps1,sh}` | release 打包 | `release` / `gal release`(已存在) | 🟡 是否全覆蓋須確認 |
+| `Test-TranslationFreshness.{ps1,sh}` | 翻譯新鮮度 | `gal` 子命令或 doctor 子檢 | ❌ 無對應 |
+| `common/Common.{ps1,sh}`(43 函式,僅 1 屬 xmachine) | 安裝/設定共用基建 | `base` | 🟡 散落;xmachine 部分留姊妹計畫,整檔刪需兩計畫皆 done |
+| `gal.{ps1,sh}`(748/1051) | 入口 dispatcher | `cli` | 🟡 核心子命令多已有;xmachine/dispatch 入口屬姊妹計畫,整檔刪掛兩計畫尾端 |
+| `Test-ResolveGalCatalog.ps1`、`tests/Test-InstallModeAuthority.ps1`、`test-install-acceptance.sh` | 安裝/catalog 測試 | Rust 測試/fixture | 🟡 reparent 後刪 |
+
+## Requirements
+
+- [ ] **R-00 架構解耦（JIT,非大爆炸,受保護）** — 先抽**最小高槓桿**:`base`(config/mode/paths/install-state/provider-selection + `platform`/`render` 模組 + `HealthCheck` trait;render.rs 跨平台原語下沉)、確立 `providers`、`gal-cli`/`gal-dispatch` 去前綴。**其餘 domain crate(install/mcp/adapters/release/vcs/setup)的拆分排在各自 port phase 起點 JIT 做,不一次拆完** —— 避免對 228-test 綠基線做零功能大爆炸重構。依賴鐵律:base 無 GAL dep、無環、無 god-crate;doctor 走 `HealthCheck` trait 聚合。須 architect 簽核。
+- [ ] **R-01 共用核心 → `base`** — `common.{ps1,sh}` 的安裝/設定函式(install mode、provider 選擇、symlink、install state、plugin root)落 `base`,供 install/setup/mcp/adapters 複用;xmachine 專屬函式不在此。
+- [ ] **R-02 `gal mcp`** — `update-mcp.{ps1,sh}` 全面 Rust 化為 `gal mcp`,接 `mcp.rs`,四 provider parity。
+- [ ] **R-03 adapter-regen + Sync-DevContext → `adapters`（受保護）** — `update-skills/commands/personalization` 與 `Sync-DevContext.{ps1,sh}` 收斂為**單一 `adapters` 後端**(皆生成 adapter 檔,語義同類);CLI 以 `gal sync`(init-time 生成)/`gal update`(增量 regen)暴露,共用 `adapters` + `base::render`。須 architect。
+- [ ] **R-04 `gal setup`（受保護）** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` 的機器設定/工具鏈編排 Rust 化為 `gal setup`(工具步驟以 `--tools` 暴露);含註冊 git filter `gal clean`/`gal smudge`。`setup` 只編排無 domain 邏輯。須 architect。
+- [ ] **R-05 安裝家族 parity + 刪除** — `install-gal-plugins`/`build-core-plugin`/`build-provider-plugins`/`provider-plugin` 四 provider 編排與 render 全面 parity;確認後成對刪除。
+- [ ] **R-06 雜項 Rust 化** — `gal clean`/`gal smudge`(`vcs`)、`gal uninstall` parity、init-repo、catalog 解析、release packaging 併 `gal release`、translation freshness 各有 Rust 對應後成對刪除。
+- [ ] **R-07 `gal` 入口核心子命令** — `gal.{ps1,sh}` 核心子命令(install/update/doctor/setup/mcp/sync/uninstall/clean/smudge)全走 Rust;入口檔整檔刪除待姊妹計畫 xmachine/dispatch 入口也 parity(跨計畫尾端共同收尾)。
+- [ ] **R-08 oracle reparent 前置** — 以 live script 為 oracle 的測試,刪前改 fixture/行為測試。
+- [ ] **R-09 跨平台正確** — Windows junction / Unix symlink / 權限 三平台對齊;隔離 home 驗證。
+- [ ] **R-10 真機驗收（接前計畫未竟,硬 gate）** — 乾淨環境 `gal install` 後 mac-mini(normal packaged-source) + Windows(normal+dev) 皆 doctor green、skill 面載入、canonical root 完整。
+- [ ] **R-11 doctor 涵蓋新面** — 各 domain 實作 `HealthCheck`;`gal doctor` 聚合並擴及 mcp/setup/sync/filter 健康檢查,缺口 fail-loud。
+- [ ] **R-12 終態零 ps1/sh（硬性,無例外）** — 結束時 `scripts/` 不留任何核心家族 ps1/sh。
+
+## Approach（逐期 parity→reparent→刪除）
+
+| Phase | 目標 | 前置 |
+| --- | --- | --- |
+| **P0 盤點凍結 + 真機重裝** | 每核心 script 凍結 parity fixture;重裝 `gal install` 並補做 TP-15/16,確立已完成面真實基準 | — |
+| **P0.5 架構解耦（R-00,受保護,JIT）** | 只抽 `base`+`providers`+去前綴,驗 228 test 綠;domain crate 拆分延到各 port phase | P0、architect |
+| **P1 共用核心（R-01）** | common.{ps1,sh} 安裝/設定函式 → `base` | P0.5 |
+| **P2 `gal mcp`（R-02）** | port update-mcp;parity;刪對 | P1 |
+| **P3 regen+sync（R-03,受保護）** | port update-* + Sync-DevContext 為 `adapters`;architect;parity;刪對 | P1、architect |
+| **P4 `gal setup`（R-04,受保護）** | port setup-machine+setup-tools+filter 註冊;architect;parity;刪對 | P1–P3、architect |
+| **P5 安裝家族刪除（R-05）** | 四 provider parity;刪 install-gal-plugins/build-core/build-provider/provider-plugin | P1–P4 |
+| **P6 雜項（R-06）** | clean/smudge、uninstall、init-repo、catalog、release packaging、translation;成對刪除 | P1 |
+| **P7 入口核心子命令（R-07）** | gal 入口核心子命令全 Rust;入口檔刪除掛跨計畫尾端 | P2–P6 |
+| **P8 真機驗收 + 清空（R-10/R-12）** | 三平台真機;`scripts/` 核心家族清空;`cargo test` 不再 spawn 核心 live script | P1–P7 |
+
+每期 Verify:`cargo test` 綠;該期 superseded script 成對刪除;測試碼不再 spawn 該期 live script;隔離 home 對齊凍結 fixture。
+
+## Files to Create or Modify
+
+- `[CREATE]`(受保護,架構) `crates/base/`(foundation + platform/render 模組 + HealthCheck trait)、`crates/providers/`(R-00)。
+- `[CREATE/MOVE]`(受保護,架構) `gal-engine` **退役**,JIT 拆 `crates/install/`、`crates/mcp/`、`crates/adapters/`、`crates/release/`、`crates/vcs/`;render 原語下沉 `base::render`。
+- `[CREATE]` `crates/setup/`(orchestrator,只編排)。
+- `[RENAME]` `gal-cli`→`crates/cli`(`[[bin]] name="gal"`)、`gal-dispatch`→`crates/dispatch`。
+- `[MODIFY]` `crates/cli/`:名詞分組子命令接線 + doctor 聚合 `HealthCheck`。
+- `[MODIFY]`(受保護,契約面) `plugins/gal-core/commands/gal/SKILL.template.md`、`gal-init/SKILL.template.md`:引用改指 Rust binary。
+- `[MODIFY]` `.gitattributes` + `gal setup` 寫 `git config filter.gal-config.clean = gal clean`。
+- `[MODIFY]` `tests/fixtures/`、`crates/*/tests/*`:oracle reparent。
+- `[DELETE on parity]` 安裝家族、MCP、regen+sync(含 `Sync-DevContext.*`)、設定(`setup-machine.*`/`setup-tools.*`/`uninstall-machine.*`/`init-repo.*`/`Resolve-GalCatalog.ps1`)、雜項(`gal-clean.sh`/`gal-smudge.sh`/`Package-ReleaseArtifacts.*`/`Test-TranslationFreshness.*`/`Test-ResolveGalCatalog.ps1`/`tests/Test-InstallModeAuthority.ps1`/`test-install-acceptance.sh`)。
+- `[DELETE on parity,跨計畫尾端]` `common/Common.{ps1,sh}`、`gal.{ps1,sh}` — 含 xmachine 共用,兩計畫皆 done 才整檔刪。
+
+## Success Criteria
+
+- [ ] `scripts/` 核心家族零 ps1/sh —— **硬性,無例外**。
+- [ ] `gal mcp`/`gal setup`/`gal sync`/`gal clean`/`gal smudge` 子命令存在且與舊腳本 parity(對照 fixture)。
+- [ ] 四 provider 安裝、adapter 生成、MCP 配置、機器設定全走 Rust,活讀取面與 source 一致。
+- [ ] git filter 改 `gal clean`/`gal smudge`,smudge/clean 行為不變。
+- [ ] mac-mini(normal)+ Windows(normal+dev)真機 `gal install` doctor green、skill 面載入、canonical root 完整。
+- [ ] `cargo test` 綠且測試碼不再 spawn 任何核心 live `scripts/*.{ps1,sh}`。
+- [ ] 各 domain 實作 `HealthCheck`,`gal doctor` 聚合,缺口 fail-loud。
+
+## Risks
+
+- **範圍大 + 受保護路徑（高）**:gal-engine 核心、Setup-Machine/Sync-DevContext(推翻 KEEP)。Mitigation:R-00/R-03/R-04/R-05 走 architect;CODER≠REVIEWER;推翻 KEEP 記入 Key Decisions。
+- **跨計畫共用檔（高）**:`common.*`/`gal.{ps1,sh}` 與 xmachine 計畫共用。Mitigation:只搬出核心函式/子命令,物理刪除掛跨計畫尾端共同 gate。
+- **真機驗收延宕重演（中）**:前計畫正是真機沒驗就標完成。Mitigation:P0 即重裝補驗,P8 三平台硬 gate。
+- **Bash/PS 行為分歧（中）**:雙實作本就可能不一致。Mitigation:P0 並列輸出明確裁基準並記錄。
+- **與活躍計畫相鄰檔（中）**:`refactor-golem-auditor`/`feat-small-context`/`fix-install-followups`。Mitigation:排序協調。
+
+## Decisions（已定,不再是 OQ）
+
+- **零 ps1/sh 無例外** — bootstrap/filter/completion/遠端/工具鏈皆有非腳本路徑(見 Motivation)。
+- **Sync-DevContext + update-* 合一為 `adapters`** — 皆生成 adapter 檔,單一後端;`gal sync`/`gal update` 為其 CLI 面。
+- **setup-tools 納入 `gal setup`** — 雙實作即納入;工具下載副作用是實作關注非排除理由。
+- **dispatch / 外部直呼 / bootstrap 腳本** — dispatch 屬姊妹計畫(`dispatch` crate 已完成,不重做);無外部直呼需遷移期保活;bootstrap 不留腳本。
+
+## Review Results
+
+### Architecture Review
+
+**Verdict: APPROVE(方向)。** 二審(2026-06-09)應使用者要求,**首次完整評估整個 Rust 架構分解**(首審在架構定案前 APPROVE,確實漏了)。Motivation(全 Rust + 單 binary)正當;分層(base/providers/capability/orchestrator/edge)、依賴鐵律、engine 退役、fixture-gated 刪除均健全。本次新增四項架構發現,全折入。
+
+#### Trade-off Summary
+
+| 決策 | 效益 | 成本 | 裁決 |
+| --- | --- | --- | --- |
+| 全 Rust 取代雙實作 | 寫一次、消除飄移、binary 啟動快 | ~13.6K 行 port + 觸受保護核心 | OK |
+| 無前綴 + engine 退役 + 名錨 domain | 去垃圾名、慣例一致 | 改現有 crate 名 | OK |
+| JIT 解耦(非大爆炸) | 保 228-test 綠基線 | 解耦分散各 phase | OK |
+| 每 domain 一 crate | 邊界清楚、編譯並行 | crate 數多 | OK(crate-vs-module 紀律約束,非過度) |
+| 刪除 = fixture-parity 綠 + 混合態不變量 | 防「刪了才發現壞」 | fixture 維護 | OK |
+
+#### 架構發現（本次新增,已折入）
+
+- **[ARCH-01] doctor 依賴反轉** → `HealthCheck` trait 置 `base`,各 domain 實作,`cli`/doctor 聚合 trait 物件,不 import 全 workspace。已寫入架構 + R-11。
+- **[ARCH-02] render 原語共用** → `install` 與 `adapters` 皆渲染模板,渲染原語下沉 `base::render` 複用,杜絕重複。已寫入架構 + R-03。
+- **[ARCH-03] base 內聚** → OS 原語為 `base::platform` 自足模組,不與 config 糾纏;成長到需編譯隔離再升 crate。已寫入架構。
+- **[ARCH-04] setup 須薄** → orchestrator 只編排、無 domain 邏輯,否則又成 god-crate。已寫入 R-04。
+
+#### Bug Surface
+
+- **[BUG-01](中)半搬態 consumer 失依** → 治理原則「混合態不變量」。
+- **[BUG-02](低)`base`/`cli`/`dispatch` 泛名撞外部依賴** → path-dep 優先,實作確認無同名外部 dep。
+- **[BUG-03](中)刪除憑「編譯過」放行 parity bug** → 刪除硬 gate=fixture-parity 綠。
+
+#### Performance
+
+- **[PERF-01]** binary 啟動快無量測 → `/refining-plan` 加 TP:cold-start vs 腳本路徑(非阻斷)。
+
+#### What's Good
+
+- Motivation 一刀解清 scope 型問題(雙實作=納入)。
+- 依賴鐵律 + engine 退役 + doctor 反轉 = 健康 DAG,無 god-crate。
+- fixture-gated 刪除 + 混合態不變量。
+
+#### 三審：task/test 粒度（2026-06-09,使用者要求最終檢查）
+
+- **[GRAN-01] 初版 task 過粗** → 已重切:T-003(原綁 7 單元的架構解耦)拆為 base/platform/render/HealthCheck/providers/rename 六步逐步驗綠;adapters 由「四對一起」拆為逐腳本 T-013..T-017;install 家族 parity 逐 provider;R-06 六項雜項各自成 task。33 task,每個 commit-size 可獨立驗。
+- **[GRAN-02] 完整性補洞** → 補:workspace `Cargo.toml` members 維護(T-003)、各拆分後 import 重指、HealthCheck 改為**各 domain 在自己 port task 內實作**(非最後集中)、混合態不變量抽查 TP-25、git filter 跨平台 TP-17、每次拆 crate「拆後綠」TP-04..TP-09。
+
+<!-- ARCH_REVIEW: APPROVE -->
+
+### Business Review
+Not triggered（無 business-rule）。
+
+### Design Review
+Not triggered（無 customer-facing UI）。
+
+### Engineering Review
+
+**Verdict: CLEAR.**（三審 2026-06-09 重切粒度後) 33 個 T-NNN 對映 R-00..R-12 / P0..P8,**每個 = 一個獨立可驗、commit-size 單元**(R-00 解耦切為 7 個逐步驗綠步驟 T-003..T-009;adapters 逐腳本 T-013..T-017;install 家族逐 provider parity;R-06 雜項逐項 port→parity→刪);25 條 TP 覆蓋(含每次拆 crate 的「拆後綠」、逐 provider parity、git filter 跨平台、混合態不變量抽查、接管真機硬 gate TP-02/03)。architect 三審 APPROVE。可進 `/plan-to-prompt`。
+
+**實作期約束(prompt 與執行須遵守):**
+
+1. **受保護核心簽核** — T-003(R-00 抽 base/providers/去前綴)、T-007(R-03 adapters + Sync-DevContext)、T-008(R-04 setup,推翻 Setup-Machine KEEP)觸及 `gal-engine` 核心 + 受保護路徑,實作前須 architect 簽核;CODER≠REVIEWER,reviewer tier ≥ implementer。
+2. **刪除硬 gate = fixture-parity 綠** — 任何 `[DELETE]` 任務的刪除動作須先對齊 P0 凍結 fixture;`T-004`(oracle reparent)必須先於其覆蓋的刪除任務。
+3. **混合態不變量** — 每個 phase 邊界系統完整可運作,不得讓 consumer 呼到已刪/半搬面;`common.*`/`gal.{ps1,sh}` 物理刪除(T-013 尾)掛跨計畫共同 gate(與姊妹計畫皆 done)。
+4. **JIT 解耦** — T-003 只抽 base+providers+去前綴並驗 228 test 綠;domain crate(install/mcp/adapters/release/vcs/setup)於各自 port 任務起點才拆。
+
+<!-- ENG_REVIEW: CLEAR -->
+
+## Test Plan
+
+> 切細對應細任務。每個拆 crate / port 任務都帶「拆後 `cargo test` 仍綠」檢查;每個 port 帶 fixture-parity;install 家族 parity 逐 provider。
+
+| ID | Type | Description | Covers |
+| --- | --- | --- | --- |
+| TP-01 | integration | fixture freeze:每核心 script 的 `tests/fixtures/` 可重現現況可觀察輸出/副作用(刪除 oracle) | T-001 |
+| TP-02 | integration（硬 gate） | mac-mini(Unix)純 normal mode 乾淨安裝:packaged-source 自解析、`~/.claude/skills/gal` symlink + doc-sync 載入、canonical root 正確、無孤兒、doctor green（=接管 TP-15） | T-002, T-033 |
+| TP-03 | integration（硬 gate） | Windows 雙模式:normal(packaged-source+junction)→ dev(galRoot repo-root),兩模式 canonical root + skill 面 + doctor green（=接管 TP-16） | T-002, T-033 |
+| TP-04 | unit | 抽 `base` 後 228 test 綠;`base` 不依賴任何 GAL crate;workspace `Cargo.toml` members 正確 | T-003 |
+| TP-05 | unit | `base::platform` 下沉後 render/install 路徑改用之,228 test 綠;Windows junction / Unix symlink / 權限行為不變 | T-004 |
+| TP-06 | unit | `base::render` 下沉後既有 render 改用之,228 test 綠,輸出 byte 不變 | T-005 |
+| TP-07 | unit | `HealthCheck` trait 在 `base`;既有 doctor 檢查遷移為 trait 實作,doctor exit 分級不變 | T-006 |
+| TP-08 | unit | 抽 `providers` 後 228 test 綠;install 依 providers、無環 | T-007 |
+| TP-09 | unit | rename `cli`/`dispatch` 後 228 test 綠、`gal --version` 正常、無同名外部 dep 衝突 | T-008 |
+| TP-10 | unit | T-009 reparent 後 `cargo test` 不再 spawn `Test-ResolveGalCatalog`/`Test-InstallModeAuthority`/`test-install-acceptance`,改讀 fixture | T-009 |
+| TP-11 | unit | `common.*` → `base` 各函式群 == fixture(install mode、provider 選擇、symlink、install state、plugin root) | T-010 |
+| TP-12 | parity | `gal mcp` 四 provider MCP 配置輸出 == fixture(逐 provider 斷言) | T-011 |
+| TP-13 | unit | `update-mcp.{ps1,sh}` 刪除後無 consumer 失依;混合態不變量(刪除前後系統可運作) | T-012 |
+| TP-14 | parity | `adapters`:update-skills / update-commands / update-personalization / Sync-DevContext 各自生成 == fixture;與 install 共用 `base::render` 無重複實作 | T-013..T-016 |
+| TP-15 | integration | `gal sync`(init-time)/`gal update`(增量)走 `adapters` 後端,生成 adapter 檔 == fixture | T-016 |
+| TP-16 | parity | `gal setup` 機器設定編排 == fixture;`gal setup --tools` 工具鏈步驟 == fixture | T-018, T-019 |
+| TP-17 | integration（跨平台） | git filter 註冊:`.gitattributes` + `git config filter.gal-config.* = gal clean/smudge`;Windows(無 bash)與 Unix 皆 smudge/clean 行為不變 | T-020 |
+| TP-18 | parity | install 家族逐 provider parity:Claude / Copilot / Codex / AGY 安裝編排 + render == fixture | T-022, T-023 |
+| TP-19 | unit | install 家族刪除後四 provider 活讀取面仍對齊 source(doctor green) | T-024 |
+| TP-20 | parity | `vcs`(clean/smudge/commit-msg)、`gal uninstall`(ledger 精確)、init-repo、catalog、release-packaging、translation 各 == fixture | T-025..T-030 |
+| TP-21 | unit | 各 domain 實作 `HealthCheck`;`gal doctor` 聚合,對缺 mcp/setup/sync/filter 各報非零指出修復面,完整安裝 exit 0 | T-031 |
+| TP-22 | integration | `gal` 入口核心子命令全走 Rust;`gal`/`gal-init` SKILL.template 引用改指 binary;名詞分組子命令可呼 | T-032 |
+| TP-23 | manual | `scripts/` 核心家族零 ps1/sh(grep);`cargo test` 綠且測試碼不再 spawn 任何核心 live `scripts/*.{ps1,sh}` | T-033 |
+| TP-24 | perf | binary cold-start vs 腳本路徑量測(驗證 Motivation #2,非 gate) | T-032 |
+| TP-25 | integration | 混合態不變量抽查:在 P2/P4 中途狀態(部分 Rust 部分腳本)系統完整可運作,無 consumer 呼到已刪/半搬面 | T-011..T-030 |
+
+**真機驗證順序**:① mac-mini(SSH,純 normal,專測最未驗的 packaged-source 路徑)→ ② 複製 `~/.gal/config/` 帶 `*.local.*` → ③ Windows(normal + dev)。Linux normal 有 host 時經 SSH 補。
+
+## Tasks
+
+> 切割原則:**一個 task = 一個獨立可驗、commit-size 的單元**。每個拆 crate / port 任務以「拆後 `cargo test` 綠」收尾;每個 domain 在自己的 port task 內**就實作 `HealthCheck`**(不留到最後)。
+
+**P0 — 基準**
+- [ ] **T-001（P0）** — 凍結 parity fixtures:每個核心 script 抓現況可觀察輸出/副作用存 `tests/fixtures/`(刪除 oracle 基線)。
+- [ ] **T-002（P0,硬 gate）** — 乾淨重裝 `gal install` 重建本機綠基線;跑 TP-02(mac-mini)+ TP-03(Windows 雙模式)確立已完成引擎面真實基準。
+
+**R-00 架構解耦（受保護,architect;逐步驗綠,JIT）**
+- [ ] **T-003** — 建 workspace 骨架 + 抽 `base` crate:移入 config/mode/paths/install-state/provider-selection;更新 root `Cargo.toml` members;repoint importers;`cargo test` 綠。
+- [ ] **T-004** — 下沉 `base::platform`(symlink/junction/perms/atomic-swap);render/install 改用;Windows/Unix 行為不變;綠。
+- [ ] **T-005** — 下沉 `base::render`(模板渲染原語);既有 render 改用、輸出 byte 不變;綠。
+- [ ] **T-006** — 在 `base` 定義 `HealthCheck` trait;遷移既有 doctor 檢查為 trait 實作;exit 分級不變。
+- [ ] **T-007** — 抽 `providers` crate(Provider trait + claude/copilot/codex/agy 投影,自 gal-engine 移出);install 依 providers;綠、無環。
+- [ ] **T-008** — rename `gal-cli`→`cli`(`[[bin]] name="gal"`)、`gal-dispatch`→`dispatch`;更新所有 import + Cargo;`gal --version` 正常;228 test 綠。
+- [ ] **T-009（R-08,先於所有刪除）** — reparent oracle 測試(`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`)為 fixture/行為測試。
+
+**R-01 共用核心**
+- [ ] **T-010（R-01）** — port `common.{ps1,sh}` 安裝/設定函式進 `base`(install mode/provider 選擇/symlink/install state/plugin root);install/setup/mcp/adapters 改用。
+
+**R-02 MCP**
+- [ ] **T-011（R-02）** — 拆 `mcp` crate;port `update-mcp` → `gal mcp` 後端 + `HealthCheck`;四 provider parity 對齊 fixture。
+- [ ] **T-012** — 對齊 fixture 後刪 `update-mcp.{ps1,sh}`,驗無 consumer 失依。
+
+**R-03 adapters（受保護,architect）**
+- [ ] **T-013（R-03）** — 拆 `adapters` crate + port `update-skills` → 後端(共用 `base::render`)+ `HealthCheck`;parity。
+- [ ] **T-014** — port `update-commands` → `adapters`;parity。
+- [ ] **T-015** — port `update-personalization` → `adapters`;parity。
+- [ ] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。
+- [ ] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。
+
+**R-04 setup（受保護,architect）**
+- [ ] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。
+- [ ] **T-019** — port `setup-tools` → `gal setup --tools`;parity。
+- [ ] **T-020** — 註冊 git filter:`.gitattributes` + `git config filter.gal-config.* = gal clean/smudge`;Windows/Unix smudge/clean 行為不變。
+- [ ] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。
+
+**R-05 安裝家族**
+- [ ] **T-022（R-05）** — 確認 `install-gal-plugins` 四 provider 安裝編排 parity(逐 provider 對齊 fixture:Claude/Copilot/Codex/AGY)。
+- [ ] **T-023** — 確認 `build-core-plugin`/`build-provider-plugins`/`provider-plugin` render parity。
+- [ ] **T-024** — 全 parity 綠後刪 install 家族(含內部專屬腳本);驗活讀取面仍對齊。
+
+**R-06 雜項（逐項 port→parity→刪）**
+- [ ] **T-025** — `vcs`:`gal clean`/`gal smudge` + commit-msg;parity;刪 `gal-clean.sh`/`gal-smudge.sh`。
+- [ ] **T-026** — `gal uninstall` parity(ledger 精確);刪 `uninstall-machine.{ps1,sh}`。
+- [ ] **T-027** — port `init-repo` → Rust;parity;刪對。
+- [ ] **T-028** — port catalog 解析(`Resolve-GalCatalog`)→ Rust;parity;刪。
+- [ ] **T-029** — release packaging 併 `gal release`;parity;刪 `Package-ReleaseArtifacts.{ps1,sh}`。
+- [ ] **T-030** — port translation freshness → Rust;parity;刪對。
+
+**R-11/R-07/R-10 收尾**
+- [ ] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。
+- [ ] **T-032（R-07）** — port `gal.{ps1,sh}` 核心子命令進 `cli`(名詞分組);改 `gal`/`gal-init` SKILL.template 引用指 binary。入口檔物理刪除掛跨計畫尾端。
+- [ ] **T-033（R-09/R-10/R-12,硬 gate）** — 三平台真機驗收;`scripts/` 核心家族清空(共用 `common.*`/`gal.{ps1,sh}` 與姊妹計畫共同尾端刪);`cargo test` 綠且測試碼不再 spawn 核心 live script(grep 驗)。

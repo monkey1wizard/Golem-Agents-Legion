@@ -10,9 +10,17 @@ Desktop.ini
 *~
 .venv/
 
-# Local GAL workflow state (keep .dev/project.md tracked)
+# Local GAL workflow state.
+# Track durable, repo-visible execution memory (file-memory contract); ignore the rest.
 .dev/*
 !.dev/project.md
+!.dev/state.md
+!.dev/plans/
+.dev/plans/*
+!.dev/plans/*.prompt.md
+
+# Private notes (never commit — local-only)
+*.private.md
 
 # Secrets (never commit these)
 *.key
