@@ -291,7 +291,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-006** — 在 `base` 定義 `HealthCheck` trait;遷移既有 doctor 檢查為 trait 實作;exit 分級不變。*(ba5fc69;Severity/DoctorFinding/DoctorReport 移入 base::health;9 個 check → 各自 HealthCheck struct;run_doctor 以 Vec<Box<dyn HealthCheck>> 依原條件順序聚合,finding 順序/訊息/exit 分級 byte 不變)*
 - [x] **T-007** — 抽 `providers` crate(Provider trait + claude/copilot/codex/agy 投影,自 gal-engine 移出);install 依 providers;綠、無環。*(c0f1f37;providers GAL-deps=[base] 唯一,無 providers↔engine 環——BUG-01 於 T-003 預解之效;gal-engine `pub use providers` 再匯出,install.rs 零改;23 provider test 綠)*
 - [x] **T-008** — rename `gal-cli`→`cli`(`[[bin]] name="gal"`)、`gal-dispatch`→`dispatch`;更新所有 import + Cargo;`gal --version` 正常;228 test 綠。*(b190cf7;BUG-02:dispatch package/lib 去前綴但 bin 輸出名保留 `gal-dispatch`,gal.ps1 shim 不受影響;gal.exe + gal-dispatch.exe 皆產出;`gal --version`→gal 0.1.0)*
-- [ ] **T-009（R-08,先於所有刪除）** — reparent oracle 測試(`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`)為 fixture/行為測試。
+- [x] **T-009（R-08,先於所有刪除）** — reparent oracle 測試(`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`)為 fixture/行為測試。*(317d342)*
 
 **R-01 共用核心**
 - [ ] **T-010（R-01）** — port `common.{ps1,sh}` 安裝/設定函式進 `base`(install mode/provider 選擇/symlink/install state/plugin root);install/setup/mcp/adapters 改用。

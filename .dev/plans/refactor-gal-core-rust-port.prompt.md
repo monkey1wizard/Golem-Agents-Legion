@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 9 of 35
-Last activity: 2026-06-09 — T-008 complete (commit: b190cf7) — de-prefix cli/dispatch; BUG-02 closed (gal-dispatch bin name preserved); `gal --version` ok; 228 green. **STOP-AT boundary reached — pipeline run T-003..T-008 complete (R-00 architecture decomposition done, all 6 protected-core steps green).** Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: T-009 — reparent oracle tests (R-08, before any deletion) — NOT started this run; resume with `/gal pipeline from T-009`
+Step: 10 of 35
+Last activity: 2026-06-09 — T-009 complete (commit: 317d342) — oracle tests reparented; 243 tests green; TP-10 satisfied. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-010
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -141,7 +141,7 @@ R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged. *(ba5fc69; 9 checks → per-surface HealthCheck impls; run_doctor drives Vec<Box<dyn HealthCheck>>, byte-identical order)*
 - [x] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles. *(c0f1f37; GAL-deps=[base] only, BUG-01 payoff = no providers↔engine cycle; gal-engine re-exports via `pub use providers`)*
 - [x] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green. *(b190cf7; BUG-02: gal-dispatch bin output name preserved → gal.ps1 shim unaffected; both gal.exe + gal-dispatch.exe produced)*
-- [ ] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests.
+- [x] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests. *(317d342)*
 
 R-01 shared core
 - [ ] T-010 (R-01) — Port `common.{ps1,sh}` install/setup functions into `base`; install/setup/mcp/adapters use the shared core.
@@ -229,6 +229,18 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-009] 2026-06-09 — PASS (TP-10)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-10 (after reparent, `cargo test` no longer spawns oracle scripts; reads fixtures).
+
+- **243 / 0** — `cargo test --workspace` 243 passed, 0 failed (228 pre-existing + 15 new T-009 tests).
+- **TP-10 primary check** — `grep -r "Command::new.*ps1|spawn.*Test-|spawn.*test-install-accept" crates/`: no matches. No oracle script spawning anywhere in the Rust test suite.
+- **New fixture-based tests** — `oracle_reparent_t009.rs` 15/15 pass:
+  - `acceptance_fixture` (8 tests): fixture-based structural assertions replacing `test-install-acceptance.sh` (§3 canonical root, §4 dockeeper, §5 doc-sync, §7 no orphans, §7 orphan detection, §8 bin present, §8 bin missing, manifests).
+  - `catalog_fixture` (7 tests): `plugins/catalog.json` parsed via `include_str!`; verified schema version=1, non-empty, gal-core present, gal-core in default profile, all plugins have license+checksumPolicy, unique IDs.
+- **mode.rs reparent note** — T-009 comment added to `base/src/mode.rs` test module linking 16 TempDir-fixture tests to `Test-InstallModeAuthority.ps1`.
+- **Build** — clean, 0 warnings.
 
 ### [T-003] 2026-06-09 — PASS (TP-04)
 
@@ -320,6 +332,18 @@ Not triggered (no customer-facing UI).
 ### Engineering Review
 
 CLEAR (4th pass). 35 T-NNN map to R-00..R-13 / P0..P8, each an independently verifiable commit-size unit. 27 TP cover (per-crate-split "still green", per-provider parity, git-filter cross-platform, mixed-state invariant, R-13 pipeline TP-26, dev baseline TP-26b, end-user real-machine TP-02/03). Implementation constraints: (1) protected-core architect sign-off for T-003..T-009/T-013..T-017/T-018..T-021; (2) deletion hard-gate = fixture-parity green, T-009 reparent before its covered deletions; (3) mixed-state invariant at every phase boundary; `common.*`/`gal.{ps1,sh}` deletion at cross-plan joint gate; (4) JIT decomposition; (5) **CORR-01: real-machine/end-user tests install R-13 prebuilt artifact only; never build on a test machine; T-034 is hard prereq of T-035.** CODER≠REVIEWER; reviewer tier ≥ implementer.
+
+### [T-009] 2026-06-09 — APPROVE
+
+Scope: commit range `04c549c..317d342` (oracle test reparent, R-08). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **TP-10 satisfied**: `include_str!` loads `plugins/catalog.json` at compile time; TempDir fixtures cover acceptance criteria; no `Command::new` spawn of PS1/sh oracle scripts (grep-verified).
+- **Three oracles covered**: `Test-InstallModeAuthority.ps1` → mode.rs comment + existing TempDir tests; `test-install-acceptance.sh` → 8 acceptance fixture assertions; `Test-ResolveGalCatalog.ps1` → 7 catalog structural assertions.
+- **Catalog baseline correct**: TP-004/TP-005/TP-006 invariants documented and tested; full resolution logic deferred to T-028 as per plan.
+- **Scope discipline**: no logic changes in mode.rs; no new public API surface; strictly reparent scope.
+- **No BLOCKING findings. No Protected-Path violation, no security surface.**
+
+Verdict: **APPROVE** — proceed to T-010.
 
 ### [T-003] 2026-06-09 — APPROVE
 
