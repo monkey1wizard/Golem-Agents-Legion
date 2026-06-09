@@ -103,11 +103,11 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IMPLEMENT — T-015 active after T-014 closeout
-Step: 14 of 35
-Last activity: 2026-06-09 — T-014 complete — `crates/adapters` now covers `update-commands`; reviewer approve after fixing shared-link ownership + no-template rewrite parity; workspace tests green.
-Next step: T-015 — port `update-personalization` into `adapters` with the same task-scoped parity/review flow
-Current Task: T-015
+Workflow: IMPLEMENT — T-016 active after T-015 closeout
+Step: 15 of 35
+Last activity: 2026-06-11 — T-015 complete — `crates/adapters` now covers `update-personalization`; reviewer approve after bridge merge + dry-run safety fixes; workspace tests green.
+Next step: T-016 — port `Sync-DevContext` into `adapters`, then wire `gal sync` / `gal update` with the same task-scoped parity/review flow
+Current Task: T-016
 Task Base Commit: bda5fb7
 Task Final Commit: —
 Test Retry Count: 2
@@ -154,7 +154,7 @@ R-02 MCP
 R-03 adapters (protected, architect)
 - [x] T-013 (R-03) — Split `adapters` crate + port `update-skills` → backend (shares `base::render`) + `HealthCheck`; parity.
 - [x] T-014 — Port `update-commands` → `adapters`; parity.
-- [ ] T-015 — Port `update-personalization` → `adapters`; parity.
+- [x] T-015 — Port `update-personalization` → `adapters`; parity.
 - [ ] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
 - [ ] T-017 — After all four pairs reach parity green, delete them.
 
@@ -385,6 +385,58 @@ Verification Independence: DEGRADED_SAME_RUNTIME.
 
 **Verdict: APPROVE** — T-011 complete, TP-12 satisfied, 319 tests green, no regressions.
 
+---
+
+### [T-015] 2026-06-11 — REQUEST_CHANGES (auto-fixed; re-verify)
+
+Reviewed: 2026-06-11
+Commit range: unstaged diff — `crates/adapters/Cargo.toml` + `crates/adapters/src/lib.rs` (T-015 personalization backend)
+Verdict: REQUEST_CHANGES
+
+#### BLOCKING
+- **[B-01]** Correctness / Parity / Data-loss: `set_vscode_skills_bridge` replaced the entire `chat.agentSkillsLocations` JSON object with a single-entry object `{"~/.agents/skills": false}`, destroying any other entries the user had set. Both legacy scripts modify only the `~/.agents/skills` key in-place — PS1 (lines 196-211) reads `$settings.'chat.agentSkillsLocations'` and updates only the single key; bash (Python inlined, lines 158-165) does `locations['~/.agents/skills'] = False` on the existing dict. — `crates/adapters/src/lib.rs:1331-1339` (pre-fix)
+  - Impact: Any machine with multiple `chat.agentSkillsLocations` entries loses all but the GAL-managed one on every `gal update` run. Data loss, parity regression.
+  - Fix: Use `entry(...).or_insert_with(...)` on the outer object, then insert only the `~/.agents/skills` key into the existing sub-object.
+  - Resolution: FIXED — auto-fix applied: `set_vscode_skills_bridge` now uses `entry(...).or_insert_with(|| Value::Object(Map::new()))`, resets non-object values, then inserts only the single key. `cargo test -p adapters` 12/12 green.
+
+- **[B-02]** Correctness / Parity: `build_agy_plugin` spawned its subprocess unconditionally — no `dry_run` guard. Both legacy scripts gate the subprocess call behind an explicit dry-run check: PS1 lines 126-131 (`if ($script:SetupOptions.DryRun) { ... [DRY RUN] ... } else { & $buildScript ... }`); bash lines 93-96 (`if $DRY_RUN; then ... fi`). On a `--dry-run` invocation the Rust code actually ran the build, mutating the filesystem. — `crates/adapters/src/lib.rs:1449-1479` (pre-fix)
+  - Impact: `--dry-run` is not a no-op for AGY plugin builds; parity regression; unexpected side-effects on dry inspection runs.
+  - Fix: Add `if ctx.opts.dry_run { report.written_files.push(ctx.agy_plugin_install_target()); return Ok(()); }` after the missing-script guard.
+  - Resolution: FIXED — auto-fix applied at `crates/adapters/src/lib.rs:1449`. `cargo test -p adapters` 12/12 green.
+
+#### WARNING
+- **[W-01]** Test coverage gap: Neither blocking defect has a test. No test exercises `set_vscode_skills_bridge` with pre-existing extra keys in `chat.agentSkillsLocations`, and no test covers the dry-run path for AGY plugin build. The existing happy-path test (`update_personalization_writes_context_bridges_and_routing`) starts with an empty VS Code settings file, so it could not have caught B-01.
+  - Fix: Add `update_personalization_preserves_existing_vscode_skill_locations` (pre-populate settings with an extra location, assert it survives after `run_update_personalization`). Add `update_personalization_dry_run_does_not_invoke_agy_build` (assert no subprocess spawned on dry_run when AGY is selected in non-install mode).
+  - Resolution: FIXED — both regression tests added and passing (14/14 green on re-verify 2026-06-11).
+
+#### Summary
+- Blocking: 2 (resolved: 2, open: 0)
+- Warning: 1 (resolved: 1, open: 0)
+- Info: 0
+
+---
+
+### [T-015] 2026-06-11 — RE-VERIFY (round 2)
+
+Reviewed: 2026-06-11
+Commit range: unstaged diff — `crates/adapters/Cargo.toml` + `crates/adapters/src/lib.rs` (post auto-fix + regression tests)
+Verdict: APPROVE
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** `ensure_dir` for `antigravity_root()` (line 492) runs unconditionally even during `uninstall: true`, creating a directory immediately before `remove_dir_if_present` would be asked to remove it. Harmless, but logically inconsistent.
+- **[I-02]** `load_install_mode` is called twice in the hot path when antigravity is selected: once at the outer guard (line 528) and once inside `build_agy_plugin` → `load_install_mode` (line 1467). Minor — `GalConfig::load_from_path` does a filesystem read each time.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 2
+
 ## Analyze
 
 (empty — populated by reviewer/debugger during execution)
@@ -424,6 +476,15 @@ Verification Independence: DEGRADED_SAME_RUNTIME.
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-015] 2026-06-11 — PASS (TP-14 slice: update-personalization)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-14 sliced to T-015 only (`update-personalization` parity surface inside `crates/adapters`).
+
+- **All workspace tests green** — `cargo test --workspace --quiet` after the review-fix pass: adapters 14/14, workspace suites green, 1 ignored existing test only.
+- **Bridge behavior ported** — Gemini `gal-context.md` skill imports, Gemini `settings.json` `context.fileName` merge, VS Code `chat.agentSkillsLocations` merge, executor-routing seed copy, and repo-local git filter/hooks now run through Rust.
+- **Safety regressions locked** — existing VS Code skill-location entries are preserved and AGY dry-run does not execute the build script.
+- **Scope held to T-015** — only `crates/adapters/**` changed for code; T-016 wiring and T-017 deletions remain out of this task commit.
 
 ### [T-014] 2026-06-09 — PASS (TP-14 slice: update-commands)
 

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 base = { path = "../base" }
+serde_json = "1"
 thiserror = "1"
 
 [dev-dependencies]
