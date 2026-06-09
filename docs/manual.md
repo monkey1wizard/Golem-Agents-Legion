@@ -28,7 +28,7 @@ The machine installer persists runtime selection in `~/.gal/install-state.json`:
 
 The GAL repo remains the single source of truth for `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, and `plugins/gal-core/commands/`. Antigravity CLI (AGY) is the primary Google terminal runtime; GAL links each AGY surface to the canonical root at `~/.gal/plugins/gal/`. Use setup again with `-Reconfigure` (Windows) or `--reconfigure` (macOS/Linux) to change selected or primary runtimes.
 
-The machine setup surface is split by concern; the full-sequence entry points are `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh`, with `Update-Personalization`, `Update-Skills`, `Update-Commands`, and `Update-Mcp` (and their `.sh` peers) for single-concern refreshes. See [When To Rerun Setup](#when-to-rerun-setup).
+The machine setup surface is split by concern; the full-sequence entry points are `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh`, `gal update --machine-only` refreshes machine projections, `gal sync` regenerates repo-local adapters, and `Update-Mcp.*` remains the direct MCP concern entrypoint. See [When To Rerun Setup](#when-to-rerun-setup).
 
 ### Configuration & Placeholders
 
@@ -181,7 +181,7 @@ Add matching variables to `~/.gal/config/config.local.env`; `Update-Mcp.*` merge
 
 ### Headless Executor Routing
 
-GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.json` (read by the `gal-dispatch` bin). Run `Update-Personalization.*` once to seed `executor-routing.example.json` into the local copy, then configure routing:
+GAL can offload pipeline phases (implement / test / review / verify) to a secondary headless CLI instead of the conversation loop, via `~/.gal/config/executor-routing.json` (read by the `gal-dispatch` bin). Run `gal update --machine-only` once to seed `executor-routing.example.json` into the local copy, then configure routing:
 
 ```json
 {
@@ -231,16 +231,15 @@ This aligns with the GAL memory contract: **provider-local chat history is advis
 
 Rerun setup when any of these change: `~/.gal/config/config.local.env`, `plugins/gal-core/mcp.json`, `~/.gal/config/mcp.local.json`, any `plugins/gal-core/commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
 
-Use the narrower concern script when only one concern changed — `Update-Personalization` (runtime bridges, `config.local.env`, `executor-routing.json`), `Update-Skills` (`plugins/gal-core/agents/`, `plugins/gal-core/skills/`), `Update-Commands` (`plugins/gal-core/commands/*/SKILL.*`), `Update-Mcp` (`plugins/gal-core/mcp.json`, `mcp.local.json`, MCP env) — plus their `.sh` peers. If you changed source content that feeds repo-local generated adapters (`.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), rerun `Sync-DevContext.*` (`Update-Mcp` does not regenerate those).
+Use the narrower concern entrypoint when only one concern changed — `gal update --machine-only` (runtime bridges, `config.local.env`, `executor-routing.json`, `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, `plugins/gal-core/commands/*/SKILL.*`), `Update-Mcp` (`plugins/gal-core/mcp.json`, `mcp.local.json`, MCP env), or `gal sync` for repo-local adapter regeneration. `gal update --machine-only` does not regenerate repo-local adapters; `gal sync` does not touch machine MCP config.
 
 ```bash
 # Windows                         # macOS / Linux
 ./scripts/Setup-Machine.ps1        ./scripts/setup-machine.sh
 ./scripts/Setup-Machine.ps1 -Reconfigure
-./scripts/Update-Personalization.ps1 ./scripts/update-personalization.sh
-./scripts/Update-Skills.ps1          ./scripts/update-skills.sh
-./scripts/Update-Commands.ps1        ./scripts/update-commands.sh
+gal update --machine-only
 ./scripts/Update-Mcp.ps1             ./scripts/update-mcp.sh
+gal sync
 ```
 
 ### Backup & Migration

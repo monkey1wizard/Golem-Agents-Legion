@@ -305,7 +305,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-014** — port `update-commands` → `adapters`;parity。
 - [x] **T-015** — port `update-personalization` → `adapters`;parity。
 - [x] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。*(T-016 closeout: `crates/adapters` 新增 sync/machine-update orchestration，`crates/cli` 接上 `gal sync` 與 `gal update --machine-only`，`Init-Repo` / `Setup-Machine` caller scripts 改走 Rust binary；reviewer APPROVE，workspace 測試綠)*
-- [ ] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。
+- [x] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。*(T-017 closeout: 刪除 `Sync-DevContext` / `update-skills` / `update-commands` / `update-personalization` 四對 legacy scripts；`.dev/project.md`、generated adapters 與 live docs 全面改以 `gal sync` / `gal update --machine-only` 為唯一指引；reviewer APPROVE，workspace 測試綠)*
 
 **R-04 setup（受保護,architect）**
 - [ ] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。

@@ -18,22 +18,16 @@ status: stale
 - `primaryRuntime` 記錄了哪一個執行環境應該作為你的預設進入點。
 - GAL 儲存庫仍然是 `plugins/gal-core/agents/`、`plugins/gal-core/skills/` 和 `plugins/gal-core/commands/` 的唯一真相來源（source of truth）。主要執行環境（primary runtime）只會影響預設值和摘要，不會改變底層原始內容。
 
-Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL 透過把各 AGY surface 連到共享的 superset canonical root `~/.gal/plugins/gal/` 來安裝至 AGY，此正本承載 skills、agents、rules 與 MCP 設定。正本由供應商中立的核心渲染器 `Build-CorePlugin` / `build-core-plugin.sh` 渲染（單一渲染器服務所有供應商，而非各供應商各自的渲染器）。AGY 的 CLI 與 IDE surface 是指向正本的 junction；Antigravity 2.0 GUI surface 則由 `agy plugin install` 從同一份正本安裝為 host-managed copy。`Update-Personalization` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
+Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL 透過把各 AGY surface 連到共享的 superset canonical root `~/.gal/plugins/gal/` 來安裝至 AGY，此正本承載 skills、agents、rules 與 MCP 設定。正本由供應商中立的核心渲染器 `Build-CorePlugin` / `build-core-plugin.sh` 渲染（單一渲染器服務所有供應商，而非各供應商各自的渲染器）。AGY 的 CLI 與 IDE surface 是指向正本的 junction；Antigravity 2.0 GUI surface 則由 `agy plugin install` 從同一份正本安裝為 host-managed copy。`gal update --machine-only` 讓整合保持保守，不會修改使用者擁有的全域 Antigravity 規則檔案，也不會建立 repo-local 的 `.agents` 內容。
 
 如果你想要更改所選的執行環境或主要的執行環境，請再次在 Windows 上執行 setup 並加上 `-Reconfigure` 參數，或在 macOS/Linux 加上 `--reconfigure`。
 
 在 Windows 與 macOS/Linux 上，機器的設定介面現在已依據關注點（concern）拆分：
 
-- `scripts/Setup-Machine.ps1` 執行完整流程
-- `scripts/Update-Personalization.ps1` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `Build-CorePlugin` 渲染 `rules/gal.md`），以及本機設定植入
-- `scripts/Update-Skills.ps1` 更新 agents、Antigravity 外掛程式 skills（透過 `Build-CorePlugin`）、其餘共享技能連結，以及 GAL 根連結
-- `scripts/Update-Commands.ps1` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `Build-CorePlugin`），以及 legacy Gemini / Claude 原生命令檔案
-- `scripts/Update-Mcp.ps1` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
-- `scripts/setup-machine.sh` 執行完整流程
-- `scripts/update-personalization.sh` 更新 install-state、legacy Gemini 設定橋接與 `gal-context.md`、Antigravity 外掛程式整合（透過 `build-core-plugin.sh` 渲染 `rules/gal.md`），以及本機設定植入
-- `scripts/update-skills.sh` 更新 agents、Antigravity 外掛程式 skills（透過 `build-core-plugin.sh`）、其餘共享技能連結，以及 GAL 根連結
-- `scripts/update-commands.sh` 更新綁定的命令 skills、Antigravity 外掛程式命令 skills（透過 `build-core-plugin.sh`），以及 legacy Gemini / Claude 原生命令檔案
-- `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
+- `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh` 執行完整流程
+- `gal update --machine-only` 更新 install-state、runtime 橋接、legacy Gemini 相容層、Antigravity 外掛程式整合，以及命令/skills 投影
+- `scripts/Update-Mcp.ps1` / `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
+- `gal sync` 重新產生 repo-local adapters，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md` 與 `GEMINI.md`
 
 ## 安裝模式 vs 原始碼模式 (Install Mode vs Source Mode)
 
@@ -358,25 +352,19 @@ GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯
 
 如果只有單一關注點發生變更，請使用較狹窄範圍的腳本：
 
-- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/Update-Personalization.ps1`
-- 更改 `plugins/gal-core/agents/` 或 `plugins/gal-core/skills/` 後，執行 `scripts/Update-Skills.ps1`
-- 更改 `plugins/gal-core/commands/*/SKILL.template.md` 或 `plugins/gal-core/commands/*/SKILL.local.md` 後，執行 `scripts/Update-Commands.ps1`
+- 編輯 runtime 橋接器、`~/.gal/config/config.local.env`、`~/.gal/config/executor-routing.json`、`plugins/gal-core/agents/`、`plugins/gal-core/skills/` 或 `plugins/gal-core/commands/*/SKILL.*` 後，執行 `gal update --machine-only`
 - 更改 `plugins/gal-core/mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/Update-Mcp.ps1`
-- 編輯 runtime 橋接器、`~/.gal/config/config.local.env` 或 `~/.gal/config/executor-routing.json` 後，執行 `scripts/update-personalization.sh`
-- 更改 `plugins/gal-core/agents/` 或 `plugins/gal-core/skills/` 後，執行 `scripts/update-skills.sh`
-- 更改 `plugins/gal-core/commands/*/SKILL.template.md` 或 `plugins/gal-core/commands/*/SKILL.local.md` 後，執行 `scripts/update-commands.sh`
 - 更改 `plugins/gal-core/mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
+- 更改會餵給 repo-local adapters 的 source-of-truth 內容（例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料）後，執行 `gal sync`
 
-如果你變更了會餵給 repo-local 產生 adapter 的 source-of-truth 內容，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料，請另外重新執行 `scripts/Sync-DevContext.ps1` 或 `scripts/sync-dev-context.sh`。`Update-Mcp` 不會重新產生這些 adapter 檔案。
+`gal update --machine-only` 不會重新產生 repo-local adapters；`Update-Mcp` 也不會。
 
 Windows：
 
 ```powershell
 ./scripts/Setup-Machine.ps1
 ./scripts/Setup-Machine.ps1 -Reconfigure
-./scripts/Update-Personalization.ps1
-./scripts/Update-Skills.ps1
-./scripts/Update-Commands.ps1
+gal update --machine-only
 ./scripts/Update-Mcp.ps1
 ```
 
@@ -385,10 +373,9 @@ macOS/Linux：
 ```bash
 ./scripts/setup-machine.sh
 ./scripts/setup-machine.sh --reconfigure
-./scripts/update-personalization.sh
-./scripts/update-skills.sh
-./scripts/update-commands.sh
+gal update --machine-only
 ./scripts/update-mcp.sh
+gal sync
 ```
 
 ## 供應商外掛程式封裝 (Provider Plugin Packaging)

@@ -59,7 +59,7 @@ Golem-Agents-Legion/
     └── plans/*.prompt.md     execution work files (mutable task memory)
 ```
 
-\* Protected scripts: `Sync-DevContext.*`, `Setup-Machine.*` and their setup-orchestration peers. Touching any protected path requires an architect-reviewed plan before implementation.
+\* Protected scripts and callers: `Setup-Machine.*`, `Init-Repo.*`, and the adapter/setup orchestration surfaces that feed them. Touching any protected path requires an architect-reviewed plan before implementation.
 
 ### Where Information Belongs
 
@@ -80,7 +80,7 @@ If a completed plan contains knowledge that should survive, extract it back into
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
 | planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
-| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/Update-*.ps1`, `scripts/setup-machine.sh`, `scripts/update-*.sh` |
+| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`, `crates/adapters/src/lib.rs`, `crates/cli/src/main.rs` |
 | templates and plan lifecycle | which file should own this information? | [../plugins/gal-core/templates/templates.md](../plugins/gal-core/templates/templates.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
 | user-facing install copy | who owns the words users read? | [../README.md](../README.md), [manual.md](manual.md), `Release Artifact Matrix` below |
 | machine-local restore, mode switching, backup | which doc owns the user's machine intent? | [manual.md](manual.md), this guide |
@@ -284,13 +284,13 @@ Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `do
 
 ### Runtime / Setup Flow
 
-This subsection absorbs the setup topology that maintainers need when changing `Setup-Machine`, the `Update-*` scripts, command installation, or MCP wiring. The high-level flows:
+This subsection absorbs the setup topology that maintainers need when changing `Setup-Machine`, `gal update --machine-only`, command installation, or MCP wiring. The high-level flows:
 
 ```text
 Contributor/source path:
 GAL checkout
   → Setup-Machine.*
-  → Update-Personalization / Update-Skills / Update-Commands / Update-Mcp
+  → gal update --machine-only / Update-Mcp
   → Install-GalPlugins.*
   → Build-ProviderPlugins.*
   → Build-CorePlugin.*
@@ -300,7 +300,7 @@ Target repo bootstrap:
 target repo cwd
   → gal init
   → Init-Repo.*
-  → Sync-DevContext.*
+  → gal sync
   → .dev/ plus generated adapters
 
 Future package-managed path:
@@ -360,12 +360,12 @@ These are the remaining Gemini CLI compatibility surfaces that still exist on pu
 | Archived surface | Owning files | Why it still exists | Expected retirement path |
 | --- | --- | --- | --- |
 | Gemini runtime selection, path constants, and install-state detection | `scripts/common/Common.ps1`, `scripts/common/common.sh` | Setup still needs to detect and manage Gemini-specific compatibility outputs such as `~/.gemini/commands/`, `~/.gemini/settings.json`, `~/.gemini/gal-context.md`, and `~/.gemini/gal/`. | Remove once no GAL-managed Gemini install target remains. |
-| Gemini native command generation | `scripts/Update-Commands.ps1`, `scripts/update-commands.sh` | GAL still bakes `plugins/gal-core/commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
-| Gemini shared-skill context bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
-| Gemini settings.json bridge | `scripts/Update-Personalization.ps1`, `scripts/update-personalization.sh` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
-| Gemini `GAL_ROOT` link and legacy skill cleanup | `scripts/Update-Skills.ps1`, `scripts/update-skills.sh` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
+| Gemini native command generation | `crates/adapters/src/lib.rs` via `gal update --machine-only` | GAL still bakes `plugins/gal-core/commands/*/SKILL.md` into `~/.gemini/commands/*.toml` for the legacy Gemini native slash-command surface. | Replace when AGY skill or plugin surfaces are the only Google command entry point GAL supports. |
+| Gemini shared-skill context bridge | `crates/adapters/src/lib.rs` via `gal update --machine-only` | `~/.gemini/gal-context.md` still imports repo skills for Gemini compatibility. | Remove when Gemini no longer needs repo-skill imports for GAL. |
+| Gemini settings.json bridge | `crates/adapters/src/lib.rs` via `gal update --machine-only` | `~/.gemini/settings.json` still gets `AGENTS.md` and `GEMINI.md` in `context.fileName` for legacy Google-runtime loading. | Remove when Google-side loading is fully owned by AGY runtime surfaces instead of Gemini settings. |
+| Gemini `GAL_ROOT` link and legacy skill cleanup | `crates/adapters/src/lib.rs` via `gal update --machine-only` | GAL still manages `~/.gemini/gal/` and cleans old GAL-managed `~/.gemini/skills/*` remnants during migration. | Remove when no Gemini runtime path needs a stable repo link and no legacy cleanup is needed. |
 | Legacy Gemini MCP cleanup | `scripts/Update-Mcp.ps1`, `scripts/update-mcp.sh` | Gemini is no longer the MCP owner, but GAL still removes old Gemini MCP entries from `~/.gemini/settings.json` so AGY MCP ownership stays clean. | Remove after legacy Gemini MCP residue no longer exists in supported installs. |
-| `GEMINI.md` generated adapter filename | `scripts/Sync-DevContext.ps1`, `scripts/sync-dev-context.sh`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` | The repo still emits `GEMINI.md` as a Google-runtime compatibility adapter filename even though AGY is the primary Google CLI runtime. | Rename or remove only when Google-runtime consumers no longer depend on the `GEMINI.md` carrier. |
+| `GEMINI.md` generated adapter filename | `crates/adapters/src/lib.rs` via `gal sync`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` | The repo still emits `GEMINI.md` as a Google-runtime compatibility adapter filename even though AGY is the primary Google CLI runtime. | Rename or remove only when Google-runtime consumers no longer depend on the `GEMINI.md` carrier. |
 | xmachine Gemini headless execution lane | `scripts/Start-xMachine.ps1`, `scripts/Start-xMachine.sh` | xmachine remote execution still invokes Gemini CLI headlessly and maps Gemini exit codes. | Replace when xmachine is migrated to AGY or another runtime end-to-end. |
 
 If you are removing one of these archived surfaces, also audit the matching maintainer guidance in [../scripts/scripts.md](../scripts/scripts.md) and [manual.md](manual.md) so the docs stop describing a retired bridge.
@@ -922,7 +922,7 @@ The shared preflight model lives in [collaborative-tools/checking-contract.md](c
 #### Changing setup, installation, or MCP merge
 
 1. Read [../scripts/scripts.md](../scripts/scripts.md).
-2. Decide which concern owns the change first: `Update-Personalization`, `Update-Skills`, `Update-Commands`, `Update-Mcp`, or the top-level orchestrator.
+2. Decide which concern owns the change first: `gal update --machine-only` (`adapters` backend), `Update-Mcp`, `gal sync`, or the top-level orchestrator.
 3. Windows and macOS/Linux both use the split Setup-Machine plus concern-script stack. Keep the two entrypoint families aligned unless the change is intentionally platform-specific.
 4. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
 5. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
@@ -930,7 +930,7 @@ The shared preflight model lives in [collaborative-tools/checking-contract.md](c
 #### Refreshing MCP vs. Regenerating Adapters
 
 - Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`. This refreshes runtime MCP config only.
-- Run `Sync-DevContext.ps1` or `sync-dev-context.sh` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
+- Run `gal sync` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
 - Run `Setup-Machine.ps1` or `setup-machine.sh` when you need the full concern stack refreshed in one pass.
 
 #### Refactoring docs themselves

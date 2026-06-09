@@ -103,13 +103,13 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IMPLEMENT — T-017 active after T-016 closeout
-Step: 16 of 35
-Last activity: 2026-06-11 — T-016 complete — `crates/adapters` now owns Sync-DevContext parity plus machine/repo update orchestration; `gal sync` and `gal update --machine-only` wired through `cli`; workspace tests green and reviewer approve.
-Next step: T-017 — delete the remaining legacy R-03 script pairs after the new sync/update path is the only live consumer
-Current Task: T-017
-Task Base Commit: bda5fb7
-Task Final Commit: pending T-016 closeout commit
+Workflow: IMPLEMENT — T-017 complete; T-018 ready
+Step: 17 of 35
+Last activity: 2026-06-11 — T-017 complete — removed the remaining legacy R-03 script pairs, updated `.dev/project.md` plus regenerated adapters/live docs to use `gal sync` and `gal update --machine-only`, workspace tests green, reviewer approve.
+Next step: T-018 (R-04) — split the thin `setup` orchestrator and port `setup-machine` to `gal setup`
+Current Task: T-018
+Task Base Commit: a011ff8
+Task Final Commit: pending T-017 closeout commit
 Test Retry Count: 1
 Review Retry Count: 1
 
@@ -128,6 +128,8 @@ Review Retry Count: 1
 Cross-plan: this plan's R-00 (T-003..T-009: extract `base`, de-prefix `dispatch`) must land before the sister xmachine plan's T-002. Implementation-time architect sign-off required for protected-core tasks (T-003..T-009, T-013..T-017 adapters, T-018..T-021 setup).
 
 **P0 complete (2026-06-09):** T-001 done (fixtures convention `tests/fixtures/README.md`, JIT capture — D-001). T-002 done (dev-machine dev-mode baseline, `gal doctor` exit 0). Next: T-003 (extract `base`). Real-machine end-user acceptance (T-035) is gated on the R-13 release pipeline (T-034) — ties to GitHub-public + Actions macOS runner.
+
+**T-017 complete (2026-06-11):** deleted the remaining `Sync-DevContext` / `update-skills` / `update-commands` / `update-personalization` script pairs, updated `.dev/project.md` to reflect `gal sync` as the repo-local adapter source of truth, regenerated `.github/copilot-instructions.md` / `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, and aligned live docs to `gal sync` + `gal update --machine-only`. `cargo test --workspace --quiet` green; reviewer APPROVE. Next start point is T-018 only.
 
 ## Tasks
 
@@ -156,7 +158,7 @@ R-03 adapters (protected, architect)
 - [x] T-014 — Port `update-commands` → `adapters`; parity.
 - [x] T-015 — Port `update-personalization` → `adapters`; parity.
 - [x] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
-- [ ] T-017 — After all four pairs reach parity green, delete them.
+- [x] T-017 — After all four pairs reach parity green, delete them.
 
 R-04 setup (protected, architect)
 - [ ] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity.
@@ -192,6 +194,23 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-017] 2026-06-11 — APPROVE
+
+Reviewed: 2026-06-11
+Commit range: unstaged diff — `.dev/project.md`, `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `docs/manual.md`, `docs/i18n/zh-Hant/manual.zh-Hant.md`, `docs/devguide.md`, `scripts/scripts.md`, and deletion of `Sync-DevContext.*` / `update-{skills,commands,personalization}.*`
+Verdict: APPROVE
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 0
 
 ### [T-016] 2026-06-11 — APPROVE
 
@@ -493,6 +512,15 @@ _(none)_
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-017] 2026-06-11 — PASS (TP-25 slice: R-03 deletion gate + live-surface sync)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-25 sliced to T-017 only (legacy adapter-script deletion after parity, with live docs/generated adapters aligned to the Rust path).
+
+- **Workspace tests green** — `cargo test --workspace --quiet` passed after deleting the legacy R-03 script pairs and regenerating adapter docs.
+- **Live read-surface aligned** — `.dev/project.md`, generated adapters, maintainer docs, and user docs now consistently point to `gal sync` / `gal update --machine-only`; targeted grep found no live references to the deleted scripts.
+- **Deletion scope complete** — removed `Sync-DevContext.*`, `Update-Skills.*`, `Update-Commands.*`, and `Update-Personalization.*` only; `Init-Repo.*` / `Setup-Machine.*` remain as thin Rust-entrypoint callers for later tasks.
+- **Scope held to T-017** — no new setup/install work was mixed in; T-018+ remains untouched.
 
 ### [T-016] 2026-06-11 — PASS (TP-14/TP-15 slice: Sync-DevContext + CLI wiring)
 
