@@ -195,6 +195,20 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 
 ## Review Results
 
+### [R-03 independent review] 2026-06-11 — APPROVE (1 fix applied)
+
+Independent cross-model review (Opus 4.8) of the Copilot/GPT-5.4 R-03 implementation (T-013..T-017), commits 6b542a9..8b71e7e. Fix commit: 8a6ef1e.
+
+- **Build/test**: `cargo build --workspace` clean; `cargo test --workspace` **344 passed** after fix. Dependency law verified — `adapters → base` only (no providers/mcp/cycles). `gal sync`/`gal update --machine-only` wired in `cli` (T-016) and smoke-tested (sync = 4 adapter files, exit 0). `setup-machine.{sh,ps1}` rewired to `gal update --machine-only` + `gal mcp update`; both syntax-clean; no dangling references to the deleted scripts.
+- **Bug found + fixed (8a6ef1e)**: `update_skills_projects_links_and_agents` **failed** in this (non-privileged) session — `create_file_link` uses `mklink` (file *symbolic* link), which needs Windows Developer Mode / `SeCreateSymbolicLinkPrivilege`. This is **faithful to the original** `New-SafeSymlink -Type File` (also a symlink, no fallback), so production behavior is not a regression — but the test gave a false failure on unprivileged dev machines / CI. Added a `file_symlink_supported()` probe so the test skips gracefully. Also fixed a clippy nit (`.as_deref()`). Did **not** change the link strategy: a hard-link/copy fallback would break `is_symlink_or_junction` managed-file cleanup detection.
+- **Open items (non-blocking, logged for later)**:
+  - *Medium* — verify install-mode "Skills/Commands stay source-only" nuance is preserved inside `gal update --machine-only` (the original `setup-machine` skipped those steps in install mode). Same class of risk as the T-011 orchestrator gap: confirm at the behavioral level, not just serializer/unit.
+  - *Low* — `crates/adapters/src/lib.rs` is a single ~82KB file; plan calls for crate-vs-module discipline. Consider splitting into modules (skills/commands/personalization/sync) in a later cleanup.
+  - *Low* — `adapters/Cargo.toml` pins `thiserror = "1"` while the rest of the workspace uses `2.0`; two majors coexist. Align when convenient.
+- **Cross-platform note**: agent-file projection on Windows requires Developer Mode (inherited from the original). If non-Dev-Mode Windows must be supported, that is a deliberate design change (touches managed-link lifecycle) and belongs in R-09/architect, not a silent patch.
+
+**Verdict: APPROVE** — R-03 meets the deletion gate (parity + live read-surface); one test-robustness fix applied.
+
 ### [T-017] 2026-06-11 — APPROVE
 
 Reviewed: 2026-06-11
