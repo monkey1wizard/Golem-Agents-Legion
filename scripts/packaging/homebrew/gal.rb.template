@@ -38,10 +38,21 @@ class Gal < Formula
     # Install the canonical binary as bin/gal.
     # The archive contains the versioned binary name (e.g. gal-v0.1.0-darwin-arm64).
     # Homebrew renames it to gal at install time only; no ~/.gal/ seeding.
-    bin.install Dir["gal-*"].first => "gal"
+    bin.install Dir["gal-*[^/]"].first => "gal"
+
+    # Install the GAL plugin source to share/gal/ (FHS layout).
+    # resolve_packaged_source_root() in gal-engine locates the source via the
+    # FHS strategy: binary at <prefix>/bin/gal → source at <prefix>/share/gal.
+    # After `brew install`, run `gal install` to converge ~/.gal/ surfaces.
+    %w[agents skills commands conventions workflows templates].each do |dir|
+      (share/"gal").install dir if File.directory?(dir)
+    end
   end
 
   test do
     assert_match version.to_s, shell_output("#{bin}/gal --version")
+    # Verify the plugin source was installed (T-008: package-manager install convergence).
+    assert_predicate share/"gal/skills", :directory?
+    assert_predicate share/"gal/agents", :directory?
   end
 end
