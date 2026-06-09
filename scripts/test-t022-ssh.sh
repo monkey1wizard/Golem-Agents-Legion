@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# T-022: macOS / Linux cross-platform oracle parity test runner
+# T-022: macOS / Linux cross-platform behavior contract test runner
 #
 # Run this script on a Mac Mini (or Linux host) via SSH to validate TP-029/030.
 #
@@ -13,6 +13,10 @@
 #   0 — all tests passed
 #   1 — one or more test failures
 #   2 — prerequisite missing (Rust toolchain not found and could not be installed)
+#
+# Note: the Bash oracle smoke step (build-core-plugin.sh) was removed in T-010.
+# The Rust behavior contract tests in cross_platform_oracle_parity.rs are the
+# authoritative correctness bar; build-core-plugin.sh is retired (T-011).
 
 set -euo pipefail
 
@@ -47,7 +51,7 @@ check_prerequisites() {
 }
 
 run_cargo_tests() {
-    echo "--- [1/4] cargo test (all unit + integration tests) ---"
+    echo "--- [1/3] cargo test (all unit + integration tests) ---"
     echo ""
 
     cd "$REPO_ROOT"
@@ -68,7 +72,7 @@ run_cargo_tests() {
 
 run_cross_platform_tests() {
     echo ""
-    echo "--- [2/4] cargo test cross_platform_oracle_parity (unit, non-ignored) ---"
+    echo "--- [2/3] cargo test cross_platform_oracle_parity (unit, non-ignored) ---"
     echo ""
 
     cd "$REPO_ROOT"
@@ -87,7 +91,7 @@ run_cross_platform_tests() {
 
 run_ignored_integration_tests() {
     echo ""
-    echo "--- [3/4] cargo test cross_platform_oracle_parity --include-ignored ---"
+    echo "--- [3/3] cargo test cross_platform_oracle_parity --include-ignored ---"
     echo ""
 
     cd "$REPO_ROOT"
@@ -103,82 +107,6 @@ run_ignored_integration_tests() {
         echo ""
         echo "[FAIL] cross_platform_oracle_parity integration tests"
         grep -E '^(FAILED|thread .* panicked)' /tmp/gal-t022-cross-ignored.log | head -20 || true
-    fi
-}
-
-run_bash_oracle_smoke() {
-    echo ""
-    echo "--- [4/4] Bash oracle smoke (build-core-plugin.sh --install-mode source) ---"
-    echo ""
-
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "[SKIP] jq not found — skipping Bash oracle smoke"
-        SKIP_COUNT=$((SKIP_COUNT + 1))
-        return 0
-    fi
-
-    # Create an isolated home for the oracle run
-    ORACLE_HOME="$(mktemp -d /tmp/gal-t022-oracle-home.XXXXXX)"
-    trap 'rm -rf "$ORACLE_HOME"' EXIT
-
-    export HOME="$ORACLE_HOME"
-
-    if bash "$REPO_ROOT/scripts/build-core-plugin.sh" \
-        --install-mode source 2>&1 | tee /tmp/gal-t022-oracle.log; then
-
-        CANONICAL_ROOT="$ORACLE_HOME/.gal/plugins/gal"
-
-        # Structural checks matching the Rust render output
-        ORACLE_OK=true
-
-        check_path() {
-            local path="$1"
-            local label="$2"
-            if [[ -e "$path" ]]; then
-                echo "  [OK] $label"
-            else
-                echo "  [MISS] $label — expected: $path"
-                ORACLE_OK=false
-            fi
-        }
-
-        echo "  Checking canonical root structure at: $CANONICAL_ROOT"
-        check_path "$CANONICAL_ROOT/agents"                       "agents/ directory"
-        check_path "$CANONICAL_ROOT/agy-agents"                   "agy-agents/ directory"
-        check_path "$CANONICAL_ROOT/skills"                       "skills/ directory"
-        check_path "$CANONICAL_ROOT/commands"                     "commands/ directory"
-        check_path "$CANONICAL_ROOT/.claude-plugin/plugin.json"   ".claude-plugin/plugin.json"
-        check_path "$CANONICAL_ROOT/copilot-manifest.json"        "copilot-manifest.json"
-        check_path "$CANONICAL_ROOT/plugin.json"                  "plugin.json (AGY)"
-
-        # Intent assertion: golem-dockeeper must be present
-        if ls "$CANONICAL_ROOT/agents/"*"dockeeper"* >/dev/null 2>&1; then
-            echo "  [OK] golem-dockeeper in agents/ (intent assertion TP-007)"
-        else
-            echo "  [MISS] golem-dockeeper NOT found in agents/ — TP-007 FAIL"
-            ORACLE_OK=false
-        fi
-
-        if ls "$CANONICAL_ROOT/skills/doc-sync" >/dev/null 2>&1; then
-            echo "  [OK] doc-sync in skills/ (intent assertion TP-007)"
-        else
-            echo "  [MISS] doc-sync NOT found in skills/ — TP-007 FAIL"
-            ORACLE_OK=false
-        fi
-
-        if [[ "$ORACLE_OK" == 'true' ]]; then
-            PASS_COUNT=$((PASS_COUNT + 1))
-            echo ""
-            echo "[PASS] Bash oracle smoke — structure matches expected"
-        else
-            FAIL_COUNT=$((FAIL_COUNT + 1))
-            echo ""
-            echo "[FAIL] Bash oracle smoke — missing files (see above)"
-        fi
-    else
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        echo "[FAIL] build-core-plugin.sh failed — see /tmp/gal-t022-oracle.log"
-        tail -20 /tmp/gal-t022-oracle.log || true
     fi
 }
 
@@ -216,5 +144,4 @@ check_prerequisites
 run_cargo_tests
 run_cross_platform_tests
 run_ignored_integration_tests
-run_bash_oracle_smoke
 print_summary

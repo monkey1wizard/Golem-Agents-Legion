@@ -1,15 +1,15 @@
-//! T-022: macOS / Linux cross-platform oracle parity (TP-029, TP-030)
+//! T-022: macOS / Linux cross-platform behavior contract (TP-029, TP-030)
 //!
 //! All tests in this file are gated to non-Windows platforms.
 //!
-//! Oracle scope (BUG-A): these are *parity* tests — they verify that the Rust
-//! implementation produces the same structural output as the frozen Bash oracle
-//! (`scripts/build-core-plugin.sh`) when run on Unix-like systems.
+//! These tests define the **Rust render behavior contract** on Unix systems.
+//! The retired Bash oracle (`scripts/build-core-plugin.sh`, T-011) is no longer
+//! a live parity reference; these tests are the authoritative correctness bar.
 //!
 //! What is tested:
 //!   - HOME env var (not USERPROFILE) drives canonical root resolution
 //!   - galRoot usable predicate accepts `agents/` (plural) — matches repo layout
-//!   - Render produces same directory/file structure as the Bash oracle
+//!   - Render produces the expected directory/file structure
 //!   - AGY surfaces use Unix symlinks, not Windows junctions
 //!   - MCP serializers produce identical output to Windows (pure logic, no OS dependency)
 //!
@@ -301,10 +301,10 @@ mod unix_parity {
     }
 
     // -----------------------------------------------------------------------
-    // TP-029/030 (integration): render produces expected structure (parity)
+    // TP-029/030 (integration): render produces expected structure
     //
     // This is an isolated-home integration test verifying that the canonical
-    // root structure matches what the frozen bash oracle builds:
+    // root structure is correct on Unix:
     //   - agents/ directory with filtered .md files
     //   - agy-agents/ directory with unfiltered .agent.md files
     //   - skills/ directory with per-skill subdirs containing SKILL.md
@@ -314,11 +314,11 @@ mod unix_parity {
     //   - plugin.json
     //
     // Version strings and timestamps are NOT compared (they differ between
-    // runs). The test verifies structural parity: same files by name.
+    // runs). The test verifies structure by file name.
     // -----------------------------------------------------------------------
     #[test]
     #[ignore] // Run explicitly: cargo test -- --include-ignored
-    fn render_structure_matches_bash_oracle() {
+    fn render_produces_expected_structure() {
         use gal_engine::config::GalConfig;
         use gal_engine::render::render_canonical_root;
 
