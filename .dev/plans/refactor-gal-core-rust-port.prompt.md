@@ -107,8 +107,8 @@ Workflow: IMPLEMENT
 Step: 10 of 35
 Last activity: 2026-06-09 — T-009 complete (commit: 317d342) — oracle tests reparented; 243 tests green; TP-10 satisfied. Verification Independence: DEGRADED_SAME_RUNTIME.
 Next step: implement T-010
-Current Task: —
-Task Base Commit: —
+Current Task: T-010
+Task Base Commit: c994a1b
 Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
