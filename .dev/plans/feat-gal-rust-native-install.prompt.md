@@ -147,9 +147,9 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 5 of 13
-Last activity: 2026-06-09 — T-004 complete (62bc53d)
-Next step: T-005 implement
+Step: 6 of 13
+Last activity: 2026-06-09 — T-005 complete (b0cc86d)
+Next step: T-006 implement
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -182,7 +182,7 @@ Review Retry Count: 0
 - [x] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off. *(a192df7)*
 - [x] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off. *(c3bf950)*
 - [x] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper. *(62bc53d)*
-- [ ] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through.
+- [x] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through. *(b0cc86d)*
 - [ ] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check.
 - [ ] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install.
 - [ ] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane).
@@ -282,6 +282,25 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
 
+### [T-005] 2026-06-09
+
+**Type**: unit (cargo test -p gal-engine)
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+| Test | Result |
+| --- | --- |
+| `test_scan_orphan_temp_dirs_finds_render_dirs` | PASS — 2 orphan dirs found, file and non-prefix dir excluded |
+| `test_scan_orphan_temp_dirs_empty_when_none` | PASS — canonical gal/ and backup dirs not returned |
+| `test_scan_orphan_temp_dirs_nonexistent_parent` | PASS — returns empty Vec for missing parent |
+| `test_clean_orphan_temp_dirs_removes_and_returns_count` | PASS — 2 removed (incl. dir with content), count=2 |
+| `check_orphan_temp_dirs_produces_errors_for_each_orphan` (doctor) | PASS — 2 findings, each names the orphan path and fix hint |
+| `check_orphan_temp_dirs_no_findings_when_clean` (doctor) | PASS — 0 findings for clean plugins dir |
+
+**Full suite:** `cargo test -p gal-engine` → 166 passed, 1 ignored, 0 failed (4 suites).
+
+**TP-06 integration (kill-mid-render reconverges):** deferred to E2E validation — requires a real install run. Unit tests verify scan/clean contract; integration confirmed by render_canonical_root() calling clean_orphan_temp_dirs() before create_temp_render_dir().
+
 ### [T-004] 2026-06-09
 
 **Type**: unit (cargo test -p gal-engine -- render::tests)
@@ -368,6 +387,26 @@ No correctness defects, no security issues, no architecture violations. All thre
 - `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
 - `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
 - Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
+
+### [T-005] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/render.rs`, `crates/gal-engine/src/doctor.rs` (diff 4fdaca3..b0cc86d)
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | `clean_orphan_temp_dirs` discards errors silently (call site `let _ = ...`). This is correct: cleanup is best-effort; a locked or permission-denied orphan must not abort the incoming install. Doctor will re-surface it on next `gal doctor` run. |
+| R2 | INFO | `scan_orphan_temp_dirs` uses `.flatten()` which silently skips `DirEntry` errors; acceptable for a best-effort scan in `doctor` / pre-install cleanup. |
+| R3 | INFO | `check_orphan_temp_dirs` in doctor is a `let Some(...) else { return; }` guard on `dirs::home_dir()`. Consistent with the pattern used by every other doctor check. |
+
+No correctness defects, security issues, or architecture violations.
+
+**Rationale:**
+- `scan_orphan_temp_dirs` correctly guards with `is_dir()` — files with the prefix are excluded (verified by test).
+- Cleanup call is correctly placed before `create_temp_render_dir`: cleans up before starting a new temp, not after.
+- `check_orphan_temp_dirs` wired as Check 6 in `run_doctor` — error severity is correct (orphans indicate an interrupted render that failed to converge; user must run `gal install` to repair).
+- 166 tests pass, no regressions.
 
 ### [T-004] Code Review — 2026-06-09
 
