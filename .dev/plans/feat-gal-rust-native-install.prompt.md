@@ -150,7 +150,7 @@ Workflow: IMPLEMENT
 Step: 9 of 13
 Last activity: 2026-06-09 — T-008 complete (93b41c7); T-007 complete (04babd9)
 Next step: T-009 implement
-Current Task: —
+Current Task: T-009
 Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0

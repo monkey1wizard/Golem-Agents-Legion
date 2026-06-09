@@ -822,6 +822,46 @@ This table documents the **authoritative live read surface** — the path from w
 
 When `~/.claude/skills/gal` → `~/.gal/plugins/gal` exists, any change to the canonical root (from `gal install` or `gal update`) is **immediately reflected** in the next Claude Code session — no cache layer, no version bump required. This is the key advantage of the symlink surface over the `enabledPlugins` versioned-cache mechanism.
 
+#### Clean-Install Acceptance Bar
+
+A GAL install is **complete** when all of the following hold simultaneously. Running `gal doctor` is the primary programmatic check; the acceptance script below verifies the full set.
+
+| Check | Command / Path | Acceptance criterion |
+| --- | --- | --- |
+| `gal` on PATH | `gal --version` | exits 0, prints version |
+| `gal doctor` green | `gal doctor` | exits 0, no errors |
+| Canonical root present | `~/.gal/plugins/gal/` | directory exists |
+| Agent completeness | `~/.gal/plugins/gal/agents/golem-dockeeper.agent.md` | file present |
+| Skill completeness | `~/.gal/plugins/gal/skills/doc-sync/` | directory present |
+| Claude skill surface aligned | `~/.claude/skills/gal` → `~/.gal/plugins/gal` | symlink (Unix) or junction (Windows) pointing to canonical root |
+| No orphan render temps | `~/.gal/plugins/.gal-render-*` | none present |
+| Plugin bin exposed | `~/.gal/plugins/gal/bin/gal` (`.exe` on Windows) | file present and executable (`+x` on Unix) |
+
+"Rendered a correct artifact" is **not** completion — the artifact must also be convergent into the live read surface. The canonical root must be built **and** the Claude skill surface must point to it.
+
+**E2E acceptance script (Unix / mac-mini TP-15):**
+
+```bash
+bash scripts/test-install-acceptance.sh
+```
+
+`scripts/test-install-acceptance.sh` runs the full eight-check set above and exits 0 on full pass, 1 on any failure. Run it on the target machine after `gal install` completes, or pipe it over SSH:
+
+```bash
+ssh mac-mini 'bash -s' < scripts/test-install-acceptance.sh
+```
+
+**Windows acceptance (TP-16):** the same eight checks apply; run them manually until a PowerShell acceptance script exists (post T-011):
+
+1. `gal --version` in a new terminal (PATH check)
+2. `gal doctor` (exits 0)
+3. `Test-Path "$env:USERPROFILE\.gal\plugins\gal"` → True
+4. `Test-Path "$env:USERPROFILE\.gal\plugins\gal\agents\golem-dockeeper.agent.md"` → True
+5. `Test-Path "$env:USERPROFILE\.gal\plugins\gal\skills\doc-sync"` → True
+6. `Test-Path "$env:USERPROFILE\.claude\skills\gal"` → True (junction)
+7. `(Get-ChildItem "$env:USERPROFILE\.gal\plugins" -Filter ".gal-render-*").Count` → 0
+8. `Test-Path "$env:USERPROFILE\.gal\plugins\gal\bin\gal.exe"` → True
+
 #### Raw PowerShell and Shell Convenience Installer Policy
 
 Raw PowerShell or shell installers such as `irm ... | iex` and `curl ... | sh` are convenience entrypoints only. They are not canonical install channels, they do not define an independent package shape, and they must not become the only supported way to get GAL onto a machine.
