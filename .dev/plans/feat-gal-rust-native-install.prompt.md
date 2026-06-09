@@ -147,9 +147,9 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 11 of 13
-Last activity: 2026-06-09 — T-010 complete (d88d417)
-Next step: T-011 implement
+Step: 12 of 13
+Last activity: 2026-06-09 — T-011 partial complete (bcc755a)
+Next step: T-012 implement
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -161,7 +161,7 @@ Review Retry Count: 0
 
 | Date | Task | Planned | Actual | Reason |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| 2026-06-09 | T-011 | Delete all install-family ps1/bash pairs | Deleted only 4 test scripts; main pairs deferred | `Setup-Machine.*` (RETAIN) still calls `install-gal-plugins.*` → `build-core-plugin.sh` etc. Monolithic precondition not met. Requires Setup-Machine update to `gal install` first. |
 
 ### Handoff Notes
 
@@ -188,7 +188,7 @@ Review Retry Count: 0
 - [x] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane). *(93b41c7)*
 - [x] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`. *(8615eb5)*
 - [x] **T-010 (P7 precondition)** — reparent oracle tests: convert `crates/gal-engine/tests/cross_platform_oracle_parity.rs` and `scripts/test-t022-ssh.sh` to `tests/fixtures/` snapshots or behavior/intent tests, removing runtime dependence on live `scripts/*.{sh,ps1}`. **Must complete before T-011.** *(d88d417)*
-- [ ] **T-011 (P7, R-11)** — delete superseded install-family ps1/bash (in pairs): `Build-CorePlugin.*`/`build-core-plugin.sh`, `Build-ProviderPlugins.*`/`build-provider-plugins.sh`, `ProviderPlugin.ps1`/`provider-plugin.sh`, `Update-Mcp.*`, `Install-GalPlugins.*`/`install-gal-plugins.sh`, `Common.*`/`common.sh` (install part), matching `Test-*.ps1`, `gal.ps1` (after the Rust binary owns all subcommands). Monolithic scripts wait until all consumers are at parity. **Retain** `Setup-Machine.*`/`Sync-DevContext.*`.
+- [x] **T-011 (P7, R-11)** — delete superseded install-family ps1/bash (in pairs): `Build-CorePlugin.*`/`build-core-plugin.sh`, `Build-ProviderPlugins.*`/`build-provider-plugins.sh`, `ProviderPlugin.ps1`/`provider-plugin.sh`, `Update-Mcp.*`, `Install-GalPlugins.*`/`install-gal-plugins.sh`, `Common.*`/`common.sh` (install part), matching `Test-*.ps1`, `gal.ps1` (after the Rust binary owns all subcommands). Monolithic scripts wait until all consumers are at parity. **Retain** `Setup-Machine.*`/`Sync-DevContext.*`. *(bcc755a — partial; main pairs deferred pending Setup-Machine update)*
 - [ ] **T-012 (docs)** — `docs/devguide.md`/`docs/manual.md`/`README.md`: write the GAL-owned load-surface contract, bin exposure, correct install flow; remove/mark-stale obsolete official-marketplace prose (incl. `README.md:44-48`).
 - [ ] **T-013 (cleanup)** — delete `docs/plans/plugin-bin-migration.md`; grep docs to confirm no "plugin-bin vs install convergence as two plans" contradiction and no official-marketplace convergence-strategy residue.
 
@@ -258,6 +258,29 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 **Conclusion**: after this plan's validation (incl. TP-15/16/17), install-followups closes ~3/11 (install path + macOS cross-platform); the remaining ~8 are security / M2 / hardening needing separate code changes, not closed by validation. Emptying that file needs a separate hardening/M2 pass for S-1/2, FU-03/04, etc. (FU-04 can ride T-002).
 
 ## Test Results
+
+### [T-011] 2026-06-09
+
+**Type**: manual (file deletion + grep)
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PARTIAL PASS — 4 test scripts deleted; main pairs deferred
+
+**Deleted (bcc755a):**
+- `Test-BuildProviderPlugins.ps1`
+- `Test-InstallGalPlugins.ps1`
+- `Test-UpdateMcpProjection.ps1`
+- `Test-ProviderPluginPackage.ps1`
+
+**Deferred (Setup-Machine dependency blocks):**
+- `Build-CorePlugin.ps1` / `build-core-plugin.sh`
+- `Build-ProviderPlugins.ps1` / `build-provider-plugins.sh`
+- `common/ProviderPlugin.ps1` / `common/provider-plugin.sh`
+- `Install-GalPlugins.ps1` / `install-gal-plugins.sh`
+- `Update-Mcp.ps1` / `update-mcp.sh`
+- `common/Common.ps1` / `common/common.sh` (install part)
+- `gal.ps1` (not at Rust subcommand parity)
+
+`cargo test -p gal-engine` → 165 passed, 1 ignored. TP-13 (manual verification) deferred to T-013 scope.
 
 ### [T-010] 2026-06-09
 
@@ -446,6 +469,14 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 | R2 | INFO | Script uses `set -uo pipefail` (not `-e`) so individual check failures don't abort the full sweep — correct design for an acceptance checker. |
 
 No correctness defects, no security issues, no architecture violations. Acceptance bar table and Windows checklist are consistent with the live-surface table already in devguide.
+
+### [T-011] Code Review — 2026-06-09
+
+**Verdict: APPROVE (PARTIAL)** (DEGRADED_SAME_RUNTIME)
+
+**Finding:** `Setup-Machine.ps1`/`setup-machine.sh` (RETAIN) depends on `install-gal-plugins.*` which chains to `build-core-plugin.sh`. Deleting those scripts now would break the retained machine-setup entry point. This is the "monolithic scripts wait" rule from the plan.
+
+**Deviation recorded.** The 4 deleted test scripts are safe: they were called only from files in the deferred-deletion set. No retained script references them.
 
 ### [T-010] Code Review — 2026-06-09
 
