@@ -141,7 +141,10 @@ pub fn run_doctor(opts: &DoctorOptions) -> DoctorReport {
     // Check 5: AGY surfaces (warning only, best-effort per OE-A)
     check_agy_surfaces(&mut report);
 
-    // Check 6 (release gate only): package-manager metadata + marketplace gate
+    // Check 6: orphan .gal-render-* temp dirs (R-05)
+    check_orphan_temp_dirs(&mut report);
+
+    // Check 7 (release gate only): package-manager metadata + marketplace gate (T-021)
     if opts.release_gate {
         check_release_gate_packaging(&mut report);
         check_release_gate_marketplace(&canonical_root, &mut report);
@@ -436,6 +439,22 @@ fn check_claude_marketplace(canonical_root: &Path, report: &mut DoctorReport) {
     }
 }
 
+fn check_orphan_temp_dirs(report: &mut DoctorReport) {
+    let Some(plugins_parent) = dirs::home_dir().map(|h| h.join(".gal").join("plugins")) else {
+        return;
+    };
+    let orphans = crate::render::scan_orphan_temp_dirs(&plugins_parent);
+    for orphan in &orphans {
+        report.push(DoctorFinding::error(
+            format!(
+                "orphan render temp dir: {} — interrupted render was not cleaned up",
+                orphan.display()
+            ),
+            "run `gal install` to clean orphan temp dirs",
+        ));
+    }
+}
+
 fn check_agy_surfaces(report: &mut DoctorReport) {
     if let Some(home) = dirs::home_dir() {
         let cli_path = home.join(".gemini").join("antigravity-cli").join("plugins").join("gal");
@@ -704,5 +723,56 @@ mod tests {
         // TP-028: all present + LocalMarketplaceInstalled → no errors, exit 0.
         assert!(!report.has_errors(), "all present must clear release gate: {:?}", report.findings);
         assert_eq!(report.exit_code(), 0);
+    }
+
+    // ─── orphan temp dir doctor tests (T-005 / R-05) ────────────────────────
+
+    #[test]
+    fn check_orphan_temp_dirs_produces_errors_for_each_orphan() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let home = TempDir::new().unwrap();
+        let plugins_parent = home.path().join(".gal").join("plugins");
+        fs::create_dir_all(&plugins_parent).unwrap();
+
+        // Create two orphan temp dirs.
+        fs::create_dir(plugins_parent.join(".gal-render-aaa")).unwrap();
+        fs::create_dir(plugins_parent.join(".gal-render-bbb")).unwrap();
+
+        let orphans = crate::render::scan_orphan_temp_dirs(&plugins_parent);
+        let mut report = DoctorReport::new();
+        for orphan in &orphans {
+            report.push(DoctorFinding::error(
+                format!(
+                    "orphan render temp dir: {} — interrupted render was not cleaned up",
+                    orphan.display()
+                ),
+                "run `gal install` to clean orphan temp dirs",
+            ));
+        }
+
+        assert_eq!(report.findings.len(), 2, "one error per orphan");
+        assert!(report.has_errors());
+        for f in &report.findings {
+            let s = f.to_string();
+            assert!(s.contains(".gal-render-"), "finding must name the orphan dir: {s}");
+            assert!(s.contains("gal install"), "finding must name the fix: {s}");
+        }
+    }
+
+    #[test]
+    fn check_orphan_temp_dirs_no_findings_when_clean() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let home = TempDir::new().unwrap();
+        let plugins_parent = home.path().join(".gal").join("plugins");
+        fs::create_dir_all(&plugins_parent).unwrap();
+        // Only a healthy canonical root dir.
+        fs::create_dir(plugins_parent.join("gal")).unwrap();
+
+        let orphans = crate::render::scan_orphan_temp_dirs(&plugins_parent);
+        assert!(orphans.is_empty(), "no orphans expected when clean");
     }
 }

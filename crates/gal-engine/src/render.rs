@@ -229,6 +229,11 @@ pub fn render_canonical_root(
     // Determine canonical root path
     let canonical_root = get_canonical_plugin_root();
 
+    // Clean any orphan .gal-render-* temp dirs before creating a new one (R-05).
+    if let Some(plugins_parent) = canonical_root.parent() {
+        let _ = clean_orphan_temp_dirs(plugins_parent);
+    }
+
     // Create temp directory for atomic rendering
     let temp_dir = create_temp_render_dir(&canonical_root)?;
 
@@ -437,6 +442,39 @@ pub fn render_bin_exposure(exe_path: &Path, dest: &Path) -> Result<PathBuf, Rend
     }
 
     Ok(target)
+}
+
+/// Scan `plugins_parent` for orphan `.gal-render-*` temp directories (R-05).
+///
+/// These are left behind when a render is interrupted before the atomic swap.
+/// Returns paths that exist as directories and match the `.gal-render-*` prefix.
+pub fn scan_orphan_temp_dirs(plugins_parent: &Path) -> Vec<PathBuf> {
+    let Ok(rd) = fs::read_dir(plugins_parent) else {
+        return Vec::new();
+    };
+    let mut orphans: Vec<PathBuf> = rd
+        .flatten()
+        .filter(|e| {
+            e.file_name()
+                .to_str()
+                .map(|n| n.starts_with(".gal-render-"))
+                .unwrap_or(false)
+                && e.path().is_dir()
+        })
+        .map(|e| e.path())
+        .collect();
+    orphans.sort();
+    orphans
+}
+
+/// Remove all orphan `.gal-render-*` temp directories under `plugins_parent` (R-05).
+///
+/// Returns the count of directories successfully removed.
+pub fn clean_orphan_temp_dirs(plugins_parent: &Path) -> usize {
+    scan_orphan_temp_dirs(plugins_parent)
+        .iter()
+        .filter(|p| fs::remove_dir_all(p).is_ok())
+        .count()
 }
 
 /// Filter agent frontmatter for Claude compatibility.
@@ -943,5 +981,70 @@ mod tests {
                 "bin/ must not contain shell wrappers; found: {n}"
             );
         }
+    }
+
+    // ─── orphan temp dir tests (T-005 / R-05 / TP-06) ───────────────────────
+
+    #[test]
+    fn test_scan_orphan_temp_dirs_finds_render_dirs() {
+        use tempfile::TempDir;
+
+        let parent = TempDir::new().unwrap();
+        // Create orphan render dirs.
+        fs::create_dir(parent.path().join(".gal-render-abc123")).unwrap();
+        fs::create_dir(parent.path().join(".gal-render-def456")).unwrap();
+        // Create a non-orphan dir — must not appear.
+        fs::create_dir(parent.path().join("gal")).unwrap();
+        // Create a file with the orphan prefix — must not appear (not a dir).
+        fs::write(parent.path().join(".gal-render-file"), b"x").unwrap();
+
+        let orphans = scan_orphan_temp_dirs(parent.path());
+        assert_eq!(orphans.len(), 2, "expected 2 orphans, got: {:?}", orphans);
+        for o in &orphans {
+            assert!(
+                o.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(".gal-render-"),
+                "unexpected entry in orphans: {}",
+                o.display()
+            );
+        }
+    }
+
+    #[test]
+    fn test_scan_orphan_temp_dirs_empty_when_none() {
+        use tempfile::TempDir;
+
+        let parent = TempDir::new().unwrap();
+        fs::create_dir(parent.path().join("gal")).unwrap();
+        fs::create_dir(parent.path().join(".gal-plugin-backup-xyz")).unwrap();
+
+        let orphans = scan_orphan_temp_dirs(parent.path());
+        assert!(orphans.is_empty(), "expected no orphans, got: {:?}", orphans);
+    }
+
+    #[test]
+    fn test_scan_orphan_temp_dirs_nonexistent_parent() {
+        let orphans = scan_orphan_temp_dirs(Path::new("/nonexistent/no/such/dir/xyz999"));
+        assert!(orphans.is_empty());
+    }
+
+    #[test]
+    fn test_clean_orphan_temp_dirs_removes_and_returns_count() {
+        use tempfile::TempDir;
+
+        let parent = TempDir::new().unwrap();
+        let orphan1 = parent.path().join(".gal-render-aaa");
+        let orphan2 = parent.path().join(".gal-render-bbb");
+        fs::create_dir(&orphan1).unwrap();
+        fs::create_dir(&orphan2).unwrap();
+        // Place a file inside one orphan to verify recursive removal.
+        fs::write(orphan1.join("leftover.json"), b"{}").unwrap();
+
+        let cleaned = clean_orphan_temp_dirs(parent.path());
+        assert_eq!(cleaned, 2);
+        assert!(!orphan1.exists(), "orphan1 must be removed");
+        assert!(!orphan2.exists(), "orphan2 must be removed");
     }
 }
