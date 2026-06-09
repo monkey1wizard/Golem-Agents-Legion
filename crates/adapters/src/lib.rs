@@ -604,8 +604,7 @@ fn update_skills(ctx: &SkillContext, report: &mut ProjectionReport) -> Result<()
         Some(create_temp_render_dir(parent)?)
     };
     let opencode_target_root = staged_agents
-        .as_ref()
-        .map(PathBuf::as_path)
+        .as_deref()
         .unwrap_or(opencode_agents.as_path());
     ensure_dir(opencode_target_root, ctx.opts.dry_run)?;
     for agent_path in &agent_paths {
@@ -1964,6 +1963,26 @@ mod tests {
         fs::write(skill_root.join("SKILL.md"), format!("# {name}\n")).unwrap();
     }
 
+    /// Probe whether the current process may create file symlinks.
+    ///
+    /// On Windows, per-file agent projection uses `create_file_link` (`mklink`,
+    /// a symbolic link — parity with the original `New-SafeSymlink -Type File`),
+    /// which needs Developer Mode / `SeCreateSymbolicLinkPrivilege`. Tests that
+    /// assert real file-link creation skip gracefully without it instead of
+    /// reporting a false failure on unprivileged dev machines and CI.
+    fn file_symlink_supported() -> bool {
+        let probe = match TempDir::new() {
+            Ok(p) => p,
+            Err(_) => return false,
+        };
+        let target = probe.path().join("probe-target");
+        let link = probe.path().join("probe-link");
+        if fs::write(&target, "probe").is_err() {
+            return false;
+        }
+        create_file_link(&target, &link).is_ok()
+    }
+
     fn write_command_fixture(source_root: &Path, name: &str) {
         let command_root = source_root.join("commands").join(name);
         fs::create_dir_all(&command_root).unwrap();
@@ -1977,6 +1996,13 @@ mod tests {
 
     #[test]
     fn update_skills_projects_links_and_agents() {
+        if !file_symlink_supported() {
+            eprintln!(
+                "skipping update_skills_projects_links_and_agents: file symlink creation \
+                 not permitted (needs Windows Developer Mode / SeCreateSymbolicLinkPrivilege)"
+            );
+            return;
+        }
         let (_temp, repo_root, source_root, home) = fixture_roots();
         fs::write(source_root.join("skills").join("sample-skill").join("SKILL.md"), "# Skill").unwrap();
         fs::write(
