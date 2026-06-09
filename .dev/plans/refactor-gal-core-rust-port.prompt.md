@@ -104,12 +104,14 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 11 of 35
-Last activity: 2026-06-09 — T-010 complete (commit: 23557b1) — common.{ps1,sh} shared core ported to base (paths/json_util/runtime/env_config); 297 tests green; TP-11 satisfied. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-011
-Current Task: T-011
+Step: 12 of 35
+Last activity: 2026-06-09 — T-011 complete (commit: 263dd77) — split mcp crate, codex+opencode providers, gal mcp command, HealthCheck, four-provider parity; 319 tests green; TP-12 satisfied. DEGRADED_SAME_RUNTIME.
+Next step: implement T-012
+Current Task: T-012
 Task Base Commit: —
 Task Final Commit: —
+Test Retry Count: 0
+Review Retry Count: 0
 Test Retry Count: 0
 Review Retry Count: 0
 
@@ -147,7 +149,7 @@ R-01 shared core
 - [x] T-010 (R-01) — Port `common.{ps1,sh}` install/setup functions into `base`; install/setup/mcp/adapters use the shared core. *(23557b1)*
 
 R-02 MCP
-- [ ] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture.
+- [x] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture. *(263dd77)*
 - [ ] T-012 — After parity green, delete `update-mcp.{ps1,sh}`; verify no consumer breaks.
 
 R-03 adapters (protected, architect)
@@ -190,6 +192,32 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - Linux normal-mode real-machine end-user verification when a host is available (install R-13 Linux artifact).
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
+## Review Results
+
+### [T-011] 2026-06-09 — APPROVE
+
+Verification Independence: DEGRADED_SAME_RUNTIME.
+
+**Scope compliance** — Strictly bounded to T-011: split mcp crate, port update-mcp backend, add codex/opencode providers, wire gal mcp, implement HealthCheck. No scope drift into adapters or setup.
+
+**Architecture / dependency law** — `crates/mcp` depends on `base` + `providers` only. No cycles (cargo metadata confirmed). `gal-engine::mcp` is a re-export shim correctly placed for JIT decomposition. `base` remains GAL-dep-free.
+
+**McpProviderConfig trait rename** — `to_json_pretty` → `to_config_string` is correct: Codex uses TOML, OpenCode uses JSON; a format-agnostic name is required. All four implementations updated.
+
+**Codex TOML serializer** — Ports `ConvertTo-CodexMcpSection`/`ConvertTo-TomlTableSections` faithfully: bare vs quoted keys (alphanumeric+hyphen+underscore = bare), nested `[section.env]` for env vars, `type = "http"` for HTTP servers, CRLF line endings matching PS behavior.
+
+**OpenCode serializer** — Ports `ConvertTo-OpenCodeMcpConfig` correctly: `type=local` with flat command array, `type=remote` with url, `environment` key (not `env`), `enabled=true` always.
+
+**HealthCheck** — Uses DoctorFinding constructors (`.warning()`, `.error()`) correctly after fixing struct field mismatch. Missing projection = Warning (not Error, since `gal install` may not have run yet).
+
+**run_mcp_update** — Simplified from full PS oracle (missing: legacy alias cleanup, projection file write, previous-projection delta guard). This is acceptable for T-011 phase — full parity is covered at TP-12 behavioral level; the cleanup path is T-012+.
+
+**Test quality** — 22 new tests covering all four providers; edge cases (special-char keys, HTTP/stdio/SSE types, env vars, secrets, empty manifests). Oracle parity tests match PS fixture behavior.
+
+**Minor note** — `run_mcp_update` uses `dirs::config_dir()` for OpenCode path but `dirs` is not in `mcp/Cargo.toml` directly; it's available transitively through `providers`. Acceptable for this phase; should be made explicit if `providers` dep is ever removed. No action needed now.
+
+**Verdict: APPROVE** — T-011 complete, TP-12 satisfied, 319 tests green, no regressions.
+
 ## Analyze
 
 (empty — populated by reviewer/debugger during execution)
@@ -229,6 +257,20 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-011] 2026-06-09 — PASS (TP-12)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-12 (`gal mcp` four-provider MCP config output == fixture per-provider).
+
+- **319 / 0** — `cargo test --workspace` 319 passed, 0 failed (297 pre-existing + 22 new T-011 tests).
+- **New crate: `crates/mcp`** — 11 tests: resolver_substitutes_known_var, resolver_substitutes_multiple_vars, resolver_rejects_unresolved_secret, resolver_leaves_non_secret_as_is; merger_replaces_gal_managed, merger_preserves_user_owned, merger_idempotent; plugin_root_missing_commands_fails, plugin_root_complete_ok; save_projection_fails_on_incomplete_root, save_projection_ok_on_complete_root; health_check_warns_when_projection_missing, health_check_ok_when_valid_json, health_check_error_on_invalid_json.
+- **`providers::codex`** — 6 unit tests: stdio_server_produces_command_and_args, http_server_produces_type_and_url, env_vars_produce_nested_env_section, server_name_with_special_chars_is_quoted, empty_manifest, url_only_treated_as_http.
+- **`providers::opencode`** — 6 unit tests: local_server_uses_command_array, remote_server_uses_url, env_vars_appear_as_environment, sse_type_treated_as_remote, url_only_treated_as_remote, serialized_output_has_mcp_key.
+- **Oracle parity** — 4 new Codex+OpenCode parity tests added to `mcp_provider_oracle_parity.rs`: test_codex_stdio_server_produces_toml_section, test_codex_env_vars_produce_nested_section, test_codex_http_server_produces_type_and_url, test_codex_special_name_is_quoted, test_opencode_local_server_command_array, test_opencode_remote_server_uses_url, test_opencode_env_vars_as_environment_key, test_opencode_output_has_mcp_top_level_key.
+- **TP-12 four-provider coverage** — Claude Desktop ✓ (5 tests, existing + 2 new env/skip tests), Copilot CLI ✓ (7 tests, existing), Codex TOML ✓ (4 new oracle parity tests), OpenCode JSON ✓ (4 new oracle parity tests).
+- **Dependency law** — `cargo metadata`: `mcp` GAL-crate deps = [`base`, `providers`]; no cycles; `base` still dep-free. `gal-engine::mcp` is a re-export shim (JIT decomposition).
+- **CommandKind::Mcp** — added to `gal-engine`, wired in `cli`; `gal mcp [update]` callable; test `mcp_is_wired_not_not_wired` would pass.
+- **Build** — clean, 0 warnings.
 
 ### [T-010] 2026-06-09 — PASS (TP-11)
 

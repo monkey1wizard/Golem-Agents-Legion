@@ -297,7 +297,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-010（R-01）** — port `common.{ps1,sh}` 安裝/設定函式進 `base`(install mode/provider 選擇/symlink/install state/plugin root);install/setup/mcp/adapters 改用。*(23557b1)*
 
 **R-02 MCP**
-- [ ] **T-011（R-02）** — 拆 `mcp` crate;port `update-mcp` → `gal mcp` 後端 + `HealthCheck`;四 provider parity 對齊 fixture。
+- [x] **T-011（R-02）** — 拆 `mcp` crate;port `update-mcp` → `gal mcp` 後端 + `HealthCheck`;四 provider parity 對齊 fixture。*(263dd77)*
 - [ ] **T-012** — 對齊 fixture 後刪 `update-mcp.{ps1,sh}`,驗無 consumer 失依。
 
 **R-03 adapters（受保護,architect）**
