@@ -103,15 +103,15 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IMPLEMENT
-Step: 13 of 35
-Last activity: 2026-06-09 — T-013 complete — `crates/adapters` introduced with `update-skills` backend + `SkillsProjectionHealthCheck`; reviewer pass 3 cleared final blocker; workspace tests green.
-Next step: T-014 — port `update-commands` into `adapters` with the same task-scoped parity/review flow
-Current Task: T-014
+Workflow: IMPLEMENT — T-015 active after T-014 closeout
+Step: 14 of 35
+Last activity: 2026-06-09 — T-014 complete — `crates/adapters` now covers `update-commands`; reviewer approve after fixing shared-link ownership + no-template rewrite parity; workspace tests green.
+Next step: T-015 — port `update-personalization` into `adapters` with the same task-scoped parity/review flow
+Current Task: T-015
 Task Base Commit: bda5fb7
 Task Final Commit: —
-Test Retry Count: 0
-Review Retry Count: 3
+Test Retry Count: 2
+Review Retry Count: 2
 
 ### Deviations
 
@@ -153,7 +153,7 @@ R-02 MCP
 
 R-03 adapters (protected, architect)
 - [x] T-013 (R-03) — Split `adapters` crate + port `update-skills` → backend (shares `base::render`) + `HealthCheck`; parity.
-- [ ] T-014 — Port `update-commands` → `adapters`; parity.
+- [x] T-014 — Port `update-commands` → `adapters`; parity.
 - [ ] T-015 — Port `update-personalization` → `adapters`; parity.
 - [ ] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
 - [ ] T-017 — After all four pairs reach parity green, delete them.
@@ -192,6 +192,57 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-014] 2026-06-09 — REQUEST_CHANGES (superseded)
+
+Reviewed: 2026-06-09
+Commit range: unstaged diff — `crates/adapters/src/lib.rs` (T-014 commands backend)
+Verdict: REQUEST_CHANGES
+
+#### BLOCKING
+- **[B-01]** Correctness / Parity: `render_gemini_command` fallback description was `format!("{name} command")` (e.g., `"git-commit-msg command"`) instead of `"GAL command"`. Both legacy scripts (`Update-Commands.ps1:68-69`, `update-commands.sh:92-93`) use `'GAL command'` as the empty-description fallback for Gemini. `render_opencode_command` already had the correct fallback; only Gemini was wrong. — `crates/adapters/src/lib.rs:541`
+  - Impact: Every command that omits a `description` frontmatter field (including the common `git-commit-msg` command) produces a wrong `description` value in its `.toml` file; TP-14 fixture comparison fails for those commands.
+  - Fix: Change `.unwrap_or_else(|| format!("{name} command"))` → `.unwrap_or_else(|| "GAL command".into())`.
+  - Resolution: FIXED — mechanical auto-fix applied; `cargo test -p adapters` 9/9 green. The compiler warning (`unused variable: name`) is now surfaced — can be silenced with `_name` if callers don't need it at call site, but not a correctness issue.
+
+- **[B-02]** Correctness / Parity: `remove_link_if_present` used unconditionally for `shared_skills_target().join(name)` (lines 299-303). `remove_link_if_present` removes **any** symlink/junction at that path. Both legacy scripts guard this removal with `Test-GalRepoLink` (PS1:242) / `is_gal_repo_link` (bash:257) — a check that the link's canonicalized target lives inside the GAL repo — and explicitly `[SKIP]` user-owned links. On a machine where `~/.agents/skills/<name>` is a user-created symlink unrelated to GAL, the Rust silently deletes it; legacy preserves it. — `crates/adapters/src/lib.rs:299-303`
+  - Impact: Silent destruction of user-owned shared skills on the migration-cleanup pass; violates the plan's parity contract and could cause real data loss.
+  - Fix: Before calling `remove_link_if_present`, add a check using `is_gal_command_link(&path, &ctx.opts.repo_root.to_string_lossy())` (or a new `is_gal_repo_link` helper that checks `fs::canonicalize` target is under `repo_root`). Only remove if the link points into the GAL repo.
+  - Resolution: FIXED — `is_gal_repo_link` helper added (lib.rs:976-984); guard applied at lib.rs:302-305; test `update_commands_preserves_user_owned_shared_skill_link` passes.
+
+#### WARNING
+- **[W-01]** Correctness / Parity: `bake_command_content` reads `SKILL.md` and the outer loop always rewrites it via `write_text`, even when no `SKILL.template.md` exists. Both legacy scripts skip baking with `[WARN]` when no template exists (PS1:190-193, bash:200-203) and leave `SKILL.md` untouched. The Rust reads `SKILL.md` and writes it back with `trim_end + trailing-\n` normalization — the content is semantically equivalent but whitespace-modified. — `crates/adapters/src/lib.rs:275-277`
+  - Fix: Mirror legacy: if `bake_command_content` returns without having found a template (signal this or replicate the `!template.is_file()` guard at the call site), skip `write_text`. Alternatively, skip write if no template path exists alongside the command dir.
+  - Resolution: FIXED — `write_text` is now inside `if template_path.is_file()` guard (lib.rs:276-280); no-template dirs leave `SKILL.md` untouched.
+
+#### Summary
+- Blocking: 2 (resolved: 2, open: 0)
+- Warning: 1 (resolved: 1, open: 0)
+- Info: 0
+
+---
+
+### [T-014] 2026-06-09 (pass 2) — APPROVE
+
+Reviewed: 2026-06-09
+Commit range: unstaged diff — `crates/adapters/src/lib.rs` (re-review of B-02 shared-link ownership + W-01 no-template rewrite)
+Verdict: APPROVE
+
+#### Closure
+- **B-02 resolved** — `is_gal_repo_link` (lib.rs:976-984) canonicalizes both paths and guards with `target.starts_with(root)`. Removal only fires when the link resolves into the GAL repo. Test `update_commands_preserves_user_owned_shared_skill_link` creates a link pointing outside `repo_root` and asserts it survives `run_update_commands` — passes.
+- **W-01 resolved** — `write_text` is gated inside `if template_path.is_file()` (lib.rs:275-280). Commands with only a `SKILL.md` and no template file are read but never rewritten, matching legacy `[WARN]-and-skip` behavior.
+- **B-01 (pass 1) already resolved** — `render_gemini_command` fallback is `"GAL command"` (lib.rs:543).
+- **10/10 tests green** — `cargo test -p adapters` passes; includes the new shared-link preservation test.
+
+#### No new findings
+No additional blockers, warnings, or info items introduced by the fix commits.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 0
+
+---
 
 ### [T-011 reopen] 2026-06-09 — APPROVE
 
@@ -373,6 +424,15 @@ Verification Independence: DEGRADED_SAME_RUNTIME.
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-014] 2026-06-09 — PASS (TP-14 slice: update-commands)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-14 sliced to T-014 only (`update-commands` parity surface inside `crates/adapters`).
+
+- **All workspace tests green** — `cargo test --workspace --quiet` after the parity and review-fix passes: adapters 10/10, workspace suites green, 1 ignored existing test only.
+- **Parity gaps closed** — Gemini fallback now uses `GAL command`; shared-skills cleanup only removes repo-owned links; no-template command dirs skip `SKILL.md` rewrites, matching legacy behavior.
+- **Regression coverage added** — command projection tests now cover bake/render output, unselected-runtime cleanup, stale managed-file pruning, and preservation of user-owned shared links.
+- **Scope held to T-014** — only `crates/adapters/src/lib.rs` changed for code; T-015/T-016/T-017 wiring, deletions, and docs remain out of this task commit.
 
 ### [T-013] 2026-06-09 — PASS (TP-14 slice: update-skills)
 

@@ -1,4 +1,4 @@
-//! Skill projection backend for the R-03 adapters port.
+//! Skill + command projection backends for the R-03 adapters port.
 
 use base::health::{DoctorFinding, HealthCheck};
 use base::platform::{atomic_swap, create_dir_link, is_symlink_or_junction, remove_dir_link};
@@ -33,6 +33,8 @@ pub struct SkillUpdateOptions {
     pub dry_run: bool,
     pub replace: bool,
 }
+
+pub type CommandUpdateOptions = SkillUpdateOptions;
 
 #[derive(Debug, Error)]
 pub enum AdapterError {
@@ -80,8 +82,40 @@ impl SkillContext {
         self.copilot_root().join("agents")
     }
 
+    fn copilot_skills_target(&self) -> PathBuf {
+        self.copilot_root().join("skills")
+    }
+
+    fn codex_skills_target(&self) -> PathBuf {
+        self.codex_root().join("skills")
+    }
+
+    fn gemini_commands_target(&self) -> PathBuf {
+        self.gemini_root().join("commands")
+    }
+
+    fn gemini_skills_target(&self) -> PathBuf {
+        self.gemini_root().join("skills")
+    }
+
+    fn claude_commands_target(&self) -> PathBuf {
+        self.opts.user_home.join(".claude").join("commands")
+    }
+
+    fn workspace_skills_target(&self) -> PathBuf {
+        self.opts.repo_root.join(".agents").join("skills")
+    }
+
+    fn shared_skills_target(&self) -> PathBuf {
+        self.opts.user_home.join(".agents").join("skills")
+    }
+
     fn opencode_root(&self) -> PathBuf {
         self.opts.user_home.join(".config").join("opencode")
+    }
+
+    fn opencode_commands_target(&self) -> PathBuf {
+        self.opencode_root().join("commands")
     }
 }
 
@@ -89,6 +123,13 @@ pub fn run_update_skills(opts: &SkillUpdateOptions) -> Result<ProjectionReport, 
     let ctx = SkillContext::new(opts.clone());
     let mut report = ProjectionReport::default();
     update_skills(&ctx, &mut report)?;
+    Ok(report)
+}
+
+pub fn run_update_commands(opts: &CommandUpdateOptions) -> Result<ProjectionReport, AdapterError> {
+    let ctx = SkillContext::new(opts.clone());
+    let mut report = ProjectionReport::default();
+    update_commands(&ctx, &mut report)?;
     Ok(report)
 }
 
@@ -207,6 +248,126 @@ fn update_skills(ctx: &SkillContext, report: &mut ProjectionReport) -> Result<()
     for path in legacy_paths {
         remove_if_gal_owned_dir(&path, ctx.opts.dry_run, report)?;
     }
+
+    Ok(())
+}
+
+fn update_commands(ctx: &SkillContext, report: &mut ProjectionReport) -> Result<(), AdapterError> {
+    let commands_root = ctx.opts.source_root.join("commands");
+    let command_dirs = list_command_dirs(&commands_root)?;
+    if command_dirs.is_empty() {
+        return Ok(());
+    }
+
+    ensure_dir(&ctx.gemini_commands_target(), ctx.opts.dry_run)?;
+    ensure_dir(&ctx.opencode_commands_target(), ctx.opts.dry_run)?;
+
+    let active_names = command_dirs
+        .iter()
+        .filter_map(|dir| dir.file_name().and_then(OsStr::to_str))
+        .collect::<Vec<_>>();
+
+    for command_dir in &command_dirs {
+        let name = command_dir
+            .file_name()
+            .and_then(OsStr::to_str)
+            .ok_or_else(|| AdapterError::Message("invalid command directory name".into()))?;
+        let template_path = command_dir.join("SKILL.template.md");
+        if template_path.is_file() {
+            let baked_source = bake_command_content(command_dir, &ctx.opts.repo_root)?;
+            let baked_skill = command_dir.join("SKILL.md");
+            write_text(&baked_skill, &baked_source, ctx.opts.dry_run)?;
+        }
+
+        let copilot_target = ctx.copilot_skills_target().join(name);
+        remove_link_if_present(&copilot_target, ctx.opts.dry_run, report)?;
+
+        let codex_target = ctx.codex_skills_target().join(name);
+        if ctx.opts.selected_runtimes.iter().any(|rt| rt == "codex") {
+            ensure_dir_link(command_dir, &codex_target, ctx.opts.replace, ctx.opts.dry_run, report)?;
+        } else {
+            remove_link_if_present(&codex_target, ctx.opts.dry_run, report)?;
+        }
+
+        remove_link_if_present(
+            &ctx.antigravity_root().join("skills").join(name),
+            ctx.opts.dry_run,
+            report,
+        )?;
+        remove_link_if_present(
+            &ctx.workspace_skills_target().join(name),
+            ctx.opts.dry_run,
+            report,
+        )?;
+        let shared_target = ctx.shared_skills_target().join(name);
+        if is_gal_repo_link(&shared_target, &ctx.opts.repo_root) {
+            remove_link_if_present(&shared_target, ctx.opts.dry_run, report)?;
+        }
+
+        let rendered_source = read_markdown_required(&resolve_command_skill_content_path(command_dir))?;
+        let frontmatter = parse_frontmatter(&rendered_source);
+        let body = strip_frontmatter(&rendered_source);
+
+        let gemini_target = ctx.gemini_commands_target().join(format!("{name}.toml"));
+        if ctx.opts.selected_runtimes.iter().any(|rt| rt == "gemini") {
+            write_text(
+                &gemini_target,
+                &render_gemini_command(name, &frontmatter, &body),
+                ctx.opts.dry_run,
+            )?;
+            report.written_files.push(gemini_target);
+        } else {
+            remove_managed_file_if_present(&gemini_target, ctx.opts.dry_run, report)?;
+        }
+
+        let claude_target = ctx.claude_commands_target().join(format!("{name}.md"));
+        remove_managed_file_if_present(&claude_target, ctx.opts.dry_run, report)?;
+
+        let opencode_target = ctx.opencode_commands_target().join(format!("{name}.md"));
+        if ctx.opts.selected_runtimes.iter().any(|rt| rt == "opencode") {
+            write_text(
+                &opencode_target,
+                &render_opencode_command(name, &frontmatter, &body),
+                ctx.opts.dry_run,
+            )?;
+            report.written_files.push(opencode_target);
+        } else {
+            remove_managed_file_if_present(&opencode_target, ctx.opts.dry_run, report)?;
+        }
+    }
+
+    let link_cleanup_roots = [
+        ctx.copilot_skills_target(),
+        ctx.gemini_skills_target(),
+        ctx.antigravity_root().join("skills"),
+        ctx.shared_skills_target(),
+        ctx.codex_skills_target(),
+    ];
+    for root in link_cleanup_roots {
+        prune_stale_command_links(&root, &active_names, ctx.opts.dry_run, report)?;
+        prune_legacy_gal_prefixed_dirs(&root, &active_names, ctx.opts.dry_run, report)?;
+    }
+    prune_stale_managed_files(
+        &ctx.gemini_commands_target(),
+        "toml",
+        &active_names,
+        ctx.opts.dry_run,
+        report,
+    )?;
+    prune_stale_managed_files(
+        &ctx.claude_commands_target(),
+        "md",
+        &active_names,
+        ctx.opts.dry_run,
+        report,
+    )?;
+    prune_stale_managed_files(
+        &ctx.opencode_commands_target(),
+        "md",
+        &active_names,
+        ctx.opts.dry_run,
+        report,
+    )?;
 
     Ok(())
 }
@@ -374,6 +535,50 @@ fn render_opencode_agent(_name: &str, frontmatter: &Frontmatter, body: &str) -> 
     lines.join("\n")
 }
 
+fn render_gemini_command(_name: &str, frontmatter: &Frontmatter, body: &str) -> String {
+    let description = frontmatter
+        .description
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "GAL command".into());
+    let prompt = format!("User command arguments, if any: {{{{args}}}}\n\n{}", body.trim());
+    format!(
+        "{header}\ndescription = \"{description}\"\nprompt = '''\n{prompt}\n'''\n",
+        header = GAL_MANAGED_FILE_HEADER,
+        description = escape_toml_basic_string(&description),
+        prompt = prompt.replace("'''", "\\'\\'\\'")
+    )
+}
+
+fn render_opencode_command(name: &str, frontmatter: &Frontmatter, body: &str) -> String {
+    let description = frontmatter
+        .description
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "GAL command".into());
+    let rendered_body = if name == "git-commit-msg" {
+        "Use the baseline below for the type(scope) prefix (it is a no-hijack path/status classifier that never reads the diff body), then read the staged diff and write a subject describing what actually changed. Do not ship the generic baseline subject verbatim. Keep the type(scope) prefix unless the diff clearly contradicts it. Add up to three body bullets only for broader changes. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the baseline reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS\n\n!`gal commit-msg --print`".to_string()
+    } else {
+        body.trim().to_string()
+    };
+
+    let mut lines = vec![
+        GAL_MANAGED_FILE_HEADER.to_string(),
+        "---".into(),
+        "description: |".into(),
+    ];
+    for line in description.lines() {
+        lines.push(format!("  {line}"));
+    }
+    lines.push("---".into());
+    lines.push(String::new());
+    lines.push("User command arguments, if any: $ARGUMENTS".into());
+    lines.push(String::new());
+    lines.push(rendered_body);
+    lines.push(String::new());
+    lines.join("\n")
+}
+
 fn push_permission(permissions: &mut Vec<&'static str>, value: &'static str) {
     if !permissions.contains(&value) {
         permissions.push(value);
@@ -417,6 +622,73 @@ fn list_files_with_extension(root: &Path, suffix: &str) -> Result<Vec<PathBuf>, 
     Ok(files)
 }
 
+fn list_command_dirs(root: &Path) -> Result<Vec<PathBuf>, AdapterError> {
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut dirs = Vec::new();
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let path = entry.path();
+        if path.join("SKILL.md").is_file() || path.join("SKILL.template.md").is_file() {
+            dirs.push(path);
+        }
+    }
+    dirs.sort();
+    Ok(dirs)
+}
+
+fn read_markdown_required(path: &Path) -> Result<String, AdapterError> {
+    fs::read_to_string(path).map_err(AdapterError::from)
+}
+
+fn resolve_command_skill_content_path(command_dir: &Path) -> PathBuf {
+    let baked = command_dir.join("SKILL.md");
+    if baked.is_file() {
+        return baked;
+    }
+
+    let template = command_dir.join("SKILL.template.md");
+    if template.is_file() {
+        return template;
+    }
+
+    baked
+}
+
+fn bake_command_content(command_dir: &Path, repo_root: &Path) -> Result<String, AdapterError> {
+    let template = command_dir.join("SKILL.template.md");
+    if !template.is_file() {
+        return read_markdown_required(&command_dir.join("SKILL.md"));
+    }
+
+    let mut baked = read_markdown_required(&template)?;
+    baked = baked.replace("{{GAL_ROOT}}", &repo_root.display().to_string());
+
+    let local_override = command_dir.join("SKILL.local.md");
+    if !local_override.is_file() {
+        return Ok(baked);
+    }
+
+    let local = read_markdown_required(&local_override)?;
+    if local.trim().is_empty() {
+        return Ok(baked);
+    }
+
+    Ok(format!(
+        "{}\n\n<!-- GAL LOCAL OVERRIDE START -->\n<!-- Source: SKILL.local.md (gitignored machine-local overlay) -->\n{}\n<!-- GAL LOCAL OVERRIDE END -->\n",
+        baked.trim_end(),
+        local.trim()
+    ))
+}
+
+fn escape_toml_basic_string(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 fn prune_stale_links<'a>(
     root: &Path,
     keep_names: impl IntoIterator<Item = &'a str>,
@@ -449,6 +721,97 @@ fn prune_stale_links<'a>(
     Ok(())
 }
 
+fn prune_stale_command_links(
+    root: &Path,
+    active_names: &[&str],
+    dry_run: bool,
+    report: &mut ProjectionReport,
+) -> Result<(), AdapterError> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(OsStr::to_str) else {
+            continue;
+        };
+        if active_names.contains(&name) || !is_gal_command_link(&path, &path_needle_for_commands()) {
+            continue;
+        }
+        remove_link_if_present(&path, dry_run, report)?;
+    }
+    Ok(())
+}
+
+fn prune_legacy_gal_prefixed_dirs(
+    root: &Path,
+    active_names: &[&str],
+    dry_run: bool,
+    report: &mut ProjectionReport,
+) -> Result<(), AdapterError> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(OsStr::to_str) else {
+            continue;
+        };
+        if !name.starts_with("gal-") || active_names.contains(&name) {
+            continue;
+        }
+        if !dry_run {
+            fs::remove_dir_all(&path)?;
+        }
+        report.removed_paths.push(path);
+    }
+    Ok(())
+}
+
+fn prune_stale_managed_files(
+    root: &Path,
+    extension: &str,
+    active_names: &[&str],
+    dry_run: bool,
+    report: &mut ProjectionReport,
+) -> Result<(), AdapterError> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let is_extension_match = path
+            .extension()
+            .and_then(OsStr::to_str)
+            .map(|value| value.eq_ignore_ascii_case(extension))
+            .unwrap_or(false);
+        if !is_extension_match || !is_gal_managed_file(&path) {
+            continue;
+        }
+        let Some(name) = path.file_stem().and_then(OsStr::to_str) else {
+            continue;
+        };
+        if active_names.contains(&name) {
+            continue;
+        }
+        remove_managed_file_if_present(&path, dry_run, report)?;
+    }
+    Ok(())
+}
+
 fn ensure_dir(path: &Path, dry_run: bool) -> Result<(), AdapterError> {
     if dry_run || path.is_dir() {
         return Ok(());
@@ -469,6 +832,28 @@ fn write_text(
         }
         fs::write(path, normalized.as_bytes())?;
     }
+    Ok(())
+}
+
+fn remove_link_if_present(path: &Path, dry_run: bool, report: &mut ProjectionReport) -> Result<(), AdapterError> {
+    if !is_symlink_or_junction(path) {
+        return Ok(());
+    }
+    if !dry_run {
+        remove_link(path)?;
+    }
+    report.removed_paths.push(path.to_path_buf());
+    Ok(())
+}
+
+fn remove_managed_file_if_present(path: &Path, dry_run: bool, report: &mut ProjectionReport) -> Result<(), AdapterError> {
+    if !is_gal_managed_file(path) {
+        return Ok(());
+    }
+    if !dry_run {
+        fs::remove_file(path)?;
+    }
+    report.removed_paths.push(path.to_path_buf());
     Ok(())
 }
 
@@ -580,6 +965,39 @@ fn backup_path(path: &Path) -> PathBuf {
     path.with_file_name(name)
 }
 
+fn is_gal_managed_file(path: &Path) -> bool {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|content| content.lines().next().map(str::to_string))
+        .map(|first| first == GAL_MANAGED_FILE_HEADER)
+        .unwrap_or(false)
+}
+
+fn is_gal_repo_link(path: &Path, repo_root: &Path) -> bool {
+    if !is_symlink_or_junction(path) {
+        return false;
+    }
+    match (fs::canonicalize(path), fs::canonicalize(repo_root)) {
+        (Ok(target), Ok(root)) => target.starts_with(root),
+        _ => false,
+    }
+}
+
+fn path_needle_for_commands() -> String {
+    format!("{}commands{}", std::path::MAIN_SEPARATOR, std::path::MAIN_SEPARATOR)
+}
+
+fn is_gal_command_link(path: &Path, repo_root_fragment: &str) -> bool {
+    if !is_symlink_or_junction(path) {
+        return false;
+    }
+    fs::canonicalize(path)
+        .ok()
+        .and_then(|target| target.to_str().map(str::to_string))
+        .map(|target| target.contains(repo_root_fragment))
+        .unwrap_or(false)
+}
+
 fn create_file_link(target: &Path, link: &Path) -> io::Result<()> {
     #[cfg(windows)]
     {
@@ -642,7 +1060,19 @@ mod tests {
         let home = temp.path().join("home");
         fs::create_dir_all(source_root.join("skills").join("sample-skill")).unwrap();
         fs::create_dir_all(source_root.join("agents")).unwrap();
+        fs::create_dir_all(source_root.join("commands")).unwrap();
         (temp, repo_root, source_root, home)
+    }
+
+    fn write_command_fixture(source_root: &Path, name: &str) {
+        let command_root = source_root.join("commands").join(name);
+        fs::create_dir_all(&command_root).unwrap();
+        fs::write(
+            command_root.join("SKILL.template.md"),
+            "---\ndescription: sample command\n---\nUse {{GAL_ROOT}}\n",
+        )
+        .unwrap();
+        fs::write(command_root.join("SKILL.local.md"), "Local note\n").unwrap();
     }
 
     #[test]
@@ -750,5 +1180,135 @@ mod tests {
         assert!(rendered.contains("  list: allow"));
         assert!(rendered.contains("  grep: allow"));
         assert!(rendered.contains("  glob: allow"));
+    }
+
+    #[test]
+    fn update_commands_bakes_and_projects_outputs() {
+        let (_temp, repo_root, source_root, home) = fixture_roots();
+        write_command_fixture(&source_root, "sample-command");
+
+        let report = run_update_commands(&CommandUpdateOptions {
+            repo_root: repo_root.clone(),
+            source_root: source_root.clone(),
+            user_home: home.clone(),
+            selected_runtimes: vec!["gemini".into(), "codex".into(), "opencode".into()],
+            dry_run: false,
+            replace: true,
+        })
+        .unwrap();
+
+        let baked = fs::read_to_string(
+            source_root.join("commands").join("sample-command").join("SKILL.md"),
+        )
+        .unwrap();
+        assert!(baked.contains(&repo_root.display().to_string()));
+        assert!(baked.contains("GAL LOCAL OVERRIDE START"));
+        assert!(home.join(".codex").join("skills").join("sample-command").exists());
+
+        let gemini = fs::read_to_string(
+            home.join(".gemini").join("commands").join("sample-command.toml"),
+        )
+        .unwrap();
+        assert!(gemini.starts_with(GAL_MANAGED_FILE_HEADER));
+        assert!(gemini.contains("User command arguments, if any: {{args}}"));
+
+        let opencode = fs::read_to_string(
+            home.join(".config").join("opencode").join("commands").join("sample-command.md"),
+        )
+        .unwrap();
+        assert!(opencode.starts_with(GAL_MANAGED_FILE_HEADER));
+        assert!(opencode.contains("User command arguments, if any: $ARGUMENTS"));
+        assert!(!report.written_files.is_empty());
+    }
+
+    #[test]
+    fn update_commands_removes_managed_outputs_for_unselected_runtimes() {
+        let (_temp, repo_root, source_root, home) = fixture_roots();
+        write_command_fixture(&source_root, "sample-command");
+
+        let gemini_target = home.join(".gemini").join("commands").join("sample-command.toml");
+        let opencode_target = home.join(".config").join("opencode").join("commands").join("sample-command.md");
+        let claude_target = home.join(".claude").join("commands").join("sample-command.md");
+        fs::create_dir_all(gemini_target.parent().unwrap()).unwrap();
+        fs::create_dir_all(opencode_target.parent().unwrap()).unwrap();
+        fs::create_dir_all(claude_target.parent().unwrap()).unwrap();
+        fs::write(&gemini_target, format!("{GAL_MANAGED_FILE_HEADER}\nold\n")).unwrap();
+        fs::write(&opencode_target, format!("{GAL_MANAGED_FILE_HEADER}\nold\n")).unwrap();
+        fs::write(&claude_target, format!("{GAL_MANAGED_FILE_HEADER}\nold\n")).unwrap();
+
+        run_update_commands(&CommandUpdateOptions {
+            repo_root,
+            source_root,
+            user_home: home.clone(),
+            selected_runtimes: vec!["copilot".into()],
+            dry_run: false,
+            replace: true,
+        })
+        .unwrap();
+
+        assert!(!gemini_target.exists());
+        assert!(!opencode_target.exists());
+        assert!(!claude_target.exists());
+    }
+
+    #[test]
+    fn update_commands_prunes_obsolete_managed_files() {
+        let (_temp, repo_root, source_root, home) = fixture_roots();
+        write_command_fixture(&source_root, "sample-command");
+
+        let gemini_commands = home.join(".gemini").join("commands");
+        let opencode_commands = home.join(".config").join("opencode").join("commands");
+        fs::create_dir_all(&gemini_commands).unwrap();
+        fs::create_dir_all(&opencode_commands).unwrap();
+        fs::write(
+            gemini_commands.join("old-command.toml"),
+            format!("{GAL_MANAGED_FILE_HEADER}\nold\n"),
+        )
+        .unwrap();
+        fs::write(
+            opencode_commands.join("old-command.md"),
+            format!("{GAL_MANAGED_FILE_HEADER}\nold\n"),
+        )
+        .unwrap();
+
+        run_update_commands(&CommandUpdateOptions {
+            repo_root,
+            source_root,
+            user_home: home.clone(),
+            selected_runtimes: vec!["gemini".into(), "opencode".into()],
+            dry_run: false,
+            replace: true,
+        })
+        .unwrap();
+
+        assert!(!gemini_commands.join("old-command.toml").exists());
+        assert!(!opencode_commands.join("old-command.md").exists());
+        assert!(gemini_commands.join("sample-command.toml").exists());
+        assert!(opencode_commands.join("sample-command.md").exists());
+    }
+
+    #[test]
+    fn update_commands_preserves_user_owned_shared_skill_link() {
+        let (_temp, repo_root, source_root, home) = fixture_roots();
+        write_command_fixture(&source_root, "sample-command");
+
+        let external_target = home.join("external-command");
+        fs::create_dir_all(&external_target).unwrap();
+        let shared_target = home.join(".agents").join("skills").join("sample-command");
+        fs::create_dir_all(shared_target.parent().unwrap()).unwrap();
+        create_dir_link(&external_target, &shared_target).unwrap();
+
+        run_update_commands(&CommandUpdateOptions {
+            repo_root,
+            source_root,
+            user_home: home.clone(),
+            selected_runtimes: vec!["gemini".into()],
+            dry_run: false,
+            replace: true,
+        })
+        .unwrap();
+
+        assert!(shared_target.exists());
+        assert_eq!(fs::canonicalize(&shared_target).unwrap(), fs::canonicalize(&external_target).unwrap());
     }
 }
