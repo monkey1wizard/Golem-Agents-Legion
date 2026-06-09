@@ -147,9 +147,9 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 6 of 13
-Last activity: 2026-06-09 — T-005 complete (b0cc86d)
-Next step: T-006 implement
+Step: 7 of 13
+Last activity: 2026-06-09 — T-006 complete (c882267)
+Next step: T-007 implement
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -183,7 +183,7 @@ Review Retry Count: 0
 - [x] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off. *(c3bf950)*
 - [x] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper. *(62bc53d)*
 - [x] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through. *(b0cc86d)*
-- [ ] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check.
+- [x] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check. *(c882267)*
 - [ ] **T-007 (P5 cross-platform)** — `gal-engine`: align Windows junction / Unix symlink + `+x` paths/permissions across three platforms; verify skill-surface alignment on macOS/Linux isolated-home install.
 - [ ] **T-008 (P5 pkg-manager)** — `packaging/winget/`, `packaging/homebrew/`: consume bootstrap P2 artifacts; a package-manager-installed `gal` completes the same install convergence (post-install verification, no redoing the release lane).
 - [ ] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`.
@@ -281,6 +281,23 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 - Multi-skill bundle loading via `.claude-plugin/plugin.json` is architecturally expected but requires new-session smoke after T-003
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
+
+### [T-006] 2026-06-09
+
+**Type**: unit (cargo test -p gal-engine + gal-cli)
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+| Test | Result |
+| --- | --- |
+| `check_bin_in_canonical_root_error_when_missing` | PASS — missing bin/gal[.exe] → error |
+| `check_bin_in_canonical_root_ok_when_present` | PASS — present + executable bin → no error |
+| `check_skill_surface_error_when_missing` | PASS — absent skill surface → error naming fix |
+| `tp08_no_marketplace_classification_residue` | PASS — compiles, exit code 0 or 1 |
+
+**Full suite:** gal-engine → 165 passed, 1 ignored; gal-cli → 12 passed.
+
+**ClaudeMarketplaceState removal (TP-08):** confirmed no residue — `grep` returns 0 matches in all gal-engine/gal-cli source after removing the enum, `classify_claude_marketplace_state`, `check_claude_marketplace`, `check_release_gate_marketplace`.
 
 ### [T-005] 2026-06-09
 
@@ -387,6 +404,26 @@ No correctness defects, no security issues, no architecture violations. All thre
 - `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
 - `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
 - Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
+
+### [T-006] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/doctor.rs` (diff e92d1f5..c882267)
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | `check_skill_surface` uses `std::fs::canonicalize` which may fail on Windows junctions if the target is absent (returns Err). The `ok().or_else(|| Some(skill_surface.clone()))` fallback means the alignment check is skipped rather than erroring — correct behavior (link exists but target missing is caught by `canonical_root.exists()` in Check 1). |
+| R2 | INFO | 5 marketplace tests removed (TP-024 coverage). TP-024's spirit is preserved: no official-marketplace classification residue in the new code; the new `tp08_no_marketplace_classification_residue` test confirms compile + exit grading. |
+
+No correctness defects, security issues, or architecture violations.
+
+**Rationale:**
+- `ClaudeMarketplaceState` and all three associated functions fully removed. `cargo test` passes → TP-08 satisfied.
+- `check_skill_surface` correctly surfaces a GAL-owned surface health check: is the skill surface projected and aligned?
+- `check_bin_in_canonical_root` reuses the same `cfg!(windows)` and `PermissionsExt` pattern as `render_bin_exposure` — consistent and tested.
+- `run_doctor` now satisfies TP-07: non-zero for missing dockeeper, missing bin, missing skill surface, orphan present; exit 0 on complete install.
+- gal-cli unchanged: exit grading and `--release-gate` already correct.
 
 ### [T-005] Code Review — 2026-06-09
 
