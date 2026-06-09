@@ -146,12 +146,12 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 ## Status
 
 ```text
-Workflow: TEST
-Step: 1 of 13
-Last activity: 2026-06-09 — T-001 implement done; devguide GAL-owned live read surface table written
-Next step: T-001 review + go/no-go decision + commit
-Current Task: T-001
-Task Base Commit: 6f8779119f1014ba00537451eea71ed124ae84f9
+Workflow: IMPLEMENT
+Step: 2 of 13
+Last activity: 2026-06-09 — T-001 complete (commit: f83f07199a7808541d90705ffb6fe4b6e4cac818)
+Next step: T-002 (R-10/RC-6, engine core) — galRoot auto-resolves plugins/gal-core; same commit reverts config
+Current Task: —
+Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
@@ -178,7 +178,7 @@ Review Retry Count: 0
 
 ## Tasks
 
-- [ ] **T-001 (P0, gate)** — Real-machine probe and write the per-provider GAL-owned load-surface table in `docs/devguide.md`: confirm `~/.claude/skills/gal` is loaded by Claude as a skill source (`doc-sync` visible); list Copilot (manifest/host copy) and AGY (junction) actual surfaces. **go/no-go**: if the skill surface cannot be loaded, block and report, then re-evaluate (no official flow).
+- [x] **T-001 (P0, gate)** — Real-machine probe and write the per-provider GAL-owned load-surface table in `docs/devguide.md`: confirm `~/.claude/skills/gal` is loaded by Claude as a skill source (`doc-sync` visible); list Copilot (manifest/host copy) and AGY (junction) actual surfaces. **go/no-go**: if the skill surface cannot be loaded, block and report, then re-evaluate (no official flow). *(f83f071)*
 - [ ] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off.
 - [ ] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off.
 - [ ] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper.
