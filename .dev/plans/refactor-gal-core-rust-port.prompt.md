@@ -104,14 +104,12 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 12 of 35
-Last activity: 2026-06-09 — T-011 complete (commit: 263dd77) — split mcp crate, codex+opencode providers, gal mcp command, HealthCheck, four-provider parity; 319 tests green; TP-12 satisfied. DEGRADED_SAME_RUNTIME.
-Next step: implement T-012
-Current Task: T-012
+Step: 13 of 35
+Last activity: 2026-06-09 — T-012 complete (commit: bda5fb7) — deleted update-mcp.{ps1,sh}, setup-machine wired to gal mcp update, 319 tests green, TP-13 satisfied. DEGRADED_SAME_RUNTIME. **STOP_AT reached.**
+Next step: T-013 (await user confirmation to continue)
+Current Task: T-013
 Task Base Commit: —
 Task Final Commit: —
-Test Retry Count: 0
-Review Retry Count: 0
 Test Retry Count: 0
 Review Retry Count: 0
 
@@ -150,7 +148,7 @@ R-01 shared core
 
 R-02 MCP
 - [x] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture. *(263dd77)*
-- [ ] T-012 — After parity green, delete `update-mcp.{ps1,sh}`; verify no consumer breaks.
+- [x] T-012 — After parity green, delete `update-mcp.{ps1,sh}`; verify no consumer breaks. *(bda5fb7)*
 
 R-03 adapters (protected, architect)
 - [ ] T-013 (R-03) — Split `adapters` crate + port `update-skills` → backend (shares `base::render`) + `HealthCheck`; parity.
@@ -193,6 +191,22 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-012] 2026-06-09 — APPROVE
+
+Verification Independence: DEGRADED_SAME_RUNTIME.
+
+**Scope compliance** — Strictly bounded: deleted `Update-Mcp.ps1` + `update-mcp.sh`, updated both `Setup-Machine.ps1` and `setup-machine.sh` to call `gal mcp update` (skip on uninstall).
+
+**Consumer audit** — No Rust crate references the deleted scripts. `cargo test --workspace` 319/0 green. `setup-machine.{ps1,sh}` remain functional via the new `gal mcp update` dispatch.
+
+**Uninstall handling** — Skips MCP update on uninstall with `[SKIP]` message matching prior script behavior.
+
+**Documentation drift** — `scripts.md`, `devguide.md`, `manual.md`, `manual.zh-Hant.md` still reference the deleted scripts. Acceptable — doc-sync follow-up, not a runtime consumer.
+
+**Mixed-state invariant** — System functional: install scripts call `gal mcp update`, all other script-family steps unchanged.
+
+**Verdict: APPROVE** — T-012 complete, TP-13 satisfied, 319 tests green, no regressions.
 
 ### [T-011] 2026-06-09 — APPROVE
 
@@ -257,6 +271,17 @@ Verification Independence: DEGRADED_SAME_RUNTIME.
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-012] 2026-06-09 — PASS (TP-13)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-13 (after deleting `update-mcp.{ps1,sh}` no consumer breaks; mixed-state invariant).
+
+- **319 / 0** — `cargo test --workspace` 319 passed, 0 failed. No change in test count (no new tests added; deletion only).
+- **Deleted**: `scripts/Update-Mcp.ps1` (2017 lines), `scripts/update-mcp.sh` (1228 lines).
+- **Updated**: `scripts/Setup-Machine.ps1` — MCP step now calls `& gal mcp update` (skips on uninstall); `scripts/setup-machine.sh` — MCP step now calls `gal mcp update` (skips on uninstall).
+- **No Rust consumer** references the deleted scripts; `cargo test` green confirms no broken imports or spawn calls.
+- **Mixed-state invariant** — `setup-machine.{ps1,sh}` remain functional; all other script-family steps unchanged.
+- **TP-13 PASS.**
 
 ### [T-011] 2026-06-09 — PASS (TP-12)
 
