@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 5 of 35
-Last activity: 2026-06-09 — T-004 complete (commit: 5c1514e) — `base::platform` sunk (create/remove dir-link, is_symlink_or_junction, atomic_swap), render/claude/agy delegate, 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-005 (OE-01 fence: only shared template primitives → base::render)
+Step: 6 of 35
+Last activity: 2026-06-09 — T-005 complete (commit: 8f78581) — `base::render` seam established (create_temp_render_dir staging primitive); OE-01 honored (install-domain render stayed); 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-006 (HealthCheck trait in base; migrate doctor checks; exit grading unchanged)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -137,7 +137,7 @@ P0 — baseline
 R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-003 — Scaffold workspace + extract `base` crate (config/mode/paths/install-state/provider-selection); update root `Cargo.toml` members; repoint importers; `cargo test` green. *(1ffd3de)*
 - [x] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green. *(5c1514e)*
-- [ ] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green.
+- [x] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green. *(8f78581; OE-01: only the atomic-render staging primitive moved; install-domain render stayed)*
 - [ ] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged.
 - [ ] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles.
 - [ ] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green.
@@ -254,6 +254,15 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-05 (platform sink; r
 
 No new tests authored: existing provider/render suites are the platform-behavior oracle and stay green.
 
+### [T-005] 2026-06-09 — PASS (TP-06)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-06 (base::render sink; existing render uses it; output byte-identical; green).
+
+- **228 / 0** — unchanged after the sink.
+- **render uses `base::render`** — `create_temp_render_dir` now delegates to `base::render::create_temp_render_dir`; render/atomic-render test paths (render_canonical_root exercises temp-dir + atomic_swap) stay green → byte-identical staging output (same `.gal-render-<uuid>` naming, same fs calls, same RenderError mapping).
+- **OE-01 verified** — only the staging primitive moved; `scan_source_components`/`render_canonical_root`/manifest renderers remain in gal-engine (grep confirmed no template-substitution primitives + no adapters consumer to justify base placement).
+- **Build** clean, 0 warnings; `base` GAL-dep-free.
+
 ## Review Results
 
 ### Architecture Review
@@ -304,6 +313,17 @@ Scope: commit range `1f7d313..5c1514e` (sink `base::platform`). Verification Ind
 - **No BLOCKING, no Protected-Path/security finding.**
 
 Verdict: **APPROVE** — proceed to T-005. Carry-forward: OE-01 fence governs T-005 (only shared template primitives → `base::render`, not `scan_source_components`/`render_canonical_root`).
+
+### [T-005] 2026-06-09 — APPROVE
+
+Scope: commit range `be96c1f..8f78581` (sink `base::render`). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **OE-01 correctly honored — the central judgment of this task.** Implementer grep-verified render.rs has no template-substitution primitive and no second (adapters) consumer, then moved ONLY `create_temp_render_dir` (the atomic-render staging primitive, genuinely shared with future adapters and paired with `base::platform::atomic_swap`). Bulk install-domain render logic correctly left in gal-engine. No over-abstraction.
+- **Byte-identical**: same `.gal-render-<uuid>` naming, same `create_dir_all`+`create_dir` calls; domain validation + `RenderError` mapping retained in caller via existing `From<io::Error>`. 228 green confirms.
+- **Scope**: one primitive + one module seam. No drift.
+- **No BLOCKING.** OE-01 fence satisfied; `base::render` is a thin, honest seam, not a god-module.
+
+Verdict: **APPROVE** — proceed to T-006 (HealthCheck trait in base).
 
 ## Debug Log
 
