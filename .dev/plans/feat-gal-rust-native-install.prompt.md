@@ -147,12 +147,12 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 
 ```text
 Workflow: IMPLEMENT
-Step: 3 of 13
-Last activity: 2026-06-09 — T-002 complete (commit: a192df7)
-Next step: T-002 test (TESTER)
-Current Task: T-002
-Task Base Commit: f83f07199a7808541d90705ffb6fe4b6e4cac818
-Task Final Commit: a192df7
+Step: 4 of 13
+Last activity: 2026-06-09 — T-003 complete (c3bf950)
+Next step: T-004 implement
+Current Task: —
+Task Base Commit: —
+Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
 ```
@@ -180,7 +180,7 @@ Review Retry Count: 0
 
 - [x] **T-001 (P0, gate)** — Real-machine probe and write the per-provider GAL-owned load-surface table in `docs/devguide.md`: confirm `~/.claude/skills/gal` is loaded by Claude as a skill source (`doc-sync` visible); list Copilot (manifest/host copy) and AGY (junction) actual surfaces. **go/no-go**: if the skill surface cannot be loaded, block and report, then re-evaluate (no official flow). *(f83f071)*
 - [x] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off. *(a192df7)*
-- [ ] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off.
+- [x] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off. *(c3bf950)*
 - [ ] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper.
 - [ ] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through.
 - [ ] **T-006 (P4, engine core)** — `doctor.rs`/`crates/gal-cli/src/main.rs`: add the "live surface vs source" check (agent/skill counts, `golem-dockeeper`+`doc-sync` present, `bin/gal` executable, no orphans), exit grading; fold in `--release-gate`; remove/rewrite `ClaudeMarketplaceState` official-marketplace three-state classification into a GAL-owned-surface health check.
@@ -282,6 +282,30 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
 
+### [T-003] 2026-06-09
+
+**Type**: unit (cargo test -p gal-engine -- skill_tests) + full suite
+**Verification independence**: DEGRADED_SAME_RUNTIME (single Claude Sonnet 4.6)
+**Verdict**: PASS
+
+**Tests covering T-003 (TP-02 unit portion / TP-03 not yet applicable):**
+
+| Test | Result |
+| --- | --- |
+| `test_claude_skill_projection_new_paths` | PASS — paths include `skills` and end with `gal` |
+| `test_apply_creates_skill_surface` | PASS — surface exists after `apply()` |
+| `test_apply_is_idempotent` | PASS — double `apply()` succeeds without error |
+| `test_verify_aligned_false_when_absent` | PASS — returns false when surface not created |
+| `test_remove_after_apply` | PASS — surface removed, canonical root untouched |
+| `test_remove_when_absent_is_noop` | PASS — no error when nothing exists |
+| `test_never_touches_legacy_plugins_path` | PASS — `~/.claude/plugins/gal` never created |
+
+**Full suite:** `cargo test -p gal-engine` → 156 passed, 1 ignored, 0 failed (4 suites).
+
+**TP-02 integration (isolated-home `gal install`):** deferred to E2E validation phase — requires a clean isolated home environment. Covered by TP-15 (mac-mini) and TP-16 (Windows dual-mode) in the validation plan. T-003 unit tests verify the `ClaudeSkillProjection` contract; the install orchestration is validated during the full install smoke.
+
+**TP-03 parity:** not yet applicable — depends on T-010 (fixture reparenting). Listed as future gate.
+
 ### [T-002] 2026-06-09
 
 **Type**: unit (cargo test -p gal-engine)
@@ -327,6 +351,30 @@ No correctness defects, no security issues, no architecture violations. All thre
 - `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
 - `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
 - Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
+
+### [T-003] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/providers/claude.rs` (diff c3d9159..c3bf950), `crates/gal-engine/src/install.rs`
+
+**Findings:**
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | WARN | `is_symlink_or_junction()` on Windows uses `symlink_metadata().file_type().is_dir()` — any directory (including regular non-empty ones) would match. If `~/.claude/skills/gal` were a regular non-empty directory, `rmdir` would fail with "not empty". Error surfaces as install warning (best-effort); no data loss possible. Real-world risk is negligible (no tool creates a regular dir at this path). |
+| R2 | INFO | `verify_aligned()` only calls `path.exists()` — does not verify the link target is the canonical root. This is intentional: deeper verification is planned for `gal doctor` (T-006). |
+| R3 | INFO | `to_str().unwrap_or("")` in Windows `create_link()` — non-UTF8 paths fall back to `""`, causing `mklink /J` to fail with a surfaced error. Acceptable (paths should be UTF-8; error is propagated, not silenced). |
+
+No correctness defects, security issues, or architecture violations. R1 is non-blocking (failure surfaced via best-effort warning). R2–R3 are by-design or informational.
+
+**Rationale:**
+- `ClaudeSkillProjection` follows the exact same `AgyProjection` pattern already in the codebase (constructor, `apply()`, `remove()`, `verify_*`). Consistent.
+- `apply()` is correctly idempotent: remove-then-recreate sequence, both Windows (junction) and Unix (symlink) paths correct.
+- `remove_link()` guards against dangling states with `is_symlink_or_junction()` fallback.
+- `install.rs` integration: Claude projection is step 3 (best-effort), consistent with AGY treatment. `providers` vec correctly records success only.
+- Legacy `~/.claude/plugins/gal` is never referenced in the new code; test `test_never_touches_legacy_plugins_path` explicitly enforces the invariant.
+- 156 tests pass (7 new); no regressions.
 
 ### Architecture Review
 
