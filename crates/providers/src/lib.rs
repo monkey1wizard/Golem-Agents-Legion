@@ -12,7 +12,7 @@ pub mod agy;
 pub mod claude;
 pub mod copilot;
 
-use crate::mcp::{McpManifest, McpServer, Result};
+use base::mcp::{McpManifest, McpServer, Result};
 
 /// Provider-specific MCP configuration
 pub trait McpProviderConfig {

@@ -17,8 +17,8 @@
 //! }
 //! ```
 
-use crate::mcp::{McpManifest, McpServer, Result};
-use crate::providers::{has_unresolved_secrets, McpProviderConfig};
+use base::mcp::{McpManifest, McpServer, Result};
+use crate::{has_unresolved_secrets, McpProviderConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

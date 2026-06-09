@@ -10,8 +10,8 @@
 //! for skills (e.g. `doc-sync`). Never touches `~/.claude/plugins/gal` (oracle
 //! legacy, removed on every refresh).
 
-use crate::mcp::{McpManifest, McpServer, Result};
-use crate::providers::{has_unresolved_secrets, McpProviderConfig};
+use base::mcp::{McpManifest, McpServer, Result};
+use crate::{has_unresolved_secrets, McpProviderConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;

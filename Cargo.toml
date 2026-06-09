@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/base", "crates/gal-cli", "crates/gal-engine", "crates/gal-dispatch"]
+members = ["crates/base", "crates/providers", "crates/gal-cli", "crates/gal-engine", "crates/gal-dispatch"]
 resolver = "2"

@@ -7,9 +7,14 @@ pub mod commit_msg;
 pub mod doctor;
 pub mod install;
 pub mod mcp;
-pub mod providers;
 pub mod release;
 pub mod render;
+
+// Provider projection now lives in the `providers` crate (R-00/T-007). Re-export
+// so `crate::providers` (install) and `gal_engine::providers` (integration tests)
+// keep resolving. providers depends only on `base` — no cycle (BUG-01 pre-empted
+// in T-003 by relocating MCP types to `base::mcp`).
+pub use providers;
 
 // Foundation modules now live in the `base` crate (R-00/T-003). Re-export them
 // so existing `crate::config` / `gal_engine::config` paths keep resolving during
