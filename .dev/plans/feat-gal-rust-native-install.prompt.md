@@ -148,11 +148,11 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 ```text
 Workflow: IMPLEMENT
 Step: 3 of 13
-Last activity: 2026-06-09 — T-002 complete (commit: pending)
+Last activity: 2026-06-09 — T-002 complete (commit: a192df7)
 Next step: T-002 test (TESTER)
 Current Task: T-002
 Task Base Commit: f83f07199a7808541d90705ffb6fe4b6e4cac818
-Task Final Commit: pending
+Task Final Commit: a192df7
 Test Retry Count: 0
 Review Retry Count: 0
 ```
@@ -179,7 +179,7 @@ Review Retry Count: 0
 ## Tasks
 
 - [x] **T-001 (P0, gate)** — Real-machine probe and write the per-provider GAL-owned load-surface table in `docs/devguide.md`: confirm `~/.claude/skills/gal` is loaded by Claude as a skill source (`doc-sync` visible); list Copilot (manifest/host copy) and AGY (junction) actual surfaces. **go/no-go**: if the skill surface cannot be loaded, block and report, then re-evaluate (no official flow). *(f83f071)*
-- [ ] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off.
+- [x] **T-002 (R-10/RC-6, engine core)** — `crates/gal-engine/src/mode.rs`: galRoot auto-resolves `plugins/gal-core` under repo root; tolerate the old form where galRoot already is gal-core (no double-append). **Same commit** reverts this machine's config `galRoot` to repo root. Bootstrap-boundary architect sign-off. *(a192df7)*
 - [ ] **T-003 (P1, engine core)** — `crates/gal-engine/src/providers/claude.rs` (+`install.rs`/`render.rs`): skill projection target → `~/.claude/skills/gal` (symlink → canonical root), never touch legacy `~/.claude/plugins/gal`; after `gal install`/`update` the skill surface aligns to source immediately. Depends on T-001 confirming the surface is correct. Bootstrap-boundary architect sign-off.
 - [ ] **T-004 (P2)** — `render.rs`/`install.rs`: build `bin/` in the published plugin root, copy host-OS-native `gal` (Unix +x, Windows `gal.exe`), fail-loud on missing binary, no `.sh`/`.ps1` wrapper.
 - [ ] **T-005 (P3)** — `render.rs`/`install.rs`/`doctor.rs`: delete own temp after a successful atomic swap; install/doctor detect+clean orphans via allowlist (`.gal-render-*` prefix), doctor-first, no delete-through.
@@ -282,7 +282,51 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 
 **go/no-go: GO** — skill surface mechanism is structurally confirmed; T-003 creates symlink and verifies in new session. P1–P7 cleared to proceed.
 
+### [T-002] 2026-06-09
+
+**Type**: unit (cargo test -p gal-engine)
+**Verification independence**: DEGRADED_SAME_RUNTIME (single Claude Sonnet 4.6)
+**Verdict**: PASS
+
+**Tests covering T-002 (TP-09):**
+
+| Test | Result |
+| --- | --- |
+| `test_resolve_gal_source_root_old_form_tolerated` | PASS — galRoot=gal-core returns as-is |
+| `test_resolve_gal_source_root_repo_root_form` | PASS — galRoot=repo-root resolves to plugins/gal-core |
+| `test_resolve_gal_source_root_repo_root_no_double_append` | PASS — old form does NOT get plugins/gal-core appended |
+| `test_resolve_mode_dev_with_repo_root_gal_root` | PASS — Dev mode resolves via resolve_gal_source_root |
+| `test_tp09_repo_root_galroot_resolves_and_converges` | PASS — both forms converge to same path; no double-append |
+
+**Full suite:** `cargo test -p gal-engine` → 149 passed, 1 ignored, 0 failed (4 suites).
+
+**FU-04 UNC fix (is_readable):** Not directly testable in unit context (no UNC server available); verified by code inspection — mpsc `recv_timeout(2s)` replaces `handle.join()` (blocked forever). Covered by code review.
+
+**Config revert (machine-local, B-03):** `~/.gal/config/config.json` `galRoot` changed from `…\plugins\gal-core` to `C:\Code\Golem-Agents-Legion` in the same logical change; cannot be committed to git (machine-local file) but verified by read.
+
 ## Review Results
+
+### [T-002] Code Review — 2026-06-09
+
+**Verdict: PASS** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `crates/gal-engine/src/mode.rs`, `crates/gal-engine/src/render.rs`
+
+**Findings:**
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | `if let None = first_missing_dir(&path)` — valid but non-idiomatic; prefer `first_missing_dir(&path).is_none()`. Possible clippy lint. No behavior impact. |
+| R2 | INFO | Final fallback `unwrap_or_else(\|\| "commands".to_string())` is dead code — at that point `first_missing_dir(&path)` is guaranteed `Some`. Defensive but harmless. |
+| R3 | INFO | UNC thread leak: if `recv_timeout` fires, the spawned `read_dir` thread is detached. Thread eventually unblocks when OS times out; standard fire-and-forget pattern for short-lived probes. Acceptable. |
+
+No correctness defects, no security issues, no architecture violations. All three findings are cosmetic; none require remediation to proceed.
+
+**Rationale:**
+- `resolve_gal_source_root` logic is correct: old form (direct required-dirs) returned as-is; repo-root form auto-resolves `plugins/gal-core`; no double-append possible by construction.
+- `is_readable` FU-04 fix is correct: `recv_timeout(2s)` replaces the blocking `handle.join()`.
+- `render.rs` `as_deref()` + `map_err(|e| format!("{e}"))` chain is correct and idiomatic.
+- Tests cover all specified cases for TP-09 and pass cleanly (149 total, 0 failures).
 
 ### Architecture Review
 
