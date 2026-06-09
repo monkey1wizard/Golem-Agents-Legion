@@ -104,11 +104,11 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 10 of 35
-Last activity: 2026-06-09 — T-009 complete (commit: 317d342) — oracle tests reparented; 243 tests green; TP-10 satisfied. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-010
-Current Task: T-010
-Task Base Commit: c994a1b
+Step: 11 of 35
+Last activity: 2026-06-09 — T-010 complete (commit: 23557b1) — common.{ps1,sh} shared core ported to base (paths/json_util/runtime/env_config); 297 tests green; TP-11 satisfied. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-011
+Current Task: T-011
+Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0
 Review Retry Count: 0
@@ -144,7 +144,7 @@ R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests. *(317d342)*
 
 R-01 shared core
-- [ ] T-010 (R-01) — Port `common.{ps1,sh}` install/setup functions into `base`; install/setup/mcp/adapters use the shared core.
+- [x] T-010 (R-01) — Port `common.{ps1,sh}` install/setup functions into `base`; install/setup/mcp/adapters use the shared core. *(23557b1)*
 
 R-02 MCP
 - [ ] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture.
@@ -229,6 +229,19 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-010] 2026-06-09 — PASS (TP-11)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-11 (`common.*` → `base` function groups == fixture).
+
+- **297 / 0** — `cargo test --workspace` 297 passed, 0 failed (243 pre-existing + 54 new T-010 tests).
+- **New modules and fixture test counts:**
+  - `base::paths` — 13 tests: gal_home ends-with-.gal, machine_config ends-with-config.json, executor_routing ends-with-executor-routing.json, install_state ends-with-install-state.json, plugins_root leaf=plugins, plugin_root appends id, data_root leaf=data, plugin_data_root contains data+id, cache_root leaf=cache, active_provider_path appends provider, generated_mcp ends-with-managed.json, all_paths_descend_from_gal_home consistency check.
+  - `base::json_util` — 13 tests: read missing/empty/valid/non-object/invalid-json, write creates parents, write-read roundtrip, merge scalar replace, merge deep recursive, merge into empty base, merge empty overlay no-op.
+  - `base::runtime` — 14 tests: VALID_RUNTIMES count+contents, default_primary all six preference tiers (copilot/antigravity/codex/claude/opencode/gemini), empty selection=None, unknown-only=None; pipeline_phase_role 4 phases + case-insensitive + unknown=None.
+  - `base::env_config` — 14 tests: read missing file, comment skip, no-equals skip, trim key+value, value-with-equals, empty value skip, multiple entries; get_configured_value map hit, not-in-map-or-env=None, whitespace-map-value=None; split_config_list empty/whitespace, single, multiple, trim, empty segments.
+- **Dependency law** — `cargo metadata`: `base` GAL-crate deps = NONE. 4 new modules depend only on `std` and `serde_json` (already in `[dependencies]`).
+- **Build** — clean, 0 warnings.
 
 ### [T-009] 2026-06-09 — PASS (TP-10)
 
@@ -332,6 +345,18 @@ Not triggered (no customer-facing UI).
 ### Engineering Review
 
 CLEAR (4th pass). 35 T-NNN map to R-00..R-13 / P0..P8, each an independently verifiable commit-size unit. 27 TP cover (per-crate-split "still green", per-provider parity, git-filter cross-platform, mixed-state invariant, R-13 pipeline TP-26, dev baseline TP-26b, end-user real-machine TP-02/03). Implementation constraints: (1) protected-core architect sign-off for T-003..T-009/T-013..T-017/T-018..T-021; (2) deletion hard-gate = fixture-parity green, T-009 reparent before its covered deletions; (3) mixed-state invariant at every phase boundary; `common.*`/`gal.{ps1,sh}` deletion at cross-plan joint gate; (4) JIT decomposition; (5) **CORR-01: real-machine/end-user tests install R-13 prebuilt artifact only; never build on a test machine; T-034 is hard prereq of T-035.** CODER≠REVIEWER; reviewer tier ≥ implementer.
+
+### [T-010] 2026-06-09 — APPROVE
+
+Scope: commit `23557b1` (R-01, port `common.{ps1,sh}` shared core into `base`). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **Behavioral parity confirmed**: `paths` — 9 new functions all mirror their PS/sh counterparts; `gal_home()` + platform-correct `USERPROFILE`/`HOME` prefix verified. `json_util` — empty-file/missing → empty map matches PS `[ordered]@{}`; `merge_json_map` recursive-on-both-object-else-replace matches `Merge-OrderedMap` logic exactly. `runtime` — `PREFERRED` order in `default_primary_runtime` matches PS list; `pipeline_phase_role` 4 phases 1:1. `env_config` — `split_once('=')` preserves `=` in values (URL test), matches PS `Split('=', 2)`.
+- **Scope discipline**: `New-SetupContext`, `Initialize-SetupSession`, `Get-DetectedRuntimeSelection`, `Get-InstallSelectionState`, interactive prompts correctly deferred to T-018. Only the functions consumed by ≥2 future crates (install/mcp/adapters/setup) were ported. No premature domain logic in `base`.
+- **Dependency law preserved**: `base` depends on no GAL crate after T-010; 4 new modules use `std` + `serde_json` (pre-existing dep) only.
+- **Test quality**: all 54 new tests are fixture-based (TempDir/NamedTempFile or pure logic); no subprocess spawning; both happy path and failure modes covered.
+- **No BLOCKING findings. No Protected-Path violation, no security surface.**
+
+Verdict: **APPROVE** — proceed to T-011.
 
 ### [T-009] 2026-06-09 — APPROVE
 
