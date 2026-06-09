@@ -283,7 +283,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-002（P0,本機 dev 基準）** — **開發機(Windows,有 rust)** dev-mode 重裝 + `gal doctor` exit 0(本機綠基線)。**真機 end-user 驗收移至 T-035(裝 R-13 artifact,非在測試機 build);本任務只負責開發機基準。**
 
 **R-00 架構解耦（受保護,architect;逐步驗綠,JIT）**
-- [ ] **T-003** — 建 workspace 骨架 + 抽 `base` crate:移入 config/mode/paths/install-state/provider-selection;更新 root `Cargo.toml` members;repoint importers;`cargo test` 綠。
+- [x] **T-003** — 建 workspace 骨架 + 抽 `base` crate:移入 config/mode/paths/install-state/provider-selection;更新 root `Cargo.toml` members;repoint importers;`cargo test` 綠。*(1ffd3de;含架構師 BUG-01 折入:MCP 共用型別移入 `base::mcp`,先解 providers→mcp 環依賴)*
 - [ ] **T-004** — 下沉 `base::platform`(symlink/junction/perms/atomic-swap);render/install 改用;Windows/Unix 行為不變;綠。
 - [ ] **T-005** — 下沉 `base::render`(模板渲染原語);既有 render 改用、輸出 byte 不變;綠。
 - [ ] **T-006** — 在 `base` 定義 `HealthCheck` trait;遷移既有 doctor 檢查為 trait 實作;exit 分級不變。

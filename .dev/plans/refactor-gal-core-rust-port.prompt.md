@@ -103,10 +103,10 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IN-PROGRESS
-Step: 2 of 35
-Last activity: 2026-06-09 — prompt refreshed after deep-planning CORR-01 (real-machine = pure end-user artifact install; +R-13 pipeline, +T-034/T-035, T-002 re-scoped to dev baseline). P0 complete.
-Next step: T-003 — scaffold workspace + extract `base` crate (R-00, protected, architect sign-off)
+Workflow: IMPLEMENT
+Step: 4 of 35
+Last activity: 2026-06-09 — T-003 complete (commit: 1ffd3de) — `base` crate extracted, BUG-01 MCP types relocated, 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-004
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -135,7 +135,7 @@ P0 — baseline
 - [x] T-002 (P0) — Dev-machine (Windows, has rust) dev-mode `gal install` baseline, `gal doctor` exit 0. (Real-machine end-user acceptance is T-035, not here.)
 
 R-00 architecture decomposition (protected, architect; step-wise green, JIT)
-- [ ] T-003 — Scaffold workspace + extract `base` crate (config/mode/paths/install-state/provider-selection); update root `Cargo.toml` members; repoint importers; `cargo test` green.
+- [x] T-003 — Scaffold workspace + extract `base` crate (config/mode/paths/install-state/provider-selection); update root `Cargo.toml` members; repoint importers; `cargo test` green. *(1ffd3de)*
 - [ ] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green.
 - [ ] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green.
 - [ ] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged.
@@ -230,7 +230,17 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
-(empty — populated by tester during execution)
+### [T-003] 2026-06-09 — PASS (TP-04)
+
+Verification Independence: DEGRADED_SAME_RUNTIME (TESTER played in-runtime; spec = TP-04, refactor parity).
+
+- **228 / 0** — `cargo test --workspace` 228 passed, 0 failed (frozen oracle held; no regression from base extraction).
+- **Moved tests execute under `base`** — `cargo test -p base` = 38 passed, 0 failed. config/mode/ledger test modules relocated with their source and run in the new crate (not silently dropped).
+- **Dependency law** — `cargo metadata`: `base` deps = [chrono, dirs, serde, serde_json, thiserror, tempfile]; GAL-crate deps = NONE.
+- **Workspace members** — [base, gal-cli, gal-engine, gal-dispatch]; `base` present, manifest correct.
+- **Build** — clean, 0 warnings.
+
+No new tests authored: T-003 is a structural move; TP-04 is parity (existing suite stays green + structural assertions). Moved code carries its own tests.
 
 ## Review Results
 
@@ -258,6 +268,18 @@ Not triggered (no customer-facing UI).
 ### Engineering Review
 
 CLEAR (4th pass). 35 T-NNN map to R-00..R-13 / P0..P8, each an independently verifiable commit-size unit. 27 TP cover (per-crate-split "still green", per-provider parity, git-filter cross-platform, mixed-state invariant, R-13 pipeline TP-26, dev baseline TP-26b, end-user real-machine TP-02/03). Implementation constraints: (1) protected-core architect sign-off for T-003..T-009/T-013..T-017/T-018..T-021; (2) deletion hard-gate = fixture-parity green, T-009 reparent before its covered deletions; (3) mixed-state invariant at every phase boundary; `common.*`/`gal.{ps1,sh}` deletion at cross-plan joint gate; (4) JIT decomposition; (5) **CORR-01: real-machine/end-user tests install R-13 prebuilt artifact only; never build on a test machine; T-034 is hard prereq of T-035.** CODER≠REVIEWER; reviewer tier ≥ implementer.
+
+### [T-003] 2026-06-09 — APPROVE
+
+Scope: commit range `de90322..1ffd3de` (extract `base` foundation crate). Verification Independence: DEGRADED_SAME_RUNTIME (REVIEWER in-runtime; not independent from CODER this run).
+
+- **Correctness**: re-export façade (`gal_engine` `pub use base::{config, ledger, mode, paths}` + `mcp` re-export) preserves both internal `crate::*` and public `gal_engine::*` surfaces. `mcp_provider_oracle_parity` 13/13 green confirms MCP types serialize byte-identically after the move. No behavior change.
+- **Scope discipline**: moved exactly config/mode/ledger/paths + 4 MCP data-model types. Provider projection, render, install, doctor untouched (consumed via re-export). No drift, no opportunistic edits.
+- **Architect conditions honored**: BUG-01 (MCP types relocated to `base::mcp`, cycle pre-empted before T-007) ✓; T-003/T-007 boundary recorded in commit body ✓; frozen oracle (228) captured and held ✓.
+- **Hygiene**: 0 build warnings (no dangling `thiserror` import after type removal); Cargo.lock committed; all `base` deps justified (config/ledger use dirs+serde_json; ledger uses chrono).
+- **No BLOCKING findings. No Protected-Path violation, no security surface.** crates/ Rust is outside the project's protected-path set; the plan-level R-00 "protected" gate is satisfied by the recorded architect sign-off.
+
+Verdict: **APPROVE** — proceed to T-004.
 
 ## Debug Log
 
