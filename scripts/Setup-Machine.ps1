@@ -7,7 +7,7 @@
       1. `Update-Personalization.ps1`
       2. `Update-Skills.ps1`
       3. `Update-Commands.ps1`
-      4. `Update-Mcp.ps1`
+      4. `gal mcp update`
             5. `Install-GalPlugins.ps1`
 
     Each update script can also run standalone. `mcp.json` plus optional
@@ -176,7 +176,7 @@ $steps = @(
     [pscustomobject]@{ Name = 'Personalization'; Path = Join-Path $PSScriptRoot 'Update-Personalization.ps1' },
     [pscustomobject]@{ Name = 'Skills'; Path = Join-Path $PSScriptRoot 'Update-Skills.ps1' },
     [pscustomobject]@{ Name = 'Commands'; Path = Join-Path $PSScriptRoot 'Update-Commands.ps1' },
-    [pscustomobject]@{ Name = 'MCP'; Path = Join-Path $PSScriptRoot 'Update-Mcp.ps1' },
+    [pscustomobject]@{ Name = 'MCP'; Path = $null },
     [pscustomobject]@{ Name = 'Install Orchestration'; Path = Join-Path $PSScriptRoot 'Install-GalPlugins.ps1' }
 )
 
@@ -200,6 +200,16 @@ foreach ($step in $steps) {
 
     Write-Host ''
     Write-Host ('>>> Running {0}' -f $step.Name)
+
+    if ($step.Name -eq 'MCP') {
+        if (-not $Uninstall) {
+            & gal mcp update
+        }
+        else {
+            Write-Host '  [SKIP] MCP config files are preserved during uninstall.'
+        }
+        continue
+    }
 
     $stepArguments = @{}
     foreach ($entry in $sharedArguments.GetEnumerator()) {

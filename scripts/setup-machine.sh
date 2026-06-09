@@ -5,7 +5,7 @@
 #   1. update-personalization.sh
 #   2. update-skills.sh
 #   3. update-commands.sh
-#   4. update-mcp.sh
+#   4. gal mcp update
 #   5. install-gal-plugins.sh
 #
 # `--check` / `--doctor` short-circuit that chain and delegate directly to
@@ -151,7 +151,7 @@ if ! $UNINSTALL; then
 fi
 
 step_names=(Personalization Skills Commands MCP 'Install Orchestration')
-step_scripts=(update-personalization.sh update-skills.sh update-commands.sh update-mcp.sh install-gal-plugins.sh)
+step_scripts=(update-personalization.sh update-skills.sh update-commands.sh '' install-gal-plugins.sh)
 
 for index in "${!step_scripts[@]}"; do
     if [ "$SETUP_INSTALL_MODE" = 'install' ] && ! $UNINSTALL && { [ "${step_names[$index]}" = 'Skills' ] || [ "${step_names[$index]}" = 'Commands' ]; }; then
@@ -163,6 +163,15 @@ for index in "${!step_scripts[@]}"; do
 
     echo ''
     echo ">>> Running ${step_names[$index]}"
+
+    if [ "${step_names[$index]}" = 'MCP' ]; then
+        if ! $UNINSTALL; then
+            gal mcp update
+        else
+            echo '  [SKIP] MCP config files are preserved during uninstall.'
+        fi
+        continue
+    fi
 
     step_args=("${shared_args[@]}")
     if [ "${step_names[$index]}" = 'Install Orchestration' ] && $BOOTSTRAP_INSTALL; then
