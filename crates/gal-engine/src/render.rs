@@ -24,6 +24,8 @@ pub enum RenderError {
     InvalidSourceStructure(String),
     /// Atomic swap failed.
     AtomicSwapFailed(String),
+    /// Host-OS native gal binary not found — render aborted (fail-loud, R-04).
+    BinaryNotFound(PathBuf),
 }
 
 impl std::fmt::Display for RenderError {
@@ -38,6 +40,11 @@ impl std::fmt::Display for RenderError {
                 write!(f, "Invalid source structure: {}", msg)
             }
             RenderError::AtomicSwapFailed(msg) => write!(f, "Atomic swap failed: {}", msg),
+            RenderError::BinaryNotFound(p) => write!(
+                f,
+                "gal binary not found at {}: cannot produce plugin bin/ (fail-loud, R-04)",
+                p.display()
+            ),
         }
     }
 }
@@ -391,7 +398,45 @@ fn render_to_temp(
         fs::copy(&mcp_source, &mcp_target)?;
     }
 
+    // Expose host-OS-native gal binary in bin/ (R-04 / T-004).
+    // Fail-loud if the binary is missing — no half-product.
+    let exe = std::env::current_exe()?;
+    render_bin_exposure(&exe, temp_dir)?;
+
     Ok(())
+}
+
+/// Copy the host-OS-native `gal` binary into `<dest>/bin/`.
+///
+/// Produces:
+/// - Windows: `bin/gal.exe`
+/// - Unix:    `bin/gal` (with `+x` permissions set)
+///
+/// No shell wrappers (`.sh`/`.ps1`) are ever created.
+/// Fails loud if `exe_path` is not a regular file (R-04).
+pub fn render_bin_exposure(exe_path: &Path, dest: &Path) -> Result<PathBuf, RenderError> {
+    if !exe_path.is_file() {
+        return Err(RenderError::BinaryNotFound(exe_path.to_path_buf()));
+    }
+
+    let bin_dir = dest.join("bin");
+    fs::create_dir_all(&bin_dir)?;
+
+    let bin_name = if cfg!(windows) { "gal.exe" } else { "gal" };
+    let target = bin_dir.join(bin_name);
+
+    fs::copy(exe_path, &target)?;
+
+    // On Unix, ensure the binary is executable.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&target)?.permissions();
+        perms.set_mode(perms.mode() | 0o111);
+        fs::set_permissions(&target, perms)?;
+    }
+
+    Ok(target)
 }
 
 /// Filter agent frontmatter for Claude compatibility.
@@ -789,5 +834,114 @@ mod tests {
         assert_eq!(components_obj["skills"], "skills/");
         assert_eq!(components_obj["commands"], "commands/");
         assert_eq!(components_obj["mcpConfig"], ".mcp.json");
+    }
+
+    // ─── bin/ exposure tests (T-004 / R-04 / TP-04) ─────────────────────────
+
+    #[test]
+    fn test_render_bin_exposure_copies_binary() {
+        use tempfile::TempDir;
+
+        let src_dir = TempDir::new().unwrap();
+        let dest_dir = TempDir::new().unwrap();
+
+        // Create a fake "binary" file to copy.
+        let fake_exe = src_dir.path().join("gal_fake");
+        fs::write(&fake_exe, b"fake binary content").unwrap();
+
+        let result = render_bin_exposure(&fake_exe, dest_dir.path());
+        assert!(result.is_ok(), "render_bin_exposure must succeed: {:?}", result);
+
+        let bin_name = if cfg!(windows) { "gal.exe" } else { "gal" };
+        let target = dest_dir.path().join("bin").join(bin_name);
+        assert!(target.exists(), "bin/{bin_name} must exist after render_bin_exposure");
+        assert!(target.is_file(), "bin/{bin_name} must be a regular file");
+    }
+
+    #[test]
+    fn test_render_bin_exposure_correct_os_filename() {
+        use tempfile::TempDir;
+
+        let src_dir = TempDir::new().unwrap();
+        let dest_dir = TempDir::new().unwrap();
+
+        let fake_exe = src_dir.path().join("gal_fake");
+        fs::write(&fake_exe, b"fake").unwrap();
+
+        let target = render_bin_exposure(&fake_exe, dest_dir.path()).unwrap();
+
+        #[cfg(windows)]
+        assert!(
+            target.to_string_lossy().ends_with("gal.exe"),
+            "Windows must produce gal.exe, got: {}",
+            target.display()
+        );
+        #[cfg(not(windows))]
+        assert!(
+            target.to_string_lossy().ends_with("/gal")
+                || target.to_string_lossy() == "gal",
+            "Unix must produce gal (no extension), got: {}",
+            target.display()
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_render_bin_exposure_sets_executable_on_unix() {
+        use std::os::unix::fs::PermissionsExt;
+        use tempfile::TempDir;
+
+        let src_dir = TempDir::new().unwrap();
+        let dest_dir = TempDir::new().unwrap();
+
+        let fake_exe = src_dir.path().join("gal_fake");
+        fs::write(&fake_exe, b"fake").unwrap();
+
+        let target = render_bin_exposure(&fake_exe, dest_dir.path()).unwrap();
+        let mode = fs::metadata(&target).unwrap().permissions().mode();
+        assert!(
+            mode & 0o111 != 0,
+            "Unix binary must have +x bits set; mode was {:o}",
+            mode
+        );
+    }
+
+    #[test]
+    fn test_render_bin_exposure_fail_loud_on_missing_binary() {
+        use tempfile::TempDir;
+
+        let dest_dir = TempDir::new().unwrap();
+        let missing = Path::new("/absolutely/nonexistent/gal_binary_xyz123");
+
+        let result = render_bin_exposure(missing, dest_dir.path());
+        assert!(result.is_err(), "missing binary must fail-loud");
+        match result.unwrap_err() {
+            RenderError::BinaryNotFound(_) => {}
+            other => panic!("expected BinaryNotFound, got: {other}"),
+        }
+    }
+
+    #[test]
+    fn test_render_bin_exposure_no_shell_wrappers() {
+        use tempfile::TempDir;
+
+        let src_dir = TempDir::new().unwrap();
+        let dest_dir = TempDir::new().unwrap();
+
+        let fake_exe = src_dir.path().join("gal_fake");
+        fs::write(&fake_exe, b"fake").unwrap();
+
+        render_bin_exposure(&fake_exe, dest_dir.path()).unwrap();
+
+        let bin_dir = dest_dir.path().join("bin");
+        for entry in fs::read_dir(&bin_dir).unwrap() {
+            let entry = entry.unwrap();
+            let name = entry.file_name();
+            let n = name.to_string_lossy();
+            assert!(
+                !n.ends_with(".sh") && !n.ends_with(".ps1"),
+                "bin/ must not contain shell wrappers; found: {n}"
+            );
+        }
     }
 }
