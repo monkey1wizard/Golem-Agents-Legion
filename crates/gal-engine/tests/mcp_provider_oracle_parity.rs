@@ -1,22 +1,27 @@
 //! TP-012: MCP provider serializer oracle parity tests
 //!
 //! Verifies that the Rust MCP provider serializers produce output that matches
-//! the frozen PowerShell oracle script for Claude Desktop and Copilot CLI.
+//! the frozen PowerShell oracle for all four providers:
+//! - Claude Desktop (JSON)
+//! - Copilot CLI (JSON)
+//! - Codex CLI (TOML)
+//! - OpenCode (JSON, mcp.* section)
 //!
-//! Oracle scope (BUG-A): These are parity tests against the frozen Claude/Copilot
-//! oracle. For bug-fix deltas (like dockeeper/doc-sync), use intent assertions
-//! instead of oracle parity.
+//! T-011 (R-02): Codex + OpenCode added to reach four-provider TP-12 coverage.
 
 use gal_engine::mcp::{McpManifest, McpServer};
 use gal_engine::providers::claude::ClaudeDesktopMcpConfig;
+use gal_engine::providers::codex::CodexMcpConfig;
 use gal_engine::providers::copilot::CopilotCliMcpConfig;
+use gal_engine::providers::opencode::OpenCodeMcpConfig;
 use gal_engine::providers::McpProviderConfig;
 use serde_json::Value;
 use std::collections::HashMap;
 
+// ─── Claude Desktop ──────────────────────────────────────────────────────────
+
 #[test]
 fn test_claude_desktop_simple_stdio_server() {
-    // Oracle: ConvertTo-ClaudeDesktopServerEntry for a simple stdio server
     let mut servers = HashMap::new();
     servers.insert(
         "test-server".to_string(),
@@ -30,20 +35,14 @@ fn test_claude_desktop_simple_stdio_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
 
-    // Verify structure matches oracle
     assert!(value.get("mcpServers").is_some());
     let servers = value["mcpServers"].as_object().unwrap();
     assert_eq!(servers.len(), 1);
-
     let entry = &servers["test-server"];
     assert_eq!(entry["command"], "node");
     assert_eq!(entry["args"], serde_json::json!(["index.js"]));
@@ -52,7 +51,6 @@ fn test_claude_desktop_simple_stdio_server() {
 #[test]
 #[cfg(target_os = "windows")]
 fn test_claude_desktop_stdio_with_env_windows() {
-    // Oracle: ConvertTo-ClaudeWrappedStdioCommand wraps env vars in PowerShell
     let mut env = HashMap::new();
     env.insert("API_KEY".to_string(), "secret123".to_string());
     env.insert("PATH".to_string(), "/usr/bin".to_string());
@@ -70,35 +68,23 @@ fn test_claude_desktop_stdio_with_env_windows() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["test-server"];
 
-    // Oracle wraps in powershell with env assignments
     assert_eq!(entry["command"], "powershell");
-    assert!(entry["args"][0] == "-NoProfile");
-    assert!(entry["args"][1] == "-Command");
-
+    assert_eq!(entry["args"][0], "-NoProfile");
+    assert_eq!(entry["args"][1], "-Command");
     let script = entry["args"][2].as_str().unwrap();
-
-    // Verify env assignments present
     assert!(script.contains("$env:API_KEY = 'secret123'"));
     assert!(script.contains("$env:PATH = '/usr/bin'"));
-
-    // Verify command invocation
     assert!(script.contains("& 'node' 'index.js' '--verbose'"));
 }
 
 #[test]
 fn test_claude_desktop_skip_http_server() {
-    // Oracle: ConvertTo-ClaudeDesktopMcpServers skips servers with type=http
     let mut servers = HashMap::new();
     servers.insert(
         "http-server".to_string(),
@@ -112,23 +98,15 @@ fn test_claude_desktop_skip_http_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
-    // Oracle excludes HTTP servers
-    let servers_obj = value["mcpServers"].as_object().unwrap();
-    assert_eq!(servers_obj.len(), 0);
+    assert_eq!(value["mcpServers"].as_object().unwrap().len(), 0);
 }
 
 #[test]
 fn test_claude_desktop_skip_url_only_server() {
-    // Oracle: ConvertTo-ClaudeDesktopMcpServers skips servers with url but no command
     let mut servers = HashMap::new();
     servers.insert(
         "url-only".to_string(),
@@ -142,22 +120,15 @@ fn test_claude_desktop_skip_url_only_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
-    let servers_obj = value["mcpServers"].as_object().unwrap();
-    assert_eq!(servers_obj.len(), 0);
+    assert_eq!(value["mcpServers"].as_object().unwrap().len(), 0);
 }
 
 #[test]
 fn test_claude_desktop_skip_unresolved_secret() {
-    // Oracle: Test-McpServerHasUnresolvedSecrets filters out placeholder secrets
     let mut servers = HashMap::new();
     servers.insert(
         "secret-server".to_string(),
@@ -170,7 +141,6 @@ fn test_claude_desktop_skip_unresolved_secret() {
             headers: None,
         },
     );
-
     servers.insert(
         "secret-env".to_string(),
         McpServer {
@@ -187,23 +157,47 @@ fn test_claude_desktop_skip_unresolved_secret() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
-    // Oracle excludes both servers with unresolved secrets
-    let servers_obj = value["mcpServers"].as_object().unwrap();
-    assert_eq!(servers_obj.len(), 0);
+    assert_eq!(value["mcpServers"].as_object().unwrap().len(), 0);
 }
 
 #[test]
+#[cfg(target_os = "windows")]
+fn test_claude_desktop_single_quote_escaping() {
+    let mut env = HashMap::new();
+    env.insert("PATH".to_string(), "C:\\Program's Files".to_string());
+
+    let mut servers = HashMap::new();
+    servers.insert(
+        "test".to_string(),
+        McpServer {
+            server_type: Some("stdio".to_string()),
+            command: Some("node".to_string()),
+            args: Some(vec!["'quoted'".to_string()]),
+            env: Some(env),
+            url: None,
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
+    let json = config.to_config_string().unwrap();
+    let value: Value = serde_json::from_str(&json).unwrap();
+    let entry = &value["mcpServers"]["test"];
+    let script = entry["args"][2].as_str().unwrap();
+
+    assert!(script.contains("$env:PATH = 'C:\\Program''s Files'"));
+    assert!(script.contains("& 'node' '''quoted'''"));
+}
+
+// ─── Copilot CLI ─────────────────────────────────────────────────────────────
+
+#[test]
 fn test_copilot_cli_local_server() {
-    // Oracle: ConvertTo-CopilotCliMcpConfig for local transport
     let mut servers = HashMap::new();
     servers.insert(
         "test-server".to_string(),
@@ -217,18 +211,12 @@ fn test_copilot_cli_local_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["test-server"];
 
-    // Oracle: type=local, tools=["*"]
     assert_eq!(entry["type"], "local");
     assert_eq!(entry["tools"], serde_json::json!(["*"]));
     assert_eq!(entry["command"], "node");
@@ -237,7 +225,6 @@ fn test_copilot_cli_local_server() {
 
 #[test]
 fn test_copilot_cli_local_with_env() {
-    // Oracle: ConvertTo-CopilotCliMcpConfig preserves env for local transport
     let mut env = HashMap::new();
     env.insert("API_KEY".to_string(), "secret123".to_string());
 
@@ -254,15 +241,10 @@ fn test_copilot_cli_local_with_env() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["test-server"];
 
     assert_eq!(entry["type"], "local");
@@ -272,7 +254,6 @@ fn test_copilot_cli_local_with_env() {
 
 #[test]
 fn test_copilot_cli_http_server() {
-    // Oracle: Get-CopilotCliTransport returns 'http' for http type
     let mut servers = HashMap::new();
     servers.insert(
         "http-server".to_string(),
@@ -286,15 +267,10 @@ fn test_copilot_cli_http_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["http-server"];
 
     assert_eq!(entry["type"], "http");
@@ -306,7 +282,6 @@ fn test_copilot_cli_http_server() {
 
 #[test]
 fn test_copilot_cli_sse_server() {
-    // Oracle: Get-CopilotCliTransport returns 'sse' for sse type
     let mut servers = HashMap::new();
     servers.insert(
         "sse-server".to_string(),
@@ -320,15 +295,10 @@ fn test_copilot_cli_sse_server() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["sse-server"];
 
     assert_eq!(entry["type"], "sse");
@@ -337,7 +307,6 @@ fn test_copilot_cli_sse_server() {
 
 #[test]
 fn test_copilot_cli_infer_transport_from_url() {
-    // Oracle: Get-CopilotCliTransport infers 'http' when url present but no type
     let mut servers = HashMap::new();
     servers.insert(
         "inferred".to_string(),
@@ -351,22 +320,16 @@ fn test_copilot_cli_infer_transport_from_url() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["inferred"];
     assert_eq!(entry["type"], "http");
 }
 
 #[test]
 fn test_copilot_cli_infer_transport_from_command() {
-    // Oracle: Get-CopilotCliTransport infers 'local' when command present but no type
     let mut servers = HashMap::new();
     servers.insert(
         "inferred".to_string(),
@@ -380,22 +343,16 @@ fn test_copilot_cli_infer_transport_from_command() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
-
     let entry = &value["mcpServers"]["inferred"];
     assert_eq!(entry["type"], "local");
 }
 
 #[test]
 fn test_copilot_cli_skip_unresolved_secret() {
-    // Oracle: Test-McpServerHasUnresolvedSecrets also applies to Copilot CLI
     let mut servers = HashMap::new();
     servers.insert(
         "secret-server".to_string(),
@@ -409,54 +366,221 @@ fn test_copilot_cli_skip_unresolved_secret() {
         },
     );
 
-    let manifest = McpManifest {
-        servers,
-        inputs: None,
-    };
-
+    let manifest = McpManifest { servers, inputs: None };
     let config = CopilotCliMcpConfig::from_manifest(&manifest).unwrap();
-    let json = config.to_json_pretty().unwrap();
+    let json = config.to_config_string().unwrap();
     let value: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["mcpServers"].as_object().unwrap().len(), 0);
+}
 
-    let servers_obj = value["mcpServers"].as_object().unwrap();
-    assert_eq!(servers_obj.len(), 0);
+// ─── Codex CLI (TOML) — TP-12 parity ─────────────────────────────────────────
+
+#[test]
+fn test_codex_stdio_server_produces_toml_section() {
+    // Oracle: ConvertTo-CodexMcpSection for stdio server
+    let mut servers = HashMap::new();
+    servers.insert(
+        "memory".to_string(),
+        McpServer {
+            server_type: Some("stdio".to_string()),
+            command: Some("npx".to_string()),
+            args: Some(vec!["-y".to_string(), "@modelcontextprotocol/server-memory".to_string()]),
+            env: None,
+            url: None,
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = CodexMcpConfig::from_manifest(&manifest).unwrap();
+    let toml = config.to_config_string().unwrap();
+
+    assert!(toml.contains("[mcp_servers.memory]"), "section header missing: {toml}");
+    assert!(toml.contains("command = \"npx\""), "command missing: {toml}");
+    assert!(
+        toml.contains("args = [\"-y\", \"@modelcontextprotocol/server-memory\"]"),
+        "args missing: {toml}"
+    );
 }
 
 #[test]
-fn test_claude_desktop_single_quote_escaping() {
-    // Oracle: ConvertTo-PowerShellSingleQuotedLiteral escapes single quotes by doubling
-    #[cfg(target_os = "windows")]
-    {
-        let mut env = HashMap::new();
-        env.insert("PATH".to_string(), "C:\\Program's Files".to_string());
+fn test_codex_env_vars_produce_nested_section() {
+    // Oracle: ConvertTo-CodexMcpSection nests env as [mcp_servers.name.env]
+    let mut env = HashMap::new();
+    env.insert(
+        "MEMORY_FILE_PATH".to_string(),
+        "/home/user/mcp-memory.json".to_string(),
+    );
+    let mut servers = HashMap::new();
+    servers.insert(
+        "memory".to_string(),
+        McpServer {
+            server_type: Some("stdio".to_string()),
+            command: Some("npx".to_string()),
+            args: Some(vec!["-y".to_string(), "@mcp/server-memory".to_string()]),
+            env: Some(env),
+            url: None,
+            headers: None,
+        },
+    );
 
-        let mut servers = HashMap::new();
-        servers.insert(
-            "test".to_string(),
-            McpServer {
-                server_type: Some("stdio".to_string()),
-                command: Some("node".to_string()),
-                args: Some(vec!["'quoted'".to_string()]),
-                env: Some(env),
-                url: None,
-                headers: None,
-            },
-        );
+    let manifest = McpManifest { servers, inputs: None };
+    let config = CodexMcpConfig::from_manifest(&manifest).unwrap();
+    let toml = config.to_config_string().unwrap();
 
-        let manifest = McpManifest {
-            servers,
-            inputs: None,
-        };
+    assert!(toml.contains("[mcp_servers.memory.env]"), "env section missing: {toml}");
+    assert!(
+        toml.contains("MEMORY_FILE_PATH = \"/home/user/mcp-memory.json\""),
+        "env value missing: {toml}"
+    );
+}
 
-        let config = ClaudeDesktopMcpConfig::from_manifest(&manifest).unwrap();
-        let json = config.to_json_pretty().unwrap();
-        let value: Value = serde_json::from_str(&json).unwrap();
+#[test]
+fn test_codex_http_server_produces_type_and_url() {
+    // Oracle: ConvertTo-CodexMcpConfig for http type
+    let mut servers = HashMap::new();
+    servers.insert(
+        "remote".to_string(),
+        McpServer {
+            server_type: Some("http".to_string()),
+            command: None,
+            args: None,
+            env: None,
+            url: Some("https://api.example.com/mcp/".to_string()),
+            headers: None,
+        },
+    );
 
-        let entry = &value["mcpServers"]["test"];
-        let script = entry["args"][2].as_str().unwrap();
+    let manifest = McpManifest { servers, inputs: None };
+    let config = CodexMcpConfig::from_manifest(&manifest).unwrap();
+    let toml = config.to_config_string().unwrap();
 
-        // Oracle doubles single quotes for PowerShell escaping
-        assert!(script.contains("$env:PATH = 'C:\\Program''s Files'"));
-        assert!(script.contains("& 'node' '''quoted'''"));
-    }
+    assert!(toml.contains("[mcp_servers.remote]"), "section header missing");
+    assert!(toml.contains("type = \"http\""), "type missing: {toml}");
+    assert!(toml.contains("url = \"https://api.example.com/mcp/\""), "url missing: {toml}");
+    // stdio fields must not appear for http type
+    assert!(!toml.contains("command"), "command must not appear for http type");
+}
+
+#[test]
+fn test_codex_special_name_is_quoted() {
+    // Oracle: Format-TomlKeySegment quotes names containing '/'
+    let mut servers = HashMap::new();
+    servers.insert(
+        "upstash/context7".to_string(),
+        McpServer {
+            server_type: None,
+            command: Some("npx".to_string()),
+            args: Some(vec!["-y".to_string(), "@upstash/context7".to_string()]),
+            env: None,
+            url: None,
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = CodexMcpConfig::from_manifest(&manifest).unwrap();
+    let toml = config.to_config_string().unwrap();
+
+    assert!(
+        toml.contains("[mcp_servers.\"upstash/context7\"]"),
+        "quoted key missing: {toml}"
+    );
+}
+
+// ─── OpenCode (JSON mcp.*) — TP-12 parity ────────────────────────────────────
+
+#[test]
+fn test_opencode_local_server_command_array() {
+    // Oracle: ConvertTo-OpenCodeMcpConfig for local (stdio) — command+args merged
+    let mut servers = HashMap::new();
+    servers.insert(
+        "memory".to_string(),
+        McpServer {
+            server_type: Some("stdio".to_string()),
+            command: Some("npx".to_string()),
+            args: Some(vec!["-y".to_string(), "@mcp/server-memory".to_string()]),
+            env: None,
+            url: None,
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = OpenCodeMcpConfig::from_manifest(&manifest).unwrap();
+    let json: Value = serde_json::from_str(&config.to_config_string().unwrap()).unwrap();
+
+    let entry = &json["mcp"]["memory"];
+    assert_eq!(entry["type"], "local");
+    assert_eq!(
+        entry["command"],
+        serde_json::json!(["npx", "-y", "@mcp/server-memory"])
+    );
+    assert_eq!(entry["enabled"], true);
+}
+
+#[test]
+fn test_opencode_remote_server_uses_url() {
+    // Oracle: ConvertTo-OpenCodeMcpConfig for http type → type=remote, url
+    let mut servers = HashMap::new();
+    servers.insert(
+        "remote".to_string(),
+        McpServer {
+            server_type: Some("http".to_string()),
+            command: None,
+            args: None,
+            env: None,
+            url: Some("https://api.example.com/mcp/".to_string()),
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = OpenCodeMcpConfig::from_manifest(&manifest).unwrap();
+    let json: Value = serde_json::from_str(&config.to_config_string().unwrap()).unwrap();
+
+    let entry = &json["mcp"]["remote"];
+    assert_eq!(entry["type"], "remote");
+    assert_eq!(entry["url"], "https://api.example.com/mcp/");
+    assert_eq!(entry["enabled"], true);
+    assert!(entry.get("command").is_none());
+}
+
+#[test]
+fn test_opencode_env_vars_as_environment_key() {
+    // Oracle: ConvertTo-OpenCodeMcpConfig uses `environment` key (not `env`)
+    let mut env = HashMap::new();
+    env.insert("API_KEY".to_string(), "token123".to_string());
+    let mut servers = HashMap::new();
+    servers.insert(
+        "tool".to_string(),
+        McpServer {
+            server_type: None,
+            command: Some("my-tool".to_string()),
+            args: None,
+            env: Some(env),
+            url: None,
+            headers: None,
+        },
+    );
+
+    let manifest = McpManifest { servers, inputs: None };
+    let config = OpenCodeMcpConfig::from_manifest(&manifest).unwrap();
+    let json: Value = serde_json::from_str(&config.to_config_string().unwrap()).unwrap();
+
+    let entry = &json["mcp"]["tool"];
+    assert_eq!(entry["environment"]["API_KEY"], "token123");
+    // Must not use "env" key (that's Copilot's key name)
+    assert!(entry.get("env").is_none());
+}
+
+#[test]
+fn test_opencode_output_has_mcp_top_level_key() {
+    // Oracle: Update-OpenCodeMcpConfig wraps entries under "mcp" key
+    let manifest = McpManifest { servers: HashMap::new(), inputs: None };
+    let config = OpenCodeMcpConfig::from_manifest(&manifest).unwrap();
+    let json: Value = serde_json::from_str(&config.to_config_string().unwrap()).unwrap();
+
+    assert!(json.get("mcp").is_some(), "top-level 'mcp' key must be present");
+    assert!(json["mcp"].is_object());
 }

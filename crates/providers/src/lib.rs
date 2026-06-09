@@ -1,28 +1,35 @@
 //! Provider-specific MCP configuration serializers
 //!
-//! This module contains serializers for converting the portable `.mcp.json` manifest
-//! into provider-specific configuration formats:
-//! - Claude Desktop: stdio/command format
-//! - Copilot CLI: local/http transport format
+//! Converts the portable `.mcp.json` manifest into provider-specific formats:
+//! - Claude Desktop: stdio/command JSON
+//! - Copilot CLI: local/http transport JSON
+//! - Codex CLI: `[mcp_servers.name]` TOML sections in `~/.codex/config.toml`
+//! - OpenCode: `{"mcp": {...}}` JSON in `opencode.json`
 //! - AGY (Antigravity): three-surface projection (CLI/IDE/GUI-config)
 //!
-//! Corresponds to T-009 (MCP) and T-010 (AGY) of the bootstrap convergence plan (M1 phase).
+//! T-011 (R-02): adds Codex + OpenCode providers for four-provider parity (TP-12).
 
 pub mod agy;
 pub mod claude;
+pub mod codex;
 pub mod copilot;
+pub mod opencode;
 
 use base::mcp::{McpManifest, McpServer, Result};
 
-/// Provider-specific MCP configuration
+/// Provider-specific MCP configuration trait.
+///
+/// `to_config_string` returns the provider's native format (JSON for most
+/// providers, TOML for Codex). The name is format-agnostic so all four
+/// providers can implement the same trait.
 pub trait McpProviderConfig {
-    /// Convert portable manifest to provider-specific format
+    /// Convert portable manifest to provider-specific format.
     fn from_manifest(manifest: &McpManifest) -> Result<Self>
     where
         Self: Sized;
 
-    /// Serialize to provider-specific JSON format
-    fn to_json_pretty(&self) -> Result<String>;
+    /// Serialize to the provider's native config format (JSON or TOML).
+    fn to_config_string(&self) -> Result<String>;
 }
 
 /// Filter servers that have unresolved secrets

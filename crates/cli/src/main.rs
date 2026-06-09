@@ -214,6 +214,83 @@ fn cmd_release(args: &[String]) -> ExitCode {
     }
 }
 
+/// Run `gal mcp [update]` — write per-provider MCP config files (T-011, R-02).
+///
+/// Usage:
+///   gal mcp update [--manifest <path>]
+///   gal mcp         (implies `update`)
+fn cmd_mcp(args: &[String]) -> ExitCode {
+    use mcp::run_mcp_update;
+
+    // Accept `gal mcp` or `gal mcp update`; reject unknown subcommands.
+    let sub = args.iter().skip(1).find(|a| !a.starts_with("--")).map(|s| s.as_str());
+    match sub {
+        None | Some("update") => {}
+        Some(other) => {
+            eprintln!("gal mcp: unknown subcommand '{other}'. Use: gal mcp update");
+            return ExitCode::Usage;
+        }
+    }
+
+    // Resolve manifest path: --manifest <path> or default ~/.gal/managed.mcp.json
+    let manifest_path = {
+        let mut path: Option<std::path::PathBuf> = None;
+        let mut i = 1usize;
+        while i < args.len() {
+            if args[i] == "--manifest" {
+                i += 1;
+                if let Some(p) = args.get(i) {
+                    path = Some(std::path::PathBuf::from(p));
+                } else {
+                    eprintln!("gal mcp: --manifest requires a path");
+                    return ExitCode::Usage;
+                }
+            }
+            i += 1;
+        }
+        path.or_else(|| {
+            base::paths::gal_home().map(|h| {
+                h.join("plugins").join("gal-core").join("mcp.json")
+            })
+        })
+    };
+
+    let manifest_path = match manifest_path {
+        Some(p) => p,
+        None => {
+            eprintln!("gal mcp: could not resolve home directory");
+            return ExitCode::Error;
+        }
+    };
+
+    if !manifest_path.exists() {
+        eprintln!("gal mcp: manifest not found: {}", manifest_path.display());
+        eprintln!("         Run `gal install` first to set up the plugin tree.");
+        return ExitCode::Error;
+    }
+
+    match run_mcp_update(&manifest_path) {
+        Ok(report) => {
+            println!(
+                "gal mcp: updated {} provider(s), {} server(s)",
+                report.providers_updated.len(),
+                report.servers_written
+            );
+            if !report.providers_updated.is_empty() {
+                println!("  providers: {}", report.providers_updated.join(", "));
+            }
+            for w in &report.warnings {
+                eprintln!("  warning: {w}");
+            }
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal mcp: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -336,6 +413,8 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::CommitMsg) => cmd_commit_msg(args),
         // T-014: wired release artifact generation
         Action::NotWired(CommandKind::Release) => cmd_release(args),
+        // T-011: wired gal mcp (R-02)
+        Action::NotWired(CommandKind::Mcp) => cmd_mcp(args),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());

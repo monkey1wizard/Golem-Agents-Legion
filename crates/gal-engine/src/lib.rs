@@ -33,18 +33,21 @@ pub enum CommandKind {
     /// `gal release [--dry-run] [--version <tag>] [--output-dir <dir>]`
     /// — produce release artifacts (checksums.txt, artifact-manifest.json) (T-014).
     Release,
+    /// `gal mcp [update]` — update per-provider MCP config files (T-011, R-02).
+    Mcp,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 7] = [
+    pub const ALL: [CommandKind; 8] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Doctor,
         CommandKind::Uninstall,
         CommandKind::CommitMsg,
         CommandKind::Release,
+        CommandKind::Mcp,
         CommandKind::DispatchScript,
     ];
 
@@ -57,6 +60,7 @@ impl CommandKind {
             CommandKind::Uninstall => "uninstall",
             CommandKind::CommitMsg => "commit-msg",
             CommandKind::Release => "release",
+            CommandKind::Mcp => "mcp",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -70,6 +74,7 @@ impl CommandKind {
             "uninstall" => Some(CommandKind::Uninstall),
             "commit-msg" => Some(CommandKind::CommitMsg),
             "release" => Some(CommandKind::Release),
+            "mcp" => Some(CommandKind::Mcp),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -135,6 +140,7 @@ mod tests {
         assert_eq!(CommandKind::parse("update"), Some(CommandKind::Update));
         assert_eq!(CommandKind::parse("doctor"), Some(CommandKind::Doctor));
         assert_eq!(CommandKind::parse("uninstall"), Some(CommandKind::Uninstall));
+        assert_eq!(CommandKind::parse("mcp"), Some(CommandKind::Mcp));
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)

@@ -99,7 +99,9 @@ dependencies = [
 name = "cli"
 version = "0.1.0"
 dependencies = [
+ "base",
  "gal-engine",
+ "mcp",
 ]
 
 [[package]]
@@ -235,6 +237,7 @@ dependencies = [
  "chrono",
  "dirs",
  "hex",
+ "mcp",
  "providers",
  "regex",
  "serde",
@@ -398,6 +401,20 @@ name = "log"
 version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "113b30b4cd05f7c06868fdb2854f66a7b9fece9a48425351cd532e810d74024f"
+
+[[package]]
+name = "mcp"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "dirs",
+ "providers",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "memchr"
