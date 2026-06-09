@@ -40,12 +40,13 @@ Plugin/install mode is rolling out per runtime — stated honestly:
 
 | Runtime | Install status |
 | --- | --- |
-| Antigravity CLI (AGY) | ✓ install lifecycle verified |
-| Claude Code | plugin artifact + local marketplace verified; public direct-install still gated |
-| Codex CLI · Copilot CLI | discoverability-first; native direct-install **deferred** |
+| Antigravity CLI (AGY) | ✓ junction/symlink live surface verified (2026-06-09) |
+| Claude Code (skills) | `gal install` → `~/.claude/skills/gal` symlink/junction; `doc-sync` + all skills load immediately |
+| Copilot CLI | ✓ symlink live surface verified (2026-06-01) |
+| Codex CLI | discoverability-first; native direct-install **deferred** |
 | `winget` · `homebrew` · GitHub Releases | release contract defined; package-manager lanes **not yet shipped end to end** |
 
-GitHub Releases is always the canonical version source and fallback. The full release lineage, marketplace matrix, and lag policy live in [developer guide → Release Artifact Matrix](docs/devguide.md#release-artifact-matrix).
+GitHub Releases is always the canonical version source and fallback. The full install flow, live-surface contract, and acceptance bar live in [developer guide → GAL-Owned Live Read Surfaces](docs/devguide.md#gal-owned-live-read-surfaces-per-provider).
 
 ## Distribution & Migration
 

@@ -728,69 +728,41 @@ GAL does not guarantee same-day parity across every downstream channel. If a dow
 
 #### Claude Marketplace Baseline
 
-Provider marketplaces are downstream wrappers over the canonical GitHub Release lineage. They are official discoverability surfaces by default, and they may only be promoted to direct-install lanes after the provider-native lifecycle is verified against the same canonical package lineage.
+> **SUPERSEDED (2026-06-09):** The official `claude plugin marketplace add` + `claude plugin install` flow is no longer the primary install mechanism for Claude skills. GAL now uses the **GAL-owned skill surface** `~/.claude/skills/gal` (symlink → canonical root) as the live read surface. Run `gal install` to converge; verify with `gal doctor` and `scripts/test-install-acceptance.sh`. See [GAL-Owned Live Read Surfaces](#gal-owned-live-read-surfaces-per-provider) for the governing table.
+>
+> The prior local marketplace install is noted for history: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal --scope user` installed `gal@gal` v1.0.0 into the versioned cache at `~/.claude/plugins/cache/gal/gal/1.0.0/`. This cache is now **stale** (lacks `doc-sync`, `golem-dockeeper`, and all content added since 2026-05-30). It is superseded by the `~/.claude/skills/gal` projection. Do not remove the stale cache manually; it is orphaned once the skills surface is authoritative.
+>
+> The public Claude marketplace / community submission path remains deferred. It is a future follow-on after the current GAL-owned skill surface is stable.
 
-Claude Code is the canonical marketplace baseline because GAL's provider-neutral package schema is already defined as Claude-compatible.
+Provider marketplaces remain downstream wrappers over the canonical GitHub Release lineage. They are official discoverability surfaces by default. Marketplace submission and direct-install promotion gates are preserved below for when that work is scheduled.
 
-Current verification state (updated 2026-05-30):
-
-- the canonical package schema uses `canonicalProvider = "claude"`
-- the plugin catalog already marks `gal-core` as a `canonical-package` for `claude`, `copilot`, `codex`, and `agy`
-- the concrete Claude renderer now exists in `Build-ProviderPlugins.ps1`, and the current PowerShell validation surface has passed artifact build, strict `claude plugin validate`, lifecycle-state write-back, and legacy cleanup checks
-- **local marketplace install is now verified**: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal --scope user` installs `gal@gal` v1.0.0 at user scope; `claude plugin uninstall gal` and `claude plugin marketplace remove gal` are verified for uninstall; plugin cache at `~/.claude/plugins/cache/gal/gal/1.0.0/` is populated with all components (agents, commands, skills, .mcp.json); settings registered in `~/.claude/settings.json` under `extraKnownMarketplaces` and `enabledPlugins`
-
-Claude direct-install conditions (local dev mode with local marketplace source) are now met. The remaining gate before claiming Phase 2 public-marketplace direct install is condition 4: public GitHub Release tag visible through the public community marketplace entry.
-
-| Provider | Baseline role | Current classification | Entry metadata requirement | Install action | Fallback copy |
-| --- | --- | --- | --- | --- | --- |
-| Claude Code | canonical schema baseline | **local-install verified** (local marketplace); public marketplace discoverability-only pending Phase 2 GitHub release + community marketplace submission | Must identify GAL as the canonical plugin package baseline, expose the current GitHub Release version, and state that local marketplace install is verified | Local: `claude plugin marketplace add --scope user ~/.gal/plugins` + `claude plugin install gal`; Phase 2: `/plugin install gal@claude-community` after community submission | Must carry the standard lag fallback message and point to GitHub Releases as canonical source |
-
-Claude submission contract: (1) Marketplace display name `GAL`. (2) Publisher/source lineage points to `monkey1wizard/golem-agents-legion` as the canonical source. (3) Version source shows the exact GitHub Release tag; no Claude-only version stream. (4) Installability label `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end, even if renderer output and strict validation already pass. (5) The marketplace wrapper must describe or point to the same Claude-compatible canonical package lineage; it must not describe a second package shape. (6) If Claude review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
-
-Promotion gate for Claude direct install — reclassify from discoverability-only to direct-install only after all are true: (1) a Claude renderer and strict validation lane exist in `Build-ProviderPlugins.ps1` and `Install-GalPlugins.ps1`, with the rendered artifact tracked through lifecycle state; (2) the rendered artifact can be installed through a documented Claude provider-native lifecycle against the canonical package lineage, not only session-load smoke; (3) update and uninstall behavior are verified against that same provider-native lifecycle while preserving the bootstrap ownership boundaries; (4) release and marketplace metadata prove the same GitHub Release tag is visible through both GitHub Releases and the Claude marketplace entry.
+**Marketplace promotion criteria (future):** reclassify from discoverability-only to direct-install only after: (1) Claude renderer and strict validation lane verified against the canonical package lineage; (2) install, update, and uninstall behavior verified end-to-end via provider-native lifecycle; (3) the same GitHub Release tag is visible through both GitHub Releases and the Claude marketplace entry.
 
 #### Codex and Copilot Marketplace Publication Matrix
 
 After the Claude baseline is established, downstream provider marketplaces must still map back to the same canonical package lineage and GitHub Release tag. Codex and Copilot entries are allowed to use provider-specific wrappers or submission metadata, but they must not introduce provider-only package shapes, provider-only version streams, or direct-install claims ahead of lifecycle verification.
 
-| Provider | Current classification | Direct-install eligibility | Submission artifact rule | Fallback-link policy |
-| --- | --- | --- | --- | --- |
-| Codex | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
-| Copilot | discoverability-only until native-install renderer and lifecycle checks pass | not yet eligible; renderer and end-to-end lifecycle verification are still missing | Must describe or point to the same canonical package lineage used by Claude baseline validation and surface the exact GitHub Release tag | Must carry the standard lag fallback message and direct users to GitHub Releases when the marketplace entry is behind or cannot install directly |
-
-The Codex marketplace entry must use these rules:
-
-1. Marketplace display name: `GAL`.
-2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
-3. Version source: show the exact GitHub Release tag; do not create a Codex-only version stream.
-4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
-5. Submission artifact rule: the Codex wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
-6. Lag policy: if Codex review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
-
-The Copilot marketplace entry must use these rules:
-
-1. Marketplace display name: `GAL`.
-2. Publisher/source lineage: point to `monkey1wizard/golem-agents-legion` as the canonical source.
-3. Version source: show the exact GitHub Release tag; do not create a Copilot-only version stream.
-4. Installability label: `discoverability-only` until provider-native install, update, and uninstall are verified end-to-end.
-5. Submission artifact rule: the Copilot wrapper must describe the same canonical package lineage already validated for provider-neutral packaging; it must not describe a second package shape.
-6. Lag policy: if Copilot review or publication lags the canonical release by more than 5 business days, the entry must explicitly direct users to GitHub Releases.
-
-Promotion gate for Codex and Copilot direct install — reclassify only after all are true: (1) a provider-specific renderer exists in `Build-ProviderPlugins.ps1` instead of `not-yet-implemented`; (2) the rendered artifact installs through the documented provider-native lifecycle against the canonical package lineage; (3) update and uninstall behavior preserve the bootstrap ownership boundaries; (4) release and marketplace metadata prove the same GitHub Release tag is visible through GitHub Releases and the provider marketplace entry.
+| Provider | Current classification | Direct-install eligibility |
+| --- | --- | --- |
+| Claude Code | discoverability-only (GAL-owned skill surface is the current live install path) | deferred pending GAL-owned surface stability + marketplace verification |
+| Codex | discoverability-only | not yet eligible; renderer and end-to-end lifecycle verification still missing |
+| Copilot | discoverability-only | not yet eligible; renderer and end-to-end lifecycle verification still missing |
 
 #### AI Tool Integration Status
 
-This subsection records the verified integration status across Claude Code, Claude Desktop, and Antigravity CLI as of 2026-05-30. It is the single-place capability reference for all three targets (capability honesty).
+This subsection records the verified integration status across Claude Code, Claude Desktop, and Antigravity CLI. Updated: 2026-06-09.
 
 | Target | GAL provider | Install mechanism | Loadable components | Status |
 | --- | --- | --- | --- | --- |
-| **Claude Code (CLI)** | `claude` | `claude plugin marketplace add ~/.gal/plugins` + `claude plugin install gal` — or `claude --plugin-dir ~/.gal/plugins/gal` for dev/session load | agents / skills / commands / MCP (complete) | ✓ **verified** (local marketplace, 2026-05-30) |
+| **Claude Code (CLI) — skills** | GAL-owned skill surface | `gal install` → `~/.claude/skills/gal` → `~/.gal/plugins/gal` (symlink/junction) | skills / commands (auto-scanned from `~/.claude/skills/`) | ⚠ **skill surface not yet created on this machine** — requires `gal install` in a new session after T-003 binary is PATH-available |
+| **Claude Code (CLI) — stale cache** | official versioned cache (LEGACY) | `claude plugin marketplace add` + `claude plugin install` (OLD FLOW — superseded) | stale v1.0.0 (2026-05-30; lacks doc-sync, golem-dockeeper) | ⚠ **loaded but stale** — orphaned by `~/.claude/skills/gal` projection once active |
 | **Claude Desktop (GUI)** | MCP-only special target (not a plugin provider) | Safe-merge into `claude_desktop_config.json` via `Update-Mcp.ps1` → `Update-ClaudeDesktopMcpConfig`; Phase 2: `.mcpb` desktop extension | **MCP servers only** — agents/skills/commands are NOT supported | ✓ **verified** (4 Phase-1 servers injected, 2026-05-30) |
-| **Antigravity CLI** | `agy` | `Install-GalPlugins.ps1 -SelectedRuntimes antigravity` → managed shortcut `~/.gemini/antigravity-cli/plugins/gal → ~/.gal/plugins/gal` | plugin.json / mcp_config.json / skills / agents / rules (complete) | ⚠ **not yet installed** on this machine (P2; architecture verified via dry-run) |
+| **Antigravity CLI** | `agy` | `gal install` → managed junction `~/.gemini/antigravity-cli/plugins/gal → ~/.gal/plugins/gal` | plugin.json / mcp_config.json / skills / agents / rules (complete) | ✓ **junction confirmed** (2026-06-09, T-001 probe) |
+| **Copilot CLI** | `copilot` | `gal install` → managed symlink `~/.copilot/installed-plugins/gal-copilot/gal → ~/.gal/plugins/gal` | manifest / host copy | ✓ **symlink confirmed** (2026-06-01) |
 
 Claude Desktop is an MCP-only host. It **cannot** load GAL agents, skills, or commands. Phase 1 (verified 2026-05-30) injects only no-auth stdio servers: `chrome-devtools`, `firebase-mcp-server`, `markitdown`, `playwright`. Phase 1 excludes auth-required or HTTP-remote servers (`github`, `microsoftdocs`, `context7`) — these may be added via Connectors/Integrations UI or a future `.mcpb` extension (Phase 2). Safety properties: idempotent safe-merge (user-owned servers never modified), timestamped backup before every write, `~/.gal/dist/providers/claude-desktop/managed.json` ledger records GAL-written keys (uninstall only removes ledger entries), no secret placeholders ever written.
 
-Antigravity CLI (`agy` v1.0.2) is available; GAL plugin install at `~/.gemini/antigravity-cli/plugins/gal` is P2. When installed it uses a managed shortcut from the AGY plugin path to the canonical root `~/.gal/plugins/gal`, so canonical-root updates reflect without reinstall. Antigravity's MCP config uses `serverUrl` (not `url`) for HTTP servers; `Update-Mcp.ps1` `ConvertTo-AgyMcpConfig` already handles this.
+Antigravity CLI uses a managed junction (Windows) or symlink (Unix) from the AGY plugin path to the canonical root `~/.gal/plugins/gal`, so canonical-root updates (via `gal install` or `gal update`) reflect without reinstall. Antigravity's MCP config uses `serverUrl` (not `url`) for HTTP servers; the Rust MCP serializer handles this correctly.
 
 Promotion gates for public marketplace listing: Claude Code — GitHub Release tag published + `/plugin marketplace add anthropics/claude-plugins-community` + `/plugin install gal@claude-community` tested; Claude Desktop — `.mcpb` packaging verified and submitted to the Desktop extension gallery; Antigravity — GAL plugin installed and verified, `agy inspect` confirms component load.
 
