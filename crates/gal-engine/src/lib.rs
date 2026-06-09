@@ -4,15 +4,17 @@
 //! exit-code classification, and path resolution.
 
 pub mod commit_msg;
-pub mod config;
 pub mod doctor;
 pub mod install;
-pub mod ledger;
 pub mod mcp;
-pub mod mode;
 pub mod providers;
 pub mod release;
 pub mod render;
+
+// Foundation modules now live in the `base` crate (R-00/T-003). Re-export them
+// so existing `crate::config` / `gal_engine::config` paths keep resolving during
+// the JIT decomposition. Importers migrate to `base::` directly in later phases.
+pub use base::{config, ledger, mode, paths};
 
 /// Known subcommands of the `gal` CLI.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -115,35 +117,6 @@ pub fn classify_args(args: &[String]) -> Action {
             Some(cmd) => Action::NotWired(cmd),
             None => Action::UnknownCommand(other.to_string()),
         },
-    }
-}
-
-pub mod paths {
-    //! Path *location* resolution only — never reads or parses config content.
-
-    use std::path::PathBuf;
-
-    /// The GAL home directory (`~/.gal`). Resolves location only.
-    pub fn gal_home() -> Option<PathBuf> {
-        home_dir().map(|home| home.join(".gal"))
-    }
-
-    /// The machine config file location (`~/.gal/config/config.json`).
-    ///
-    /// Returns the path only; reading/parsing it is the scripts' responsibility.
-    pub fn machine_config_path() -> Option<PathBuf> {
-        gal_home().map(|home| home.join("config").join("config.json"))
-    }
-
-    fn home_dir() -> Option<PathBuf> {
-        #[cfg(windows)]
-        {
-            std::env::var_os("USERPROFILE").map(PathBuf::from)
-        }
-        #[cfg(not(windows))]
-        {
-            std::env::var_os("HOME").map(PathBuf::from)
-        }
     }
 }
 
