@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 7 of 35
-Last activity: 2026-06-09 — T-006 complete (commit: ba5fc69) — `HealthCheck` trait + finding/report vocab in `base::health`; 9 doctor checks migrated to trait impls; exit grading byte-identical; 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-007 (extract `providers` crate; cycle-free thanks to T-003 BUG-01 pre-empt)
+Step: 8 of 35
+Last activity: 2026-06-09 — T-007 complete (commit: c0f1f37) — `providers` crate extracted (claude/copilot/agy); GAL-deps=[base] only, no cycle (BUG-01 payoff); install→providers via re-export; 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-008 (rename gal-cli→cli, gal-dispatch→dispatch) — BUG-02: preserve gal-dispatch bin name / update gal.ps1 shim in same commit
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -139,7 +139,7 @@ R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green. *(5c1514e)*
 - [x] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green. *(8f78581; OE-01: only the atomic-render staging primitive moved; install-domain render stayed)*
 - [x] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged. *(ba5fc69; 9 checks → per-surface HealthCheck impls; run_doctor drives Vec<Box<dyn HealthCheck>>, byte-identical order)*
-- [ ] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles.
+- [x] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles. *(c0f1f37; GAL-deps=[base] only, BUG-01 payoff = no providers↔engine cycle; gal-engine re-exports via `pub use providers`)*
 - [ ] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green.
 - [ ] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests.
 
@@ -273,6 +273,17 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-07 (HealthCheck trai
 - **Exit grading unchanged** — `doctor::tests::report_exit_code_nonzero_when_error_present` + warning-only→0 path green; per-check tests (`check_bin_in_canonical_root_*`, `check_skill_surface_*`, `release_gate_packaging_*`, `check_orphan_temp_dirs_*`) green; finding messages/order byte-identical.
 - **Build** clean, 0 warnings; `base` still GAL-dep-free (no domain dep — inversion holds).
 
+### [T-007] 2026-06-09 — PASS (TP-08)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-08 (after extracting providers, 228 green; install depends on providers; no cycles).
+
+- **228 / 0** — full suite green after extraction.
+- **providers in its own crate** — `cargo test -p providers` = 23 passed (claude/copilot/agy projection moved correctly + run in the new crate).
+- **No cycle / dependency law** — `cargo metadata`: providers GAL-crate deps = `[base]` only. install (gal-engine) → providers → base; acyclic. cargo would reject a cycle at build; build clean.
+- **Workspace members** — [base, providers, gal-cli, gal-engine, gal-dispatch].
+- **install depends on providers** — via gal-engine `providers` dep + `pub use providers` re-export; `crate::providers::{agy,claude}` in install.rs resolve unchanged.
+- **Build** clean, 0 warnings.
+
 ## Review Results
 
 ### Architecture Review
@@ -346,6 +357,18 @@ Scope: commit range `61afc77..ba5fc69` (HealthCheck trait + doctor migration). V
 - **No BLOCKING.** Per-surface `name()` granularity readies T-031 aggregation.
 
 Verdict: **APPROVE** — proceed to T-007 (extract `providers` crate). Reminder: BUG-01 already pre-empted in T-003 (MCP types in base), so T-007 should be cycle-free.
+
+### [T-007] 2026-06-09 — APPROVE
+
+Scope: commit range `6f1c0de..c0f1f37` (extract `providers` crate). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **BUG-01 payoff realized**: providers extracted with GAL deps = `[base]` only, **no cycle** — exactly because T-003 moved MCP types to `base::mcp`. The predicted `providers ↔ gal-engine` cycle never materialized. Architect condition closed.
+- **Clean boundary**: only `crate::mcp`→`base::mcp` and `crate::providers`→`crate` repoints needed; agy needed none (already on `base::platform`). No hidden gal-engine coupling (verified: only install consumes providers; no cli/dispatch use).
+- **Minimal churn via re-export**: `gal-engine` `pub use providers;` keeps `crate::providers` (install) and `gal_engine::providers` (integration tests) resolving — install.rs untouched.
+- **Scope**: module move + repoint + manifest wiring. No drift.
+- **No BLOCKING.** 23 provider tests run in the new crate; 228 total green.
+
+Verdict: **APPROVE** — proceed to T-008 (rename `gal-cli`→`cli`, `gal-dispatch`→`dispatch`). **Carry-forward: BUG-02 — T-008 must preserve the `gal-dispatch` bin output name (or update the gal.ps1 shim in the same commit) so live dispatch does not break.**
 
 ## Debug Log
 

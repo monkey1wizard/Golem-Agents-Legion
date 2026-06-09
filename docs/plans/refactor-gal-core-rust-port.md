@@ -287,7 +287,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-004** — 下沉 `base::platform`(symlink/junction/perms/atomic-swap);render/install 改用;Windows/Unix 行為不變;綠。*(5c1514e;create_dir_link/remove_dir_link/is_symlink_or_junction/atomic_swap;render+claude+agy 委派,23 provider test 綠)*
 - [x] **T-005** — 下沉 `base::render`(模板渲染原語);既有 render 改用、輸出 byte 不變;綠。*(8f78581;OE-01 圍欄:僅下沉 atomic-render staging 原語 create_temp_render_dir;scan/render_canonical_root/manifest 仍屬 install 域;無 template-substitution 原語、無 adapters 消費者故不過度抽象)*
 - [x] **T-006** — 在 `base` 定義 `HealthCheck` trait;遷移既有 doctor 檢查為 trait 實作;exit 分級不變。*(ba5fc69;Severity/DoctorFinding/DoctorReport 移入 base::health;9 個 check → 各自 HealthCheck struct;run_doctor 以 Vec<Box<dyn HealthCheck>> 依原條件順序聚合,finding 順序/訊息/exit 分級 byte 不變)*
-- [ ] **T-007** — 抽 `providers` crate(Provider trait + claude/copilot/codex/agy 投影,自 gal-engine 移出);install 依 providers;綠、無環。
+- [x] **T-007** — 抽 `providers` crate(Provider trait + claude/copilot/codex/agy 投影,自 gal-engine 移出);install 依 providers;綠、無環。*(c0f1f37;providers GAL-deps=[base] 唯一,無 providers↔engine 環——BUG-01 於 T-003 預解之效;gal-engine `pub use providers` 再匯出,install.rs 零改;23 provider test 綠)*
 - [ ] **T-008** — rename `gal-cli`→`cli`(`[[bin]] name="gal"`)、`gal-dispatch`→`dispatch`;更新所有 import + Cargo;`gal --version` 正常;228 test 綠。
 - [ ] **T-009（R-08,先於所有刪除）** — reparent oracle 測試(`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`)為 fixture/行為測試。
 
