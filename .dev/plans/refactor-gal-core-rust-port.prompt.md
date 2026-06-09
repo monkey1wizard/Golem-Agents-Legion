@@ -119,6 +119,7 @@ Review Retry Count: 0
 | --- | --- | --- | --- | --- |
 | 2026-06-09 | T-001 | Capture fixtures for every core script upfront | Established `tests/fixtures/README.md` capture convention; fixtures captured JIT per domain at each port task (D-001) | Already-Rust surfaces use the existing Rust behavior-contract parity tests as oracle; not-yet-ported scripts captured JIT aligns with JIT decomposition + avoids running side-effecting scripts before a deterministic context exists (approach A, user decision) |
 | 2026-06-09 | T-002 | (orig) reinstall + mac-mini/Windows real-machine gates in one task | Re-scoped: T-002 = **dev-machine dev-mode baseline only** (Windows, has rust); done, `gal doctor` exit 0. Real-machine end-user acceptance moved to **T-035** (install R-13 prebuilt artifact). | CORR-01 (user): test machines are pure end-users — never build/install toolchain on them. The earlier "install rust on mac-mini / cross-compile" path was wrong. Real-machine acceptance requires the R-13 release-artifact pipeline first (T-034). |
+| 2026-06-09 | T-011 | `gal mcp` four-provider parity (TP-12) treated complete at serializer level | **Reopened + fixed (a600c97)** after full-audit found `run_mcp_update` was a serializer-only stub: empty resolver (hard-failed on shipped manifest's `${CONTEXT7_API_KEY}`), no `mcp.local.json` merge, full-file overwrite per provider (data loss — Codex `config.toml` clobber). Rewrote orchestrator: var map (env+config.local.env+machine config), local-override merge, non-destructive JSON overlay + Codex remove-then-append. +10 hermetic tests; e2e verified 4 providers/11 servers, real `config.toml` non-MCP sections preserved. | TP-12 tested per-provider serializers in isolation, never `run_mcp_update` (the only path `gal mcp` runs). The deletion gate's "behavioral equivalence" half was unmet; audit caught it before real-machine use. Deferred (non-blocking): legacy-alias/deprecated-key cleanup, Codex bridge-profile remap, projection delta guard, OpenCode install-gating. |
 
 ### Handoff Notes
 
@@ -147,7 +148,7 @@ R-01 shared core
 - [x] T-010 (R-01) — Port `common.{ps1,sh}` install/setup functions into `base`; install/setup/mcp/adapters use the shared core. *(23557b1)*
 
 R-02 MCP
-- [x] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture. *(263dd77)*
+- [x] T-011 (R-02) — Split `mcp` crate; port `update-mcp` → `gal mcp` backend + `HealthCheck`; four-provider parity vs fixture. *(263dd77; orchestrator parity fix a600c97)*
 - [x] T-012 — After parity green, delete `update-mcp.{ps1,sh}`; verify no consumer breaks. *(bda5fb7)*
 
 R-03 adapters (protected, architect)
@@ -191,6 +192,20 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-011 reopen] 2026-06-09 — APPROVE
+
+Verification Independence: DEGRADED_SAME_RUNTIME.
+
+**Trigger** — Full-audit (Opus 4.8) found `run_mcp_update` was a serializer-only stub diverging from the deleted `update-mcp.{ps1,sh}`: empty resolver, no local-override merge, full-file overwrite. Severity: command non-functional on shipped manifest + data-loss on Codex shared config. The earlier T-011 APPROVE was scoped to serializers and missed the orchestrator.
+
+**Fix correctness** — Var map ports `Get-McpVariableMap` layering (env → config.local.env → machine config) with documented `MCP_FILESYSTEM_PATHS` derivation deferral. Local merge matches `Merge-OrderedMap` (local wins). JSON overlay preserves user/foreign keys and refuses to clobber non-objects. Codex `remove_codex_managed_sections`/`codex_table_server_name` faithfully port the PS removal (bare+quoted table names, sub-table `.env`, non-MCP reset on `[other]`).
+
+**Evidence quality** — Beyond 10 hermetic tests, the Codex fix is verified on a real `config.toml` (user `[projects]`/`[hooks]`/`[tui]` survived) — the strongest possible parity proof for the data-loss defect.
+
+**Deferrals honest** — Advanced cleanup (aliases, deprecated keys, bridge remap, projection delta, OpenCode install-gating) explicitly listed in code + plan, with rationale they are non-blocking and non-destructive. No silent scope narrowing.
+
+**Verdict: APPROVE** — T-011 now meets the plan's deletion gate ("behavioral equivalence AND live read-surface matches source"), retroactively validating T-012's deletion.
 
 ### [T-012] 2026-06-09 — APPROVE
 
@@ -271,6 +286,18 @@ Verification Independence: DEGRADED_SAME_RUNTIME.
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-011 reopen] 2026-06-09 — PASS (TP-12 behavioral, orchestrator)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-12 extended to the actual `run_mcp_update` orchestrator (not just per-provider serializers).
+
+- **329 / 0** — `cargo test --workspace` (was 319; +10 orchestrator tests). `cargo clippy -p mcp` clean.
+- **Defect-1 (resolver) FIXED** — `build_variable_map` folds process env + `config.local.env` + machine config (camelCase→UPPER). `gal mcp update` against the real `plugins/gal-core/mcp.json` now succeeds (was: `UnresolvedSecret(CONTEXT7_API_KEY)` exit 1). E2E: **4 providers, 11 servers**.
+- **Defect-2 (local override) FIXED** — `apply_local_overrides` merges `~/.gal/config/mcp.local.json` (local wins). Test: `apply_local_overrides_adds_and_overrides_servers`.
+- **Defect-3 (destructive JSON write) FIXED** — `write_json_provider_merged` overlays managed entries into existing file, preserving user servers + unrelated top-level keys; refuses to clobber a non-object file. Tests: `json_merge_preserves_user_entries_and_other_keys`, `json_merge_creates_file_when_absent`, `json_merge_refuses_to_overwrite_non_object`.
+- **Defect-4 (Codex clobber) FIXED + REAL-FILE VERIFIED** — `write_codex_merged` + `remove_codex_managed_sections` (ports `Remove-CodexManagedServersFromToml`) remove-then-append managed sections, preserving non-MCP TOML. Real `~/.codex/config.toml` post-update retains `[projects.*]`, `[windows]`, `[hooks.*]`, `[tui.*]` alongside managed `[mcp_servers.*]`. Tests: `codex_table_server_name_parses_bare_and_quoted`, `codex_remove_preserves_non_mcp_and_user_servers`, `codex_write_merge_appends_and_preserves`.
+- **Var-map tests** — `build_variable_map_resolves_secret_from_env`, `build_variable_map_reads_env_file_and_machine_config`.
+- **Deferred (documented, non-blocking)** — legacy-alias removal, deprecated-key cleanup, Codex bridge-profile key remap, previous-projection delta guard, OpenCode install-gating. None cause data loss or command failure in the common case.
 
 ### [T-012] 2026-06-09 — PASS (TP-13)
 
