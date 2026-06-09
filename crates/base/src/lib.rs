@@ -6,6 +6,7 @@
 //! foundation: every other GAL crate may depend on `base`, never the reverse.
 
 pub mod config;
+pub mod health;
 pub mod ledger;
 pub mod mcp;
 pub mod mode;
