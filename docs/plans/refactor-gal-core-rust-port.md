@@ -284,7 +284,7 @@ Not triggered（無 customer-facing UI）。
 
 **R-00 架構解耦（受保護,architect;逐步驗綠,JIT）**
 - [x] **T-003** — 建 workspace 骨架 + 抽 `base` crate:移入 config/mode/paths/install-state/provider-selection;更新 root `Cargo.toml` members;repoint importers;`cargo test` 綠。*(1ffd3de;含架構師 BUG-01 折入:MCP 共用型別移入 `base::mcp`,先解 providers→mcp 環依賴)*
-- [ ] **T-004** — 下沉 `base::platform`(symlink/junction/perms/atomic-swap);render/install 改用;Windows/Unix 行為不變;綠。
+- [x] **T-004** — 下沉 `base::platform`(symlink/junction/perms/atomic-swap);render/install 改用;Windows/Unix 行為不變;綠。*(5c1514e;create_dir_link/remove_dir_link/is_symlink_or_junction/atomic_swap;render+claude+agy 委派,23 provider test 綠)*
 - [ ] **T-005** — 下沉 `base::render`(模板渲染原語);既有 render 改用、輸出 byte 不變;綠。
 - [ ] **T-006** — 在 `base` 定義 `HealthCheck` trait;遷移既有 doctor 檢查為 trait 實作;exit 分級不變。
 - [ ] **T-007** — 抽 `providers` crate(Provider trait + claude/copilot/codex/agy 投影,自 gal-engine 移出);install 依 providers;綠、無環。

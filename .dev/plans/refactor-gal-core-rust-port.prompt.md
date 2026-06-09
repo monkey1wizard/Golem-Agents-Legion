@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 4 of 35
-Last activity: 2026-06-09 — T-003 complete (commit: 1ffd3de) — `base` crate extracted, BUG-01 MCP types relocated, 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-004
+Step: 5 of 35
+Last activity: 2026-06-09 — T-004 complete (commit: 5c1514e) — `base::platform` sunk (create/remove dir-link, is_symlink_or_junction, atomic_swap), render/claude/agy delegate, 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-005 (OE-01 fence: only shared template primitives → base::render)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -136,7 +136,7 @@ P0 — baseline
 
 R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-003 — Scaffold workspace + extract `base` crate (config/mode/paths/install-state/provider-selection); update root `Cargo.toml` members; repoint importers; `cargo test` green. *(1ffd3de)*
-- [ ] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green.
+- [x] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green. *(5c1514e)*
 - [ ] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green.
 - [ ] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged.
 - [ ] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles.
@@ -242,6 +242,18 @@ Verification Independence: DEGRADED_SAME_RUNTIME (TESTER played in-runtime; spec
 
 No new tests authored: T-003 is a structural move; TP-04 is parity (existing suite stays green + structural assertions). Moved code carries its own tests.
 
+### [T-004] 2026-06-09 — PASS (TP-05)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-05 (platform sink; render/install use it; Windows junction / Unix symlink / perms unchanged).
+
+- **228 / 0** — `cargo test --workspace` unchanged after sinking `base::platform`.
+- **Windows junction path through `base::platform`** — `cargo test -p gal-engine providers::` = 23 passed, 0 failed. claude skill projection (apply/idempotent/remove) and agy link create/remove now route through `base::platform::create_dir_link` / `remove_dir_link` / `is_symlink_or_junction` and pass on Windows (real `mklink /J`).
+- **render uses it** — `atomic_swap` delegates to `base::platform::atomic_swap`; `RenderError` message text preserved by explicit mapping. install uses it transitively (render_canonical_root + providers).
+- **Build** — clean, 0 warnings (no unused `fs`/`Command` imports after collapse).
+- **Dependency law** — `base` still GAL-dep-free (added only external `uuid` for atomic_swap).
+
+No new tests authored: existing provider/render suites are the platform-behavior oracle and stay green.
+
 ## Review Results
 
 ### Architecture Review
@@ -280,6 +292,18 @@ Scope: commit range `de90322..1ffd3de` (extract `base` foundation crate). Verifi
 - **No BLOCKING findings. No Protected-Path violation, no security surface.** crates/ Rust is outside the project's protected-path set; the plan-level R-00 "protected" gate is satisfied by the recorded architect sign-off.
 
 Verdict: **APPROVE** — proceed to T-004.
+
+### [T-004] 2026-06-09 — APPROVE
+
+Scope: commit range `1f7d313..5c1514e` (sink `base::platform`). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **Correctness / parity**: `atomic_swap` error text preserved byte-identical via explicit `AtomicSwapError`→`RenderError` mapping (NoParent→"Canonical root has no parent", Backup/Move prefixes retained). Link create/remove/detect syscalls unchanged (`mklink /J`, `rmdir`, `symlink`, `remove_file`, `symlink_metadata`). Provider tests (23) green on Windows confirm the junction path.
+- **Deliberate, documented deviations (none test-observable)**: (1) link-op error *prefix* collapsed to one cross-platform string — no test asserts it; (2) `to_str().unwrap()/unwrap_or("")` → `to_string_lossy()` — removes a panic path, identical for UTF-8; (3) agy `create_*_junction` pre-removal cfg blocks intentionally left (Windows path skips rmdir status-check; folding would change failure semantics) — correct conservatism on a parity gate.
+- **Scope**: only `base::platform` + 3 consumers (render, claude, agy). No drift.
+- **Architecture**: `base::platform` self-contained, GAL-dep-free; OE-01 (the render-scope fence) is a T-005 concern, not triggered here.
+- **No BLOCKING, no Protected-Path/security finding.**
+
+Verdict: **APPROVE** — proceed to T-005. Carry-forward: OE-01 fence governs T-005 (only shared template primitives → `base::render`, not `scan_source_components`/`render_canonical_root`).
 
 ## Debug Log
 
