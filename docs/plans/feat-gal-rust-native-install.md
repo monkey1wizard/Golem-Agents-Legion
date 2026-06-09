@@ -145,8 +145,8 @@ scripts 為**過渡 oracle**，非永久凍結：功能達 Rust parity 即刪對
 - [x] **T-009（P6）** — 端對端驗收腳本 + `docs/devguide.md`：乾淨環境安裝後 Claude Code 可用 `doc-sync`、`gal doctor` green、canonical root agents/ 含 `golem-dockeeper`。 *(8615eb5)*
 - [x] **T-010（P7 前置）** — reparent oracle 測試：`crates/gal-engine/tests/cross_platform_oracle_parity.rs`、`scripts/test-t022-ssh.sh` 改為 `tests/fixtures/` snapshot 或行為/intent 測試，移除對 live `scripts/*.{sh,ps1}` 的 runtime 依賴。**必須在 T-011 前完成。** *(d88d417)*
 - [x] **T-011（P7，R-11）** — 刪除 superseded install 家族 ps1/bash（成對）：`Build-CorePlugin.*`/`build-core-plugin.sh`、`Build-ProviderPlugins.*`/`build-provider-plugins.sh`、`ProviderPlugin.ps1`/`provider-plugin.sh`、`Update-Mcp.*`、`Install-GalPlugins.*`/`install-gal-plugins.sh`、`Common.*`/`common.sh`（install 部分）、對應 `Test-*.ps1`、`gal.ps1`（Rust 接管所有子命令後）。monolithic script 須其全部消費者皆 parity 才整檔刪。**保留** `Setup-Machine.*`/`Sync-DevContext.*`。 *(bcc755a — partial; 4 Test-*.ps1 刪除；主要 ps1/bash 對延後：Setup-Machine 尚調用 install-gal-plugins.*)*
-- [ ] **T-012（docs）** — `docs/devguide.md`/`docs/manual.md`/`README.md`：寫 GAL 自有載入面契約、bin exposure、正確安裝流程；移除/標示過時官方 marketplace 敘述（含 `README.md:44-48`）。
-- [ ] **T-013（cleanup）** — 刪 `docs/plans/plugin-bin-migration.md`；文件 grep 確認無「plugin-bin 與 install 收斂分屬兩計畫」矛盾、無官方 marketplace 收斂策略殘留。
+- [x] **T-012（docs）** — `docs/devguide.md`/`docs/manual.md`/`README.md`：寫 GAL 自有載入面契約、bin exposure、正確安裝流程；移除/標示過時官方 marketplace 敘述（含 `README.md:44-48`）。 *(0b576c8)*
+- [x] **T-013（cleanup）** — 刪 `docs/plans/plugin-bin-migration.md`；文件 grep 確認無「plugin-bin 與 install 收斂分屬兩計畫」矛盾、無官方 marketplace 收斂策略殘留。 *(e1e230a)*
 
 ## Test Plan
 

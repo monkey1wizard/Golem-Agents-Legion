@@ -146,10 +146,10 @@ None open. Prior OQ-01 (loading mechanism), OQ-02 (galRoot resolution), OQ-03 (c
 ## Status
 
 ```text
-Workflow: IMPLEMENT
-Step: 12 of 13
-Last activity: 2026-06-09 — T-011 partial complete (bcc755a)
-Next step: T-012 implement
+Workflow: VERIFY
+Step: 13 of 13
+Last activity: 2026-06-09 — T-013 complete (e1e230a); all blocking tasks done
+Next step: final verifier pass
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -189,8 +189,8 @@ Review Retry Count: 0
 - [x] **T-009 (P6)** — end-to-end acceptance script + `docs/devguide.md`: after clean-environment install, Claude Code can use `doc-sync`, `gal doctor` green, canonical root agents/ has `golem-dockeeper`. *(8615eb5)*
 - [x] **T-010 (P7 precondition)** — reparent oracle tests: convert `crates/gal-engine/tests/cross_platform_oracle_parity.rs` and `scripts/test-t022-ssh.sh` to `tests/fixtures/` snapshots or behavior/intent tests, removing runtime dependence on live `scripts/*.{sh,ps1}`. **Must complete before T-011.** *(d88d417)*
 - [x] **T-011 (P7, R-11)** — delete superseded install-family ps1/bash (in pairs): `Build-CorePlugin.*`/`build-core-plugin.sh`, `Build-ProviderPlugins.*`/`build-provider-plugins.sh`, `ProviderPlugin.ps1`/`provider-plugin.sh`, `Update-Mcp.*`, `Install-GalPlugins.*`/`install-gal-plugins.sh`, `Common.*`/`common.sh` (install part), matching `Test-*.ps1`, `gal.ps1` (after the Rust binary owns all subcommands). Monolithic scripts wait until all consumers are at parity. **Retain** `Setup-Machine.*`/`Sync-DevContext.*`. *(bcc755a — partial; main pairs deferred pending Setup-Machine update)*
-- [ ] **T-012 (docs)** — `docs/devguide.md`/`docs/manual.md`/`README.md`: write the GAL-owned load-surface contract, bin exposure, correct install flow; remove/mark-stale obsolete official-marketplace prose (incl. `README.md:44-48`).
-- [ ] **T-013 (cleanup)** — delete `docs/plans/plugin-bin-migration.md`; grep docs to confirm no "plugin-bin vs install convergence as two plans" contradiction and no official-marketplace convergence-strategy residue.
+- [x] **T-012 (docs)** — `docs/devguide.md`/`docs/manual.md`/`README.md`: write the GAL-owned load-surface contract, bin exposure, correct install flow; remove/mark-stale obsolete official-marketplace prose (incl. `README.md:44-48`). *(0b576c8)*
+- [x] **T-013 (cleanup)** — delete `docs/plans/plugin-bin-migration.md`; grep docs to confirm no "plugin-bin vs install convergence as two plans" contradiction and no official-marketplace convergence-strategy residue. *(e1e230a — plugin-bin-migration.md already deleted; last marketplace prose cleaned)*
 
 ## Deferred Follow-up
 
@@ -258,6 +258,31 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 **Conclusion**: after this plan's validation (incl. TP-15/16/17), install-followups closes ~3/11 (install path + macOS cross-platform); the remaining ~8 are security / M2 / hardening needing separate code changes, not closed by validation. Emptying that file needs a separate hardening/M2 pass for S-1/2, FU-03/04, etc. (FU-04 can ride T-002).
 
 ## Test Results
+
+### [T-013] 2026-06-09
+
+**Type**: grep + static check
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+- `docs/plans/plugin-bin-migration.md` — confirmed already deleted
+- No "plugin-bin-migration vs install convergence as two plans" contradiction in docs ✓
+- No official-marketplace convergence-strategy residue (outside SUPERSEDED/deferred blocks) ✓
+- TP-14 fully satisfied
+
+### [T-012] 2026-06-09
+
+**Type**: docs review + grep
+**Verification independence**: DEGRADED_SAME_RUNTIME
+**Verdict**: PASS
+
+- `SUPERSEDED` block present in devguide.md Claude Marketplace Baseline section ✓
+- `gal install` appears in README.md runtime install table ✓
+- `GAL-Owned Live Read Surfaces` cross-reference updated in README.md ✓
+- `docs/manual.md` — no stale marketplace prose found ✓
+- AI Tool Integration Status table updated: Claude skills row, Copilot row, stale cache marked LEGACY, AGY updated to gal install ✓
+
+**TP-14:** docs grep check — `grep -r "plugin-bin-migration vs install convergence as two plans"` returns 0 results (deferred to T-013 for full confirmation).
 
 ### [T-011] 2026-06-09
 
@@ -469,6 +494,25 @@ Order rationale: mac-mini first lets the never-verified, highest-risk normal-mod
 | R2 | INFO | Script uses `set -uo pipefail` (not `-e`) so individual check failures don't abort the full sweep — correct design for an acceptance checker. |
 
 No correctness defects, no security issues, no architecture violations. Acceptance bar table and Windows checklist are consistent with the live-surface table already in devguide.
+
+### [T-013] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+No issues. The "Promotion gates" paragraph replacement correctly separates the current install path from the future marketplace milestone. Wording is clear and not misleading.
+
+### [T-012] Code Review — 2026-06-09
+
+**Verdict: APPROVE** (DEGRADED_SAME_RUNTIME)
+
+**Files reviewed:** `docs/devguide.md`, `README.md`
+
+| # | Severity | Finding |
+| --- | --- | --- |
+| R1 | INFO | The SUPERSEDED block in the Claude Marketplace Baseline section preserves the historical verification note. Good for audit trail; no confusion since it starts with a prominent "> **SUPERSEDED**" callout. |
+| R2 | INFO | README install table now has 5 rows (was 4). Copilot CLI added as a separate row from Codex CLI — accurate since Copilot has a verified symlink while Codex is discoverability-only. |
+
+No correctness defects. All stale `Build-ProviderPlugins.ps1` / `Install-GalPlugins.ps1` references in the marketplace sections are removed. The governing principle ("install success = live read surface matches source") is now the primary framing.
 
 ### [T-011] Code Review — 2026-06-09
 
