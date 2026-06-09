@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 6 of 35
-Last activity: 2026-06-09 — T-005 complete (commit: 8f78581) — `base::render` seam established (create_temp_render_dir staging primitive); OE-01 honored (install-domain render stayed); 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
-Next step: implement T-006 (HealthCheck trait in base; migrate doctor checks; exit grading unchanged)
+Step: 7 of 35
+Last activity: 2026-06-09 — T-006 complete (commit: ba5fc69) — `HealthCheck` trait + finding/report vocab in `base::health`; 9 doctor checks migrated to trait impls; exit grading byte-identical; 228 green. Run bounds: FROM=T-003, STOP_AT=T-008. Verification Independence: DEGRADED_SAME_RUNTIME.
+Next step: implement T-007 (extract `providers` crate; cycle-free thanks to T-003 BUG-01 pre-empt)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -138,7 +138,7 @@ R-00 architecture decomposition (protected, architect; step-wise green, JIT)
 - [x] T-003 — Scaffold workspace + extract `base` crate (config/mode/paths/install-state/provider-selection); update root `Cargo.toml` members; repoint importers; `cargo test` green. *(1ffd3de)*
 - [x] T-004 — Sink `base::platform` (symlink/junction/perms/atomic-swap); render/install use it; Windows/Unix behavior unchanged; green. *(5c1514e)*
 - [x] T-005 — Sink `base::render` (template primitives); existing render uses it; output byte-identical; green. *(8f78581; OE-01: only the atomic-render staging primitive moved; install-domain render stayed)*
-- [ ] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged.
+- [x] T-006 — Define `HealthCheck` trait in `base`; migrate existing doctor checks to trait impls; exit grading unchanged. *(ba5fc69; 9 checks → per-surface HealthCheck impls; run_doctor drives Vec<Box<dyn HealthCheck>>, byte-identical order)*
 - [ ] T-007 — Extract `providers` crate (moved from gal-engine); install depends on providers; green, no cycles.
 - [ ] T-008 — Rename `gal-cli`→`cli` (`[[bin]] name="gal"`), `gal-dispatch`→`dispatch`; update imports + Cargo; `gal --version` works; 228 tests green.
 - [ ] T-009 (R-08, before any deletion) — Reparent oracle tests (`Test-ResolveGalCatalog`/`tests/Test-InstallModeAuthority`/`test-install-acceptance.sh`) to fixture/behavioral tests.
@@ -263,6 +263,16 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-06 (base::render sin
 - **OE-01 verified** — only the staging primitive moved; `scan_source_components`/`render_canonical_root`/manifest renderers remain in gal-engine (grep confirmed no template-substitution primitives + no adapters consumer to justify base placement).
 - **Build** clean, 0 warnings; `base` GAL-dep-free.
 
+### [T-006] 2026-06-09 — PASS (TP-07)
+
+Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-07 (HealthCheck trait in base; existing doctor checks migrated to trait impls; exit grading unchanged).
+
+- **228 / 0** — full suite green after migration.
+- **HealthCheck trait in base** — `base::health::HealthCheck` present; `Severity`/`DoctorFinding`/`DoctorReport` moved to `base::health`, re-exported from `gal_engine::doctor`.
+- **Checks migrated** — all 9 doctor checks are now `HealthCheck` impls; `run_doctor` drives `Vec<Box<dyn HealthCheck>>` in the exact prior conditional order.
+- **Exit grading unchanged** — `doctor::tests::report_exit_code_nonzero_when_error_present` + warning-only→0 path green; per-check tests (`check_bin_in_canonical_root_*`, `check_skill_surface_*`, `release_gate_packaging_*`, `check_orphan_temp_dirs_*`) green; finding messages/order byte-identical.
+- **Build** clean, 0 warnings; `base` still GAL-dep-free (no domain dep — inversion holds).
+
 ## Review Results
 
 ### Architecture Review
@@ -324,6 +334,18 @@ Scope: commit range `be96c1f..8f78581` (sink `base::render`). Verification Indep
 - **No BLOCKING.** OE-01 fence satisfied; `base::render` is a thin, honest seam, not a god-module.
 
 Verdict: **APPROVE** — proceed to T-006 (HealthCheck trait in base).
+
+### [T-006] 2026-06-09 — APPROVE
+
+Scope: commit range `61afc77..ba5fc69` (HealthCheck trait + doctor migration). Verification Independence: DEGRADED_SAME_RUNTIME.
+
+- **Dependency inversion correct**: trait + finding/severity/report vocabulary in `base::health`; `base` takes no domain dep; `cli`/domains will depend on `base` for the trait (T-031). This is the architect's intended shape.
+- **Byte-identical behavior**: `run_doctor` builds the checks as trait objects in the **same conditional order** (canonical-root → [provider, dockeeper, bin] iff root exists → ledger → skill → agy → orphan → [release-gate iff flag]) and extends the report. Each `check()` body is the prior function body with `report.push` → `findings.push` and early `return` → `return findings`. Messages unchanged. Suite (incl. exit-grading + per-check tests) confirms.
+- **Test-surface preserved**: `DoctorReport::push` kept `pub` (tests rely on it); two bin tests updated to drive `BinInCanonicalRootCheck`.
+- **Hygiene**: dropped now-unused `Path` import; 0 warnings.
+- **No BLOCKING.** Per-surface `name()` granularity readies T-031 aggregation.
+
+Verdict: **APPROVE** — proceed to T-007 (extract `providers` crate). Reminder: BUG-01 already pre-empted in T-003 (MCP types in base), so T-007 should be cycle-free.
 
 ## Debug Log
 
