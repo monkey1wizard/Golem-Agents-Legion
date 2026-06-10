@@ -324,7 +324,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-027** — port `init-repo` → Rust;parity;刪對。*(closeout: Rust `gal init-repo` owns repo bootstrap generation; `gal init` shell branches forward to it; `Init-Repo.*` deleted after executable smoke validation)*
 - [x] **T-028** — port catalog 解析(`Resolve-GalCatalog`)→ Rust;parity;刪。*(closeout: Rust `gal resolve-catalog` matches the existing profile/default/explicit resolution contract and old resolver script/test harness are deleted after focused tests and dry-run validation)*
 - [x] **T-029** — release packaging 併 `gal release`;parity;刪 `Package-ReleaseArtifacts.{ps1,sh}`。*(closeout: 既有 Rust `gal release` 路徑驗證綠，舊 packaging script pair 刪除，release 驗證文件改指 `gal release --dry-run`)*
-- [ ] **T-030** — port translation freshness → Rust;parity;刪對。
+- [x] **T-030** — port translation freshness → Rust;parity;刪對。*(closeout: Rust `gal translation-freshness` owns the report path; old translation script pair deleted after unit + executable validation)*
 
 **R-11/R-07/R-10 收尾**
 - [ ] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。

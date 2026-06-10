@@ -11,6 +11,7 @@ pub mod install;
 pub mod mcp;
 pub mod release;
 pub mod render;
+pub mod translation;
 
 // Provider projection now lives in the `providers` crate (R-00/T-007). Re-export
 // so `crate::providers` (install) and `gal_engine::providers` (integration tests)
@@ -47,12 +48,14 @@ pub enum CommandKind {
     InitRepo,
     /// `gal resolve-catalog` — deterministic plugin resolution and lockfile output.
     ResolveCatalog,
+    /// `gal translation-freshness` — report translation freshness across docs/i18n.
+    TranslationFreshness,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 14] = [
+    pub const ALL: [CommandKind; 15] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
@@ -66,6 +69,7 @@ impl CommandKind {
         CommandKind::Smudge,
         CommandKind::InitRepo,
         CommandKind::ResolveCatalog,
+        CommandKind::TranslationFreshness,
         CommandKind::DispatchScript,
     ];
 
@@ -85,6 +89,7 @@ impl CommandKind {
             CommandKind::Smudge => "smudge",
             CommandKind::InitRepo => "init-repo",
             CommandKind::ResolveCatalog => "resolve-catalog",
+            CommandKind::TranslationFreshness => "translation-freshness",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -105,6 +110,7 @@ impl CommandKind {
             "smudge" => Some(CommandKind::Smudge),
             "init-repo" => Some(CommandKind::InitRepo),
             "resolve-catalog" => Some(CommandKind::ResolveCatalog),
+            "translation-freshness" => Some(CommandKind::TranslationFreshness),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -177,6 +183,10 @@ mod tests {
         assert_eq!(CommandKind::parse("smudge"), Some(CommandKind::Smudge));
         assert_eq!(CommandKind::parse("init-repo"), Some(CommandKind::InitRepo));
         assert_eq!(CommandKind::parse("resolve-catalog"), Some(CommandKind::ResolveCatalog));
+        assert_eq!(
+            CommandKind::parse("translation-freshness"),
+            Some(CommandKind::TranslationFreshness)
+        );
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)

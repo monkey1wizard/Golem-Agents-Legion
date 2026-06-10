@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 30 of 35
-Last activity: 2026-06-10 — **T-029 complete** — `gal release` is now the sole release-packaging path and the old packaging scripts are deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-029 reached.
-Next step: implement T-030 (R-06 — translation freshness Rust port)
+Step: 31 of 35
+Last activity: 2026-06-10 — **T-030 complete** — Rust `gal translation-freshness` now owns translation freshness reporting and the old translation script pair is deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-030 reached.
+Next step: implement T-031 (R-11 — doctor aggregates domain health checks)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-029 is closed: the existing Rust `gal release` path now fully owns release packaging, and the old packaging script pair is deleted.
+R-06 is now fully closed through T-030. Translation freshness is owned by the Rust `gal translation-freshness` command, and the legacy translation script pair is deleted.
 
-The exact next step is T-030: port translation freshness into Rust and only then delete `Test-TranslationFreshness.*` after the new command path is validated.
+The next exact step is T-031: aggregate the domain `HealthCheck` implementations into `gal doctor` so filter/setup/sync surfaces report through the main health command.
 
 ## Tasks
 
@@ -173,7 +173,7 @@ R-06 misc (per item: port → parity → delete)
 - [x] T-027 — Port `init-repo` → Rust; parity; delete pair. *(closeout: added `crates/cli/src/init_repo.rs`, wired `gal init-repo` in the Rust CLI, repointed `scripts/gal.ps1` and `scripts/gal.sh` init branches to the binary path, and deleted `Init-Repo.*` after a temp-repo executable smoke check passed)*
 - [x] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete. *(closeout: added `crates/gal-engine/src/catalog.rs`, wired `gal resolve-catalog` in the CLI, matched the default/dart/full/explicit profile contract with focused tests, and deleted `Resolve-GalCatalog.ps1` plus `Test-ResolveGalCatalog.ps1` after an executable dry-run check passed)*
 - [x] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`. *(closeout: release packaging stayed on the existing Rust `gal release` path; focused release tests passed and the old packaging script pair was deleted with docs repointed)*
-- [ ] T-030 — Port translation freshness → Rust; parity; delete pair.
+- [x] T-030 — Port translation freshness → Rust; parity; delete pair. *(closeout: added `crates/gal-engine/src/translation.rs`, wired `gal translation-freshness` in the CLI, validated unit + executable report output, and deleted the legacy translation script pair)*
 
 R-11/R-07 closeout
 - [ ] T-031 (R-11) — `cli` aggregates each domain's `HealthCheck` into `gal doctor`, extending to mcp/setup/sync/filter; fail-loud.
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-030] 2026-06-10 — PASS (TP-20 slice: translation freshness)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-030 parity for translation freshness reporting.
+
+- **Translation report tests green** — `cargo test -p gal-engine translation -- --nocapture` passes for missing-tree and current/stale/missing classification coverage.
+- **Command path green** — `cargo check -p cli` passes, and `cargo run -p cli -- translation-freshness` emits the expected report rows and summary against the current repo docs.
+- **Deletion gate held** — `scripts/Test-TranslationFreshness.ps1` and `scripts/test-translation-freshness.sh` deleted only after the Rust command path was validated.
+
 ### [T-029] 2026-06-10 — PASS (TP-20 slice: release packaging)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-029 parity for the Rust release path.
@@ -960,6 +968,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-030] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The executable smoke check reports the current repo translations as `stale` because their `source_commit` stamps are still `PENDING`; that is expected behavior and part of the contract documented in `docs/devguide.md`.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-029] 2026-06-10 — APPROVE
 

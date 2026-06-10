@@ -35,6 +35,7 @@ fn print_help() {
     println!("  setup --tools [--check] [--tool <gstack|graphify|opencli|xmachine>[,..]]");
     println!("  init-repo [targetPath] [projectName] [--blank] [--force]");
     println!("  resolve-catalog [--catalog-path <path>] [--config-path <path>] [--lockfile-path <path>] [--dry-run]");
+    println!("  translation-freshness            Report docs/i18n translation freshness");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
@@ -714,6 +715,35 @@ fn cmd_resolve_catalog(args: &[String]) -> ExitCode {
     }
 }
 
+fn cmd_translation_freshness() -> ExitCode {
+    let repo_root = match std::env::current_dir() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("gal translation-freshness: {e}");
+            return ExitCode::Error;
+        }
+    };
+
+    let report = gal_engine::translation::run_translation_freshness(
+        &repo_root,
+        &["README.md", "docs/manual.md"],
+    );
+    if report.rows.is_empty() {
+        println!("No docs/i18n/ tree found; nothing to check.");
+        return ExitCode::Success;
+    }
+
+    println!("{:<34} {:<8} {:<9} NOTE", "DOC", "LANG", "STATUS");
+    for row in report.rows {
+        println!("{:<34} {:<8} {:<9} {}", row.doc, row.lang, row.status, row.note);
+    }
+    println!(
+        "Summary: current={}  stale={}  missing={}",
+        report.current, report.stale, report.missing
+    );
+    ExitCode::Success
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -848,6 +878,8 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::InitRepo) => cmd_init_repo(args),
         // T-028: wired resolve-catalog
         Action::NotWired(CommandKind::ResolveCatalog) => cmd_resolve_catalog(args),
+        // T-030: wired translation freshness
+        Action::NotWired(CommandKind::TranslationFreshness) => cmd_translation_freshness(),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());

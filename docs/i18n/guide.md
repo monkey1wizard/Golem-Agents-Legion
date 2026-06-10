@@ -46,8 +46,7 @@ Create `docs/i18n/<lang>/` and add translations as above. The naming, allowlist,
 ## Check freshness
 
 ```bash
-pwsh -NoProfile -File ./scripts/Test-TranslationFreshness.ps1   # Windows
-./scripts/test-translation-freshness.sh                          # macOS / Linux
+gal translation-freshness
 ```
 
 Reports each `(doc, lang)` as `current`, `stale`, or `missing`.

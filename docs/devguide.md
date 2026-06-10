@@ -1010,7 +1010,7 @@ status: current | stale     # human hint; the check recomputes from source_commi
 ---
 ```
 
-`scripts/Test-TranslationFreshness.ps1` (or `scripts/test-translation-freshness.sh`) scans `docs/i18n/`, compares `source_commit` against `git log -1 --format=%H -- <source>`, and reports each `(doc, lang)` as `current`, `stale` (hash differs, missing, or a non-hash placeholder like `PENDING`), or `missing` (an allowlisted pair with no translation). It is report-only and scales linearly with languages and docs — it does not extend the structure-map schema.
+`gal translation-freshness` scans `docs/i18n/`, compares `source_commit` against `git log -1 --format=%H -- <source>`, and reports each `(doc, lang)` as `current`, `stale` (hash differs, missing, or a non-hash placeholder like `PENDING`), or `missing` (an allowlisted pair with no translation). It is report-only and scales linearly with languages and docs — it does not extend the structure-map schema.
 
 Operational notes:
 
