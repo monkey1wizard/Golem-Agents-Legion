@@ -55,6 +55,7 @@
 - [ ] R21 (i18n 薄路標) — 新增 `docs/i18n/guide.md`（EN-only meta，不列 allowlist）：用途、資料夾/命名範例、現有語言清單、「如何加一個語言/翻譯」步驟 + front-matter 模板，並連回 devguide 權威政策。**不複製**政策 rationale，避免雙處 drift。
 - [ ] R18 (語言切換 head) — canonical（`README.md`、`docs/manual.md`）與各 `docs/i18n/<lang>/` 副本頂部加語言切換連結（canonical ↔ 各語言）；該 head 不計入 README 400 行預算。
 - [ ] R17 (devguide 狠整併) — devguide 由 18 個平鋪 H2 重構為 **6 個 H2**：`Overview & Dev Setup` / `Install Mode vs Source Mode` / `Codebase & Runtime Structure` / `Distribution & Release Architecture` / `Making Changes` / `Conventions`。標註版 `Codebase Data Structure` 與 `.gal Data Structure` tree 自帶「用途·層·owner·protected·schema」，吸收並取代 `Start By Finding The Right Layer`、`Where Information Belongs`、`Owning Surfaces`、`Runtime File Schemas`。合併重疊節（`Runtime Topology`+topology `Runtime Flow`、`Distribution Architecture`+`Ownership Boundaries`、`Provider Packaging`+`Support Tiers`、`Verify`+`Self-Check`）。刪除整個 Quick Reference（`Suggested Reading Order`、`Related Files`、獨立 `Self-Check`）。dev-mode 啟用不在 devguide 重複。
+- [x] R22 (規劃文件 OQ 生命週期慣例；2026-06-10 追加) — devguide `Documentation Conventions` 增「Planning-Doc OQ Lifecycle」規則：OQ 是鷹架——解答後把裁決**固化進所屬區段**（如 `## Decisions` 表），刪除 OQ 條目本身；一份計畫的 OQ 全數解答後做**全文重寫**而非增量補丁，消除「見 OQ-xxx」式互指殘留。動機：增量補丁讓計畫內容指來指去難以閱讀（2026-06-10 跨計畫 deep-planning 實證）。
 
 ## 方法
 
@@ -368,3 +369,4 @@ Rationale：
 
 - [x] T-014 — 跑 `Sync-DevContext` 重生 `CLAUDE/GEMINI/AGENTS/copilot`（衍生物，不手改）。
 - [x] T-015 — 全 repo 相對連結 + section-anchor 檢查（涵蓋 `docs/i18n/**`），修正所有斷連（MISS-03 收尾）。
+- [x] T-016 (R22；2026-06-10 追加) — devguide `Documentation Conventions` 增「Planning-Doc OQ Lifecycle」節：OQ 解答後固化進 Decisions、刪 OQ 條目；全數解答後全文重寫、不留互指殘留。
