@@ -34,6 +34,7 @@ fn print_help() {
     println!("        [--replace] [--bootstrap-install] [--selected-runtimes <csv>] [--primary-runtime <v>]");
     println!("  setup --tools [--check] [--tool <gstack|graphify|opencli|xmachine>[,..]]");
     println!("  init-repo [targetPath] [projectName] [--blank] [--force]");
+    println!("  resolve-catalog [--catalog-path <path>] [--config-path <path>] [--lockfile-path <path>] [--dry-run]");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
@@ -624,6 +625,95 @@ fn cmd_init_repo(args: &[String]) -> ExitCode {
     }
 }
 
+fn cmd_resolve_catalog(args: &[String]) -> ExitCode {
+    let mut catalog_path = PathBuf::from("plugins/catalog.json");
+    let mut config_path = base::paths::machine_config_path().unwrap_or_else(|| PathBuf::from(".gal/config/config.json"));
+    let mut lockfile_path = base::paths::gal_home()
+        .map(|home| home.join("state").join("plugins.lock.json"))
+        .unwrap_or_else(|| PathBuf::from(".gal/state/plugins.lock.json"));
+    let mut dry_run = false;
+
+    let mut i = 1usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--catalog-path" => {
+                i += 1;
+                if let Some(value) = args.get(i) {
+                    catalog_path = PathBuf::from(value);
+                } else {
+                    eprintln!("gal resolve-catalog: --catalog-path requires a value");
+                    return ExitCode::Usage;
+                }
+            }
+            "--config-path" => {
+                i += 1;
+                if let Some(value) = args.get(i) {
+                    config_path = PathBuf::from(value);
+                } else {
+                    eprintln!("gal resolve-catalog: --config-path requires a value");
+                    return ExitCode::Usage;
+                }
+            }
+            "--lockfile-path" => {
+                i += 1;
+                if let Some(value) = args.get(i) {
+                    lockfile_path = PathBuf::from(value);
+                } else {
+                    eprintln!("gal resolve-catalog: --lockfile-path requires a value");
+                    return ExitCode::Usage;
+                }
+            }
+            "--dry-run" => dry_run = true,
+            unknown => {
+                eprintln!("gal resolve-catalog: unknown option '{unknown}'");
+                return ExitCode::Usage;
+            }
+        }
+        i += 1;
+    }
+
+    match gal_engine::catalog::run_resolve_catalog(&gal_engine::catalog::ResolveCatalogOptions {
+        catalog_path,
+        config_path,
+        lockfile_path: lockfile_path.clone(),
+        dry_run,
+    }) {
+        Ok(result) => {
+            if dry_run {
+                println!("--- DRY RUN ---");
+            } else {
+                println!("Lockfile written: {}", lockfile_path.display());
+            }
+            println!("Profile: {}", result.profile_name);
+            let ids = result
+                .resolved_plugins
+                .iter()
+                .filter_map(|plugin| plugin.get("pluginId").and_then(serde_json::Value::as_str))
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("Resolved plugins: {ids}");
+            println!("Validation errors: {}", result.errors.len());
+            println!("Drift detected: {}", result.drift_detected);
+            for detail in result.drift_details {
+                println!("  Drift: {detail}");
+            }
+            if dry_run {
+                println!("Lockfile preview:");
+                println!("{}", serde_json::to_string_pretty(&result.lockfile).unwrap_or_default());
+            }
+            if result.errors.is_empty() {
+                ExitCode::Success
+            } else {
+                ExitCode::Error
+            }
+        }
+        Err(e) => {
+            eprintln!("gal resolve-catalog: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -756,6 +846,8 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::Smudge) => cmd_filter_transform(args, true),
         // T-027: wired init-repo
         Action::NotWired(CommandKind::InitRepo) => cmd_init_repo(args),
+        // T-028: wired resolve-catalog
+        Action::NotWired(CommandKind::ResolveCatalog) => cmd_resolve_catalog(args),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());

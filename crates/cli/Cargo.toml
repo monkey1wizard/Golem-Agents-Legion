@@ -15,6 +15,7 @@ adapters = { path = "../adapters" }
 base = { path = "../base" }
 gal-engine = { path = "../gal-engine" }
 mcp = { path = "../mcp" }
+serde_json = "1"
 setup = { version = "0.1.0", path = "../setup" }
 
 [dev-dependencies]

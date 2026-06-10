@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 28 of 35
-Last activity: 2026-06-10 — **T-027 complete** — Rust `gal init-repo` now owns repo bootstrap generation, `gal init` shell branches forward to the binary path, and `Init-Repo.*` is deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-027 reached.
-Next step: implement T-028 (R-06 — catalog parsing Rust port)
+Step: 29 of 35
+Last activity: 2026-06-10 — **T-028 complete** — Rust `gal resolve-catalog` now owns deterministic plugin resolution and lockfile output, and `Resolve-GalCatalog.ps1` plus its old PowerShell harness are deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-028 reached.
+Next step: implement T-029 (R-06 — release packaging into `gal release`)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-027 is closed: `gal init-repo` now creates `.dev/project.md` and `.dev/state.md` from the tracked templates, performs adopt-existing scanning plus graphify stamp inspection, runs `gal sync`, and the `gal init` shell branches now forward to that binary path with `Init-Repo.*` deleted.
+T-028 is closed: the catalog resolver now lives in Rust as `gal resolve-catalog`, preserves the existing profile/default/explicit selection contract, writes the lockfile shape directly, and the old resolver script plus its PowerShell harness are deleted.
 
-The exact next step is T-028: port `Resolve-GalCatalog.ps1` into Rust and replace the remaining catalog script/test surface before deleting that script.
+The exact next step is T-029: finish collapsing release packaging fully into `gal release`, then delete the remaining packaging script pair only after the existing release tests and one command-path check stay green.
 
 ## Tasks
 
@@ -171,7 +171,7 @@ R-06 misc (per item: port → parity → delete)
 - [x] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`. *(closeout: added `crates/gal-engine/src/git_filters.rs`, wired `clean` / `smudge` through `cli`, repointed setup/adapters git filter registration to `gal clean` / `gal smudge`, and deleted the bash filter scripts after focused filter tests passed)*
 - [x] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`. *(closeout: uninstall now removes Rust-managed provider ledgers/projections, uses shared home resolution for ledger/uninstall paths, and deletes the uninstall wrapper pair after the focused uninstall probe passed)*
 - [x] T-027 — Port `init-repo` → Rust; parity; delete pair. *(closeout: added `crates/cli/src/init_repo.rs`, wired `gal init-repo` in the Rust CLI, repointed `scripts/gal.ps1` and `scripts/gal.sh` init branches to the binary path, and deleted `Init-Repo.*` after a temp-repo executable smoke check passed)*
-- [ ] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete.
+- [x] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete. *(closeout: added `crates/gal-engine/src/catalog.rs`, wired `gal resolve-catalog` in the CLI, matched the default/dart/full/explicit profile contract with focused tests, and deleted `Resolve-GalCatalog.ps1` plus `Test-ResolveGalCatalog.ps1` after an executable dry-run check passed)*
 - [ ] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`.
 - [ ] T-030 — Port translation freshness → Rust; parity; delete pair.
 
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-028] 2026-06-10 — PASS (TP-20 slice: catalog resolver)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-028 parity for deterministic catalog resolution and lockfile output.
+
+- **Resolver tests green** — `cargo test -p gal-engine catalog -- --nocapture` passes for default profile, named profile, full profile, explicit enabled plugins, and validation-error coverage.
+- **Command path green** — `cargo check -p cli` passes, and `cargo run -p cli -- resolve-catalog --dry-run` emits the expected dry-run profile, resolved plugin list, drift flag, and lockfile preview.
+- **Deletion gate held** — `scripts/Resolve-GalCatalog.ps1` and `scripts/Test-ResolveGalCatalog.ps1` deleted only after the focused tests and executable dry-run passed.
+
 ### [T-027] 2026-06-10 — PASS (TP-20 slice: init-repo)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-027 parity for repo bootstrap generation.
@@ -944,6 +952,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-028] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** T-028 uses a hidden binary subcommand (`gal resolve-catalog`) as the bounded replacement surface because no public shell dispatcher or runtime wrapper still needed the old resolver script.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-027] 2026-06-10 — APPROVE
 

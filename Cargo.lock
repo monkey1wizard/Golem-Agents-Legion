@@ -114,6 +114,7 @@ dependencies = [
  "base",
  "gal-engine",
  "mcp",
+ "serde_json",
  "setup",
  "tempfile",
 ]

@@ -4,6 +4,7 @@
 //! exit-code classification, and path resolution.
 
 pub mod commit_msg;
+pub mod catalog;
 pub mod doctor;
 pub mod git_filters;
 pub mod install;
@@ -44,12 +45,14 @@ pub enum CommandKind {
     Smudge,
     /// `gal init-repo [targetPath] [projectName] [--blank] [--force]`.
     InitRepo,
+    /// `gal resolve-catalog` — deterministic plugin resolution and lockfile output.
+    ResolveCatalog,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 13] = [
+    pub const ALL: [CommandKind; 14] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
@@ -62,6 +65,7 @@ impl CommandKind {
         CommandKind::Clean,
         CommandKind::Smudge,
         CommandKind::InitRepo,
+        CommandKind::ResolveCatalog,
         CommandKind::DispatchScript,
     ];
 
@@ -80,6 +84,7 @@ impl CommandKind {
             CommandKind::Clean => "clean",
             CommandKind::Smudge => "smudge",
             CommandKind::InitRepo => "init-repo",
+            CommandKind::ResolveCatalog => "resolve-catalog",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -99,6 +104,7 @@ impl CommandKind {
             "clean" => Some(CommandKind::Clean),
             "smudge" => Some(CommandKind::Smudge),
             "init-repo" => Some(CommandKind::InitRepo),
+            "resolve-catalog" => Some(CommandKind::ResolveCatalog),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -170,6 +176,7 @@ mod tests {
         assert_eq!(CommandKind::parse("clean"), Some(CommandKind::Clean));
         assert_eq!(CommandKind::parse("smudge"), Some(CommandKind::Smudge));
         assert_eq!(CommandKind::parse("init-repo"), Some(CommandKind::InitRepo));
+        assert_eq!(CommandKind::parse("resolve-catalog"), Some(CommandKind::ResolveCatalog));
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)
