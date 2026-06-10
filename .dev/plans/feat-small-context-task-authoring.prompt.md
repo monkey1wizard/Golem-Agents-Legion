@@ -134,10 +134,10 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: DRAFT
-Step: 0 of 8
-Last activity: 2026-06-10 — prompt generated from source plan
-Next step: implement T-01 (Route ①; this plan is the first to land)
+Workflow: IMPLEMENT
+Step: 1 of 8
+Last activity: 2026-06-10 — **T-01 complete** — moved `## Approval` in `plugins/gal-core/templates/plan.md` to directly follow the title, and grep-confirmed the nearby plan consumers remain section-name driven. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-02 (Route ① continues with the New-TaskSpec extractor upgrade)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -158,7 +158,7 @@ _(none yet)_
 
 > Each task is self-contained: target file path, concrete change, in-place acceptance, convention pointers. Protected-path tasks (templates/refining-plan/gal-pipeline/dispatch) get per-item sign-off at implementation time.
 
-- [ ] **T-01 (R-001) — templates/plan.md Approval to top**
+- [x] **T-01 (R-001) — templates/plan.md Approval to top**
   - File: `plugins/gal-core/templates/plan.md` (protected). Current: `## Approval` at line 51 (after `## Open Questions`, before `## Review Results`); `## Goal` at line 3.
   - Change: move the whole `## Approval` block (3 bullets) to after the `# Plan: [Feature Name]` title and before `## Goal`; keep all other section order.
   - Acceptance: TP-01. New `/planning` plan has Approval at top; commands that parse by section name (`/refining-plan` Step 1/3/4, `/plan-to-prompt`, `New-TaskSpec.ps1`'s `## Files to Create or Modify`/`T-NNN` scans) are position-independent — grep-confirm these parsers use section names (`^## Approval` etc.), not line numbers.
@@ -232,7 +232,13 @@ _(pending implementation)_
 
 ## Test Results
 
-_(none yet)_
+### [T-01] 2026-06-10 — PASS (TP-01 slice: template Approval order)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-01 template reorder with parser-safety confirmation.
+
+- **Template change landed** — `plugins/gal-core/templates/plan.md` now places `## Approval` immediately after `# Plan:` and before `## Goal`, with the original bullet content unchanged.
+- **Focused validation green** — `get_errors` on the touched template returned no issues after the edit.
+- **Section-name parsing still holds** — targeted grep checks against nearby plan consumers showed section-name references for `## Approval` / plan sections and no line-number dependency in the touched slice.
 
 ## Review Results
 
@@ -276,6 +282,32 @@ Not requested (no customer-facing surface).
 8 T-NNN map to R-001..R-008, each commit-size and independently verifiable. The tasks themselves obey this plan's own R-002 self-contained contract (file:line pointers, concrete change, in-place acceptance, convention pointers, no full text) as a self-bootstrapping demo. Key ordering: T-04 (dispatch probe fn) → T-05 (doctor uses the fn); T-03→T-06→T-08 all edit `refining-plan/SKILL.template.md` and must stack distinct contract subsections in order. Protected paths (templates/refining-plan/gal-pipeline/dispatch) get per-item sign-off at implementation. Architect C1..C4 mapped into each task's acceptance. Cross-plan: T-06 edits `gal-pipeline/SKILL.template.md`, which the auditor plan also restructures — this plan lands first, auditor rebases (Route ①→②).
 
 <!-- ENG_REVIEW: CLEAR -->
+
+### [T-01] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `07e5c7d`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The diff is limited to section movement inside `plugins/gal-core/templates/plan.md`; no bullet content changed.
+- **[I-02]** The local parser check matched section-name driven consumers, which is the relevant regression surface for this task.
+
+#### Architect conditions check (T-01 slice)
+- Protected-path scope held to the one template file only. ✓
+- Existing command behavior remains section-name driven in the nearby validated surfaces. ✓
+
+#### Security note (task-scoped)
+Static template reorder only; no executable surface changed. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
 
 ## Debug Log
 

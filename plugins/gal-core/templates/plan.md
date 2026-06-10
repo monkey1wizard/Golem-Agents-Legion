@@ -1,5 +1,11 @@
 # Plan: [Feature Name]
 
+## Approval
+
+- Human approval: [pending]
+- Architect review: [pending]
+- Additional domain review: [not requested]
+
 ## Goal
 
 [What this change accomplishes and why it matters — stated as a truth that must hold when done]
@@ -47,12 +53,6 @@
 
 <!-- Format: - [ ] OQ-NNN — description *(raised by: command)* -->
 <!-- Resolved: - [x] OQ-NNN — description *(raised by: command, resolved by: engineering-review-lane)* -->
-
-## Approval
-
-- Human approval: [pending]
-- Architect review: [pending]
-- Additional domain review: [not requested]
 
 ## Review Results
 

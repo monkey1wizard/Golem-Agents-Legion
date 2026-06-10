@@ -188,7 +188,7 @@ Not requested(無 customer-facing)。
 
 > 每個 task 自足:含目標檔路徑、具體改動、就地驗收、慣例指標。受保護路徑(templates/refining-plan/gal-pipeline/dispatch)實作期逐項簽核。
 
-- [ ] **T-01 (R-001) — templates/plan.md Approval 置頂**
+- [x] **T-01 (R-001) — templates/plan.md Approval 置頂**
   - 檔案:`plugins/gal-core/templates/plan.md`(受保護)。現況:`## Approval` 在 line 51(`## Open Questions` 後、`## Review Results` 前);`## Goal` 在 line 3。
   - 改動:整段 `## Approval`(含 3 行 bullet)上移到 `# Plan: [Feature Name]` 之後、`## Goal` 之前;其餘區段順序不變。
   - 驗收:TP-01。`/planning` 新計畫 Approval 置頂;以區段名稱解析的命令(`/refining-plan` Step 1/3/4、`/plan-to-prompt`、`New-TaskSpec.ps1` 的 `## Files to Create or Modify`/`T-NNN` 掃描)不受位置影響——grep 確認這些解析器皆用區段名(`^## Approval` 等)非行號。
