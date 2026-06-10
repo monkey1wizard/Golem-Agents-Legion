@@ -78,6 +78,7 @@ Overwrite the placeholder in the source plan `## Test Plan` with a matrix aligne
 Include unit, integration, and manual test entries as appropriate.
 Each test-plan row should validate the acceptance condition stated in its matching `T-NNN` task, so an implementer or tester can verify the task from the task spec alone instead of reconstructing missing context from the full plan.
 Where a task's acceptance depends on dispatch evidence, the matching test-plan row must check both the focused behavior and the named evidence shape instead of treating an unverified PASS claim as sufficient.
+When the task adds or renames `crates/gal-engine/tests/*.rs` files, avoid `install`, `setup`, `update`, and `patch` in the filename unless the crate already ships an `asInvoker` manifest, and never treat a spawn failure such as Windows error 740 as exit 0 just because the command ran through a pipe.
 
 ## Step 5 — Write Engineering Review Verdict
 

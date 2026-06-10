@@ -224,7 +224,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-08。對齊 honest-test-pass-bar(memory `feedback_honest_test_pass_bar`)。
   - 慣例:markdown-formatting。**注意:gal-pipeline SKILL 亦被 auditor 計畫 R-002/R-004 重構——本計畫先落硬擋文字,auditor rebase 時保留之。**
 
-- [ ] **T-07 (R-007) — gal-engine 測試檔名陷阱自掃測試**
+- [x] **T-07 (R-007) — gal-engine 測試檔名陷阱自掃測試**
   - 檔案:`[ADD] crates/gal-engine/tests/<避開陷阱字的檔名>.rs`(如 `test_filename_guard.rs`——自身不含 `install`/`setup`/`update`/`patch`)。
   - 改動:一個單元/整合測試,讀 `crates/gal-engine/tests/` 目錄列出 `*.rs` 檔名,assert 無檔名(去掉 `.rs`)含 `install`/`setup`/`update`/`patch` 子字串(case-insensitive);內建 asInvoker 豁免註記(若該 crate 日後加 manifest 則改為跳過)。陷阱字清單為測試內常數。
   - 驗收:TP-09、TP-11。實證:R-05 `install_family_r05`、R-06 `uninstall_r06` 連兩次中招(見 `## Evidence`)。同步在 `golem-tester` 契約或 refining-plan 測試命名指引加一句:測試檔名避開該四字、spawn 失敗(含 os error 740)不得經 pipe 被讀成 exit 0。

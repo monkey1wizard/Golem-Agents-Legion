@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 6 of 8
-Last activity: 2026-06-10 — **T-06 complete** — `refining-plan` now requires focused probe + evidence shape in task contracts, and `gal-pipeline` hard-blocks dispatched PASS or APPROVE results that lack the named evidence while preserving `DEGRADED_BUNDLED` fallback evidence rules. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-07 (Route ① continues with the gal-engine filename guard test)
+Step: 7 of 8
+Last activity: 2026-06-10 — **T-07 complete** — `gal-engine` now has an in-crate filename guard test for the Windows UAC trap words, and `refining-plan` warns authors not to use those names or misread error 740 through piped execution. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-08 (Route ① finishes with the refactor self-clean contract)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -194,7 +194,7 @@ _(none yet)_
   - Acceptance: TP-08. Aligns with honest-test-pass-bar (memory `feedback_honest_test_pass_bar`).
   - Conventions: markdown-formatting. **Note: gal-pipeline SKILL is also restructured by the auditor plan R-002/R-004 — this plan lands the hard-block text first, auditor preserves it on rebase.**
 
-- [ ] **T-07 (R-007) — gal-engine test-filename trap self-scan test**
+- [x] **T-07 (R-007) — gal-engine test-filename trap self-scan test**
   - File: `[ADD] crates/gal-engine/tests/<trap-free filename>.rs` (e.g. `test_filename_guard.rs` — itself free of `install`/`setup`/`update`/`patch`).
   - Change: a unit/integration test that lists `*.rs` filenames in `crates/gal-engine/tests/` and asserts no filename (minus `.rs`) contains the `install`/`setup`/`update`/`patch` substrings (case-insensitive); include an asInvoker-exemption note (if the crate later adds a manifest, switch to skip). The trap-word list is a constant inside the test.
   - Acceptance: TP-09, TP-11. Evidence: R-05 `install_family_r05`, R-06 `uninstall_r06` hit it twice (see `## Approach > Evidence`). Also add to the `golem-tester` contract or the refining-plan test-naming guidance: test filenames avoid those four words, and a spawn failure (incl. os error 740) must not be read as exit 0 through a pipe.
@@ -279,6 +279,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused contract update for 
 - **Refining-plan contract landed** — task authoring guidance now requires the focused probe and evidence shape, including the executor-log `completed` + write-back pointer expectation for dispatched runs.
 - **Pipeline hard block landed** — the test and review gates now stop immediately when dispatched PASS or APPROVE results lack the named evidence instead of advancing on an unverified claim.
 - **C3 fallback preserved** — both gate bullets explicitly keep `DEGRADED_BUNDLED` evidence on task-scoped `## Test Results` or `## Review Results` write-back instead of imposing executor-log requirements on manual-mode runs.
+
+### [T-07] 2026-06-10 — PASS (TP-09 slice: filename guard)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused `gal-engine` self-scan guard for forbidden test filename substrings.
+
+- **Guard test green** — `cargo test -p gal-engine --test filename_guard_r07` passed and confirmed the current `gal-engine/tests` filenames avoid the forbidden UAC-trigger words.
+- **Manifest exemption encoded** — the new test skips only when it detects an `asInvoker` manifest marker under the crate root, which preserves the plan’s C4 escape hatch without adding CI-only infrastructure.
+- **Authoring guidance aligned** — `refining-plan` now tells task authors to avoid those four words in `crates/gal-engine/tests/*.rs` filenames and to treat Windows error 740 as a real spawn failure, not a piped exit-0 success.
 
 ## Review Results
 
@@ -475,6 +483,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Contract and orchestrator-gate text only; no runtime permission or execution surface changed. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-07] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `f8f0475`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The guard is fully in-crate and runs with normal Rust tests, so it catches the filename trap without introducing a new lint or CI lane.
+- **[I-02]** The exemption remains future-proof but dormant: no current `gal-engine` asInvoker manifest was detected during this task.
+
+#### Architect conditions check (T-07 slice)
+- The guard is implemented as a crate-local self-scan test, not external infrastructure. ✓
+- The forbidden-word list is explicit and the asInvoker escape hatch is preserved. ✓
+
+#### Security note (task-scoped)
+Test-only guard plus authoring guidance; no runtime execution surface changed. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2
