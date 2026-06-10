@@ -64,6 +64,7 @@ Keep the task pointer-style and budget-bounded:
 - Target a `<5KB`-class instruction + pointer budget per task. The limit exists to keep the task focused and cheap to dispatch, not because of model context-window size.
 - If a task cannot stay within that budget while remaining self-contained, split it into smaller atomic tasks before finalizing `## Tasks`.
 - When the task is expected to run through headless dispatch, name the evidence as an executor-log terminal state of `completed` plus the observable write-back pointer the orchestrator should verify. When the run is intentionally `DEGRADED_BUNDLED`, name the reproducible command output or task-scoped write-back evidence instead of pretending an executor log exists.
+- Make each task self-cleaning: if the change would orphan dead helpers, stale tests, or copied caveats, the same task must remove or refresh them before it can be called done. The orchestrator and reviewer should treat leftover residue as a task failure, not a follow-up nicety.
 
 ## Step 4 — Write ## Test Plan
 

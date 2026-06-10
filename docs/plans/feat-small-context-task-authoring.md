@@ -230,7 +230,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-09、TP-11。實證:R-05 `install_family_r05`、R-06 `uninstall_r06` 連兩次中招(見 `## Evidence`)。同步在 `golem-tester` 契約或 refining-plan 測試命名指引加一句:測試檔名避開該四字、spawn 失敗(含 os error 740)不得經 pipe 被讀成 exit 0。
   - 慣例:rust;C4 守衛=crate 內自掃測試,零 CI 基礎設施。
 
-- [ ] **T-08 (R-008) — refactor 自清契約**
+- [x] **T-08 (R-008) — refactor 自清契約**
   - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-06 後)。
   - 改動:task 撰寫契約加「自清」條款:改動孤兒化的碼/測試(死 helper、引用已刪檔的測試)須由**同一 task** 清除;phase 間 caveat 須更新、不得原文複製過期內容;orchestrator/reviewer gate 須檢查殘留。
   - 驗收:TP-10。實證:R-05 死 `build_shared_args`、空轉 AGY 測試、`link.exe` caveat 跨 R-05→R-06 複製(見 `## Evidence`)。
