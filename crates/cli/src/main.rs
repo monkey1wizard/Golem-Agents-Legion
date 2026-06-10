@@ -12,6 +12,7 @@
 mod init_repo;
 
 use gal_engine::{classify_args, Action, CommandKind, ExitCode};
+use base::health::HealthCheck;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
 
@@ -253,7 +254,24 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
     let release_gate = args.iter().any(|a| a == "--release-gate");
 
     let opts = DoctorOptions { dry_run, release_gate };
-    let report = run_doctor(&opts);
+    let mut report = run_doctor(&opts);
+
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    if let Some(check) = mcp::McpProjectionHealthCheck::from_standard_path() {
+        report.findings.extend(check.check());
+    }
+    report.findings.extend(
+        setup::health::SetupHealthCheck {
+            repo_root: repo_root.clone(),
+        }
+        .check(),
+    );
+    if let Some(home) = base::paths::user_home() {
+        let shared_skills_root = home.join(".agents").join("skills");
+        report
+            .findings
+            .extend(adapters::SkillsProjectionHealthCheck::with_path(shared_skills_root).check());
+    }
 
     if report.findings.is_empty() {
         println!("gal doctor: all checks passed.");
@@ -961,6 +979,12 @@ mod tests {
     fn doctor_dry_run_is_wired() {
         let result = run(&["doctor".to_string(), "--dry-run".to_string()]);
         assert_ne!(result, ExitCode::NotWired, "doctor --dry-run must be wired (T-012)");
+    }
+
+    #[test]
+    fn doctor_command_remains_wired_after_domain_health_aggregation() {
+        let result = run(&["doctor".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "doctor must stay wired after T-031 aggregation");
     }
 
     // T-013: commit-msg is wired

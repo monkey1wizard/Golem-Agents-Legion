@@ -327,7 +327,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-030** — port translation freshness → Rust;parity;刪對。*(closeout: Rust `gal translation-freshness` owns the report path; old translation script pair deleted after unit + executable validation)*
 
 **R-11/R-07/R-10 收尾**
-- [ ] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。
+- [x] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。*(closeout: CLI doctor now aggregates MCP projection, setup, and shared-skills projection checks on top of the base doctor report)*
 - [ ] **T-032（R-07）** — port `gal.{ps1,sh}` 核心子命令進 `cli`(名詞分組);改 `gal`/`gal-init` SKILL.template 引用指 binary。入口檔物理刪除掛跨計畫尾端。
 - [ ] **T-033（R-09/R-12,硬 gate）** — `scripts/` 核心家族清空(共用 `common.*`/`gal.{ps1,sh}` 與姊妹計畫共同尾端刪);`cargo test` 綠且測試碼不再 spawn 核心 live script(grep 驗)。
 

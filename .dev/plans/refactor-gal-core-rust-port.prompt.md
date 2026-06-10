@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 31 of 35
-Last activity: 2026-06-10 — **T-030 complete** — Rust `gal translation-freshness` now owns translation freshness reporting and the old translation script pair is deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-030 reached.
-Next step: implement T-031 (R-11 — doctor aggregates domain health checks)
+Step: 32 of 35
+Last activity: 2026-06-10 — **T-031 complete** — `gal doctor` now aggregates the domain `HealthCheck` implementations for MCP projection, setup/git-filter state, and shared skills projection at the CLI edge. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-031 reached.
+Next step: implement T-032 (R-07 — update `gal` / `gal-init` command references to the binary path)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-R-06 is now fully closed through T-030. Translation freshness is owned by the Rust `gal translation-freshness` command, and the legacy translation script pair is deleted.
+T-031 is closed: `gal doctor` now extends the base `gal_engine::doctor` report with the existing MCP, setup, and adapters health checks from the CLI edge, avoiding a new crate cycle into `gal-engine`.
 
-The next exact step is T-031: aggregate the domain `HealthCheck` implementations into `gal doctor` so filter/setup/sync surfaces report through the main health command.
+The exact next step is T-032: update the `gal` / `gal-init` skill templates and any remaining command-surface references so the binary path is the documented source of truth for the core subcommands.
 
 ## Tasks
 
@@ -176,7 +176,7 @@ R-06 misc (per item: port → parity → delete)
 - [x] T-030 — Port translation freshness → Rust; parity; delete pair. *(closeout: added `crates/gal-engine/src/translation.rs`, wired `gal translation-freshness` in the CLI, validated unit + executable report output, and deleted the legacy translation script pair)*
 
 R-11/R-07 closeout
-- [ ] T-031 (R-11) — `cli` aggregates each domain's `HealthCheck` into `gal doctor`, extending to mcp/setup/sync/filter; fail-loud.
+- [x] T-031 (R-11) — `cli` aggregates each domain's `HealthCheck` into `gal doctor`, extending to mcp/setup/sync/filter; fail-loud. *(closeout: CLI doctor now appends `McpProjectionHealthCheck`, `SetupHealthCheck`, and `SkillsProjectionHealthCheck` findings on top of the base doctor report)*
 - [ ] T-032 (R-07) — Port core subcommands of `gal.{ps1,sh}` into `cli`; update `gal`/`gal-init` SKILL.template references. Entry-file physical deletion deferred to cross-plan end-gate.
 - [ ] T-033 (R-09/R-12, hard gate) — `scripts/` core family emptied (shared `common.*`/`gal.{ps1,sh}` at cross-plan end-gate); `cargo test` green and test code no longer spawns core live scripts (grep-verified).
 
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-031] 2026-06-10 — PASS (TP-21 slice: doctor aggregation)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-031 aggregation of domain health checks into the main doctor command.
+
+- **CLI doctor checks green** — `cargo check -p cli` passes after wiring the extra domain checks.
+- **Focused doctor tests green** — `cargo test -p cli doctor -- --nocapture` passes, and the command remains wired after the aggregation change.
+- **Scope held** — aggregation happens at the CLI edge only; no new dependency cycle was introduced into `gal-engine`.
+
 ### [T-030] 2026-06-10 — PASS (TP-20 slice: translation freshness)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-030 parity for translation freshness reporting.
@@ -968,6 +976,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-031] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The extra warnings printed by the focused doctor test are expected in this environment because the MCP projection file is absent; that confirms the new aggregation is active rather than indicating a regression.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-030] 2026-06-10 — APPROVE
 
