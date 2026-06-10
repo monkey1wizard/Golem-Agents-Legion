@@ -42,12 +42,14 @@ pub enum CommandKind {
     /// `gal clean` / `gal smudge` — git filter content transforms (T-025, R-06).
     Clean,
     Smudge,
+    /// `gal init-repo [targetPath] [projectName] [--blank] [--force]`.
+    InitRepo,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 12] = [
+    pub const ALL: [CommandKind; 13] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
@@ -59,6 +61,7 @@ impl CommandKind {
         CommandKind::Setup,
         CommandKind::Clean,
         CommandKind::Smudge,
+        CommandKind::InitRepo,
         CommandKind::DispatchScript,
     ];
 
@@ -76,6 +79,7 @@ impl CommandKind {
             CommandKind::Setup => "setup",
             CommandKind::Clean => "clean",
             CommandKind::Smudge => "smudge",
+            CommandKind::InitRepo => "init-repo",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -94,6 +98,7 @@ impl CommandKind {
             "setup" => Some(CommandKind::Setup),
             "clean" => Some(CommandKind::Clean),
             "smudge" => Some(CommandKind::Smudge),
+            "init-repo" => Some(CommandKind::InitRepo),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -164,6 +169,7 @@ mod tests {
         assert_eq!(CommandKind::parse("setup"), Some(CommandKind::Setup));
         assert_eq!(CommandKind::parse("clean"), Some(CommandKind::Clean));
         assert_eq!(CommandKind::parse("smudge"), Some(CommandKind::Smudge));
+        assert_eq!(CommandKind::parse("init-repo"), Some(CommandKind::InitRepo));
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)

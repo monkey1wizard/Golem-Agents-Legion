@@ -597,7 +597,7 @@ golem_class() {
 
 case "$command" in
   init)
-    "$script_dir/init-repo.sh" "$@"
+    gal init-repo "$@"
     ;;
   xmachine)
     parse_xmachine_task_shorthand "$@"

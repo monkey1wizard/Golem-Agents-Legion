@@ -9,6 +9,8 @@
 //! gal_engine::commit_msg. This fully replaces the retired
 //! Get-StagedCommitMessage.ps1 / get-staged-commit-message.sh helpers.
 
+mod init_repo;
+
 use gal_engine::{classify_args, Action, CommandKind, ExitCode};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
@@ -31,6 +33,7 @@ fn print_help() {
     println!("  setup [--check|--dry-run|--reconfigure|--uninstall [--purge --confirm-purge]]");
     println!("        [--replace] [--bootstrap-install] [--selected-runtimes <csv>] [--primary-runtime <v>]");
     println!("  setup --tools [--check] [--tool <gstack|graphify|opencli|xmachine>[,..]]");
+    println!("  init-repo [targetPath] [projectName] [--blank] [--force]");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
@@ -584,6 +587,43 @@ fn cmd_filter_transform(args: &[String], smudge: bool) -> ExitCode {
     }
 }
 
+fn cmd_init_repo(args: &[String]) -> ExitCode {
+    let options = match init_repo::parse_init_repo_options(args) {
+        Ok(options) => options,
+        Err(e) => {
+            eprintln!("gal init-repo: {e}");
+            return ExitCode::Usage;
+        }
+    };
+
+    match init_repo::run_init_repo(&options) {
+        Ok(report) => {
+            println!("Initialized repo context in: {}", report.target_path.display());
+            println!("- Created: .dev/project.md");
+            println!("- Created: .dev/state.md");
+            println!("- Ensured: docs/plans/");
+            println!("- Generated: .github/copilot-instructions.md");
+            println!("- Generated: GEMINI.md");
+            println!("- Generated: CLAUDE.md");
+            println!("- Generated: AGENTS.md");
+            println!("- Next: review .dev/project.md, fill in summary fields, then run /gal status");
+            if !report.source_docs.is_empty() {
+                println!();
+                println!("Adopt-existing: found {} source document(s).", report.source_docs.len());
+                println!("Review .dev/project.md and fill in summaries from discovered docs.");
+            }
+            if !report.tech_hints.is_empty() {
+                println!("Detected tech stack: {}", report.tech_hints.join(", "));
+            }
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("gal init-repo: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -714,6 +754,8 @@ fn run(args: &[String]) -> ExitCode {
         // T-025: wired git clean/smudge filters
         Action::NotWired(CommandKind::Clean) => cmd_filter_transform(args, false),
         Action::NotWired(CommandKind::Smudge) => cmd_filter_transform(args, true),
+        // T-027: wired init-repo
+        Action::NotWired(CommandKind::InitRepo) => cmd_init_repo(args),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());

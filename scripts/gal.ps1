@@ -716,7 +716,7 @@ $utilityGolems = @('golem-debugger','golem-notewriter')
 
 switch ($Command) {
     "init" {
-        & (Join-Path $scriptRoot "Init-Repo.ps1") @Arguments
+        & gal init-repo @Arguments
         break
     }
     "xmachine" {

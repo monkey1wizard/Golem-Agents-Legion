@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 27 of 35
-Last activity: 2026-06-10 — **T-026 complete** — Rust `gal uninstall` now removes the Rust-managed provider outputs introduced by R-05, uses the shared home-resolution layer for ledger/uninstall paths, and the uninstall wrapper scripts were deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-026 reached.
-Next step: implement T-027 (R-06 — `init-repo` Rust port)
+Step: 28 of 35
+Last activity: 2026-06-10 — **T-027 complete** — Rust `gal init-repo` now owns repo bootstrap generation, `gal init` shell branches forward to the binary path, and `Init-Repo.*` is deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-027 reached.
+Next step: implement T-028 (R-06 — catalog parsing Rust port)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-026 is closed: `gal uninstall` now removes the Rust-managed provider outputs that survived R-05, ledger/uninstall path resolution is aligned to the shared `base::paths` layer, and `Uninstall-Machine.*` is deleted.
+T-027 is closed: `gal init-repo` now creates `.dev/project.md` and `.dev/state.md` from the tracked templates, performs adopt-existing scanning plus graphify stamp inspection, runs `gal sync`, and the `gal init` shell branches now forward to that binary path with `Init-Repo.*` deleted.
 
-The exact next step is T-027: port `Init-Repo.*` into a Rust path and only then repoint the `gal init` shell dispatcher branch and delete the script pair.
+The exact next step is T-028: port `Resolve-GalCatalog.ps1` into Rust and replace the remaining catalog script/test surface before deleting that script.
 
 ## Tasks
 
@@ -170,7 +170,7 @@ R-05 install family
 R-06 misc (per item: port → parity → delete)
 - [x] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`. *(closeout: added `crates/gal-engine/src/git_filters.rs`, wired `clean` / `smudge` through `cli`, repointed setup/adapters git filter registration to `gal clean` / `gal smudge`, and deleted the bash filter scripts after focused filter tests passed)*
 - [x] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`. *(closeout: uninstall now removes Rust-managed provider ledgers/projections, uses shared home resolution for ledger/uninstall paths, and deletes the uninstall wrapper pair after the focused uninstall probe passed)*
-- [ ] T-027 — Port `init-repo` → Rust; parity; delete pair.
+- [x] T-027 — Port `init-repo` → Rust; parity; delete pair. *(closeout: added `crates/cli/src/init_repo.rs`, wired `gal init-repo` in the Rust CLI, repointed `scripts/gal.ps1` and `scripts/gal.sh` init branches to the binary path, and deleted `Init-Repo.*` after a temp-repo executable smoke check passed)*
 - [ ] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete.
 - [ ] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`.
 - [ ] T-030 — Port translation freshness → Rust; parity; delete pair.
@@ -696,6 +696,15 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-027] 2026-06-10 — PASS (TP-20 slice: init-repo)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-027 parity for repo bootstrap generation.
+
+- **Rust command path green** — `cargo check -p cli` passes with the new `init-repo` command path and its parser.
+- **Unit coverage green** — `cargo test -p cli init_repo -- --nocapture` passes (argument parsing + adopt-existing scan coverage).
+- **Executable smoke check green** — `cargo run -p cli -- init-repo <temp-dir> TestRepo --blank` creates `.dev/project.md`, `.dev/state.md`, and generated adapter files in a temp repo.
+- **Deletion gate held** — `scripts/Init-Repo.ps1` and `scripts/init-repo.sh` deleted only after the `gal init` shell branches were repointed to `gal init-repo` and the executable smoke check passed.
+
 ### [T-026] 2026-06-10 — PASS (TP-20 slice: gal uninstall ledger precision)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-026 parity for the Rust uninstall path.
@@ -935,6 +944,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-027] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** T-027 uses a bounded hidden binary subcommand (`gal init-repo`) while the shell `init` entrypoint remains the public surface. That keeps this slice scoped without pulling the broader T-032 dispatcher rewrite into the same task.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-026] 2026-06-10 — APPROVE
 

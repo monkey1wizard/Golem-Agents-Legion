@@ -115,6 +115,7 @@ dependencies = [
  "gal-engine",
  "mcp",
  "setup",
+ "tempfile",
 ]
 
 [[package]]
