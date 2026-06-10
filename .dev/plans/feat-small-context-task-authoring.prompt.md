@@ -134,10 +134,10 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: IMPLEMENT
+Workflow: VERIFY
 Step: 8 of 8
-Last activity: 2026-06-10 — **T-08 complete** — `refining-plan` now requires each task to clean up orphaned helpers, stale tests, and copied caveats in the same task, and tells the orchestrator/reviewer to treat leftover residue as a failure. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: run verifier / release-prep follow-up for the completed plan
+Last activity: 2026-06-10 — **Verifier returned GAPS_FOUND** — implementation tasks are complete, but the TP-11 workspace clippy gate still fails, including touched `dispatch` warnings and unrelated existing `base` warnings. Run mode: DEGRADED_BUNDLED (focused manual validation + verifier write-back).
+Next step: resolve the clippy gaps, rerun verifier, then hand off to release prep
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -212,7 +212,13 @@ _(none)_
 
 ## Analyze
 
-_(pending implementation)_
+### 2026-06-10 — Verifier: GAPS_FOUND
+
+The task loop is complete and R-001..R-008 are implemented in the expected files, but the plan is not yet VERIFIED because TP-11 is currently false.
+
+- **Gap** — `cargo clippy --workspace --all-targets -- -D warnings` fails. The current failures include touched `dispatch` warnings at `crates/dispatch/src/dispatch.rs:179`, `crates/dispatch/src/dispatch.rs:208`, `crates/dispatch/src/dispatch.rs:279`, and `crates/dispatch/src/stage.rs:46`, plus existing `base` warnings at `crates/base/src/mode.rs:133`, `crates/base/src/platform.rs:30`, `crates/base/src/platform.rs:52`, `crates/base/src/runtime.rs:20`, and `crates/base/src/json_util.rs:89`.
+- **What verified successfully** — focused executable checks passed for the implemented slices: `Invoke-Pester tests/powershell/New-TaskSpec.Tests.ps1`, `cargo test -p dispatch`, `cargo test -p cli`, and `cargo test -p gal-engine --test filename_guard_r07`.
+- **Verifier conclusion** — do not hand off to release prep yet. Resolve the clippy gate, rerun the verifier, and only then treat the plan as ready for release.
 
 ## Test Plan
 
