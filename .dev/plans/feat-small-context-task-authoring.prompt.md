@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 1 of 8
-Last activity: 2026-06-10 — **T-01 complete** — moved `## Approval` in `plugins/gal-core/templates/plan.md` to directly follow the title, and grep-confirmed the nearby plan consumers remain section-name driven. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-02 (Route ① continues with the New-TaskSpec extractor upgrade)
+Step: 2 of 8
+Last activity: 2026-06-10 — **T-02 complete** — `New-TaskSpec.ps1` now extracts full multi-line task blocks from `## Tasks`, narrows `## Affected Files` to task-named paths, and has focused Pester coverage for the required boundary cases. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-03 (Route ① continues with the refining-plan task contract)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -164,7 +164,7 @@ _(none yet)_
   - Acceptance: TP-01. New `/planning` plan has Approval at top; commands that parse by section name (`/refining-plan` Step 1/3/4, `/plan-to-prompt`, `New-TaskSpec.ps1`'s `## Files to Create or Modify`/`T-NNN` scans) are position-independent — grep-confirm these parsers use section names (`^## Approval` etc.), not line numbers.
   - Conventions: markdown-formatting skill; the reorder must not change bullet content.
 
-- [ ] **T-02 (R-004) — New-TaskSpec.ps1 extractor upgrade (multi-line + per-task files)**
+- [x] **T-02 (R-004) — New-TaskSpec.ps1 extractor upgrade (multi-line + per-task files)**
   - File: `scripts/common/New-TaskSpec.ps1` (not protected). Current bug: `$taskGoal` at lines 103-104 uses `Where-Object {... $TaskScope ...} | Select-Object -First 1` (first line only); `## Affected Files` extraction at lines 113-118 takes the whole `## Files to Create or Modify` section.
   - Change: (a) `$taskGoal` extracts the full multi-line block from the `T-NNN` start line to the next `^\s*-\s*\[.?\]\s*T-\d` or `^##` boundary (preserving indented bullets); (b) `## Affected Files` scans backtick-wrapped file paths inside the extracted task block (e.g. `` `path/to/file` ``) and narrows to that task's named files; fall back to the whole `## Files to Create or Modify` only when the task names none. Keep the existing `<5KB` warning check.
   - Acceptance: TP-02, TP-03, TP-11. Add Pester tests covering multi-line/single-line/trailing/single-task boundaries and per-task file narrowing.
@@ -240,6 +240,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused T-01 template reorde
 - **Focused validation green** — `get_errors` on the touched template returned no issues after the edit.
 - **Section-name parsing still holds** — targeted grep checks against nearby plan consumers showed section-name references for `## Approval` / plan sections and no line-number dependency in the touched slice.
 
+### [T-02] 2026-06-10 — PASS (TP-02/TP-03 slice: task-block extraction + per-task files)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused extractor upgrade for `scripts/common/New-TaskSpec.ps1` with real fixture-driven PowerShell validation.
+
+- **Pester boundary coverage green** — `Invoke-Pester -Script tests/powershell/New-TaskSpec.Tests.ps1 -PassThru` passed all 5 cases covering multi-line, trailing, single-line, and fallback extraction paths.
+- **Live prompt extraction green** — running `scripts/common/New-TaskSpec.ps1 -TaskScope T-02 -PromptPath ./.dev/plans/feat-small-context-task-authoring.prompt.md -ConventionHints tests/fixtures/README.md` wrote `.dev/task-specs/T-02-implement.md` at 2.01 KB with the expected multi-line task block.
+- **Task-scoped affected files now narrow correctly** — named task paths preserve the original `## Files to Create or Modify` annotations when present and fall back to plain path bullets only when no matching file-list line exists.
+
 ## Review Results
 
 ### Architecture Review
@@ -305,6 +313,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Static template reorder only; no executable surface changed. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-02] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `3280543`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The extractor change is localized to helper functions plus the original task-goal / affected-files slice; no dispatch adapter or routing surface changed.
+- **[I-02]** The new Pester fixture uses literal here-strings so the extractor is exercised against real backtick-delimited path syntax instead of a simplified surrogate.
+
+#### Architect conditions check (T-02 slice)
+- Boundary handling is explicit and commented at the regex site. ✓
+- Same-file sequencing with the auditor plan is preserved; this lands before the later agentMap rebase. ✓
+
+#### Security note (task-scoped)
+Task-spec extraction only; no privilege, network, or credential surface changed. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2

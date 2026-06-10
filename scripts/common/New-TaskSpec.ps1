@@ -50,6 +50,125 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Get-MarkdownSectionLines {
+    param(
+        [string[]]$Lines,
+        [string]$Header
+    )
+
+    $inSection = $false
+    $sectionLines = @()
+
+    foreach ($line in $Lines) {
+        if (-not $inSection) {
+            if ($line -match "^##\s+$([regex]::Escape($Header))\s*$") {
+                $inSection = $true
+            }
+            continue
+        }
+
+        if ($line -match '^##\s+') {
+            break
+        }
+
+        $sectionLines += $line
+    }
+
+    return ,$sectionLines
+}
+
+function Get-TaskBlockLines {
+    param(
+        [string[]]$PromptLines,
+        [string]$TaskId
+    )
+
+    $taskSectionLines = Get-MarkdownSectionLines -Lines $PromptLines -Header 'Tasks'
+    if ($taskSectionLines.Count -eq 0) {
+        return @()
+    }
+
+    # Match markdown task list items with optional bold wrappers around the task id.
+    $taskStartPattern = "^\s*-\s*\[.?\]\s*(?:\*\*)?$([regex]::Escape($TaskId))(?:\*\*)?(?:\b|\s|\()"
+    # The next top-level task bullet ends the current task block; indented bullets stay inside.
+    $nextTaskPattern = '^\s*-\s*\[.?\]\s*(?:\*\*)?T-\d+'
+
+    $startIndex = -1
+    for ($index = 0; $index -lt $taskSectionLines.Count; $index++) {
+        if ($taskSectionLines[$index] -match $taskStartPattern) {
+            $startIndex = $index
+            break
+        }
+    }
+
+    if ($startIndex -lt 0) {
+        return @()
+    }
+
+    $taskBlockLines = @()
+    for ($index = $startIndex; $index -lt $taskSectionLines.Count; $index++) {
+        $line = $taskSectionLines[$index]
+        if ($index -gt $startIndex -and $line -match $nextTaskPattern) {
+            break
+        }
+
+        $taskBlockLines += $line
+    }
+
+    return ,$taskBlockLines
+}
+
+function Get-AffectedFileLines {
+    param(
+        [string[]]$PromptLines,
+        [string[]]$TaskBlockLines
+    )
+
+    $filesSectionLines = Get-MarkdownSectionLines -Lines $PromptLines -Header 'Files to Create or Modify'
+    $fallbackFileLines = @($filesSectionLines | Where-Object { $_ -match '^\s*-\s' } | ForEach-Object { $_.Trim() })
+
+    if ($TaskBlockLines.Count -eq 0) {
+        return ,$fallbackFileLines
+    }
+
+    $taskText = $TaskBlockLines -join "`n"
+    $pathMatches = [regex]::Matches($taskText, '`([^`\r\n]+)`')
+    $orderedPaths = New-Object System.Collections.Generic.List[string]
+    $seenPaths = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($match in $pathMatches) {
+        $candidate = $match.Groups[1].Value.Trim()
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+
+        if ($candidate -notmatch '[/\\]') {
+            continue
+        }
+
+        if ($seenPaths.Add($candidate)) {
+            [void]$orderedPaths.Add($candidate)
+        }
+    }
+
+    if ($orderedPaths.Count -eq 0) {
+        return ,$fallbackFileLines
+    }
+
+    $selectedFileLines = New-Object System.Collections.Generic.List[string]
+    foreach ($path in $orderedPaths) {
+        $matchingFallbackLine = $fallbackFileLines | Where-Object { $_ -match [regex]::Escape($path) } | Select-Object -First 1
+        if (-not [string]::IsNullOrWhiteSpace($matchingFallbackLine)) {
+            [void]$selectedFileLines.Add($matchingFallbackLine)
+        }
+        else {
+            [void]$selectedFileLines.Add("- ``$path``")
+        }
+    }
+
+    return ,$selectedFileLines
+}
+
 # ---------------------------------------------------------------------------
 # Cleanup mode — remove transient task-spec artifacts at pipeline end
 # ---------------------------------------------------------------------------
@@ -95,32 +214,21 @@ if ([string]::IsNullOrWhiteSpace($PromptPath) -or -not (Test-Path $PromptPath)) 
 }
 
 # ---------------------------------------------------------------------------
-# Extract task goal from ## Tasks section
+# Extract the full task block from ## Tasks, not just the first task line.
 # ---------------------------------------------------------------------------
-$promptContent = Get-Content $PromptPath -Raw -Encoding UTF8
-$promptLines   = Get-Content $PromptPath -Encoding UTF8
+$promptLines = Get-Content $PromptPath -Encoding UTF8
+$taskGoalLines = Get-TaskBlockLines -PromptLines $promptLines -TaskId $TaskScope
 
-$taskGoal = $promptLines | Where-Object { $_ -match "^\s*-\s*\[.?\]\s*$([regex]::Escape($TaskScope))\s*" } |
-    Select-Object -First 1
-
-if ([string]::IsNullOrWhiteSpace($taskGoal)) {
+if ($taskGoalLines.Count -eq 0) {
     [Console]::Error.WriteLine("New-TaskSpec.ps1: task '$TaskScope' not found in ## Tasks section of '$PromptPath'")
     exit 1
 }
-$taskGoal = $taskGoal.Trim() -replace '^-\s*\[.?\]\s*', ''
+$taskGoal = ($taskGoalLines -join "`n").Trim()
 
 # ---------------------------------------------------------------------------
-# Extract affected files from ## Files to Create or Modify
+# Extract task-scoped affected files when the task block names them.
 # ---------------------------------------------------------------------------
-$inFilesSection = $false
-$affectedFiles  = @()
-foreach ($line in $promptLines) {
-    if ($line -match '^## Files to Create or Modify') { $inFilesSection = $true; continue }
-    if ($inFilesSection -and $line -match '^##\s') { break }
-    if ($inFilesSection -and $line -match '^\s*-\s') {
-        $affectedFiles += $line.Trim()
-    }
-}
+$affectedFiles = Get-AffectedFileLines -PromptLines $promptLines -TaskBlockLines $taskGoalLines
 
 # ---------------------------------------------------------------------------
 # Git context

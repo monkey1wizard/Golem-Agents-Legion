@@ -194,7 +194,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-01。`/planning` 新計畫 Approval 置頂;以區段名稱解析的命令(`/refining-plan` Step 1/3/4、`/plan-to-prompt`、`New-TaskSpec.ps1` 的 `## Files to Create or Modify`/`T-NNN` 掃描)不受位置影響——grep 確認這些解析器皆用區段名(`^## Approval` 等)非行號。
   - 慣例:markdown-formatting skill;區段重排不得改 bullet 內容。
 
-- [ ] **T-02 (R-004) — New-TaskSpec.ps1 擷取器升級(多行 + 每 task 檔案)**
+- [x] **T-02 (R-004) — New-TaskSpec.ps1 擷取器升級(多行 + 每 task 檔案)**
   - 檔案:`scripts/common/New-TaskSpec.ps1`(非受保護)。現況 BUG:`$taskGoal` 在 line 103-104 用 `Where-Object {... $TaskScope ...} | Select-Object -First 1`(只取首行);`## Affected Files` 擷取 line 113-118 從 `## Files to Create or Modify` 整段。
   - 改動:(a) `$taskGoal` 改為擷取 `T-NNN` 起始行至下一個 `^\s*-\s*\[.?\]\s*T-\d` 或 `^##` 區段邊界的完整多行區塊(保留縮排子彈);(b) `## Affected Files` 改為從擷取出的 task 區塊內掃 backtick 包裹的檔案路徑(如 `` `path/to/file` ``),僅收斂該 task 指名者;task 內無指名路徑時才回退原 `## Files to Create or Modify` 整段。保留既有 `<5KB` 警告檢查。
   - 驗收:TP-02、TP-03、TP-11。新增 Pester 測試覆蓋多行/單行/末尾/單 task 邊界與每 task 檔案收斂。
