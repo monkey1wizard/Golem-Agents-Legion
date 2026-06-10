@@ -81,8 +81,9 @@
 - **Files**: `[MODIFY] commands/refining-plan/SKILL.template.md`（受保護）、`[MODIFY] scripts/common/New-TaskSpec.ps1`
 - **What**: refining-plan 加指標式自足 + 預算/切分；`New-TaskSpec.ps1` 擷取完整 `T-NNN` 區塊 + 每 task 檔案收斂；保留 `<5KB` 檢查。
 
-### 面向三：派工可達 preflight（R-005）
-- **Files**: `[MODIFY] crates/dispatch/src/dispatch.rs`（`is_available` 旁加 `is_dispatch_ready`：認證/headless 探測）、`[MODIFY] crates/dispatch/src/main.rs`（preflight gate 改 fail-loud 附指引）、`[MODIFY]` doctor 聚合（executor-routing HealthCheck）
+### 面向三：派工可達 preflight（R-005，**落點待 architect 再審**）
+- **落點未定（OQ-004/OQ-005，由 architect 裁決）**：候選為 (a) `gal-dispatch` bin 內 preflight、(b) shell 層、(c) 只 doctor 告警；以及是否完全併入 xmachine R-05。下列檔案為**候選**而非已定。
+- **Files（候選）**: `[MODIFY?] crates/dispatch/src/dispatch.rs`（`is_available` 旁加認證/headless 探測）、`[MODIFY?] crates/dispatch/src/main.rs`（preflight gate fail-loud 附指引）、`[MODIFY?]` doctor 聚合（executor-routing HealthCheck）
 - **What**: 對 routing 指名的 executor 做最小認證探測（如 copilot 的 token/login 狀態），未就緒 → 明確指引、非靜默降級；以 HealthCheck 入 `gal doctor`。
 - **Verify**: 未認證 executor → `gal doctor` 告警 + dispatch 退出附修復步驟；已認證 → 正常 offload 並留 executor-log `completed`。
 
@@ -96,8 +97,8 @@
 - `[MODIFY] commands/refining-plan/SKILL.template.md`（受保護）— 自足 + 預算 + honest-pass + 陷阱守衛 + 自清契約
 - `[MODIFY] plugins/gal-core/commands/gal-pipeline/SKILL.template.md`（受保護）— honest-pass gate
 - `[MODIFY] scripts/common/New-TaskSpec.ps1` — 多行區塊擷取 + 每 task 檔案收斂
-- `[MODIFY] crates/dispatch/src/dispatch.rs`、`crates/dispatch/src/main.rs` — executor 認證/headless preflight，fail-loud
-- `[MODIFY]` doctor 聚合（`crates/cli/src/main.rs` 或 domain HealthCheck）— executor-routing 就緒檢查
+- `[MODIFY? 待 architect 定落點]` `crates/dispatch/src/dispatch.rs`、`crates/dispatch/src/main.rs` — executor 認證/headless preflight，fail-loud
+- `[MODIFY? 待 architect 定落點]` doctor 聚合（`crates/cli/src/main.rs` 或 domain HealthCheck）— executor-routing 就緒檢查
 - `[ADD]` 測試檔名陷阱守衛（lint/CI）
 
 ## Test Cases
