@@ -1847,8 +1847,8 @@ fn configure_git(
     report: &mut ProjectionReport,
 ) -> Result<(), AdapterError> {
     for (key, value) in [
-        ("filter.gal-config.smudge", "bash scripts/gal-smudge.sh"),
-        ("filter.gal-config.clean", "bash scripts/gal-clean.sh"),
+        ("filter.gal-config.smudge", "gal smudge"),
+        ("filter.gal-config.clean", "gal clean"),
         ("filter.gal-config.required", "true"),
         ("core.hooksPath", "plugins/gal-core/hooks"),
     ] {
@@ -2291,8 +2291,8 @@ mod tests {
 
         let git_config = fs::read_to_string(repo_root.join(".git").join("config")).unwrap();
         assert!(git_config.contains("[filter \"gal-config\"]"));
-        assert!(git_config.contains("smudge = bash scripts/gal-smudge.sh"));
-        assert!(git_config.contains("clean = bash scripts/gal-clean.sh"));
+        assert!(git_config.contains("smudge = gal smudge"));
+        assert!(git_config.contains("clean = gal clean"));
         assert!(git_config.contains("required = true"));
         assert!(git_config.contains("hooksPath = plugins/gal-core/hooks"));
     }

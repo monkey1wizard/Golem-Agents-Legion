@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 25 of 35
-Last activity: 2026-06-10 — **R-05 complete** (T-022..T-024) — Rust install now renders the Codex plugin marker, writes provider lifecycle ledgers and marketplace descriptors under `~/.gal/dist/providers/` + `~/.gal/plugins/`, refreshes Copilot/Claude/AGY projections from the canonical root, repoints `gal setup` install/check to the Rust path, replaces the AGY build-script caller in `adapters`, and deletes the install-family scripts (`Install-GalPlugins.*`, `Build-CorePlugin.*`, `Build-ProviderPlugins.*`, `common/ProviderPlugin.*`). Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-024 reached.
-Next step: implement T-025 (R-06 — `gal clean` / `gal smudge` + commit-msg parity)
+Step: 26 of 35
+Last activity: 2026-06-10 — **T-025 complete** — Rust `gal clean` / `gal smudge` now own the git filter transforms, `gal setup` and source-mode personalization both register `filter.gal-config.*` to the binary commands, and the bash filter scripts were deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-025 reached.
+Next step: implement T-026 (R-06 — `gal uninstall` parity / ledger precision)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,11 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-R-05 is closed: `gal install` now owns the four-provider lifecycle writes that were still living in the install/build scripts, `gal setup` no longer shells out for install/check, `adapters` no longer shells out for AGY canonical refresh, and the install-family scripts are deleted. Validation for this slice is `cargo test --test provider_family_r05` plus `cargo check -p setup`, `cargo check -p adapters`, and `cargo check -p gal-engine`.
+T-025 is closed: the git filter is now owned by the Rust `gal clean` / `gal smudge` commands, the setup/adapters git-config writers point at those commands, and `scripts/gal-clean.sh` plus `scripts/gal-smudge.sh` are deleted.
 
-Not yet done: T-025..T-035 remain. The next exact step is T-025: port `gal clean` / `gal smudge` and commit-msg parity, then atomically re-register git filters away from the bash scripts.
-
-Context risk (RESOLVED in post-merge review, 2026-06-10): the R-05 parity probe was originally committed as `crates/gal-engine/tests/install_family_r05.rs`, whose test binary `install_family_r05-*.exe` tripped Windows installer-detection UAC (os error 740, "requires elevation") because the filename contains "install" — the same trap R-04 fixed for the `setup` crate. `gal-engine` has no asInvoker manifest, so the probe could not execute on Windows. Fixed by renaming the test to `provider_family_r05.rs` (filename heuristic only — no manifest machinery needed). After the rename, the full `cargo test --workspace` and `cargo clippy --workspace --all-targets` both run green in this environment; no `link.exe` issue reproduced.
+The exact next step is T-026: extend `gal uninstall` to the Rust-managed R-05 surfaces with ledger-precision parity, then delete `Uninstall-Machine.*` only after the focused uninstall probe passes.
 
 ## Tasks
 
@@ -170,7 +168,7 @@ R-05 install family
 - [x] T-024 — After all parity green, delete install family; verify live read-surface aligned. *(closeout: deleted install/build/provider-plugin script family, repointed `gal setup` + `adapters` callers to Rust, aligned `scripts/scripts.md` + `docs/devguide.md`, and verified no live crate caller remains)*
 
 R-06 misc (per item: port → parity → delete)
-- [ ] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`.
+- [x] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`. *(closeout: added `crates/gal-engine/src/git_filters.rs`, wired `clean` / `smudge` through `cli`, repointed setup/adapters git filter registration to `gal clean` / `gal smudge`, and deleted the bash filter scripts after focused filter tests passed)*
 - [ ] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`.
 - [ ] T-027 — Port `init-repo` → Rust; parity; delete pair.
 - [ ] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete.
@@ -698,6 +696,15 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-025] 2026-06-10 — PASS (TP-20 slice: vcs clean/smudge)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-025 parity for the git filter transform path.
+
+- **Filter engine green** — `cargo test -p gal-engine git_filters` passes (primary config replacement, legacy fallback, suspicious-content refusal, placeholder passthrough, longest-first replacement).
+- **Registration cutover green** — `cargo test -p setup git_filter -- --nocapture` passes after repointing repo-local git config registration from bash scripts to `gal clean` / `gal smudge`.
+- **Touched crates compile cleanly** — `cargo check -p cli`, `cargo check -p setup`, and `cargo check -p adapters` pass with the new filter commands wired.
+- **Deletion gate held** — `scripts/gal-clean.sh` and `scripts/gal-smudge.sh` deleted only after the Rust command path and git-config writers were in place.
+
 ### [T-024] 2026-06-10 — PASS (TP-18/TP-19 slice: R-05 cutover)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused R-05 parity and deletion gate for install-family orchestration/render.
@@ -920,6 +927,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-025] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** T-025 changes only the clean/smudge half of the `vcs` task. `commit-msg` was already Rust-native before this slice and needed no additional code change here.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-024] 2026-06-10 — APPROVE
 

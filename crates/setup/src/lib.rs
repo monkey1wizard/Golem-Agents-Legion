@@ -297,8 +297,8 @@ pub fn run_setup(
         }
     }
 
-    // Git filter registration (T-020; behavior addition per C-6 — points at
-    // the .sh filters until T-025 cuts over to `gal clean`/`gal smudge`).
+    // Git filter registration (T-025 cutover): registers `gal clean` /
+    // `gal smudge` in the repo-local git config.
     // Skipped on uninstall (registration is preserved like MCP config).
     if !opts.uninstall {
         git_filter::register_git_filter(&repo_root, opts.dry_run, out)?;

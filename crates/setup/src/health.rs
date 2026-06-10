@@ -36,7 +36,6 @@ impl HealthCheck for SetupHealthCheck {
         }
 
         if self.repo_root.join(".git").exists()
-            && self.repo_root.join("scripts").join("gal-clean.sh").is_file()
             && crate::git_filter::registered_clean_filter(&self.repo_root).is_none()
         {
             findings.push(DoctorFinding::warning(

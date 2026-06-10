@@ -542,6 +542,48 @@ fn cmd_setup(args: &[String]) -> ExitCode {
     }
 }
 
+fn cmd_filter_transform(args: &[String], smudge: bool) -> ExitCode {
+    use std::io::{Read, Write};
+
+    let _ = args;
+    let repo_root = match std::env::current_dir() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("gal {}: {e}", if smudge { "smudge" } else { "clean" });
+            return ExitCode::Error;
+        }
+    };
+
+    let mut input = String::new();
+    if let Err(e) = std::io::stdin().read_to_string(&mut input) {
+        eprintln!("gal {}: failed to read stdin: {e}", if smudge { "smudge" } else { "clean" });
+        return ExitCode::Error;
+    }
+
+    let result = if smudge {
+        gal_engine::git_filters::run_smudge(&input, &repo_root)
+    } else {
+        gal_engine::git_filters::run_clean(&input, &repo_root)
+    };
+
+    match result {
+        Ok(result) => {
+            if let Err(e) = std::io::stdout().write_all(result.output.as_bytes()) {
+                eprintln!("gal {}: failed to write stdout: {e}", if smudge { "smudge" } else { "clean" });
+                return ExitCode::Error;
+            }
+            for warning in result.warnings {
+                eprintln!("{warning}");
+            }
+            ExitCode::Success
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::Error
+        }
+    }
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -669,6 +711,9 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::Mcp) => cmd_mcp(args),
         // T-018: wired gal setup (R-04)
         Action::NotWired(CommandKind::Setup) => cmd_setup(args),
+        // T-025: wired git clean/smudge filters
+        Action::NotWired(CommandKind::Clean) => cmd_filter_transform(args, false),
+        Action::NotWired(CommandKind::Smudge) => cmd_filter_transform(args, true),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());

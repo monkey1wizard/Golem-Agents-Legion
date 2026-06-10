@@ -5,6 +5,7 @@
 
 pub mod commit_msg;
 pub mod doctor;
+pub mod git_filters;
 pub mod install;
 pub mod mcp;
 pub mod release;
@@ -38,12 +39,15 @@ pub enum CommandKind {
     Mcp,
     /// `gal setup [...]` — machine-setup orchestration (T-018, R-04).
     Setup,
+    /// `gal clean` / `gal smudge` — git filter content transforms (T-025, R-06).
+    Clean,
+    Smudge,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 10] = [
+    pub const ALL: [CommandKind; 12] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
@@ -53,6 +57,8 @@ impl CommandKind {
         CommandKind::Release,
         CommandKind::Mcp,
         CommandKind::Setup,
+        CommandKind::Clean,
+        CommandKind::Smudge,
         CommandKind::DispatchScript,
     ];
 
@@ -68,6 +74,8 @@ impl CommandKind {
             CommandKind::Release => "release",
             CommandKind::Mcp => "mcp",
             CommandKind::Setup => "setup",
+            CommandKind::Clean => "clean",
+            CommandKind::Smudge => "smudge",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -84,6 +92,8 @@ impl CommandKind {
             "release" => Some(CommandKind::Release),
             "mcp" => Some(CommandKind::Mcp),
             "setup" => Some(CommandKind::Setup),
+            "clean" => Some(CommandKind::Clean),
+            "smudge" => Some(CommandKind::Smudge),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -152,6 +162,8 @@ mod tests {
         assert_eq!(CommandKind::parse("uninstall"), Some(CommandKind::Uninstall));
         assert_eq!(CommandKind::parse("mcp"), Some(CommandKind::Mcp));
         assert_eq!(CommandKind::parse("setup"), Some(CommandKind::Setup));
+        assert_eq!(CommandKind::parse("clean"), Some(CommandKind::Clean));
+        assert_eq!(CommandKind::parse("smudge"), Some(CommandKind::Smudge));
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)

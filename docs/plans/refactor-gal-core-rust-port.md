@@ -319,7 +319,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-024** — 全 parity 綠後刪 install 家族(含內部專屬腳本);驗活讀取面仍對齊。*(closeout: 刪除 `Install-GalPlugins.*` / `Build-CorePlugin.*` / `Build-ProviderPlugins.*` / `common/ProviderPlugin.*`，`gal setup` 與 `adapters` caller 改走 Rust，live docs 對齊)*
 
 **R-06 雜項（逐項 port→parity→刪）**
-- [ ] **T-025** — `vcs`:`gal clean`/`gal smudge` + commit-msg;parity;刪 `gal-clean.sh`/`gal-smudge.sh`。
+- [x] **T-025** — `vcs`:`gal clean`/`gal smudge` + commit-msg;parity;刪 `gal-clean.sh`/`gal-smudge.sh`。*(closeout: Rust filter engine + CLI cutover landed; setup/adapters git config now registers `gal clean` / `gal smudge`; shell filter pair deleted after focused tests passed)*
 - [ ] **T-026** — `gal uninstall` parity(ledger 精確);刪 `uninstall-machine.{ps1,sh}`。
 - [ ] **T-027** — port `init-repo` → Rust;parity;刪對。
 - [ ] **T-028** — port catalog 解析(`Resolve-GalCatalog`)→ Rust;parity;刪。

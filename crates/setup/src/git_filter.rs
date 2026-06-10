@@ -1,12 +1,9 @@
 //! Git filter registration — `gal setup` registers the `gal-config`
 //! smudge/clean filter (R-04, T-020).
 //!
-//! Architect Ruling 4 / C-4: registration points at the EXISTING shell
-//! filters (`scripts/gal-clean.sh` / `scripts/gal-smudge.sh`, bash-backed on
-//! both Windows and Unix — Git for Windows ships bash). The binary cutover
-//! to `gal clean` / `gal smudge` happens atomically at T-025 (re-register +
-//! delete the .sh in the same change). `.gitattributes` is tracked in the
-//! repo and already carries the `filter=gal-config` annotations.
+//! T-025 cutover: registration points at the Rust binary commands
+//! `gal clean` / `gal smudge`. `.gitattributes` is tracked in the repo and
+//! already carries the `filter=gal-config` annotations.
 //!
 //! C-6: this is a deliberate behavior ADDITION, not parity — neither legacy
 //! setup script ever performed the registration (it was manual/historical).
@@ -21,18 +18,10 @@ use std::path::Path;
 
 /// The exact (key, value) pairs registered for the repo at `repo_root`.
 pub fn registration_entries(repo_root: &Path) -> Vec<(String, String)> {
-    let scripts = repo_root.join("scripts");
-    let clean = scripts.join("gal-clean.sh");
-    let smudge = scripts.join("gal-smudge.sh");
+    let _ = repo_root;
     vec![
-        (
-            "filter.gal-config.clean".into(),
-            format!("bash \"{}\"", clean.display()),
-        ),
-        (
-            "filter.gal-config.smudge".into(),
-            format!("bash \"{}\"", smudge.display()),
-        ),
+        ("filter.gal-config.clean".into(), "gal clean".into()),
+        ("filter.gal-config.smudge".into(), "gal smudge".into()),
         ("filter.gal-config.required".into(), "true".into()),
     ]
 }
@@ -55,17 +44,6 @@ pub fn register_git_filter(
         );
         return Ok(false);
     }
-    let clean_script = repo_root.join("scripts").join("gal-clean.sh");
-    let smudge_script = repo_root.join("scripts").join("gal-smudge.sh");
-    if !clean_script.is_file() || !smudge_script.is_file() {
-        let _ = writeln!(
-            out,
-            "  [SKIP] gal-clean.sh / gal-smudge.sh not found under {} — filter registration skipped.",
-            repo_root.join("scripts").display()
-        );
-        return Ok(false);
-    }
-
     for (key, value) in registration_entries(repo_root) {
         if dry_run {
             let _ = writeln!(out, "  [DRY RUN] Would set git config {key} = {value}");
@@ -148,12 +126,11 @@ mod tests {
     }
 
     #[test]
-    fn entries_point_at_shell_scripts_with_required_true() {
+    fn entries_point_at_gal_subcommands_with_required_true() {
         let entries = registration_entries(Path::new("/repo"));
         assert_eq!(entries.len(), 3);
-        assert!(entries[0].1.starts_with("bash \""));
-        assert!(entries[0].1.contains("gal-clean.sh"));
-        assert!(entries[1].1.contains("gal-smudge.sh"));
+        assert_eq!(entries[0].1, "gal clean");
+        assert_eq!(entries[1].1, "gal smudge");
         assert_eq!(entries[2], ("filter.gal-config.required".to_string(), "true".to_string()));
     }
 
@@ -183,7 +160,7 @@ mod tests {
 
         let clean = get_all(repo, "filter.gal-config.clean");
         assert_eq!(clean.len(), 1, "duplicates collapsed to one entry");
-        assert!(clean[0].contains("gal-clean.sh"));
+        assert_eq!(clean[0], "gal clean");
         assert_eq!(get_all(repo, "filter.gal-config.required"), vec!["true"]);
         assert_eq!(
             registered_clean_filter(repo).unwrap(),
