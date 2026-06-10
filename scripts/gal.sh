@@ -8,6 +8,8 @@ Usage: gal <command> [args]
 
 Commands:
   init [targetPath] [projectName]    Initialize .dev/ and docs/plans/
+  install|update|sync|doctor|uninstall|commit-msg|release|mcp|setup|clean|smudge|init-repo|resolve-catalog|translation-freshness
+                                     Forward to the Rust gal binary
   dispatch [subcommand|golem] [text] Route to subcommand or golem via /gal skill
   xmachine <node> to do <task-ref>   Run one active-plan task on a readied work node
 
@@ -69,7 +71,29 @@ if [[ $# -gt 0 ]]; then
   shift
 fi
 
-source "$script_root/common/common.sh"
+source "$script_dir/common/common.sh"
+
+invoke_gal_binary_command() {
+  if command -v gal >/dev/null 2>&1; then
+    gal "$command" "$@"
+    exit $?
+  fi
+
+  for candidate in \
+    "$repo_root/target/debug/gal" \
+    "$repo_root/target/release/gal" \
+    "$repo_root/target/debug/gal.exe" \
+    "$repo_root/target/release/gal.exe"
+  do
+    if [[ -f "$candidate" ]]; then
+      "$candidate" "$command" "$@"
+      exit $?
+    fi
+  done
+
+  echo 'gal binary not found on PATH.' >&2
+  exit 1
+}
 
 # --- Dispatch helpers ---
 
@@ -598,6 +622,9 @@ golem_class() {
 case "$command" in
   init)
     gal init-repo "$@"
+    ;;
+  install|update|sync|doctor|uninstall|commit-msg|release|mcp|setup|clean|smudge|init-repo|resolve-catalog|translation-freshness)
+    invoke_gal_binary_command "$@"
     ;;
   xmachine)
     parse_xmachine_task_shorthand "$@"

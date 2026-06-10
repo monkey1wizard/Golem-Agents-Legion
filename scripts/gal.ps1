@@ -21,6 +21,8 @@ function Show-Usage {
     Write-Host ""
     Write-Host "Commands:"
     Write-Host "  init [targetPath] [projectName]     Initialize .dev/ and docs/plans/"
+    Write-Host "  install|update|sync|doctor|uninstall|commit-msg|release|mcp|setup|clean|smudge|init-repo|resolve-catalog|translation-freshness"
+    Write-Host "                                      Forward to the Rust gal binary"
     Write-Host "  dispatch [subcommand|golem] [text]  Route to subcommand or golem via /gal skill"
     Write-Host "  xmachine <node> to do <task-ref>    Run one active-plan task on a readied work node"
     Write-Host "  pipeline <TaskSpecPath> [role]      Orchestrate task execution via executor routing"
@@ -712,6 +714,38 @@ function Resolve-Golem([string]$Name) {
     return $null
 }
 
+function Get-GalBinaryPath {
+    $galExe = (Get-Command 'gal.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (-not [string]::IsNullOrWhiteSpace($galExe)) {
+        return $galExe
+    }
+
+    $galCmd = (Get-Command 'gal' -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (-not [string]::IsNullOrWhiteSpace($galCmd)) {
+        return $galCmd
+    }
+
+    $repoBinaryCandidates = @(
+        (Join-Path $repoRoot 'target\debug\gal.exe'),
+        (Join-Path $repoRoot 'target\release\gal.exe'),
+        (Join-Path $repoRoot 'target\debug\gal'),
+        (Join-Path $repoRoot 'target\release\gal')
+    )
+    foreach ($candidate in $repoBinaryCandidates) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw 'gal binary not found on PATH.'
+}
+
+function Invoke-GalBinaryCommand([string]$Subcommand, [string[]]$Args) {
+    $galBinary = Get-GalBinaryPath
+    & $galBinary $Subcommand @Args
+    exit $LASTEXITCODE
+}
+
 $utilityGolems = @('golem-debugger','golem-notewriter')
 
 switch ($Command) {
@@ -719,6 +753,20 @@ switch ($Command) {
         & gal init-repo @Arguments
         break
     }
+    "install" { Invoke-GalBinaryCommand $Command $Arguments }
+    "update" { Invoke-GalBinaryCommand $Command $Arguments }
+    "sync" { Invoke-GalBinaryCommand $Command $Arguments }
+    "doctor" { Invoke-GalBinaryCommand $Command $Arguments }
+    "uninstall" { Invoke-GalBinaryCommand $Command $Arguments }
+    "commit-msg" { Invoke-GalBinaryCommand $Command $Arguments }
+    "release" { Invoke-GalBinaryCommand $Command $Arguments }
+    "mcp" { Invoke-GalBinaryCommand $Command $Arguments }
+    "setup" { Invoke-GalBinaryCommand $Command $Arguments }
+    "clean" { Invoke-GalBinaryCommand $Command $Arguments }
+    "smudge" { Invoke-GalBinaryCommand $Command $Arguments }
+    "init-repo" { Invoke-GalBinaryCommand $Command $Arguments }
+    "resolve-catalog" { Invoke-GalBinaryCommand $Command $Arguments }
+    "translation-freshness" { Invoke-GalBinaryCommand $Command $Arguments }
     "xmachine" {
         $shorthand = Get-XmachineTaskShorthandContext -Tokens $Arguments
         if ($shorthand.Error) {

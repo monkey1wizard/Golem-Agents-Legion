@@ -17,7 +17,7 @@ GAL control-plane entry point. Route based on the subcommand provided.
 
 | Subcommand | What It Answers | Action |
 | --- | --- | --- |
-| `init` | How do I bootstrap this repo? | Run `gal.ps1 dispatch init [args]` — follow output block |
+| `init` | How do I bootstrap this repo? | Run `gal init-repo [args]` in the target repo root |
 | `status` | Where are we right now? | Follow the `/gal-status` procedure — do not run the script |
 | `whats-next` | What do I do next? | Follow the `/gal-whats-next` procedure — do not run the script |
 | `wrap-up` | How do I close this session cleanly? | Follow the `/gal-wrap-up` procedure — do not run the script |
@@ -74,13 +74,15 @@ Keep the terminal current directory at that target project root so dispatcher st
 
 **Windows:**
 
-1. If `.\scripts\gal.ps1` exists in the target project, run `.\scripts\gal.ps1 dispatch [args]`.
-2. Otherwise run the GAL runtime checkout's `scripts/gal.ps1 dispatch [args]` while staying in the target project root.
+1. For `init`, run `gal init-repo [args]`.
+2. For `status`, `whats-next`, and `wrap-up`, follow the installed skill procedures directly.
+3. For `research`, `deep-research`, `pipeline`, `xmachine`, or golem dispatch, run `\.\scripts\gal.ps1 dispatch [args]` when the local script exists; otherwise run the GAL runtime checkout's `scripts/gal.ps1 dispatch [args]` while staying in the target project root.
 
 **macOS / Linux:**
 
-1. If `./scripts/gal.sh` exists in the target project, run `./scripts/gal.sh dispatch [args]`.
-2. Otherwise run the GAL runtime checkout's `scripts/gal.sh dispatch [args]` while staying in the target project root.
+1. For `init`, run `gal init-repo [args]`.
+2. For `status`, `whats-next`, and `wrap-up`, follow the installed skill procedures directly.
+3. For `research`, `deep-research`, `pipeline`, `xmachine`, or golem dispatch, run `./scripts/gal.sh dispatch [args]` when the local script exists; otherwise run the GAL runtime checkout's `scripts/gal.sh dispatch [args]` while staying in the target project root.
 
 The fallback runtime path is expected for two cases:
 

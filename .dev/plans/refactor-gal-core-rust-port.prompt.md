@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 32 of 35
-Last activity: 2026-06-10 — **T-031 complete** — `gal doctor` now aggregates the domain `HealthCheck` implementations for MCP projection, setup/git-filter state, and shared skills projection at the CLI edge. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-031 reached.
-Next step: implement T-032 (R-07 — update `gal` / `gal-init` command references to the binary path)
+Step: 33 of 35
+Last activity: 2026-06-10 — **T-032 complete** — the shell entrypoints now forward Rust-owned core subcommands to the `gal` binary, and the `gal` / `gal-init` skill templates describe the binary-first init path instead of the old dispatch-init route. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-032 reached.
+Next step: assess T-033 hard gate against the cross-plan `gal.*` / `common.*` end-gate
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-031 is closed: `gal doctor` now extends the base `gal_engine::doctor` report with the existing MCP, setup, and adapters health checks from the CLI edge, avoiding a new crate cycle into `gal-engine`.
+T-032 is closed: `scripts/gal.ps1` and `scripts/gal.sh` now forward the Rust-owned core subcommands to the `gal` binary with a repo-local `target/debug` / `target/release` fallback when the binary is not on PATH, and the `gal` / `gal-init` skill templates now point init to `gal init-repo`.
 
-The exact next step is T-032: update the `gal` / `gal-init` skill templates and any remaining command-surface references so the binary path is the documented source of truth for the core subcommands.
+The exact next step is T-033: verify whether the remaining `gal.*` and `common.*` files are still blocked by the sister xmachine plan's shared end-gate before attempting any deletion.
 
 ## Tasks
 
@@ -177,7 +177,7 @@ R-06 misc (per item: port → parity → delete)
 
 R-11/R-07 closeout
 - [x] T-031 (R-11) — `cli` aggregates each domain's `HealthCheck` into `gal doctor`, extending to mcp/setup/sync/filter; fail-loud. *(closeout: CLI doctor now appends `McpProjectionHealthCheck`, `SetupHealthCheck`, and `SkillsProjectionHealthCheck` findings on top of the base doctor report)*
-- [ ] T-032 (R-07) — Port core subcommands of `gal.{ps1,sh}` into `cli`; update `gal`/`gal-init` SKILL.template references. Entry-file physical deletion deferred to cross-plan end-gate.
+- [x] T-032 (R-07) — Port core subcommands of `gal.{ps1,sh}` into `cli`; update `gal`/`gal-init` SKILL.template references. Entry-file physical deletion deferred to cross-plan end-gate. *(closeout: shell wrappers now forward Rust-owned core subcommands to the `gal` binary, with repo-local binary fallback, and `gal` / `gal-init` templates updated to the binary-first init path)*
 - [ ] T-033 (R-09/R-12, hard gate) — `scripts/` core family emptied (shared `common.*`/`gal.{ps1,sh}` at cross-plan end-gate); `cargo test` green and test code no longer spawns core live scripts (grep-verified).
 
 R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test machine)
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-032] 2026-06-10 — PASS (TP-22 slice: shell entrypoint forwarding)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-032 parity for the shell entrypoints and command template references.
+
+- **Wrapper forwarding green on Windows** — `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\gal.ps1 doctor --dry-run` succeeds and forwards into the Rust doctor path.
+- **Template drift closed** — no remaining `dispatch init` guidance under `plugins/gal-core/commands/gal*` after the template updates.
+- **Environment note** — `bash` is not available in this execution environment, so `gal.sh` could not be syntax-checked here; the change is limited to the same forwarding branch structure as `gal.ps1` plus the `script_dir` path fix.
+
 ### [T-031] 2026-06-10 — PASS (TP-21 slice: doctor aggregation)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-031 aggregation of domain health checks into the main doctor command.
@@ -976,6 +984,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-032] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+- **[W-01]** `gal.sh` could not be executed in this environment because `bash` is unavailable, so validation is limited to the PowerShell wrapper plus template/reference checks.
+
+#### INFO
+- **[I-01]** The repo-local binary fallback in `gal.ps1` / `gal.sh` is required for dev-checkout use because the built `gal` binary is not always installed on PATH during in-repo maintenance.
+
+#### Summary
+- Blocking: 0
+- Warning: 1
+- Info: 1
 
 ### [T-031] 2026-06-10 — APPROVE
 

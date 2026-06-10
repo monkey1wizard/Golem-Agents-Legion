@@ -328,7 +328,7 @@ Not triggered（無 customer-facing UI）。
 
 **R-11/R-07/R-10 收尾**
 - [x] **T-031（R-11）** — `cli` 聚合各 domain `HealthCheck` 為 `gal doctor`,擴及 mcp/setup/sync/filter,缺口 fail-loud。*(closeout: CLI doctor now aggregates MCP projection, setup, and shared-skills projection checks on top of the base doctor report)*
-- [ ] **T-032（R-07）** — port `gal.{ps1,sh}` 核心子命令進 `cli`(名詞分組);改 `gal`/`gal-init` SKILL.template 引用指 binary。入口檔物理刪除掛跨計畫尾端。
+- [x] **T-032（R-07）** — port `gal.{ps1,sh}` 核心子命令進 `cli`(名詞分組);改 `gal`/`gal-init` SKILL.template 引用指 binary。入口檔物理刪除掛跨計畫尾端。*(closeout: shell wrappers forward Rust-owned core subcommands to the binary and `gal` / `gal-init` template references now use the binary-first init path)*
 - [ ] **T-033（R-09/R-12,硬 gate）** — `scripts/` 核心家族清空(共用 `common.*`/`gal.{ps1,sh}` 與姊妹計畫共同尾端刪);`cargo test` 綠且測試碼不再 spawn 核心 live script(grep 驗)。
 
 **R-13/R-10 純 end-user 真機驗收（修正:絕不在測試機 build）**
