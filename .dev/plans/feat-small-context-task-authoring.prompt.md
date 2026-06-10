@@ -134,13 +134,13 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: VERIFY
+Workflow: DONE
 Step: 8 of 8
-Last activity: 2026-06-10 — **Verifier returned GAPS_FOUND** — implementation tasks are complete, but the TP-11 workspace clippy gate still fails, including touched `dispatch` warnings and unrelated existing `base` warnings. Run mode: DEGRADED_BUNDLED (focused manual validation + verifier write-back).
-Next step: resolve the clippy gaps, rerun verifier, then hand off to release prep
+Last activity: 2026-06-10 — **Plan complete + wrapped up.** All 8 tasks PASS; the prior GAPS_FOUND (TP-11) is RESOLVED. Independent post-implementation review (Claude) found the 8 task deliverables correct and the TP-11 gate failure caused only by pre-existing debt, not by this plan — reproduced identical clippy/test failures at pre-plan commit 07e5c7d. Cleared the pre-existing debt in a separate commit (78efbb0). Final: `cargo test --workspace` 412 passed / 1 ignored; `cargo clippy --workspace --all-targets -- -D warnings` clean. Run mode: DEGRADED_BUNDLED.
+Next step: plan is DONE — ready for /gal pipeline on Route ② (refactor-golem-auditor), which rebases its New-TaskSpec.ps1 agentMap on T-02's extractor upgrade.
 Current Task: —
 Task Base Commit: —
-Task Final Commit: —
+Task Final Commit: 78efbb0
 Test Retry Count: 0
 Review Retry Count: 0
 
@@ -148,11 +148,15 @@ Review Retry Count: 0
 
 | Date | Task | Deviation | Rationale |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| 2026-06-10 | TP-11 | Gate failed on pre-existing debt, not a plan regression; debt cleared in a separate commit (78efbb0) rather than attributed to a plan task | Verified identical clippy (13) + adapters test failure at pre-plan 07e5c7d; this plan's T-04/T-05/T-07 introduced no new warnings or test failures |
 
 ### Handoff Notes
 
-_(none yet)_
+- **Plan DONE (2026-06-10).** 8/8 tasks implemented and PASS; final verifier gate green after pre-existing-debt cleanup.
+- **Pre-existing debt cleared (commit 78efbb0, not a plan task):** 9 pre-existing clippy sites (dispatch needless-ref ×3, stage `from_str` allow, base mode/platform/runtime/json_util) + one R-06 adapters bug — `configure_git` was registering the gal-config git filter as `pwsh -File '.../gal.ps1' clean` while T-025 had already cut the filter over to the `gal clean`/`gal smudge` binary and deleted the scripts; the adapters test had been failing since R-06. Now registers the binary subcommands.
+- **Known limitation (within contract, not a bug):** the T-04 copilot readiness probe is intentionally conservative per C1. It returns `Ready` only when a token env var is set; when `~/.copilot` exists but no token is present it returns `Unknown` (allow + warn), because "dir exists" is too weak a signal to confirm "definitely unauthenticated" without a status subcommand (which C1 forbids spawning). So on a machine with an initialized-but-logged-out copilot, dispatch still proceeds with a warning + a `gal doctor` finding, rather than a hard block. A future enhancement could inspect the specific credential file under `~/.copilot`.
+- **C2 mapping note:** the contract said missing-routing / indeterminate → INFO, but `base::health::Severity` has only `Warning`/`Error` (no Info). T-05 uses `warning`, which is the non-failing level (`gal doctor` only exits non-zero on `Error`), satisfying C2's intent that a missing routing file must not fail doctor.
+- **Cross-plan:** Route ② (auditor) and xmachine T-004 consume this plan's outputs; the gal-pipeline SKILL honest-pass text (T-06) and the New-TaskSpec.ps1 extractor (T-02) are the surfaces they rebase/port on.
 
 ## Tasks
 
@@ -301,6 +305,23 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused contract update for 
 - **Self-clean clause landed** — `refining-plan` now tells task authors to remove orphaned helpers, stale tests, and copied caveats within the same task instead of deferring them.
 - **Gate expectation landed** — the clause explicitly instructs the orchestrator and reviewer to treat leftover residue as a task failure rather than an optional follow-up.
 - **Scope held** — the final contract edit stays inside the existing pointer-style task guidance without reopening test-plan or pipeline semantics.
+
+### [TP-11 / final gate] 2026-06-10 — PASS (workspace test + clippy)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = the cross-cutting TP-11 regression gate after all eight tasks.
+
+- **Workspace tests green** — `cargo test --workspace`: 412 passed, 1 ignored, 0 failed.
+- **Clippy gate green** — `cargo clippy --workspace --all-targets -- -D warnings`: 0 errors.
+- **GAPS_FOUND resolved** — the earlier failure was pre-existing debt, not a plan regression: the identical 13 clippy errors and the adapters test failure reproduce at pre-plan commit 07e5c7d. Cleared in a separate commit 78efbb0 (9 mechanical clippy fixes + the R-06 adapters `configure_git` git-filter cutover to `gal clean`/`gal smudge`). This plan's T-04/T-05/T-07 introduced no new warnings.
+
+### [Post-implementation review] 2026-06-10 — APPROVE (independent, Claude)
+
+Reviewer ≠ implementer. Reviewed the three Rust deliverables against their conditions:
+- **T-04 (C1)** — correct. `executor_readiness` probes cheap-first (token env var, then `~/.copilot` existence) and **never spawns the executor**; three-state with `Unknown → allow`. `copilot_readiness_from` is a pure, unit-testable function. Conservative-by-design limitation recorded in Handoff Notes.
+- **T-05 (C2)** — correct given the codebase: only routed executors are checked; missing routing file does not fail doctor. The contract's "INFO" maps to `warning` because `base::health::Severity` has no Info level; `warning` is the non-failing severity.
+- **T-07 (C4)** — correct. `crates/gal-engine/tests/filename_guard_r07.rs` (trap-word-free filename) self-scans the tests dir; runs green within the workspace test.
+
+No blocking findings; the plan is complete.
 
 ## Review Results
 
