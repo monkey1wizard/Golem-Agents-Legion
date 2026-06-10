@@ -16,9 +16,8 @@ During field use of `/gal pipeline` on the GAL repository itself (plans `feat-ga
 - `commands/gal-pipeline/SKILL.md` — pipeline orchestrator definition (503 lines)
 - `agent/golem-implementer.agent.md` — implementer agent contract (219 lines)
 - `agent/golem-tester.agent.md` — tester agent contract (318 lines)
-- `agent/golem-reviewer.agent.md` — reviewer agent contract (284 lines)
+- `agent/golem-auditor.agent.md` — auditor agent contract (merged audit specialist)
 - `agent/golem-verifier.agent.md` — verifier agent contract (187 lines)
-- `agent/golem-security.agent.md` — security audit agent contract (123 lines)
 - `scripts/gal.ps1` — PowerShell dispatch script (671 lines)
 - `opencode.json` — OpenCode runtime configuration (138 lines)
 - `conventions/token-budget.md` — token and context management rules
@@ -268,7 +267,7 @@ In Step 2g (Mark Task Complete And Converge State):
 - `commands/gal-pipeline/SKILL.md` (prefetch logic)
 - `agent/golem-implementer.agent.md` (accept prefetched context)
 - `agent/golem-tester.agent.md` (accept prefetched context)
-- `agent/golem-reviewer.agent.md` (accept prefetched context)
+- `agent/golem-auditor.agent.md` (accept prefetched context)
 - `scripts/gal.ps1` (dispatch mechanism to carry prefetched data)
 
 ### P4: Auto-Continue Command
@@ -408,7 +407,7 @@ The dispatch flow for a single task under `/gal pipeline`:
   │   └─ Subtotal: 9-14 steps
   │
   ├─ Step 2e: Review
-  │   ├─ gal.ps1 dispatch golem-reviewer (1 step)
+  │   ├─ gal.ps1 dispatch golem-auditor (1 step)
   │   ├─ Reviewer reads: execution prompt, project.md, state.md, diff (4-6 steps)
   │   ├─ Reviewer writes results to execution prompt (1-2 steps)
   │   └─ Subtotal: 6-9 steps

@@ -72,8 +72,7 @@ gstack does not own GAL's execution-stage public surface.
 
 - design execution and audit are owned by `golem-designer`
 - QA is owned by `golem-tester`
-- code review is owned by `golem-reviewer`
-- security review is owned by `golem-security`
+- deep-performance and security audit are owned by `golem-auditor`
 - release work is owned by `golem-releaser`
 
 These are GAL-native agent contracts, whether or not gstack is installed.

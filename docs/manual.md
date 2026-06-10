@@ -194,7 +194,7 @@ GAL can offload pipeline phases (implement / test / review / verify) to a second
   },
   "CODER":    { "executor": "codex" },
   "TESTER":   { "executor": "opencode" },
-  "REVIEWER": { "executor": "claude", "model": "claude-sonnet-4-6" },
+  "AUDITOR":  { "executor": "claude", "model": "claude-sonnet-4-6" },
   "VERIFIER": { "executor": "opencode" }
 }
 ```

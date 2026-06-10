@@ -7,7 +7,7 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 
 | Classification | How It Is Activated | Agents |
 | --- | --- | --- |
-| **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, reviewer, verifier |
+| **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, auditor, verifier |
 | **Utility** | Callable at any tier | debugger, notewriter, dockeeper |
 | **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, security, releaser |
 
@@ -16,7 +16,7 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 GAL keeps these roles separate on purpose.
 
 - Smaller prompts keep responsibilities legible and reduce context waste.
-- Independent tester/reviewer/verifier roles make verification more credible than one mega-agent doing everything.
+- Independent tester/auditor/verifier roles make verification more credible than one mega-agent doing everything.
 - Pipeline roles stay narrow and execution-focused.
 - Domain and utility roles remain reusable across workflows without requiring a dispatcher-owned state machine.
 

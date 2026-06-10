@@ -143,14 +143,12 @@ try {
 
     $implementerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-implementer.agent.md') -Raw
     $testerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-tester.agent.md') -Raw
-    $reviewerContract = Get-Content (Join-Path $pluginRoot 'agents\golem-reviewer.agent.md') -Raw
-    $securityContract = Get-Content (Join-Path $pluginRoot 'agents\golem-security.agent.md') -Raw
+    $auditorContract = Get-Content (Join-Path $pluginRoot 'agents\golem-auditor.agent.md') -Raw
     $verifierContract = Get-Content (Join-Path $pluginRoot 'agents\golem-verifier.agent.md') -Raw
 
     Assert-Contains -Text $implementerContract -Needle '.dev/project.md' -Label 'Implementer fallback references .dev/project.md'
     Assert-Contains -Text $testerContract -Needle '.dev/project.md' -Label 'Tester fallback references .dev/project.md'
-    Assert-Contains -Text $reviewerContract -Needle '.dev/project.md' -Label 'Reviewer fallback references .dev/project.md'
-    Assert-Contains -Text $securityContract -Needle '.dev/project.md' -Label 'Security fallback references .dev/project.md'
+    Assert-Contains -Text $auditorContract -Needle '.dev/project.md' -Label 'Auditor fallback references .dev/project.md'
     Assert-Contains -Text $verifierContract -Needle '.dev/project.md' -Label 'Verifier fallback references .dev/project.md'
 
     $goDispatch = Get-DispatchFields -Arguments @('implementer', '.tmp/pipeline-token-burn-tests/go-task-plan.md', '--pipeline-phase', 'implement', '--task-scope', 'T-100')
@@ -176,17 +174,17 @@ try {
 
     $implementPlanDispatch = Get-DispatchFields -Arguments @('implementer', 'docs/plans/fix-gal-pipeline-token-burn.md', '--pipeline-phase', 'implement')
     $testDispatch = Get-DispatchFields -Arguments @('tester', 'docs/plans/fix-gal-pipeline-token-burn.md', '--pipeline-phase', 'test')
-    $reviewDispatch = Get-DispatchFields -Arguments @('reviewer', 'docs/plans/fix-gal-pipeline-token-burn.md', '--pipeline-phase', 'review')
+    $auditDispatch = Get-DispatchFields -Arguments @('auditor', 'docs/plans/fix-gal-pipeline-token-burn.md', '--pipeline-phase', 'audit')
     $verifyDispatch = Get-DispatchFields -Arguments @('verifier', 'docs/plans/fix-gal-pipeline-token-burn.md', '--pipeline-phase', 'verify')
     Assert-Equal -Expected 'full' -Actual $implementPlanDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Implement phase uses full context mode for source-plan dispatch'
     Assert-Equal -Expected 'true' -Actual $testDispatch.Fields['CONTEXT_CARRY'] -Label 'Test phase emits CONTEXT_CARRY=true'
     Assert-Equal -Expected 'delta' -Actual $testDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Test phase uses delta context mode'
     Assert-True -Condition (-not $testDispatch.Fields.Contains('PIPELINE_CONTEXT_FILES')) -Label 'Test phase delta dispatch omits PIPELINE_CONTEXT_FILES'
     Assert-True -Condition (-not $testDispatch.Fields.Contains('CONVENTION_HINTS')) -Label 'Test phase delta dispatch omits CONVENTION_HINTS'
-    Assert-Equal -Expected 'true' -Actual $reviewDispatch.Fields['CONTEXT_CARRY'] -Label 'Review phase emits CONTEXT_CARRY=true'
-    Assert-Equal -Expected 'delta' -Actual $reviewDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Review phase uses delta context mode'
-    Assert-True -Condition (-not $reviewDispatch.Fields.Contains('PIPELINE_CONTEXT_FILES')) -Label 'Review phase delta dispatch omits PIPELINE_CONTEXT_FILES'
-    Assert-True -Condition (-not $reviewDispatch.Fields.Contains('CONVENTION_HINTS')) -Label 'Review phase delta dispatch omits CONVENTION_HINTS'
+    Assert-Equal -Expected 'true' -Actual $auditDispatch.Fields['CONTEXT_CARRY'] -Label 'Audit phase emits CONTEXT_CARRY=true'
+    Assert-Equal -Expected 'delta' -Actual $auditDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Audit phase uses delta context mode'
+    Assert-True -Condition (-not $auditDispatch.Fields.Contains('PIPELINE_CONTEXT_FILES')) -Label 'Audit phase delta dispatch omits PIPELINE_CONTEXT_FILES'
+    Assert-True -Condition (-not $auditDispatch.Fields.Contains('CONVENTION_HINTS')) -Label 'Audit phase delta dispatch omits CONVENTION_HINTS'
     Assert-Equal -Expected 'true' -Actual $verifyDispatch.Fields['CONTEXT_CARRY'] -Label 'Verify phase emits CONTEXT_CARRY=true'
     Assert-Equal -Expected 'delta' -Actual $verifyDispatch.Fields['PIPELINE_CONTEXT_MODE'] -Label 'Verify phase uses delta context mode'
     Assert-True -Condition (-not $verifyDispatch.Fields.Contains('PIPELINE_CONTEXT_FILES')) -Label 'Verify phase delta dispatch omits PIPELINE_CONTEXT_FILES'
@@ -207,8 +205,8 @@ try {
     Assert-Contains -Text $pipelineSkill -Needle 'Verification Independence: DEGRADED_BUNDLED' -Label "$pipelineSkillLabel carries bundled degraded marker"
     Assert-Contains -Text $pipelineSkill -Needle 'No git commit that records task progress or task completion' -Label "$pipelineSkillLabel carries commit-boundary convergence gate"
     Assert-Contains -Text $pipelineSkill -Needle 'The tester writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Test Results`.' -Label "$pipelineSkillLabel keeps task-scoped test write-back"
-    Assert-Contains -Text $pipelineSkill -Needle 'The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.' -Label "$pipelineSkillLabel keeps task-scoped review write-back"
-    Assert-Contains -Text $pipelineSkill -Needle 'Same-runtime fallback never waives retry ceilings, protected-path escalation, conditional security review, interrupted-phase handoff, or final verifier requirements.' -Label "$pipelineSkillLabel keeps same-runtime safety guardrails"
+    Assert-Contains -Text $pipelineSkill -Needle 'The auditor writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.' -Label "$pipelineSkillLabel keeps task-scoped audit write-back"
+    Assert-Contains -Text $pipelineSkill -Needle 'Same-runtime fallback never waives retry ceilings, protected-path escalation, audit STOP rules, interrupted-phase handoff, or final verifier requirements.' -Label "$pipelineSkillLabel keeps same-runtime safety guardrails"
     Assert-Contains -Text $pipelineSkill -Needle 'If `stop-at T-NNN` was specified and this task matches: **STOP**.' -Label "$pipelineSkillLabel keeps explicit stop-at boundary"
     Assert-Contains -Text $pipelineSkill -Needle 'Keep exactly one `OPEN` interrupted-phase block per task and phase.' -Label "$pipelineSkillLabel keeps interrupted-phase handoff rule"
     Assert-Contains -Text $pipelineSkill -Needle 'If `Test Retry Count` = 3: **STOP**.' -Label "$pipelineSkillLabel keeps test retry ceiling"

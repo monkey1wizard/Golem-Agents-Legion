@@ -604,9 +604,9 @@ resolve_golem() {
   [[ "$name" != golem-* ]] && full="golem-$name"
   case "$full" in
     golem-architect|golem-analyst|golem-implementer|\
-    golem-tester|golem-reviewer|golem-verifier|golem-debugger|\
+    golem-tester|golem-auditor|golem-verifier|golem-debugger|\
     golem-notewriter|golem-designer|golem-researcher|\
-    golem-security|golem-releaser) echo "$full" ;;
+    golem-releaser) echo "$full" ;;
     *) echo "" ;;
   esac
 }
@@ -614,7 +614,7 @@ resolve_golem() {
 golem_class() {
   case "$1" in
     golem-debugger|golem-notewriter) echo utility ;;
-    golem-architect|golem-analyst|golem-designer|golem-researcher|golem-security|golem-releaser) echo domain ;;
+    golem-architect|golem-analyst|golem-designer|golem-researcher|golem-releaser) echo domain ;;
     *) echo pipeline ;;
   esac
 }

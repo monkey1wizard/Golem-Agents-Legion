@@ -72,11 +72,11 @@ The following work no longer has a public slash command and should be routed to 
 | --- | --- | --- |
 | Pipeline task closeout | `/gal-pipeline` orchestrator | source plan `## Tasks`, execution prompt `## Status` / `## Tasks`, matching `.dev/state.md` session continuity row |
 | Spec-driven tests and real-browser QA | `golem-tester` | execution prompt `## Test Results` |
-| Staff review and drift analysis | `golem-reviewer` | execution prompt `## Review Results`, `## Analyze` |
+| Staff audit and drift analysis | `golem-auditor` | execution prompt `## Review Results`, `## Analyze` |
 | Root-cause-first debugging | `golem-debugger` | plan debug log or `.dev/state.md` |
 | Obsidian writes, private captures, diary, and knowledge extraction | `golem-notewriter` | user-owned vault paths or shutdown diary |
 | Design system, variants, build, and live audit | `golem-designer` | `DESIGN.md`, `docs/designs/`, plan review sections |
-| Security audit | `golem-security` | plan `## Review Results` |
+| Security and deep-performance audit | `golem-auditor` | plan `## Review Results` |
 | Release prep, deploy, and doc sync | `golem-releaser` | plan `## Release`, repo docs |
 
 Ownership does not imply that every specialist currently has a dispatcher entry through `/gal <golem-name>`. The dispatcher scripts are the source of truth for which golems can be invoked directly.
@@ -87,13 +87,12 @@ Ownership does not imply that every specialist currently has a dispatcher entry 
 | --- | --- | --- |
 | golem-implementer | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
 | golem-tester | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
-| golem-reviewer | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
+| golem-auditor | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
 | golem-verifier | Pipeline | consult when invoked directly; `bound` when dispatcher emits `DISPATCH_KIND: pipeline-phase` |
 | golem-architect | Domain | consult |
 | golem-analyst | Domain | consult |
 | golem-designer | Domain | consult |
 | golem-researcher | Domain | consult |
-| golem-security | Domain | direct specialist |
 | golem-releaser | Domain | direct specialist |
 | golem-debugger | Utility | utility |
 | golem-notewriter | Utility | utility |

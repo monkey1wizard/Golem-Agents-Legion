@@ -77,12 +77,12 @@ A one-glance mental model. Each row links to the doc that owns the full contract
 ### Pipeline
 
 ```text
-T-NNN → implementer → tester → reviewer → [conditional security] → git commit → next task
-                                  └── REJECT → auto-fix ──┘
+T-NNN → implementer → correctness gate → tester → auditor → git commit → next task
+                                               └── REJECT → auto-fix ──┘
 all tasks done → verifier → confirm goal
 ```
 
-`golem-security` is inserted only for auth / data / input / public-API / trust-boundary changes. The full workflow semantics live in [plugins/gal-core/workflows/coding.md](plugins/gal-core/workflows/coding.md).
+The correctness gate is owned by the orchestrator and the deep-performance/security audit is owned by `golem-auditor` on every task. The full workflow semantics live in [plugins/gal-core/workflows/coding.md](plugins/gal-core/workflows/coding.md).
 
 ### Research
 

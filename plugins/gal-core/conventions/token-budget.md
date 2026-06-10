@@ -37,7 +37,7 @@ GAL memory is file-owned, repo-visible, and reviewable. The file system is the a
 | Shared methodology memory | `conventions/`, `workflows/`, `commands/`, `agent/`, `templates/`, durable shared docs | Reviewed source changes | All runtimes, chat agents, and golem specialists | Highest durable tier; change only when the lesson applies across repos |
 | Project durable memory | `.dev/project.md`, selected durable repo docs | Planning, verifier, releaser, explicit documentation updates | All providers and agents during cold start | Promote here when a verified lesson is likely to recur in this repo |
 | Project session memory | `.dev/state.md` | `/gal wrap-up`, planning commands, control-plane updates | `/gal status`, `/gal whats-next`, chat agents, golem specialists | Summarized from task execution memory at session boundaries |
-| Task execution memory | `.dev/plans/<slug>.prompt.md` `## Status`, `### Handoff Notes`, `## Test Results`, `## Review Results`, `## Analyze` | `/plan-to-prompt`, implementer, tester, reviewer, debugger, verifier, `/gal wrap-up` | Control-plane chat and specialist agents | First write target for new facts, blockers, failures, and local decisions |
+| Task execution memory | `.dev/plans/<slug>.prompt.md` `## Status`, `### Handoff Notes`, `## Test Results`, `## Review Results`, `## Analyze` | `/plan-to-prompt`, implementer, tester, auditor, debugger, verifier, `/gal wrap-up` | Control-plane chat and specialist agents | First write target for new facts, blockers, failures, and local decisions |
 | Source planning memory | `docs/plans/<slug>.md` | `/planning`, `/deep-planning`, `/refining-plan`, planning review lanes | `/plan-to-prompt`, reviewers, humans | Planning source-of-truth; not the mutable execution state once a prompt exists |
 | Private or machine-local memory | `config.local.env`, `mcp.local.json`, `xmachine.config.json`, local Obsidian/private notes | User and local-only agents | Only explicitly local/private workflows | Never required for another provider or machine to resume repo work |
 | Generated adapter memory surface | `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, generated command files | Sync/setup scripts only | Providers at startup | Derived carrier only; never edit as source of truth |
@@ -52,7 +52,7 @@ GAL memory is file-owned, repo-visible, and reviewable. The file system is the a
 
 ### Promotion And Prune Gates
 
-- **Task to project promotion**: require a verified root cause plus a credible recurrence signal inside the current repo. Acceptable evidence includes confirmed debugger, reviewer, tester, or verifier findings, or repeated manual correction of the same workflow.
+- **Task to project promotion**: require a verified root cause plus a credible recurrence signal inside the current repo. Acceptable evidence includes confirmed debugger, auditor, tester, or verifier findings, or repeated manual correction of the same workflow.
 - **Project to shared methodology promotion**: require a lesson that changes GAL conventions, workflows, templates, commands, agents, or other reusable source contracts across repos.
 - **No guess promotion**: hypotheses, provisional workarounds, and unverified explanations remain in task execution memory and must not be promoted.
 - **Prune gate**: remove or replace a durable lesson when later evidence disproves it, a newer rule supersedes it, the owning surface no longer exists, or the workflow changed enough to make the lesson stale.

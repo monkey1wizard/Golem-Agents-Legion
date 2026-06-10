@@ -205,7 +205,7 @@ Not requested。
   - 驗收:TP-06。
   - 慣例:markdown-formatting;與 T-02 的相位序一致(不得矛盾)。
 
-- [ ] **T-04 (R-007) — blast radius 清零 + adapter 重生**
+- [x] **T-04 (R-007) — blast radius 清零 + adapter 重生**
   - 檔案:現勘 **29 檔** `golem-reviewer`/`golem-security`/`REVIEWER` 引用(`commands/commands.md`、`commands/gal-status`、`commands/gal-whats-next`、`templates/plan-prompt.md`、`docs/manual.md`、`README.md` 等);`[REGEN] AGENTS.md、CLAUDE.md、GEMINI.md、.github/copilot-instructions.md、docs/i18n README` 由 `gal sync` 重生(不手改)。
   - 改動:grep 掃全 repo,把人手維護的引用遷移為 auditor/AUDITOR/audit 相位;生成 adapter 一律 `gal sync` 重生;最後 grep gate 驗無 `golem-reviewer`/`golem-security` 有效引用、adapter 無死連結。機器本地 `~/.gal/config/executor-routing.json` 屬使用者,不在 repo gate(C4 指引由 T-02 的 dispatch 訊息承擔)。
   - 驗收:TP-07。

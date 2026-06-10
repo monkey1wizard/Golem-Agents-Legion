@@ -89,7 +89,7 @@ bootstrap 打包、官方終端使用者安裝通道、marketplace discoverabili
 | `/gal wrap-up` | 收斂工作：寫入 `### Handoff Notes` 與 `## Session Continuity` |
 | `/gal research` | 進入研究工作流 |
 | `/gal deep-research` | 進入多來源研究工作流，包含交叉審查 |
-| `/gal pipeline` | 逐任務自動串接 implementer → tester → reviewer，若變更涉及安全性敏感面（security-sensitive surface）則插入條件式 `golem-security` 審查，最後再由 verifier 收尾 |
+| `/gal pipeline` | 逐任務自動串接 implementer → orchestrator 正確性 gate → tester → auditor，最後再由 verifier 收尾 |
 | `/planning` | 建立規劃文件（source plan） |
 | `/deep-planning` | 把規劃文件收斂到可實作 |
 | `/refining-plan` | 把 `## Tasks`、`## Test Plan` 與工程審查結果寫入規劃文件 |
@@ -183,27 +183,27 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 
 ### Pipeline Agents
 
-Pipeline 是 GAL 的自動化執行核心。它的固定主鏈仍是四個 agent，但若實作後的變更觸及安全性敏感面，`/gal pipeline` 會在 task closeout 前插入條件式 `golem-security` 審查。
+Pipeline 是 GAL 的自動化執行核心。它的固定主鏈現在是 implementer → orchestrator 正確性 gate → tester → auditor，auditor 會在每個 task 常態執行。
 
 ```text
-T-NNN ──> implementer ──> tester ──> reviewer ──> [conditional security] ──> git commit ──> T-NNN+1
-               ↑                         │
-               │                         ↓
-     auto-fix by review result <────── REJECT
+T-NNN ──> implementer ──> correctness gate ──> tester ──> auditor ──> git commit ──> T-NNN+1
+               ↑                                   │
+               │                                   ↓
+     auto-fix by gate or audit result <──────── REJECT
 
 所有任務完成後：──> verifier ──> 確認規劃目標達成
 ```
 
-`[conditional security]` 代表只有在變更觸及身分驗證、敏感資料處理、輸入處理、公開 API 介面，或部署/環境信任邊界時，才會啟動 `golem-security`。
+`auditor` 代表每個 task 都會跑一次獨立稽核，負責深度效能與安全性；正確性則先由 orchestrator gate 在 test 前攔下。
 
 | Agent | 職責 | 關鍵規則 |
 | --- | --- | --- |
 | **implementer** | 依照規劃與當前 `T-NNN` 任務完成實作 | 一旦觸及架構邊界或發現規劃不足，必須停止並返回 `/deep-planning` |
 | **tester** | 根據規格與公開 API 撰寫或補齊測試，必要時執行瀏覽器 QA | spec mode 不讀實作，且必須與 implementer 使用不同模型 |
-| **reviewer** | 以資深工程師的標準審查變更差異、風險與完整性 | 若發現阻擋問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
+| **auditor** | 以獨立視角稽核深度效能與安全風險 | 若發現阻擋問題，必須退回 implementer 修正。使用之 AI 模型應不同於 implementer，且能力不應弱於 implementer |
 | **verifier** | 在所有任務完成後，從規劃目標反向驗證成果是否真的達成 | 負責確認規劃是否可關閉，並把值得保留的知識抽回 `docs/` |
 
-`golem-security` 屬於 domain agent，由 `/gal pipeline` 在安全性敏感變更時有條件啟動，不參與常態執行。Domain 與 utility agent 可隨時直接呼叫，pipeline agent 亦可在明確界定的工作中直接呼景呼叫。
+`golem-auditor` 屬於 pipeline audit specialist，由 `/gal pipeline` 在每個 task 常態 dispatch。Domain 與 utility agent 可隨時直接呼叫，pipeline agent 亦可在明確界定的工作中直接呼叫。
 
 ### AI 模型與 Agent 規則
 

@@ -186,7 +186,7 @@ GAL memory is file-owned, repo-visible, and reviewable. The file system is the a
 | Shared methodology memory | `conventions/`, `workflows/`, `commands/`, `agent/`, `templates/`, durable shared docs | Reviewed source changes | All runtimes, chat agents, and golem specialists | Highest durable tier; change only when the lesson applies across repos |
 | Project durable memory | `.dev/project.md`, selected durable repo docs | Planning, verifier, releaser, explicit documentation updates | All providers and agents during cold start | Promote here when a verified lesson is likely to recur in this repo |
 | Project session memory | `.dev/state.md` | `/gal wrap-up`, planning commands, control-plane updates | `/gal status`, `/gal whats-next`, chat agents, golem specialists | Summarized from task execution memory at session boundaries |
-| Task execution memory | `.dev/plans/<slug>.prompt.md` `## Status`, `### Handoff Notes`, `## Test Results`, `## Review Results`, `## Analyze` | `/plan-to-prompt`, implementer, tester, reviewer, debugger, verifier, `/gal wrap-up` | Control-plane chat and specialist agents | First write target for new facts, blockers, failures, and local decisions |
+| Task execution memory | `.dev/plans/<slug>.prompt.md` `## Status`, `### Handoff Notes`, `## Test Results`, `## Review Results`, `## Analyze` | `/plan-to-prompt`, implementer, tester, auditor, debugger, verifier, `/gal wrap-up` | Control-plane chat and specialist agents | First write target for new facts, blockers, failures, and local decisions |
 | Source planning memory | `docs/plans/<slug>.md` | `/planning`, `/deep-planning`, `/refining-plan`, planning review lanes | `/plan-to-prompt`, reviewers, humans | Planning source-of-truth; not the mutable execution state once a prompt exists |
 | Private or machine-local memory | `config.local.env`, `mcp.local.json`, `xmachine.config.json`, local Obsidian/private notes | User and local-only agents | Only explicitly local/private workflows | Never required for another provider or machine to resume repo work |
 | Generated adapter memory surface | `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, generated command files | Sync/setup scripts only | Providers at startup | Derived carrier only; never edit as source of truth |
@@ -201,7 +201,7 @@ GAL memory is file-owned, repo-visible, and reviewable. The file system is the a
 
 ### Promotion And Prune Gates
 
-- **Task to project promotion**: require a verified root cause plus a credible recurrence signal inside the current repo. Acceptable evidence includes confirmed debugger, reviewer, tester, or verifier findings, or repeated manual correction of the same workflow.
+- **Task to project promotion**: require a verified root cause plus a credible recurrence signal inside the current repo. Acceptable evidence includes confirmed debugger, auditor, tester, or verifier findings, or repeated manual correction of the same workflow.
 - **Project to shared methodology promotion**: require a lesson that changes GAL conventions, workflows, templates, commands, agents, or other reusable source contracts across repos.
 - **No guess promotion**: hypotheses, provisional workarounds, and unverified explanations remain in task execution memory and must not be promoted.
 - **Prune gate**: remove or replace a durable lesson when later evidence disproves it, a newer rule supersedes it, the owning surface no longer exists, or the workflow changed enough to make the lesson stale.
@@ -429,9 +429,9 @@ Not every change needs the same amount of planning. GAL uses command choice, not
 
 | Situation | Recommended Flow | Architect | Notes |
 | --- | --- | --- | --- |
-| Obvious local fix | Direct implement, optional `golem-reviewer`, optional `golem-tester` | Optional consult | Use when scope and impact are already clear |
-| Scoped feature or known-cause bug | `/planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
-| Structural, cross-cutting, or uncertain change | `/planning` -> `/deep-planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> `golem-reviewer` -> conditional `golem-designer` or `golem-security` -> `golem-tester` -> `golem-releaser` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
+| Obvious local fix | Direct implement, optional orchestrator correctness gate, optional `golem-tester`, optional `golem-auditor` | Optional consult | Use when scope and impact are already clear |
+| Scoped feature or known-cause bug | `/planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> orchestrator correctness gate -> `golem-tester` -> `golem-auditor` -> `golem-releaser` | Optional consult | Use when the source plan is straightforward and does not need architectural challenge |
+| Structural, cross-cutting, or uncertain change | `/planning` -> `/deep-planning` -> `/refining-plan` -> `/plan-to-prompt` -> implement -> orchestrator correctness gate -> `golem-tester` -> `golem-auditor` -> `golem-releaser` | Required in `/deep-planning` | Use when the plan touches shared structure, dependencies, public interfaces, or protected paths |
 
 If implementation uncovers architectural uncertainty, stop and return to `/deep-planning` before continuing. After planning-stage changes, rerun `/refining-plan` before regenerating the execution prompt with `/plan-to-prompt`.
 
@@ -444,20 +444,20 @@ GAL's coding flow is expressed as write-back command phases.
 | **Draft plan** | No active plan, or an existing plan needs reset | `/planning`, `/deep-planning`, `/refining-plan`, `/plan-to-prompt` | `docs/plans/<slug>.md`, `.dev/plans/<slug>.prompt.md`, `.dev/state.md` active plan row |
 | **Planning reviews** | Source plan exists, buildability not yet locked | Business, design, and engineering review lanes via collaborative tools or fallback golems | `## Open Questions`, `## Tasks`, `## Review Results`, `## Test Plan` |
 | **Implementation** | Tasks exist and work remains | Manual execution or `/gal pipeline` | `## Status`, `## Tasks`, `.dev/state.md` for repo continuity, `.dev/plans/<slug>.prompt.md` for mutable execution state, code changes |
-| **Review-stage audits** | Implementation reached a meaningful checkpoint | `golem-reviewer`, conditional `golem-designer`, conditional `golem-security`, `golem-tester` | `## Analyze`, `## Review Results`, `## Test Results` |
+| **Review-stage audits** | Implementation reached a meaningful checkpoint | orchestrator correctness gate, `golem-tester`, `golem-auditor`, conditional `golem-designer` | `## Analyze`, `## Review Results`, `## Test Results` |
 | **Wrap-up or release** | Work is paused or ready to land | `/gal wrap-up`, `golem-releaser` | `### Handoff Notes`, `.dev/state.md`, active `.dev/plans/<slug>.prompt.md`, `## Release` |
 
 The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispatcher-owned state machine. It may be useful for humans and specialist commands, but readiness is determined by the presence and contents of plan files and sections such as `## Tasks`, `## Analyze`, `## Review Results`, and `## Test Results`. When an execution prompt exists, chat-oriented control-plane actions and specialist agents must both treat that prompt as the mutable task-memory file rather than resuming from provider-local chat memory.
 
 ### File Ownership Rules
 
-- `docs/plans/<slug>.md` is the planning-stage source plan and human-readable task checklist. Planning commands and planning review lanes may update its full content; `/gal pipeline` may update task checkboxes and commit notes after a task passes implement, test, review, and any required security gate.
+- `docs/plans/<slug>.md` is the planning-stage source plan and human-readable task checklist. Planning commands and planning review lanes may update its full content; `/gal pipeline` may update task checkboxes and commit notes after a task passes implement, the orchestrator correctness gate, test, and audit.
 - `.dev/plans/<slug>.prompt.md` is the execution-stage work file. `## Status`, retry counters, handoff notes, task commit markers, `## Test Results`, `## Review Results`, `## Analyze`, and detailed task execution history belong here.
 - `.dev/state.md` is the repo-level active-plan index and session-continuity surface. `/gal pipeline` updates it after each completed task so `/gal status` and `/gal whats-next` resume from the same place a human sees in the source plan.
 - Execution-stage specialists write detailed phase results to the prompt. The pipeline orchestrator owns cross-file convergence between source plan, execution prompt, and `.dev/state.md`.
 - If `/gal status` or `/gal whats-next` sees a live workflow phase without the expected durable markers in `.dev/plans/<slug>.prompt.md`, or sees source-plan and prompt task checkboxes disagree, treat that as missing execution write-back rather than as a cleanly completed phase.
 
-`golem-reviewer` and `golem-designer` both belong to the post-implementation review stage when used in audit mode. `golem-reviewer` audits correctness, completeness, and scope drift in the code changes; `golem-designer` audits the running UI against `DESIGN.md`; `golem-security` is a code-review-level security audit over implemented changes for branches that touch auth, data handling, input handling, or public API surface.
+`golem-auditor` and `golem-designer` both belong to the post-implementation audit stage when used in audit mode. The orchestrator correctness gate owns correctness, completeness, scope drift, and obvious performance using the full task context before test. `golem-auditor` owns the independent deep-performance and security audit over implemented changes; `golem-designer` audits the running UI against `DESIGN.md`.
 
 ## Planning Reviews
 
@@ -469,9 +469,9 @@ The `Workflow:` field inside `## Status` is a **plan phase marker**, not a dispa
 
 Each domain lane can also be invoked directly against the source plan outside of `/deep-planning` when that specialist review is needed without an architect-led deep-planning pass.
 
-Planning-stage security concerns still sit with architect during `/deep-planning`, especially around trust boundaries, risky interfaces, and security-sensitive design decisions. `golem-security` does not replace that planning review; it audits the implemented branch once code exists.
+Planning-stage security concerns still sit with architect during `/deep-planning`, especially around trust boundaries, risky interfaces, and security-sensitive design decisions. `golem-auditor` does not replace that planning review; it audits the implemented branch once code exists.
 
-Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
+Implementation-stage `AUDITOR` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
 ## Collaborative Tool Preflight
 
@@ -573,7 +573,7 @@ This is manually triggered — the AI does not know when you're switching contex
 | --- | --- | --- |
 | **Consult** | Yes — read-only or scoped advice, no implied phase transition | `/gal architect`, `/gal analyst` |
 | **Utility** | Yes — independent helper | `/gal debugger`, `/gal notewriter` |
-| **Pipeline** | Yes | `/gal tester`, `/gal reviewer` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
+| **Pipeline** | Yes | `/gal tester`, `/gal auditor` for bounded specialist work; `/gal pipeline` remains the full chained execution path |
 
 Examples above use the literal dispatcher-facing golem names. Consult output is advice unless the named agent's contract explicitly includes formal write-back for that specialist stage.
 
@@ -593,7 +593,7 @@ Default principle: formal cross-checks should use a different model from the one
 | RESEARCHER | Investigate unknowns, synthesize findings, cross-review sources, and prepare research outputs for independent verification | Evidence gathering, source attribution, synthesis |
 | CODER | Write implementation code following a plan | Code generation, refactoring |
 | TESTER | Write tests from plan spec + public API only | Spec-driven, usually basic unit/integration coverage |
-| REVIEWER | Review code for bugs, security, style | Higher-level critical eye, different perspective |
+| AUDITOR | Audit code for deep performance, security, and other high-confidence risks | Higher-level critical eye, different perspective |
 | NOTEWRITER | Obsidian writes — diary, private captures, inbox processing, and knowledge extraction | Note authoring, Guide-aware fallback, private vs. durable routing |
 | LOCAL | Tasks requiring privacy or local language | Runs on-device, no data leaves machine |
 
@@ -601,8 +601,8 @@ Default principle: formal cross-checks should use a different model from the one
 
 1. **Planning review should be a different-model check** — the model that critiques a plan should differ from the one that drafted it whenever practical.
 2. **CODER and TESTER must be different models** — independent verification
-3. **REVIEWER should differ from CODER** — fresh perspective catches blind spots
-4. **REVIEWER should also differ from TESTER when practical** — review is a higher-level check than test generation
+3. **AUDITOR should differ from CODER** — fresh perspective catches blind spots
+4. **AUDITOR should also differ from TESTER when practical** — audit is a higher-level check than test generation
 5. **DESIGNER should differ from CODER when used as a formal reviewer** — keep experience review independent from implementation
 6. **RESEARCHER owns research, synthesis, and cross-review** — independent reference verification must be done by a different model
 7. **NOTEWRITER** handles all Obsidian writes — it should load the user's configured Guide when available and fall back to generic mode when not
@@ -619,7 +619,7 @@ Default principle: formal cross-checks should use a different model from the one
 | **ANALYST** | Business rules, pricing, permissions, customer-visible logic | Yes — when included |
 | **DESIGNER** | Customer-facing flows, layout, states, component systems, accessibility-sensitive work | Yes — when included |
 
-Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They do not replace planning review.
+Implementation-stage `AUDITOR` and `DEBUGGER` remain separate specialists. They do not replace planning review.
 
 ### Typical Workflow (Single Developer)
 
@@ -628,7 +628,7 @@ Implementation-stage `REVIEWER` and `DEBUGGER` remain separate specialists. They
 2. Plan reviews → Use different models for architect, design, or business critiques when practical
 3. IMPLEMENT → Use a standard coding agent — follow the approved plan
 4. TEST → Use a DIFFERENT model — feed it plan + public interfaces only; this is usually basic unit/integration coverage
-5. REVIEW → Use a DIFFERENT model again — bugs, security, architecture; this should be a higher-level check than TEST
+5. AUDIT → Use a DIFFERENT model again — deep performance and security; this should be a higher-level check than TEST
 6. VERIFY → Run full test suite, confirm all plan items implemented
 ```
 
@@ -639,10 +639,12 @@ Research workflow note: `/gal research` and `/gal deep-research` have their own 
 - **The planning author and architect should differ when practical** — cross-check the plan before implementation
 - **The planning author and designer should differ when designer is a formal reviewer** — keep design critique independent from plan authorship
 - **Implementer and tester must be different models** — independent verification
-- **Reviewer should differ from implementer** — fresh perspective
-- **Reviewer should also differ from tester when practical** — review should be higher-level than test generation
-- **Reviewer model tier ≥ implementer model tier** — the reviewer must be at least as capable
-- **Reviewer model tier ≥ tester model tier** — review should be at least as capable as test generation and usually stronger
+- **Auditor should differ from implementer** — fresh perspective
+- **Auditor should also differ from tester when practical** — audit should be higher-level than test generation
+- **Auditor model tier ≥ implementer model tier** — the auditor must be at least as capable
+- **Auditor model tier ≥ tester model tier** — audit should be at least as capable as test generation and usually stronger
+
+The orchestrator correctness gate is not an independent reviewer replacement. It is an early full-context catch layer for checklist 1–13 plus obvious performance before test, while the independently dispatched auditor, tester, and verifier preserve the implementation-stage cross-check stack.
 
 > **Executor routing**: machine-read per-role CLI assignment lives in `~/.gal/config/executor-routing.json`. See [docs/manual.md — Headless Executor Routing](docs/manual.md#headless-executor-routing) for setup. Copy `executor-routing.example.json` to customize.
 

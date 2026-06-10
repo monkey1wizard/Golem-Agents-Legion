@@ -189,7 +189,7 @@ mod tests {
         {
             "CODER":    { "executor": "claude",   "model": "claude-sonnet-4-6" },
             "TESTER":   { "executor": "opencode", "model": "openai/gpt-5.4" },
-            "REVIEWER": { "executor": "codex",    "model": "o3" },
+            "AUDITOR": { "executor": "codex",    "model": "o3" },
             "VERIFIER": { "executor": "copilot",  "model": "gpt-5.4" }
         }
         "#);
@@ -222,11 +222,11 @@ mod tests {
         let f = write_json(r#"
         {
             "executors": { "claude": "claude-haiku-4-5" },
-            "REVIEWER": { "executor": "claude", "model": "claude-opus-4-8" }
+            "AUDITOR": { "executor": "claude", "model": "claude-opus-4-8" }
         }
         "#);
         let table = load_routing(&f.path().to_path_buf());
-        assert_eq!(table.get("REVIEWER").unwrap().model, "claude-opus-4-8");
+        assert_eq!(table.get("AUDITOR").unwrap().model, "claude-opus-4-8");
     }
 
     #[test]

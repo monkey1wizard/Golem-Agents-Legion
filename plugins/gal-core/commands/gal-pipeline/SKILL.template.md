@@ -83,7 +83,7 @@ If runtime preflight cannot prove separate CODER, TESTER, AUDITOR, and VERIFIER 
 - Mark the run internally and in any user-facing summary as `Verification Independence: DEGRADED_SAME_RUNTIME`.
 - Keep implement, test, audit, and verify as separate bounded phase invocations with their normal durable write-back requirements. Same-runtime fallback does **not** collapse these phases into a single blended pass by default.
 - Do not silently bundle implement + test + audit just to save tokens. Bundled same-runtime execution is allowed only when the user explicitly asks for it.
-- If the user explicitly asks for bundled same-runtime execution, mark the run as `Verification Independence: DEGRADED_BUNDLED`, keep separate task-scoped `## Test Results` and `## Review Results` write-back, and state clearly that tester/reviewer independence was reduced for this invocation.
+- If the user explicitly asks for bundled same-runtime execution, mark the run as `Verification Independence: DEGRADED_BUNDLED`, keep separate task-scoped `## Test Results` and `## Review Results` write-back, and state clearly that tester/auditor independence was reduced for this invocation.
 - Same-runtime fallback never waives retry ceilings, protected-path escalation, audit STOP rules, interrupted-phase handoff, or final verifier requirements.
 
 ### Headless Executor Dispatch
@@ -283,7 +283,7 @@ The active execution prompt's `## Status > ### Handoff Notes` is the durable hum
 When a task hits repeated failure or an immediate human-required stop, append or refresh a single task-scoped block in `### Handoff Notes` using this format:
 
 ```markdown
-#### Retry Handoff — T-NNN / [TEST | REVIEW | SECURITY | XMACHINE]
+#### Retry Handoff — T-NNN / [TEST | AUDIT | XMACHINE]
 
 - Status: OPEN | RESOLVED
 - Problem: <latest blocking problem statement>
@@ -304,8 +304,8 @@ When a task hits repeated failure or an immediate human-required stop, append or
 Rules:
 
 - Keep exactly one `OPEN` handoff block per `Current Task` and active phase. Update the existing block instead of appending duplicates.
-- Record every retry-triggered fix attempt in order. By the third failed `TEST` or `REVIEW` round, the handoff must tell the human what was tried on attempts 1-3 without reconstructing history from chat.
-- For `SECURITY` and `XMACHINE`, write the same handoff format on the first stop even when no retry loop is involved.
+- Record every retry-triggered fix attempt in order. By the third failed `TEST` or `AUDIT` round, the handoff must tell the human what was tried on attempts 1-3 without reconstructing history from chat.
+- For `XMACHINE`, write the same handoff format on the first stop even when no retry loop is involved.
 - When a later rerun clears the issue, keep the block for history but change `Status` to `RESOLVED` and replace `Next human step` with the confirmation that cleared it.
 
 ### Interruption Handoff Contract

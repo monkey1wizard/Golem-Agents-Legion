@@ -1116,7 +1116,7 @@ function Get-PipelinePhaseRole {
     $map = @{
         'implement' = 'CODER'
         'test'      = 'TESTER'
-        'review'    = 'REVIEWER'
+        'audit'     = 'AUDITOR'
         'verify'    = 'VERIFIER'
     }
 

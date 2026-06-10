@@ -705,9 +705,9 @@ function Get-XmachineTaskShorthandContext {
 
 function Resolve-Golem([string]$Name) {
     $known = @('golem-architect','golem-analyst','golem-implementer',
-               'golem-tester','golem-reviewer','golem-verifier','golem-debugger',
+               'golem-tester','golem-auditor','golem-verifier','golem-debugger',
                'golem-notewriter','golem-designer','golem-researcher',
-               'golem-security','golem-releaser')
+               'golem-releaser')
     # accept with or without 'golem-' prefix
     $full = if ($Name -like 'golem-*') { $Name } else { "golem-$Name" }
     if ($known -contains $full) { return $full }
@@ -937,7 +937,7 @@ switch ($Command) {
 
         $resolved = if ($intent) { Resolve-Golem $intent } else { $null }
         if ($resolved) {
-            $isPipelineGolem = @('golem-implementer','golem-tester','golem-reviewer','golem-verifier','golem-security') -contains $resolved
+            $isPipelineGolem = @('golem-implementer','golem-tester','golem-auditor','golem-verifier') -contains $resolved
 
             if ($utilityGolems -contains $resolved) {
                 $mode = 'utility'

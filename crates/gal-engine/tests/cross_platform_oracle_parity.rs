@@ -56,8 +56,8 @@ mod unix_parity {
         )
         .unwrap();
         fs::write(
-            root.join("agents").join("golem-reviewer.agent.md"),
-            "---\nname: golem-reviewer\ndescription: reviewer\n---\n# body\n",
+            root.join("agents").join("golem-auditor.agent.md"),
+            "---\nname: golem-auditor\ndescription: auditor\n---\n# body\n",
         )
         .unwrap();
 
@@ -175,8 +175,8 @@ mod unix_parity {
             agent_names
         );
         assert!(
-            agent_names.contains(&"golem-reviewer"),
-            "golem-reviewer must be found in agents/: got {:?}",
+            agent_names.contains(&"golem-auditor"),
+            "golem-auditor must be found in agents/: got {:?}",
             agent_names
         );
 
@@ -361,8 +361,8 @@ mod unix_parity {
             "golem-dockeeper.md must exist in agents/ (intent assertion TP-007)"
         );
         assert!(
-            agents_dir.join("golem-reviewer.md").exists(),
-            "golem-reviewer.md must exist in agents/"
+            agents_dir.join("golem-auditor.md").exists(),
+            "golem-auditor.md must exist in agents/"
         );
 
         // agy-agents/ directory with unfiltered .agent.md files

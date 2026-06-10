@@ -56,10 +56,10 @@ Apply this decision tree in order:
 | Implementation in progress, `### Handoff Notes` present | Resume from the exact "next step" in Handoff Notes |
 | Implementation complete, no test results | `golem-tester` in `browser-qa` or `spec` mode, depending on the missing verification surface |
 | Tests failing | Return to implementation — summarize what needs fixing |
-| Tests passing, no review recorded | `golem-reviewer` for code review |
+| Tests passing, no audit recorded | `golem-auditor` for audit |
 | Review has BLOCKING findings | Address the BLOCKING items — return to implementation |
-| Review clean, security-sensitive scope, and no security review recorded | `golem-security` for a security audit before release work |
-| `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `golem-reviewer` to update verdict |
+| Audit clean, no audit verdict recorded | `golem-auditor` for the required audit before release work |
+| `<!-- ANALYZE: DRIFT-OPEN -->` present | Code changes have drifted from plan scope — address deviations, then re-run `golem-auditor` to update verdict |
 | `## Tasks` has incomplete blocking items and no BLOCKING findings | Return to implementation — list remaining T-NNN tasks |
 | All blocking `## Tasks` are complete and only `## Deferred Follow-up` remains | Continue toward verification, release prep, or wrap-up — do not reopen the implementation loop for advisory follow-up alone |
 | Open OQs remain in `## Open Questions` | Note count as advisory — do not block; continue to next step |

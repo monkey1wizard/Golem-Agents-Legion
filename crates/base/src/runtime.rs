@@ -31,7 +31,7 @@ pub fn pipeline_phase_role(phase: &str) -> Option<&'static str> {
     match phase.to_lowercase().as_str() {
         "implement" => Some("CODER"),
         "test" => Some("TESTER"),
-        "review" => Some("REVIEWER"),
+        "audit" => Some("AUDITOR"),
         "verify" => Some("VERIFIER"),
         _ => None,
     }
@@ -124,8 +124,8 @@ mod tests {
     }
 
     #[test]
-    fn review_maps_to_reviewer() {
-        assert_eq!(pipeline_phase_role("review"), Some("REVIEWER"));
+    fn audit_maps_to_auditor() {
+        assert_eq!(pipeline_phase_role("audit"), Some("AUDITOR"));
     }
 
     #[test]
@@ -137,6 +137,7 @@ mod tests {
     fn unknown_phase_returns_none() {
         assert_eq!(pipeline_phase_role("deploy"), None);
         assert_eq!(pipeline_phase_role(""), None);
+        assert_eq!(pipeline_phase_role("review"), None);
         assert_eq!(pipeline_phase_role("security"), None);
     }
 }
