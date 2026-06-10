@@ -261,7 +261,7 @@ Default uninstall is not a reset button:
 - **GAL-managed uninstall** removes rebuildable GAL-owned outputs (GAL-owned provider plugin installs, canonical plugin roots under `~/.gal/plugins/`, generated projections under `~/.gal/generated/`).
 - `~/.gal/config/config.json`, `~/.gal/config/xmachine.json`, `~/.gal/state/plugins.lock.json`, explicit local overrides, and secret sources stay user-owned and are preserved.
 
-For a true reset, use the explicit purge lane — `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`. Default uninstall must never silently delete the preserved surfaces.
+For a true reset, use the explicit purge lane through the Rust uninstall flow, keeping destructive purge explicit and separate from the default uninstall behavior. Default uninstall must never silently delete the preserved surfaces.
 
 ## Install Status & Channels
 

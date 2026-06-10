@@ -477,7 +477,7 @@ Default uninstall must stay narrower than a machine reset.
 
 Purge or reset is a separate destructive lane, not part of default uninstall.
 
-- The explicit purge entrypoint is `Uninstall-Machine -Purge -ConfirmPurge` or `uninstall-machine.sh --purge --confirm-purge`, and it must remain opt-in, visible, and dry-runnable before destructive execution.
+- The explicit purge entrypoint is the Rust uninstall flow, and it must remain opt-in, visible, and dry-runnable before destructive execution.
 - Purge/reset may remove preserved machine-local intent such as `config.json`, `xmachine.json`, lockfile state, local overrides, install-state metadata, and secret-bearing generated surfaces, but only after an explicit destructive confirmation step.
 - Neither package-manager uninstall nor default GAL-managed uninstall may simulate purge/reset by deleting preserved surfaces automatically.
 - The practical rule is simple: uninstall removes what GAL can safely rebuild; purge/reset removes what the user would otherwise need to carry forward.

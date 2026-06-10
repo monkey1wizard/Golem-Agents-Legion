@@ -562,7 +562,7 @@ fn write_provider_lifecycle_artifacts(
 
 /// Run `gal uninstall` — remove canonical root and provider surfaces.
 pub fn run_uninstall() -> Result<(), InstallError> {
-    let home = dirs::home_dir().ok_or(InstallError::NoHome)?;
+    let home = crate::paths::user_home().ok_or(InstallError::NoHome)?;
     let canonical_root = home.join(".gal").join("plugins").join("gal");
 
     let mut warnings = Vec::new();
@@ -584,6 +584,13 @@ pub fn run_uninstall() -> Result<(), InstallError> {
         fs::remove_dir_all(&canonical_root)?;
     }
 
+    remove_path_if_present(&copilot_projection_root()?)?;
+    remove_path_if_present(&home.join(".claude").join("skills").join("gal"))?;
+    remove_path_if_present(&home.join(".claude").join("plugins").join("gal"))?;
+    remove_path_if_present(&gal_dist_providers_root()?)?;
+    remove_path_if_present(&home.join(".gal").join("plugins").join(".claude-plugin"))?;
+    remove_path_if_present(&home.join(".gal").join("plugins").join(".agents"))?;
+
     // Write uninstall ledger entry.
     write_ledger_entry("uninstall", &canonical_root, &[], "normal", &mut warnings);
 
@@ -591,6 +598,19 @@ pub fn run_uninstall() -> Result<(), InstallError> {
         eprintln!("gal uninstall warning: {w}");
     }
 
+    Ok(())
+}
+
+fn remove_path_if_present(path: &Path) -> Result<(), InstallError> {
+    if base::platform::is_symlink_or_junction(path) {
+        let _ = base::platform::remove_dir_link(path);
+        return Ok(());
+    }
+    if path.is_file() {
+        fs::remove_file(path)?;
+    } else if path.is_dir() {
+        fs::remove_dir_all(path)?;
+    }
     Ok(())
 }
 

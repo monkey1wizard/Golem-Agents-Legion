@@ -63,14 +63,35 @@ pub fn remove_dir_link(path: &Path) -> io::Result<()> {
 pub fn is_symlink_or_junction(path: &Path) -> bool {
     #[cfg(windows)]
     {
-        // On Windows, metadata() follows junctions; symlink_metadata() does not.
+        use std::os::windows::fs::MetadataExt;
+
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+
         path.symlink_metadata()
-            .map(|m| m.file_type().is_dir() || m.file_type().is_symlink())
+            .map(|metadata| {
+                metadata.file_type().is_symlink()
+                    || (metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0
+            })
             .unwrap_or(false)
     }
     #[cfg(not(windows))]
     {
         path.is_symlink()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[cfg(windows)]
+    #[test]
+    fn ordinary_directory_is_not_a_junction() {
+        let temp = TempDir::new().unwrap();
+        let ordinary_dir = temp.path().join("plain-dir");
+        std::fs::create_dir(&ordinary_dir).unwrap();
+        assert!(!is_symlink_or_junction(&ordinary_dir));
     }
 }
 

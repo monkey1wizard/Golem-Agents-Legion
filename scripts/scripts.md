@@ -10,8 +10,6 @@ Machine setup and adapter sync scripts.
 | `init-repo.sh` | macOS | Same for Mac |
 | `Update-Mcp.ps1` | Windows | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
 | `update-mcp.sh` | macOS | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
-| `Uninstall-Machine.ps1` | Windows | Remove GAL-managed machine artifacts while preserving user-owned config, lockfile, xmachine bindings, local overrides, and secrets by default; `-Purge -ConfirmPurge` makes destructive reset explicit |
-| `uninstall-machine.sh` | macOS | Same for Mac, using `--purge --confirm-purge` for explicit destructive reset |
 | `Invoke-XmachineRemoteTask.ps1` | Windows | Dispatch a task to the remote Windows xmachine lane over SSH |
 | `Start-xMachine.ps1` | Windows | Run a task on the remote Windows machine in the `remote-windows` lane via Gemini CLI (legacy Google headless lane pending Antigravity CLI parity) |
 | `Get-XmachineRemoteResult.ps1` | Windows | Retrieve results from a completed remote xmachine task and clean up the worktree |

@@ -62,7 +62,7 @@ impl Ledger {
 
 /// Canonical path for the GAL ledger file (`~/.gal/ledger.json`).
 pub fn ledger_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".gal").join("ledger.json"))
+    crate::paths::user_home().map(|h| h.join(".gal").join("ledger.json"))
 }
 
 /// Current UTC timestamp as ISO 8601 string.

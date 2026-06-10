@@ -320,7 +320,7 @@ Not triggered（無 customer-facing UI）。
 
 **R-06 雜項（逐項 port→parity→刪）**
 - [x] **T-025** — `vcs`:`gal clean`/`gal smudge` + commit-msg;parity;刪 `gal-clean.sh`/`gal-smudge.sh`。*(closeout: Rust filter engine + CLI cutover landed; setup/adapters git config now registers `gal clean` / `gal smudge`; shell filter pair deleted after focused tests passed)*
-- [ ] **T-026** — `gal uninstall` parity(ledger 精確);刪 `uninstall-machine.{ps1,sh}`。
+- [x] **T-026** — `gal uninstall` parity(ledger 精確);刪 `uninstall-machine.{ps1,sh}`。*(closeout: Rust uninstall now removes R-05 provider outputs with focused uninstall probe coverage; uninstall wrapper pair deleted after parity passed)*
 - [ ] **T-027** — port `init-repo` → Rust;parity;刪對。
 - [ ] **T-028** — port catalog 解析(`Resolve-GalCatalog`)→ Rust;parity;刪。
 - [ ] **T-029** — release packaging 併 `gal release`;parity;刪 `Package-ReleaseArtifacts.{ps1,sh}`。

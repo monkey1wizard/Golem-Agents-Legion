@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 26 of 35
-Last activity: 2026-06-10 — **T-025 complete** — Rust `gal clean` / `gal smudge` now own the git filter transforms, `gal setup` and source-mode personalization both register `filter.gal-config.*` to the binary commands, and the bash filter scripts were deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-025 reached.
-Next step: implement T-026 (R-06 — `gal uninstall` parity / ledger precision)
+Step: 27 of 35
+Last activity: 2026-06-10 — **T-026 complete** — Rust `gal uninstall` now removes the Rust-managed provider outputs introduced by R-05, uses the shared home-resolution layer for ledger/uninstall paths, and the uninstall wrapper scripts were deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-026 reached.
+Next step: implement T-027 (R-06 — `init-repo` Rust port)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-025 is closed: the git filter is now owned by the Rust `gal clean` / `gal smudge` commands, the setup/adapters git-config writers point at those commands, and `scripts/gal-clean.sh` plus `scripts/gal-smudge.sh` are deleted.
+T-026 is closed: `gal uninstall` now removes the Rust-managed provider outputs that survived R-05, ledger/uninstall path resolution is aligned to the shared `base::paths` layer, and `Uninstall-Machine.*` is deleted.
 
-The exact next step is T-026: extend `gal uninstall` to the Rust-managed R-05 surfaces with ledger-precision parity, then delete `Uninstall-Machine.*` only after the focused uninstall probe passes.
+The exact next step is T-027: port `Init-Repo.*` into a Rust path and only then repoint the `gal init` shell dispatcher branch and delete the script pair.
 
 ## Tasks
 
@@ -169,7 +169,7 @@ R-05 install family
 
 R-06 misc (per item: port → parity → delete)
 - [x] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`. *(closeout: added `crates/gal-engine/src/git_filters.rs`, wired `clean` / `smudge` through `cli`, repointed setup/adapters git filter registration to `gal clean` / `gal smudge`, and deleted the bash filter scripts after focused filter tests passed)*
-- [ ] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`.
+- [x] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`. *(closeout: uninstall now removes Rust-managed provider ledgers/projections, uses shared home resolution for ledger/uninstall paths, and deletes the uninstall wrapper pair after the focused uninstall probe passed)*
 - [ ] T-027 — Port `init-repo` → Rust; parity; delete pair.
 - [ ] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete.
 - [ ] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`.
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-026] 2026-06-10 — PASS (TP-20 slice: gal uninstall ledger precision)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-026 parity for the Rust uninstall path.
+
+- **Focused uninstall probe green** — `cargo test --test uninstall_r06` passes: Rust install seeds the R-05 provider outputs, `gal uninstall` removes the canonical root, provider ledger/projection roots, and leaves an uninstall ledger entry.
+- **Touched crates compile cleanly** — `cargo check -p setup` and `cargo check -p gal-engine` pass after the uninstall-path and platform-layer changes.
+- **Deletion gate held** — `scripts/Uninstall-Machine.ps1` and `scripts/uninstall-machine.sh` deleted only after the Rust uninstall parity probe passed.
+
 ### [T-025] 2026-06-10 — PASS (TP-20 slice: vcs clean/smudge)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-025 parity for the git filter transform path.
@@ -927,6 +935,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-026] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The Windows reparse-point detection fix in `base::platform` is part of this task because the uninstall parity probe exposed it as the concrete root cause for stale provider directories surviving cleanup.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-025] 2026-06-10 — APPROVE
 
