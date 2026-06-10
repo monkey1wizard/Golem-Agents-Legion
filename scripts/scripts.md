@@ -6,17 +6,11 @@ Machine setup and adapter sync scripts.
 | --- | --- | --- |
 | `gal.ps1` | Windows | `gal <subcommand>` dispatcher |
 | `gal.sh` | macOS | `gal <subcommand>` dispatcher |
-| `Build-CorePlugin.ps1` | Windows | Build and validate the provider-neutral common package, then render the superset canonical plugin root at `~/.gal/plugins/gal/` with all provider entry-point markers (Claude, AGY, Codex, Copilot); when `-Install` is specified, projects to all AGY surfaces (CLI junction, IDE junction, GUI-config) and removes GAL-owned vestigial artifacts |
-| `build-core-plugin.sh` | macOS/Linux | Same for Mac/Linux |
 | `gal-smudge.sh` | cross-platform | Git smudge filter — replaces `<PLACEHOLDER>` with values from `~/.gal/config/config.local.env` |
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then inspect any existing graphify artifacts without generating new ones |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Install-GalPlugins.ps1` | Windows | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
-| `Build-ProviderPlugins.ps1` | Windows | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY, Copilot, Codex, and Claude are all wired to the core renderer |
 | `Update-Mcp.ps1` | Windows | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
-| `install-gal-plugins.sh` | macOS/Linux | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
-| `build-provider-plugins.sh` | macOS/Linux | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY, Copilot, Codex, and Claude are all wired to the core renderer |
 | `update-mcp.sh` | macOS | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
 | `Uninstall-Machine.ps1` | Windows | Remove GAL-managed machine artifacts while preserving user-owned config, lockfile, xmachine bindings, local overrides, and secrets by default; `-Purge -ConfirmPurge` makes destructive reset explicit |
 | `uninstall-machine.sh` | macOS | Same for Mac, using `--purge --confirm-purge` for explicit destructive reset |
@@ -91,19 +85,19 @@ Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank 
 2. run the machine-surface refresh (library call into `adapters`)
 3. run the MCP refresh (library call into `mcp`; skipped on uninstall)
 4. register the `gal-config` git filter
-5. run `Install-GalPlugins.ps1` or `install-gal-plugins.sh` (legacy step until R-05)
+5. run the Rust install orchestration (`gal install` / `gal uninstall`) through the setup crate
 
 `gal setup --tools` checks and optionally installs the collaborative tools (gstack / graphify / OpenCLI / xmachine status).
 
 Use `gal update --machine-only` when you only need machine-surface refreshes and `gal sync` when you only need repo-local adapter regeneration.
 
-`gal setup --check` bypasses the normal concern chain and delegates directly to `Install-GalPlugins.* -Check` / `install-gal-plugins.sh --check`, keeping the provider doctor path read-only.
+`gal setup --check` bypasses the normal concern chain and runs the in-process provider doctor, keeping the provider check path read-only.
 
 ## Current Boundary
 
 The current script surface is split across two adjacent concerns:
 
-- install-mode plugin orchestration: `Install-GalPlugins.*`, `Build-ProviderPlugins.*`, resolver output, `~/.gal/` ownership, and provider-specific lifecycle work
+- install-mode plugin orchestration: `gal install`, canonical-root render, `~/.gal/` ownership, and provider-specific lifecycle work
 - bootstrap installer and official distribution channels: versioned bootstrap payloads, package managers, release archives, and marketplace/discoverability work
 
 Today the AGY, Claude, Copilot, and Codex provider-native lifecycle slices are implemented in the install-mode scripts, including the read-only provider doctor/check surface. Bootstrap packaging and official install-channel wording remain handled by the separate bootstrap-installer planning track.
@@ -130,7 +124,7 @@ All `plugins/gal-core/commands/` subdirectories are picked up dynamically — ad
 
 Additionally **generates** each `plugins/gal-core/commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. `gal setup` then symlinks those command directories into Copilot and Codex skill targets while generating legacy Gemini native command files plus Claude and OpenCode markdown command files from the same baked content.
 
-Antigravity installs as a provider plugin projected from the superset canonical root `~/.gal/plugins/gal/`. The canonical root carries all provider entry-point markers and is rendered by `Build-CorePlugin` from the provider-neutral common package model. Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up. AGY is projected to three surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and GUI-config (`~/.gemini/config/plugins/gal` via `agy plugin install`).
+Antigravity installs as a provider plugin projected from the superset canonical root `~/.gal/plugins/gal/`. The canonical root carries all provider entry-point markers and is rendered by the Rust install/render path (`gal install`, `crates/gal-engine/src/render.rs`). Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up. AGY is projected to three surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and GUI-config (`~/.gemini/config/plugins/gal` via `agy plugin install`).
 
 `gal sync` generates `.agents/rules/gal.md`, which references the repo-local `AGENTS.md` through Antigravity's documented `@filename` rule syntax instead of introducing a custom Antigravity-only adapter file.
 
@@ -163,62 +157,6 @@ Rerun guidance:
 
 ## Core Plugin Renderer
 
-`Build-CorePlugin.ps1` and `build-core-plugin.sh` render the superset canonical plugin root from the GAL repo source contracts.
-
-### What It Does
-
-1. Builds a provider-neutral common package using `New-ProviderPluginPackage` / `build_provider_plugin_package`
-2. Validates the common package using `Test-ProviderPluginPackage` / `validate_provider_plugin_package`
-3. Renders the superset canonical root at `~/.gal/plugins/gal/` with all provider entry-point markers:
-   - `.claude-plugin/plugin.json` — Claude Code plugin manifest
-   - `skills/` — reusable skills (shared by all providers)
-   - `commands/` — flat command markdown files (Claude / Copilot)
-   - `agents/<name>.md` — Copilot/Claude-compatible filtered agent definitions
-   - `agy-agents/<name>.agent.md` — AGY-compatible unfiltered agent definitions
-   - `.mcp.json` — portable non-secret MCP server configuration (Claude / Copilot)
-   - `plugin.json` — AGY root manifest
-   - `mcp_config.json` — AGY MCP configuration
-   - `rules/gal.md` — AGY instruction corpus
-4. When `-Install` / `--install` is specified, projects to all AGY surfaces (link-first):
-   - CLI junction: `~/.gemini/antigravity-cli/plugins/gal` → canonical root
-   - IDE junction: `~/.gemini/antigravity-ide/plugins/gal` → canonical root
-   - GUI-config: `agy plugin install <canonical root>` (host-managed copy)
-   - Removes GAL-owned vestigial artifacts (whitelist-guarded)
-
-### What It Does NOT Output
-
-- `hooks.json`
-- `scripts/`
-- Marketplace metadata
-- Provider stubs moved out of the shared root
-- `.tmp/gal-results/`
-
-### Usage
-
-```powershell
-# Render superset canonical root (all provider markers)
-.\scripts\Build-CorePlugin.ps1
-
-# Force overwrite existing artifacts
-.\scripts\Build-CorePlugin.ps1 -Force
-
-# Render and install to all AGY surfaces (CLI + IDE + GUI-config)
-.\scripts\Build-CorePlugin.ps1 -Install -Force
-```
-
-```bash
-# Render superset canonical root (all provider markers)
-./scripts/build-core-plugin.sh
-
-# Force overwrite existing artifacts
-./scripts/build-core-plugin.sh --force
-
-# Render and install to all AGY surfaces (CLI + IDE + GUI-config)
-./scripts/build-core-plugin.sh --install --force
-```
-
-### Common Package Model
-
-The renderer relies on `scripts/common/ProviderPlugin.ps1` and `scripts/common/provider-plugin.sh` for the provider-neutral substrate. The common model contains no provider-specific paths, no resolved local secrets, and no runtime scripts. It explicitly records skipped components (`hooks`, `runtimeScripts`) so unsupported features are documented rather than silently omitted.
+The Rust install/render path now owns canonical plugin rendering from the GAL source contracts. `gal install` renders the superset canonical root at `~/.gal/plugins/gal/`, emits the provider entry-point markers for Claude, Copilot, Codex, and AGY, writes provider lifecycle state under `~/.gal/dist/providers/`, and projects provider-visible surfaces such as `~/.claude/skills/gal/`, `~/.copilot/installed-plugins/gal-copilot/gal/`, and the AGY plugin roots.
 
 See [docs/devguide.md](../docs/devguide.md) for the architecture-level explanation behind this runtime layout.

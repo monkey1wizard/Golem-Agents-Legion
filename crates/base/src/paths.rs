@@ -20,6 +20,11 @@ fn home_dir() -> Option<PathBuf> {
     }
 }
 
+/// The effective user home directory used by GAL path resolution.
+pub fn user_home() -> Option<PathBuf> {
+    home_dir()
+}
+
 /// The GAL home directory (`~/.gal`).
 pub fn gal_home() -> Option<PathBuf> {
     home_dir().map(|h| h.join(".gal"))

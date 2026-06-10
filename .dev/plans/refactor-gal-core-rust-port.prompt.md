@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 22 of 35
-Last activity: 2026-06-10 — **R-04 complete** (T-018 2c68fe2, T-019 b92b8b0, T-020 708ca94, T-021 41ff61a) — gal setup / gal setup --tools live; setup-machine + setup-tools script pairs deleted; uninstall wrappers rewired; docs + adapters synced. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-021 reached.
-Next step: implement T-022 (R-05 — install-gal-plugins four-provider orchestration parity)
+Step: 25 of 35
+Last activity: 2026-06-10 — **R-05 complete** (T-022..T-024) — Rust install now renders the Codex plugin marker, writes provider lifecycle ledgers and marketplace descriptors under `~/.gal/dist/providers/` + `~/.gal/plugins/`, refreshes Copilot/Claude/AGY projections from the canonical root, repoints `gal setup` install/check to the Rust path, replaces the AGY build-script caller in `adapters`, and deletes the install-family scripts (`Install-GalPlugins.*`, `Build-CorePlugin.*`, `Build-ProviderPlugins.*`, `common/ProviderPlugin.*`). Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-024 reached.
+Next step: implement T-025 (R-06 — `gal clean` / `gal smudge` + commit-msg parity)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,13 +123,11 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-**CORR-01 (2026-06-09, deep-planning 4th pass):** real-machine validation = pure end-user install of an R-13 prebuilt artifact; NEVER install rust / build / cross-compile on a test machine (mac-mini, Win11). The plan was missing the release-artifact pipeline (R-13) prerequisite. mac-mini has rustup proxies but no toolchain + brew without rust — irrelevant; treat it as an end user.
+R-05 is closed: `gal install` now owns the four-provider lifecycle writes that were still living in the install/build scripts, `gal setup` no longer shells out for install/check, `adapters` no longer shells out for AGY canonical refresh, and the install-family scripts are deleted. Validation for this slice is `cargo test --test install_family_r05` plus `cargo check -p setup`, `cargo check -p adapters`, and `cargo check -p gal-engine`.
 
-Cross-plan: this plan's R-00 (T-003..T-009: extract `base`, de-prefix `dispatch`) must land before the sister xmachine plan's T-002. Implementation-time architect sign-off required for protected-core tasks (T-003..T-009, T-013..T-017 adapters, T-018..T-021 setup).
+Not yet done: T-025..T-035 remain. The next exact step is T-025: port `gal clean` / `gal smudge` and commit-msg parity, then atomically re-register git filters away from the bash scripts.
 
-**P0 complete (2026-06-09):** T-001 done (fixtures convention `tests/fixtures/README.md`, JIT capture — D-001). T-002 done (dev-machine dev-mode baseline, `gal doctor` exit 0). Next: T-003 (extract `base`). Real-machine end-user acceptance (T-035) is gated on the R-13 release pipeline (T-034) — ties to GitHub-public + Actions macOS runner.
-
-**T-017 complete (2026-06-11):** deleted the remaining `Sync-DevContext` / `update-skills` / `update-commands` / `update-personalization` script pairs, updated `.dev/project.md` to reflect `gal sync` as the repo-local adapter source of truth, regenerated `.github/copilot-instructions.md` / `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, and aligned live docs to `gal sync` + `gal update --machine-only`. `cargo test --workspace --quiet` green; reviewer APPROVE. Next start point is T-018 only.
+Context risk: on this Windows machine, `cargo test -p setup` and `cargo test -p adapters` hit a local `link.exe` toolchain failure (`Usage: link FILE1 FILE2`), so this turn used crate compile checks instead of linked test executables for those two crates. Source files typecheck clean and the focused R-05 executable probe passes.
 
 ## Tasks
 
@@ -167,9 +165,9 @@ R-04 setup (protected, architect; implementation sign-off APPROVE-with-condition
 - [x] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`. *(41ff61a)*
 
 R-05 install family
-- [ ] T-022 (R-05) — Confirm `install-gal-plugins` four-provider orchestration parity (per-provider vs fixture: Claude/Copilot/Codex/AGY).
-- [ ] T-023 — Confirm `build-core-plugin`/`build-provider-plugins`/`provider-plugin` render parity.
-- [ ] T-024 — After all parity green, delete install family; verify live read-surface aligned.
+- [x] T-022 (R-05) — Confirm `install-gal-plugins` four-provider orchestration parity (per-provider vs fixture: Claude/Copilot/Codex/AGY). *(closeout: `gal install` now writes provider lifecycle ledgers, marketplace descriptors, and provider-visible projection roots directly from Rust; covered by `install_family_r05` focused probe)*
+- [x] T-023 — Confirm `build-core-plugin`/`build-provider-plugins`/`provider-plugin` render parity. *(closeout: Rust canonical render now emits `.codex-plugin/plugin.json` and the provider-neutral install artifacts previously owned by the build scripts)*
+- [x] T-024 — After all parity green, delete install family; verify live read-surface aligned. *(closeout: deleted install/build/provider-plugin script family, repointed `gal setup` + `adapters` callers to Rust, aligned `scripts/scripts.md` + `docs/devguide.md`, and verified no live crate caller remains)*
 
 R-06 misc (per item: port → parity → delete)
 - [ ] T-025 — `vcs`: `gal clean`/`gal smudge` + commit-msg; parity; delete `gal-clean.sh`/`gal-smudge.sh`.
@@ -700,6 +698,15 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-024] 2026-06-10 — PASS (TP-18/TP-19 slice: R-05 cutover)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused R-05 parity and deletion gate for install-family orchestration/render.
+
+- **Focused parity probe green** — `cargo test --test install_family_r05`: Rust install renders the canonical root, emits `.codex-plugin/plugin.json`, writes provider lifecycle ledgers for Copilot/Claude/Codex/AGY under `~/.gal/dist/providers/`, writes the Claude and Codex marketplace descriptors under `~/.gal/plugins/`, and refreshes the Copilot projection root.
+- **Caller cutover green** — `cargo check -p setup`, `cargo check -p adapters`, `cargo check -p gal-engine` all pass after repointing `gal setup` install/check to the Rust seam and replacing the AGY build-script caller in `adapters` with direct canonical-root projection.
+- **Live read-surface aligned** — install-family scripts deleted from `scripts/`; no live crate caller remains (only test scaffolds/comments reference the retired names).
+- **Environment caveat** — `cargo test -p setup` and `cargo test -p adapters` are blocked on this Windows machine by a local `link.exe` toolchain failure (`Usage: link FILE1 FILE2`). Source files typecheck clean; the executable R-05 probe above is green.
+
 ### [T-021] 2026-06-10 — PASS (TP-25 slice: R-04 deletion gate + live-surface sync)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = mixed-state invariant + C-1 deletion gate for the setup family.
@@ -913,6 +920,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-024] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+- **[W-01]** `cargo test -p setup` and `cargo test -p adapters` could not be linked on this machine because the local Windows `link.exe` invocation is failing outside the source files. `cargo check` for both crates passed, and the focused R-05 executable probe passed.
+
+#### INFO
+- **[I-01]** Remaining references to the retired install-family names inside `crates/` are test scaffolds or historical comments only; no live runtime caller remains.
+
+#### Summary
+- Blocking: 0
+- Warning: 1
+- Info: 1
 
 ### Architecture Review
 

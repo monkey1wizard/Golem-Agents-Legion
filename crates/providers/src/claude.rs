@@ -279,7 +279,7 @@ pub struct ClaudeSkillProjection {
 impl ClaudeSkillProjection {
     /// Construct using the real home directory.
     pub fn new(canonical_root: PathBuf) -> std::result::Result<Self, ClaudeSkillError> {
-        let home = dirs::home_dir().ok_or(ClaudeSkillError::NoHome)?;
+        let home = base::paths::user_home().ok_or(ClaudeSkillError::NoHome)?;
         let skill_surface = home.join(".claude").join("skills").join("gal");
         Ok(Self {
             canonical_root,

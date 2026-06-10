@@ -53,7 +53,7 @@ pub struct AgyProjection {
 impl AgyProjection {
     /// Create a new AGY projection configuration
     pub fn new(canonical_root: PathBuf) -> Result<Self, AgyError> {
-        let home = dirs::home_dir().ok_or_else(|| {
+        let home = base::paths::user_home().ok_or_else(|| {
             AgyError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "Could not determine home directory"

@@ -18,6 +18,7 @@ use crate::mode::{resolve_mode, GalMode, ModeError};
 use crate::providers::agy::AgyProjection;
 use crate::providers::claude::ClaudeSkillProjection;
 use crate::render::{render_canonical_root, RenderError};
+use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -30,6 +31,8 @@ pub enum InstallError {
     Render(RenderError),
     /// Filesystem I/O error.
     Io(std::io::Error),
+    /// JSON parsing or serialization failed.
+    Json(serde_json::Error),
     /// Home directory could not be determined.
     NoHome,
 }
@@ -40,6 +43,7 @@ impl std::fmt::Display for InstallError {
             InstallError::Mode(e) => write!(f, "mode error: {e}"),
             InstallError::Render(e) => write!(f, "render error: {e}"),
             InstallError::Io(e) => write!(f, "I/O error: {e}"),
+            InstallError::Json(e) => write!(f, "JSON error: {e}"),
             InstallError::NoHome => write!(f, "could not determine home directory"),
         }
     }
@@ -62,6 +66,12 @@ impl From<RenderError> for InstallError {
 impl From<std::io::Error> for InstallError {
     fn from(e: std::io::Error) -> Self {
         InstallError::Io(e)
+    }
+}
+
+impl From<serde_json::Error> for InstallError {
+    fn from(e: serde_json::Error) -> Self {
+        InstallError::Json(e)
     }
 }
 
@@ -126,6 +136,10 @@ fn run_update_with_op(config: &GalConfig, op: &str) -> Result<InstallReport, Ins
         Err(e) => warnings.push(format!("AGY init (best-effort): {e}")),
     }
 
+    if let Err(e) = write_provider_lifecycle_artifacts(&canonical_root, &mut providers) {
+        warnings.push(format!("provider lifecycle state: {e}"));
+    }
+
     // Step 5: Write ledger.
     write_ledger_entry(op, &canonical_root, &providers, mode_str, &mut warnings);
 
@@ -135,6 +149,415 @@ fn run_update_with_op(config: &GalConfig, op: &str) -> Result<InstallReport, Ins
         mode: mode_str.to_string(),
         warnings,
     })
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeSelection {
+    selected_runtimes: Vec<String>,
+    primary_runtime: String,
+}
+
+fn load_runtime_selection() -> RuntimeSelection {
+    let default_selected = vec![
+        "copilot".to_string(),
+        "antigravity".to_string(),
+        "codex".to_string(),
+        "claude".to_string(),
+    ];
+
+    let Some(path) = crate::paths::install_state_path() else {
+        return RuntimeSelection {
+            selected_runtimes: default_selected.clone(),
+            primary_runtime: default_selected[0].clone(),
+        };
+    };
+
+    let Ok(content) = fs::read_to_string(path) else {
+        return RuntimeSelection {
+            selected_runtimes: default_selected.clone(),
+            primary_runtime: default_selected[0].clone(),
+        };
+    };
+
+    let Ok(value) = serde_json::from_str::<Value>(&content) else {
+        return RuntimeSelection {
+            selected_runtimes: default_selected.clone(),
+            primary_runtime: default_selected[0].clone(),
+        };
+    };
+
+    let selected_runtimes = value
+        .get("selectedRuntimes")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|item| item.trim().to_ascii_lowercase())
+                .filter(|item| !item.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| default_selected.clone());
+
+    let primary_runtime = value
+        .get("primaryRuntime")
+        .and_then(Value::as_str)
+        .map(|item| item.trim().to_ascii_lowercase())
+        .filter(|item| !item.is_empty())
+        .unwrap_or_else(|| selected_runtimes[0].clone());
+
+    RuntimeSelection {
+        selected_runtimes,
+        primary_runtime,
+    }
+}
+
+fn provider_from_runtime(runtime: &str) -> &str {
+    match runtime {
+        "antigravity" => "agy",
+        other => other,
+    }
+}
+
+fn lane_from_runtime(runtime: &str) -> &str {
+    match runtime {
+        "opencode" => "bridge",
+        "gemini" => "migration",
+        _ => "primary",
+    }
+}
+
+fn primary_providers(selection: &RuntimeSelection) -> Vec<String> {
+    let mut providers = Vec::new();
+    for runtime in &selection.selected_runtimes {
+        if lane_from_runtime(runtime) != "primary" {
+            continue;
+        }
+        let provider = provider_from_runtime(runtime).to_string();
+        if !providers.contains(&provider) {
+            providers.push(provider);
+        }
+    }
+    providers
+}
+
+fn ensure_parent_dir(path: &Path) -> Result<(), InstallError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    Ok(())
+}
+
+fn gal_dist_providers_root() -> Result<PathBuf, InstallError> {
+    crate::paths::gal_home()
+        .map(|path| path.join("dist").join("providers"))
+        .ok_or(InstallError::NoHome)
+}
+
+fn provider_state_path(provider: &str) -> Result<PathBuf, InstallError> {
+    Ok(gal_dist_providers_root()?.join(provider).join("managed.json"))
+}
+
+fn write_json_file(path: &Path, value: &Value) -> Result<(), InstallError> {
+    ensure_parent_dir(path)?;
+    fs::write(path, serde_json::to_string_pretty(value)?)?;
+    Ok(())
+}
+
+fn claude_marketplace_manifest_path() -> Result<PathBuf, InstallError> {
+    crate::paths::gal_plugins_root()
+        .map(|root| root.join(".claude-plugin").join("marketplace.json"))
+        .ok_or(InstallError::NoHome)
+}
+
+fn codex_marketplace_manifest_path() -> Result<PathBuf, InstallError> {
+    crate::paths::gal_plugins_root()
+        .map(|root| root.join(".agents").join("plugins").join("marketplace.json"))
+        .ok_or(InstallError::NoHome)
+}
+
+fn copilot_projection_root() -> Result<PathBuf, InstallError> {
+    crate::paths::user_home()
+        .map(|home| {
+            home.join(".copilot")
+                .join("installed-plugins")
+                .join("gal-copilot")
+                .join("gal")
+        })
+        .ok_or(InstallError::NoHome)
+}
+
+fn sync_copilot_projection(canonical_root: &Path) -> Result<(PathBuf, bool, Option<String>), InstallError> {
+    let projection_root = copilot_projection_root()?;
+    ensure_parent_dir(&projection_root)?;
+
+    if base::platform::is_symlink_or_junction(&projection_root) {
+        let _ = base::platform::remove_dir_link(&projection_root);
+    } else if projection_root.exists() {
+        fs::remove_dir_all(&projection_root)?;
+    }
+
+    if base::platform::create_dir_link(canonical_root, &projection_root).is_ok() {
+        return Ok((projection_root, false, None));
+    }
+
+    copy_dir_all(canonical_root, &projection_root)?;
+    let manifest_path = projection_root.join("copilot-manifest.json");
+    let version_bumped_to = bump_copilot_manifest_version(&manifest_path)?;
+    Ok((projection_root, true, version_bumped_to))
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), InstallError> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let target_path = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&source_path, &target_path)?;
+        } else {
+            fs::copy(&source_path, &target_path)?;
+        }
+    }
+    Ok(())
+}
+
+fn bump_copilot_manifest_version(path: &Path) -> Result<Option<String>, InstallError> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let mut manifest: Value = serde_json::from_str(&fs::read_to_string(path)?)?;
+    let current = manifest
+        .get("version")
+        .and_then(Value::as_str)
+        .unwrap_or("1.0.0");
+    let bumped = format!("{current}.host{}", chrono::Utc::now().format("%Y%m%d%H%M%S"));
+    manifest["version"] = Value::String(bumped.clone());
+    fs::write(path, serde_json::to_string_pretty(&manifest)?)?;
+    Ok(Some(bumped))
+}
+
+fn write_provider_lifecycle_artifacts(
+    canonical_root: &Path,
+    providers: &mut Vec<String>,
+) -> Result<(), InstallError> {
+    let selection = load_runtime_selection();
+    let primary = primary_providers(&selection);
+
+    if primary.contains(&"claude".to_string()) {
+        let projection = ClaudeSkillProjection::new(canonical_root.to_path_buf())
+            .map_err(|e| InstallError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        projection
+            .apply()
+            .map_err(|e| InstallError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let marketplace_path = claude_marketplace_manifest_path()?;
+        write_json_file(
+            &marketplace_path,
+            &json!({
+                "name": "gal",
+                "owner": { "name": "GAL" },
+                "description": "Golem Agents Legion — document-driven AI working system",
+                "plugins": [
+                    {
+                        "name": "gal",
+                        "source": "./gal",
+                        "description": "Golem Agents Legion plugin for Claude Code"
+                    }
+                ]
+            }),
+        )?;
+        write_json_file(
+            &provider_state_path("claude")?,
+            &json!({
+                "schemaVersion": 1,
+                "provider": "claude",
+                "canonicalRoot": canonical_root,
+                "packageOutputRoot": canonical_root,
+                "projectionRoot": projection.skill_surface,
+                "installTarget": projection.skill_surface,
+                "manifestPath": canonical_root.join(".claude-plugin").join("plugin.json"),
+                "generatedAt": chrono::Utc::now().to_rfc3339(),
+                "status": "linked-projection",
+                "readSurface": "linked-projection",
+                "cli": {
+                    "available": false,
+                    "validateSupported": false,
+                    "localArtifactInstallSupported": false,
+                    "installScopeSupported": false,
+                    "installHelpSummary": null
+                },
+                "validation": {
+                    "command": "claude plugin validate <plugin-root> --strict",
+                    "strictPassed": false
+                },
+                "lifecycle": {
+                    "mode": "session-load-only",
+                    "stagedPluginRoot": projection.skill_surface,
+                    "marketplaceName": "gal",
+                    "sessionLoadCommand": "claude --plugin-dir <plugin-root>",
+                    "installCommandTemplate": "claude plugin install <plugin> --scope <scope>",
+                    "updateCommandTemplate": "claude plugin update <plugin> --scope <scope>",
+                    "uninstallCommandTemplate": "claude plugin uninstall <plugin> --scope <scope>"
+                }
+            }),
+        )?;
+        if !providers.contains(&"claude".to_string()) {
+            providers.push("claude".to_string());
+        }
+    }
+
+    if primary.contains(&"copilot".to_string()) {
+        let (projection_root, refreshed_copy_to_host, version_bumped_to) =
+            sync_copilot_projection(canonical_root)?;
+        let status = if refreshed_copy_to_host {
+            "refreshed-copy2-host"
+        } else {
+            "linked-projection"
+        };
+        write_json_file(
+            &provider_state_path("copilot")?,
+            &json!({
+                "schemaVersion": 1,
+                "provider": "copilot",
+                "canonicalRoot": canonical_root,
+                "packageOutputRoot": canonical_root,
+                "projectionRoot": projection_root,
+                "installTarget": projection_root,
+                "manifestPath": canonical_root.join("copilot-manifest.json"),
+                "generatedAt": chrono::Utc::now().to_rfc3339(),
+                "status": status,
+                "readSurface": status,
+                "cli": {
+                    "available": false,
+                    "validateSupported": false,
+                    "localArtifactInstallSupported": false,
+                    "marketplaceInstallSupported": false,
+                    "installScopeSupported": false,
+                    "installHelpSummary": null
+                },
+                "validation": {
+                    "command": null,
+                    "strictPassed": false
+                },
+                "lifecycle": {
+                    "mode": "artifact-only",
+                    "stagedPluginRoot": projection_root,
+                    "refreshedCopyToHost": refreshed_copy_to_host,
+                    "versionBumpedTo": version_bumped_to,
+                    "sessionLoadCommand": "GitHub Copilot reads the projected plugin from ~/.copilot/installed-plugins/gal-copilot/gal",
+                    "installCommandTemplate": "gh copilot plugin install <plugin-root>",
+                    "updateCommandTemplate": "gh copilot plugin update <plugin-id>",
+                    "uninstallCommandTemplate": "gh copilot plugin uninstall <plugin-id>"
+                }
+            }),
+        )?;
+        if !providers.contains(&"copilot".to_string()) {
+            providers.push("copilot".to_string());
+        }
+    }
+
+    if primary.contains(&"codex".to_string()) {
+        let marketplace_path = codex_marketplace_manifest_path()?;
+        write_json_file(
+            &marketplace_path,
+            &json!({
+                "name": "gal-marketplace",
+                "interface": { "displayName": "GAL Plugin Marketplace" },
+                "plugins": [
+                    {
+                        "name": "gal",
+                        "source": { "source": "local", "path": "./gal" },
+                        "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+                        "category": "Engineering"
+                    }
+                ]
+            }),
+        )?;
+        write_json_file(
+            &provider_state_path("codex")?,
+            &json!({
+                "schemaVersion": 1,
+                "provider": "codex",
+                "canonicalRoot": canonical_root,
+                "packageOutputRoot": canonical_root,
+                "projectionRoot": null,
+                "installTarget": "gal@gal-marketplace",
+                "manifestPath": canonical_root.join(".codex-plugin").join("plugin.json"),
+                "generatedAt": chrono::Utc::now().to_rfc3339(),
+                "status": "unprojected-artifact",
+                "readSurface": "unprojected-artifact",
+                "cli": {
+                    "available": false,
+                    "validateSupported": false,
+                    "localArtifactInstallSupported": false,
+                    "marketplaceInstallSupported": false,
+                    "installScopeSupported": false,
+                    "installHelpSummary": null
+                },
+                "validation": {
+                    "command": null,
+                    "strictPassed": false
+                },
+                "lifecycle": {
+                    "mode": "artifact-only",
+                    "stagedPluginRoot": canonical_root,
+                    "marketplaceRoot": crate::paths::gal_plugins_root(),
+                    "marketplaceManifestPath": marketplace_path,
+                    "marketplaceName": "gal-marketplace",
+                    "installedSelector": "gal@gal-marketplace",
+                    "sessionLoadCommand": "codex plugin marketplace add <plugins-root> ; codex plugin add gal@gal-marketplace",
+                    "installCommandTemplate": "codex plugin marketplace add <plugins-root>",
+                    "updateCommandTemplate": "codex plugin remove gal@gal-marketplace ; codex plugin add gal@gal-marketplace",
+                    "uninstallCommandTemplate": "codex plugin remove gal@gal-marketplace ; codex plugin marketplace remove gal-marketplace",
+                    "pluginRemovedBeforeAdd": false
+                }
+            }),
+        )?;
+        if !providers.contains(&"codex".to_string()) {
+            providers.push("codex".to_string());
+        }
+    }
+
+    if primary.contains(&"agy".to_string()) {
+        write_json_file(
+            &provider_state_path("agy")?,
+            &json!({
+                "schemaVersion": 1,
+                "provider": "agy",
+                "canonicalRoot": canonical_root,
+                "packageOutputRoot": canonical_root,
+                "projectionRoot": crate::paths::gal_active_provider_path("agy"),
+                "installTarget": crate::paths::user_home().map(|home| home.join(".gemini").join("antigravity-cli").join("plugins").join("gal")),
+                "shortcutTarget": crate::paths::gal_active_provider_path("agy"),
+                "generatedAt": chrono::Utc::now().to_rfc3339(),
+                "status": "linked-projection",
+                "readSurface": "linked-projection",
+                "cli": {
+                    "available": false,
+                    "validateSupported": false,
+                    "localArtifactInstallSupported": false,
+                    "marketplaceInstallSupported": false,
+                    "installScopeSupported": false,
+                    "installHelpSummary": null
+                },
+                "validation": {
+                    "command": null,
+                    "strictPassed": false
+                },
+                "lifecycle": {
+                    "mode": "managed-shortcut",
+                    "status": "implemented"
+                }
+            }),
+        )?;
+        if !providers.contains(&"agy".to_string()) {
+            providers.push("agy".to_string());
+        }
+    }
+
+    let _ = &selection.primary_runtime;
+    Ok(())
 }
 
 /// Run `gal uninstall` — remove canonical root and provider surfaces.

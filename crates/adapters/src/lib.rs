@@ -1814,14 +1814,18 @@ fn build_agy_plugin(
     ctx: &PersonalizationContext,
     report: &mut ProjectionReport,
 ) -> Result<(), AdapterError> {
-    let script = if cfg!(windows) {
-        ctx.opts.repo_root.join("scripts").join("Build-CorePlugin.ps1")
-    } else {
-        ctx.opts.repo_root.join("scripts").join("build-core-plugin.sh")
-    };
-    if !script.is_file() {
+    let Some(canonical_root) = base::paths::gal_plugin_root("gal") else {
         report.warnings.push(ProjectionWarning {
-            message: format!("missing AGY build script: {}", script.display()),
+            message: "unable to resolve GAL canonical root for AGY projection".to_string(),
+        });
+        return Ok(());
+    };
+    if !canonical_root.is_dir() {
+        report.warnings.push(ProjectionWarning {
+            message: format!(
+                "missing GAL canonical root for AGY projection: {} — run `gal install` or `gal update` first",
+                canonical_root.display()
+            ),
         });
         return Ok(());
     }
@@ -1829,35 +1833,11 @@ fn build_agy_plugin(
         report.written_files.push(ctx.agy_plugin_install_target());
         return Ok(());
     }
-    let mut command = if cfg!(windows) {
-        let mut cmd = Command::new("powershell");
-        cmd.args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            script.to_string_lossy().as_ref(),
-            "-RepoRoot",
-            ctx.opts.repo_root.to_string_lossy().as_ref(),
-            "-InstallMode",
-            load_install_mode(ctx),
-            "-Force",
-            "-Install",
-        ]);
-        cmd
-    } else {
-        let mut cmd = Command::new("bash");
-        cmd.args([script.to_string_lossy().as_ref(), "--force", "--install"]);
-        cmd
-    };
-    command.current_dir(&ctx.opts.repo_root);
-    let output = command.output()?;
-    if !output.status.success() {
-        return Err(AdapterError::Message(format!(
-            "AGY plugin build failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
+    let projection = providers::agy::AgyProjection::new(canonical_root)
+        .map_err(|e| AdapterError::Message(format!("AGY projection init failed: {e}")))?;
+    projection
+        .apply()
+        .map_err(|e| AdapterError::Message(format!("AGY projection failed: {e}")))?;
     report.written_files.push(ctx.agy_plugin_install_target());
     Ok(())
 }

@@ -310,15 +310,15 @@ fn looks_like_source_root(path: &Path) -> bool {
 
 /// Get the canonical plugin root path.
 ///
-/// Uses `dirs::home_dir()` for consistent resolution on Windows, macOS, and Linux
-/// (avoids raw `USERPROFILE`/`HOME` env var divergence across platforms).
+/// Uses the shared `base::paths` resolution so install/render honor the same
+/// home-directory semantics as the rest of GAL.
 fn get_canonical_plugin_root() -> PathBuf {
-    // ~/.gal/plugins/gal/
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".gal")
-        .join("plugins")
-        .join("gal")
+    base::paths::gal_plugin_root("gal").unwrap_or_else(|| {
+        PathBuf::from(".")
+            .join(".gal")
+            .join("plugins")
+            .join("gal")
+    })
 }
 
 /// Create a temp directory for atomic rendering.
@@ -347,6 +347,7 @@ fn render_to_temp(
     let agents_dir = temp_dir.join("agents");
     let agy_agents_dir = temp_dir.join("agy-agents");
     let claude_plugin_dir = temp_dir.join(".claude-plugin");
+    let codex_plugin_dir = temp_dir.join(".codex-plugin");
     let rules_dir = temp_dir.join("rules");
 
     fs::create_dir_all(&skills_dir)?;
@@ -354,6 +355,7 @@ fn render_to_temp(
     fs::create_dir_all(&agents_dir)?;
     fs::create_dir_all(&agy_agents_dir)?;
     fs::create_dir_all(&claude_plugin_dir)?;
+    fs::create_dir_all(&codex_plugin_dir)?;
     fs::create_dir_all(&rules_dir)?;
 
     // Copy skills
@@ -384,6 +386,9 @@ fn render_to_temp(
 
     // Render Claude plugin manifest
     render_claude_plugin_manifest(&claude_plugin_dir, components)?;
+
+    // Render Codex plugin manifest
+    render_codex_plugin_manifest(&codex_plugin_dir)?;
 
     // Render Copilot manifest
     render_copilot_manifest(temp_dir, components)?;
@@ -562,6 +567,20 @@ fn render_claude_plugin_manifest(
     });
 
     let manifest_path = claude_plugin_dir.join("plugin.json");
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
+
+    Ok(())
+}
+
+/// Render Codex plugin manifest (.codex-plugin/plugin.json).
+fn render_codex_plugin_manifest(codex_plugin_dir: &Path) -> Result<(), RenderError> {
+    let manifest_json = serde_json::json!({
+        "name": "gal",
+        "version": generate_plugin_version(),
+        "description": "GAL - Golem Agents Legion for Codex"
+    });
+
+    let manifest_path = codex_plugin_dir.join("plugin.json");
     fs::write(&manifest_path, serde_json::to_string_pretty(&manifest_json)?)?;
 
     Ok(())

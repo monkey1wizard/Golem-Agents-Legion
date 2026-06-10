@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 base = { path = "../base" }
+providers = { path = "../providers" }
 serde_json = "1"
 thiserror = "1"
 

@@ -231,18 +231,10 @@ pub fn run_setup(
         out,
     )?;
 
-    // --check: read-only short-circuit delegating to the legacy script (C-7).
+    // --check: read-only short-circuit through the in-process provider doctor.
     if opts.check {
         section(out, "Install Check");
-        let mut check_args: Vec<String> = Vec::new();
-        if !selection.selected_runtimes.is_empty() {
-            check_args.push("--selected-runtimes".into());
-            check_args.push(selection.selected_runtimes.join(","));
-            check_args.push("--primary-runtime".into());
-            check_args.push(selection.primary_runtime.clone());
-        }
-        check_args.push("--check".into());
-        let code = legacy_plugins::spawn_install_plugins(&repo_root, &check_args, false)?;
+        let code = legacy_plugins::run_install_check(&selection.selected_runtimes, out)?;
         let _ = writeln!(out);
         let _ = writeln!(out, "Check complete. No changes made.");
         return Ok(SetupOutcome { exit_code: code });
@@ -312,11 +304,12 @@ pub fn run_setup(
         git_filter::register_git_filter(&repo_root, opts.dry_run, out)?;
     }
 
-    // Step 3: Install Orchestration (legacy script — strangler seam, T-024 repoints).
+    // Step 3: Install Orchestration (R-05 cutover to Rust install path).
     section(out, "Install Orchestration");
-    let shared_args = legacy_plugins::build_shared_args(opts, &selection);
-    let exit_code =
-        legacy_plugins::spawn_install_plugins(&repo_root, &shared_args, opts.bootstrap_install)?;
+    if opts.dry_run {
+        let _ = writeln!(out, "  [DRY RUN] Would run Rust install orchestration.");
+    }
+    let exit_code = legacy_plugins::run_install_orchestration(opts)?;
     if exit_code != 0 {
         let _ = writeln!(
             out,

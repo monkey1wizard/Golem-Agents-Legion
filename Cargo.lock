@@ -7,6 +7,7 @@ name = "adapters"
 version = "0.1.0"
 dependencies = [
  "base",
+ "providers",
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
@@ -623,6 +624,7 @@ dependencies = [
  "adapters",
  "base",
  "chrono",
+ "gal-engine",
  "mcp",
  "serde_json",
  "tempfile",
