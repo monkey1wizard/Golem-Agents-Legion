@@ -94,7 +94,7 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 - [ ] **R-01 共用核心 → `base`** — `common.{ps1,sh}` 的安裝/設定函式(install mode、provider 選擇、symlink、install state、plugin root)落 `base`,供 install/setup/mcp/adapters 複用;xmachine 專屬函式不在此。
 - [ ] **R-02 `gal mcp`** — `update-mcp.{ps1,sh}` 全面 Rust 化為 `gal mcp`,接 `mcp.rs`,四 provider parity。
 - [ ] **R-03 adapter-regen + Sync-DevContext → `adapters`（受保護）** — `update-skills/commands/personalization` 與 `Sync-DevContext.{ps1,sh}` 收斂為**單一 `adapters` 後端**(皆生成 adapter 檔,語義同類);CLI 以 `gal sync`(init-time 生成)/`gal update`(增量 regen)暴露,共用 `adapters` + `base::render`。須 architect。
-- [ ] **R-04 `gal setup`（受保護）** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` 的機器設定/工具鏈編排 Rust 化為 `gal setup`(工具步驟以 `--tools` 暴露);含註冊 git filter `gal clean`/`gal smudge`。`setup` 只編排無 domain 邏輯。須 architect。
+- [x] **R-04 `gal setup`（受保護）** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` 的機器設定/工具鏈編排 Rust 化為 `gal setup`(工具步驟以 `--tools` 暴露);含註冊 git filter(依 architect C-4 暫指 .sh,binary 切換在 T-025)。`setup` 只編排無 domain 邏輯。architect 簽核 APPROVE-with-conditions C-1..C-10。**✅ 完成(2026-06-10,T-018..T-021,2c68fe2..41ff61a,392 test 綠):setup crate(session/agy/legacy_plugins/tools/git_filter/health)只編排;machine surfaces/MCP 走 library call;Install-GalPlugins 為唯一 strangler spawn 點(T-024 改接);腳本對已刪、Uninstall-Machine 改接 `gal setup --uninstall`、docs/adapters 全面同步。**
 - [ ] **R-05 安裝家族 parity + 刪除** — `install-gal-plugins`/`build-core-plugin`/`build-provider-plugins`/`provider-plugin` 四 provider 編排與 render 全面 parity;確認後成對刪除。
 - [ ] **R-06 雜項 Rust 化** — `gal clean`/`gal smudge`(`vcs`)、`gal uninstall` parity、init-repo、catalog 解析、release packaging 併 `gal release`、translation freshness 各有 Rust 對應後成對刪除。
 - [ ] **R-07 `gal` 入口核心子命令** — `gal.{ps1,sh}` 核心子命令(install/update/doctor/setup/mcp/sync/uninstall/clean/smudge)全走 Rust;入口檔整檔刪除待姊妹計畫 xmachine/dispatch 入口也 parity(跨計畫尾端共同收尾)。
@@ -311,7 +311,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。*(2c68fe2)*
 - [x] **T-019** — port `setup-tools` → `gal setup --tools`;parity。*(b92b8b0)*
 - [x] **T-020** — 註冊 git filter(冪等,由 `gal setup` 執行):`.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true`,指向現存 .sh(architect C-4);binary `gal clean/smudge` 切換 + 原子改註冊移至 T-025。bash-backed 行為不變;no-bash 條款延至 T-025 驗。*(708ca94)*
-- [ ] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。
+- [x] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。*(41ff61a；Uninstall-Machine 同 commit 改接 `gal setup --uninstall`)*
 
 **R-05 安裝家族**
 - [ ] **T-022（R-05）** — 確認 `install-gal-plugins` 四 provider 安裝編排 parity(逐 provider 對齊 fixture:Claude/Copilot/Codex/AGY)。
