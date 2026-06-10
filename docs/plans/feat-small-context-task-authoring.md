@@ -212,7 +212,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-05、TP-06、TP-11。已知 copilot 未認證實證見 `## Evidence`。
   - 慣例:rust convention;result-pattern;C1 三態語意逐條對應。每 executor 的探測法以小 helper 隔離,未支援者預設 `Unknown`(放行)。
 
-- [ ] **T-05 (R-005) — doctor routed-executor 就緒 HealthCheck**
+- [x] **T-05 (R-005) — doctor routed-executor 就緒 HealthCheck**
   - 檔案:`crates/cli/src/main.rs`(doctor 聚合在 line 258-273,T-031 模式:`report.findings.extend(...HealthCheck.check())`)。依賴 T-04 的 `executor_readiness`。
   - 改動:加一個 `HealthCheck`(實作 `base::health::HealthCheck`),讀 `~/.gal/config/executor-routing.json` 的角色→executor 映射,對**每個被指名的** executor 呼 `executor_readiness`,`Unauthenticated`→warning finding 附修復指引、`Unknown`→info、`Ready`→無 finding;routing 檔缺失=單一 INFO finding,非 ERROR(C2)。在 cmd_doctor 聚合處 extend。
   - 驗收:TP-07、TP-11。`gal doctor` 對未認證 copilot 告警且只查 routed executors。

@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 4 of 8
-Last activity: 2026-06-10 — **T-04 complete** — `gal-dispatch` now performs a conservative readiness check after PATH validation: Copilot tokens mark `Ready`, missing local state confirms `Unauthenticated`, and existing local state degrades to `Unknown` with a warning instead of over-blocking. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-05 (Route ① continues with routed-executor doctor aggregation)
+Step: 5 of 8
+Last activity: 2026-06-10 — **T-05 complete** — `gal doctor` now aggregates routed-executor readiness findings by reusing the dispatch readiness API, warns when routing is missing or indeterminate, and stays non-error for the C2 informational cases. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-06 (Route ① continues with the honest-pass hard-block contract)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -182,7 +182,7 @@ _(none yet)_
   - Acceptance: TP-05, TP-06, TP-11. Known copilot-unauthenticated evidence in `## Approach > Evidence`.
   - Conventions: rust convention; result-pattern; C1 three-state semantics mapped line by line. Isolate each executor's probe in a small helper; unsupported executors default to `Unknown` (allow).
 
-- [ ] **T-05 (R-005) — doctor routed-executor readiness HealthCheck**
+- [x] **T-05 (R-005) — doctor routed-executor readiness HealthCheck**
   - File: `crates/cli/src/main.rs` (doctor aggregation at lines 258-273, T-031 pattern: `report.findings.extend(...HealthCheck.check())`). Depends on T-04's `executor_readiness`.
   - Change: add a `HealthCheck` (implements `base::health::HealthCheck`) that reads the role→executor map in `~/.gal/config/executor-routing.json`, calls `executor_readiness` for **each named** executor — `Unauthenticated` → warning finding with fix guidance, `Unknown` → info, `Ready` → no finding; missing routing file = a single INFO finding, not ERROR (C2). Extend at the cmd_doctor aggregation site.
   - Acceptance: TP-07, TP-11. `gal doctor` warns on unauthenticated copilot and only checks routed executors.
@@ -263,6 +263,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused dispatch preflight f
 - **Dispatch crate tests green** — `cargo test -p dispatch` passed 55 tests, including the new readiness-state coverage for `Ready`, `Unauthenticated`, `Unknown`, and unsupported executors.
 - **Unknown path validated live** — running `cargo run -q -p dispatch --bin gal-dispatch` with Copilot routing in the current environment emitted `warning: gal-dispatch: copilot has local state under ~/.copilot... allowing dispatch` before continuing, which matches the C1 no-overblock rule.
 - **Fail-loud branch encoded** — the main preflight gate now emits `reason=executor-unauthenticated-confirmed` plus a `/login` or token hint when the readiness probe returns `Unauthenticated`.
+
+### [T-05] 2026-06-10 — PASS (TP-07 slice: routed-executor doctor aggregation)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused `gal doctor` aggregation of routed-executor readiness findings.
+
+- **CLI tests green** — `cargo test -p cli` passed 20 tests, including the new missing-routing and indeterminate-routing healthcheck cases.
+- **Aggregation path landed** — `cmd_doctor` now extends the report with `RoutedExecutorHealthCheck::from_default().check()` after the existing MCP/setup/skills health checks.
+- **C2 semantics preserved** — missing routing and indeterminate executor readiness both surface as non-error warnings, so `gal doctor` stays informational for the non-ready-but-not-confirmed-broken cases.
 
 ## Review Results
 
@@ -407,6 +415,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Preflight logic only; it changes early-exit behavior, not the spawned executor permissions or sandbox model. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 1 / Info: 2
+
+### [T-05] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `0fd29c0`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+- **[W-01]** The doctor surface still reports C2 informational states as `WARNING` because `base::health` only exposes `Warning` and `Error` severities today; the important invariant is preserved because these findings do not flip the doctor run to error.
+
+#### INFO
+- **[I-01]** The healthcheck deduplicates routed executors before probing, so multiple roles mapped to the same executor do not spam duplicate findings.
+- **[I-02]** The implementation reuses `dispatch::dispatch::executor_readiness`, which keeps doctor and dispatcher semantics aligned for the later T-05/T-04 port consumers.
+
+#### Architect conditions check (T-05 slice)
+- Doctor checks routed executors only, not every known tool. ✓
+- Missing routing stays non-error and is surfaced as an informational warning path, not a hard doctor failure. ✓
+
+#### Security note (task-scoped)
+Read-only aggregation only; no new mutation or credential flow was introduced. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 1 / Info: 2

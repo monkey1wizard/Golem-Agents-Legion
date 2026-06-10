@@ -12,7 +12,7 @@
 mod init_repo;
 
 use gal_engine::{classify_args, Action, CommandKind, ExitCode};
-use base::health::HealthCheck;
+use base::health::{DoctorFinding, HealthCheck, Severity};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
 
@@ -41,6 +41,87 @@ fn print_help() {
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
     println!("  release --output-dir <path>       Output directory (default: release-artifacts/)");
+}
+
+struct RoutedExecutorHealthCheck {
+    routing_path: Option<PathBuf>,
+}
+
+impl RoutedExecutorHealthCheck {
+    fn from_default() -> Self {
+        Self {
+            routing_path: dispatch::routing::default_routing_path(),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_path(path: PathBuf) -> Self {
+        Self {
+            routing_path: Some(path),
+        }
+    }
+}
+
+impl HealthCheck for RoutedExecutorHealthCheck {
+    fn name(&self) -> &str {
+        "routed-executor-readiness"
+    }
+
+    fn check(&self) -> Vec<DoctorFinding> {
+        let Some(routing_path) = self.routing_path.clone() else {
+            return vec![DoctorFinding::warning(
+                "executor-routing: home directory unavailable; skipping routed-executor readiness check",
+            )];
+        };
+
+        if !routing_path.exists() {
+            return vec![DoctorFinding::warning(format!(
+                "executor-routing: '{}' not found; skipping routed-executor readiness check",
+                routing_path.display()
+            ))];
+        }
+
+        let routing = dispatch::routing::load_routing(&routing_path);
+        let mut findings: Vec<DoctorFinding> = routing
+            .warnings
+            .into_iter()
+            .map(DoctorFinding::warning)
+            .collect();
+
+        let mut routed_executors = std::collections::BTreeSet::new();
+        for entry in routing.entries.values() {
+            routed_executors.insert(entry.executor.clone());
+        }
+
+        if routed_executors.is_empty() {
+            findings.push(DoctorFinding::warning(
+                "executor-routing: no routed executors configured; skipping readiness aggregation",
+            ));
+            return findings;
+        }
+
+        for executor in routed_executors {
+            match dispatch::dispatch::executor_readiness(&executor) {
+                dispatch::dispatch::Readiness::Ready => {}
+                dispatch::dispatch::Readiness::Unknown { message } => {
+                    findings.push(DoctorFinding::warning(format!(
+                        "routed executor '{executor}' readiness indeterminate: {message}"
+                    )));
+                }
+                dispatch::dispatch::Readiness::Unauthenticated { hint } => {
+                    findings.push(DoctorFinding {
+                        severity: Severity::Warning,
+                        message: format!(
+                            "routed executor '{executor}' is not authenticated for confirmed headless use"
+                        ),
+                        fix_hint: Some(hint),
+                    });
+                }
+            }
+        }
+
+        findings
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -272,6 +353,9 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
             .findings
             .extend(adapters::SkillsProjectionHealthCheck::with_path(shared_skills_root).check());
     }
+    report
+        .findings
+        .extend(RoutedExecutorHealthCheck::from_default().check());
 
     if report.findings.is_empty() {
         println!("gal doctor: all checks passed.");
@@ -363,7 +447,6 @@ fn cmd_release(args: &[String]) -> ExitCode {
             }
         })
         .collect();
-
     match run_release(ReleaseOptions { version: version.clone(), output_dir: output_dir.clone(), assets }) {
         Ok(result) => {
             println!("gal release: artifacts written to {}", output_dir.display());
@@ -918,6 +1001,8 @@ fn main() -> ProcessExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn version_flag_succeeds() {
@@ -985,6 +1070,33 @@ mod tests {
     fn doctor_command_remains_wired_after_domain_health_aggregation() {
         let result = run(&["doctor".to_string()]);
         assert_ne!(result, ExitCode::NotWired, "doctor must stay wired after T-031 aggregation");
+    }
+
+    #[test]
+    fn routed_executor_healthcheck_warns_when_routing_file_missing() {
+        let tmp = TempDir::new().unwrap();
+        let missing = tmp.path().join("missing-routing.json");
+
+        let findings = RoutedExecutorHealthCheck::with_path(missing).check();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, Severity::Warning);
+        assert!(findings[0].message.contains("skipping routed-executor readiness check"));
+    }
+
+    #[test]
+    fn routed_executor_healthcheck_warns_for_indeterminate_executor() {
+        let tmp = TempDir::new().unwrap();
+        let routing = tmp.path().join("executor-routing.json");
+        fs::write(
+            &routing,
+            "{\n  \"executors\": { \"codex\": \"gpt-5.4-mini\" },\n  \"CODER\": { \"executor\": \"codex\" }\n}\n",
+        )
+        .unwrap();
+
+        let findings = RoutedExecutorHealthCheck::with_path(routing).check();
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, Severity::Warning);
+        assert!(findings[0].message.contains("routed executor 'codex' readiness indeterminate"));
     }
 
     // T-013: commit-msg is wired
