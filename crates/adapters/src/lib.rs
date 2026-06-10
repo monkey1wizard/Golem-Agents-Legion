@@ -2371,7 +2371,11 @@ mod tests {
     }
 
     #[test]
-    fn update_personalization_dry_run_does_not_invoke_agy_build() {
+    fn update_personalization_dry_run_does_not_write_agy_projection() {
+        // Post R-05 cutover: AGY projection is owned by `providers::agy::AgyProjection`
+        // inside `build_agy_plugin`, not a spawned build script. Dry-run must record
+        // the would-be target without touching disk — assert the user-visible
+        // invariant (the AGY install target is never created under --dry-run).
         let (_temp, repo_root, source_root, home, appdata) = fixture_roots_with_appdata();
         write_skill_fixture(&source_root, "sample-skill");
         fs::create_dir_all(home.join(".gal").join("config")).unwrap();
@@ -2380,28 +2384,12 @@ mod tests {
             "{\n  \"devMode\": true\n}\n",
         )
         .unwrap();
-        let scripts_dir = repo_root.join("scripts");
-        fs::create_dir_all(&scripts_dir).unwrap();
-        let sentinel = repo_root.join("agy-build-sentinel.txt");
-        #[cfg(windows)]
-        fs::write(
-            scripts_dir.join("Build-CorePlugin.ps1"),
-            format!("New-Item -ItemType File -Path '{}' -Force | Out-Null\n", sentinel.display()),
-        )
-        .unwrap();
-        #[cfg(not(windows))]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let script_path = scripts_dir.join("build-core-plugin.sh");
-            fs::write(
-                &script_path,
-                format!("#!/usr/bin/env bash\ntouch '{}'\n", sentinel.display()),
-            )
-            .unwrap();
-            let mut perms = fs::metadata(&script_path).unwrap().permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&script_path, perms).unwrap();
-        }
+
+        let agy_install_target = home
+            .join(".gemini")
+            .join("antigravity-cli")
+            .join("plugins")
+            .join("gal");
 
         run_update_personalization(&PersonalizationUpdateOptions {
             repo_root,
@@ -2415,6 +2403,9 @@ mod tests {
         })
         .unwrap();
 
-        assert!(!sentinel.exists());
+        assert!(
+            !agy_install_target.exists(),
+            "dry-run must not create the AGY projection target on disk"
+        );
     }
 }

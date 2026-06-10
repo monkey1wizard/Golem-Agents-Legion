@@ -4,46 +4,10 @@
 //! to the Rust install path so `gal setup` and `gal setup --check` no longer
 //! depend on `Install-GalPlugins.*`.
 
-use crate::session::SessionSelection;
 use crate::{SetupError, SetupOptions};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-
-/// Shared argument list Setup-Machine forwards to Install-GalPlugins
-/// (CLI-flag form; translated to PowerShell switches on Windows by
-/// `build_invocation`).
-pub fn build_shared_args(opts: &SetupOptions, selection: &SessionSelection) -> Vec<String> {
-    let mut args: Vec<String> = Vec::new();
-    if opts.uninstall {
-        args.push("--uninstall".into());
-    }
-    if opts.replace {
-        args.push("--replace".into());
-    }
-    if opts.dry_run {
-        args.push("--dry-run".into());
-    }
-    if opts.reconfigure {
-        args.push("--reconfigure".into());
-    }
-    if !opts.uninstall {
-        args.push("--selected-runtimes".into());
-        args.push(selection.selected_runtimes.join(","));
-        args.push("--primary-runtime".into());
-        args.push(selection.primary_runtime.clone());
-    }
-    if opts.bootstrap_install {
-        args.push("--bootstrap-install".into());
-    }
-    if opts.purge {
-        args.push("--purge".into());
-    }
-    if opts.confirm_purge {
-        args.push("--confirm-purge".into());
-    }
-    args
-}
 
 fn copilot_projection_root() -> Result<PathBuf, SetupError> {
     base::paths::user_home()
@@ -144,46 +108,6 @@ pub fn run_install_orchestration(opts: &SetupOptions) -> Result<i32, SetupError>
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn selection() -> SessionSelection {
-        SessionSelection {
-            selected_runtimes: vec!["claude".into(), "copilot".into()],
-            primary_runtime: "copilot".into(),
-        }
-    }
-
-    #[test]
-    fn shared_args_match_setup_machine_forwarding() {
-        let opts = SetupOptions {
-            replace: true,
-            dry_run: true,
-            ..Default::default()
-        };
-        let args = build_shared_args(&opts, &selection());
-        assert_eq!(
-            args,
-            vec![
-                "--replace",
-                "--dry-run",
-                "--selected-runtimes",
-                "claude,copilot",
-                "--primary-runtime",
-                "copilot",
-            ]
-        );
-    }
-
-    #[test]
-    fn uninstall_omits_runtime_args_and_passes_purge_chain() {
-        let opts = SetupOptions {
-            uninstall: true,
-            purge: true,
-            confirm_purge: true,
-            ..Default::default()
-        };
-        let args = build_shared_args(&opts, &selection());
-        assert_eq!(args, vec!["--uninstall", "--purge", "--confirm-purge"]);
-    }
 
     #[test]
     fn install_check_reports_without_selected_copilot() {

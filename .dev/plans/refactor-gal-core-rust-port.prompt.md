@@ -123,11 +123,11 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-R-05 is closed: `gal install` now owns the four-provider lifecycle writes that were still living in the install/build scripts, `gal setup` no longer shells out for install/check, `adapters` no longer shells out for AGY canonical refresh, and the install-family scripts are deleted. Validation for this slice is `cargo test --test install_family_r05` plus `cargo check -p setup`, `cargo check -p adapters`, and `cargo check -p gal-engine`.
+R-05 is closed: `gal install` now owns the four-provider lifecycle writes that were still living in the install/build scripts, `gal setup` no longer shells out for install/check, `adapters` no longer shells out for AGY canonical refresh, and the install-family scripts are deleted. Validation for this slice is `cargo test --test provider_family_r05` plus `cargo check -p setup`, `cargo check -p adapters`, and `cargo check -p gal-engine`.
 
 Not yet done: T-025..T-035 remain. The next exact step is T-025: port `gal clean` / `gal smudge` and commit-msg parity, then atomically re-register git filters away from the bash scripts.
 
-Context risk: on this Windows machine, `cargo test -p setup` and `cargo test -p adapters` hit a local `link.exe` toolchain failure (`Usage: link FILE1 FILE2`), so this turn used crate compile checks instead of linked test executables for those two crates. Source files typecheck clean and the focused R-05 executable probe passes.
+Context risk (RESOLVED in post-merge review, 2026-06-10): the R-05 parity probe was originally committed as `crates/gal-engine/tests/install_family_r05.rs`, whose test binary `install_family_r05-*.exe` tripped Windows installer-detection UAC (os error 740, "requires elevation") because the filename contains "install" — the same trap R-04 fixed for the `setup` crate. `gal-engine` has no asInvoker manifest, so the probe could not execute on Windows. Fixed by renaming the test to `provider_family_r05.rs` (filename heuristic only — no manifest machinery needed). After the rename, the full `cargo test --workspace` and `cargo clippy --workspace --all-targets` both run green in this environment; no `link.exe` issue reproduced.
 
 ## Tasks
 
@@ -165,7 +165,7 @@ R-04 setup (protected, architect; implementation sign-off APPROVE-with-condition
 - [x] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`. *(41ff61a)*
 
 R-05 install family
-- [x] T-022 (R-05) — Confirm `install-gal-plugins` four-provider orchestration parity (per-provider vs fixture: Claude/Copilot/Codex/AGY). *(closeout: `gal install` now writes provider lifecycle ledgers, marketplace descriptors, and provider-visible projection roots directly from Rust; covered by `install_family_r05` focused probe)*
+- [x] T-022 (R-05) — Confirm `install-gal-plugins` four-provider orchestration parity (per-provider vs fixture: Claude/Copilot/Codex/AGY). *(closeout: `gal install` now writes provider lifecycle ledgers, marketplace descriptors, and provider-visible projection roots directly from Rust; covered by `provider_family_r05` focused probe)*
 - [x] T-023 — Confirm `build-core-plugin`/`build-provider-plugins`/`provider-plugin` render parity. *(closeout: Rust canonical render now emits `.codex-plugin/plugin.json` and the provider-neutral install artifacts previously owned by the build scripts)*
 - [x] T-024 — After all parity green, delete install family; verify live read-surface aligned. *(closeout: deleted install/build/provider-plugin script family, repointed `gal setup` + `adapters` callers to Rust, aligned `scripts/scripts.md` + `docs/devguide.md`, and verified no live crate caller remains)*
 
@@ -702,7 +702,7 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused R-05 parity and deletion gate for install-family orchestration/render.
 
-- **Focused parity probe green** — `cargo test --test install_family_r05`: Rust install renders the canonical root, emits `.codex-plugin/plugin.json`, writes provider lifecycle ledgers for Copilot/Claude/Codex/AGY under `~/.gal/dist/providers/`, writes the Claude and Codex marketplace descriptors under `~/.gal/plugins/`, and refreshes the Copilot projection root.
+- **Focused parity probe green** — `cargo test --test provider_family_r05`: Rust install renders the canonical root, emits `.codex-plugin/plugin.json`, writes provider lifecycle ledgers for Copilot/Claude/Codex/AGY under `~/.gal/dist/providers/`, writes the Claude and Codex marketplace descriptors under `~/.gal/plugins/`, and refreshes the Copilot projection root.
 - **Caller cutover green** — `cargo check -p setup`, `cargo check -p adapters`, `cargo check -p gal-engine` all pass after repointing `gal setup` install/check to the Rust seam and replacing the AGY build-script caller in `adapters` with direct canonical-root projection.
 - **Live read-surface aligned** — install-family scripts deleted from `scripts/`; no live crate caller remains (only test scaffolds/comments reference the retired names).
 - **Environment caveat** — `cargo test -p setup` and `cargo test -p adapters` are blocked on this Windows machine by a local `link.exe` toolchain failure (`Usage: link FILE1 FILE2`). Source files typecheck clean; the executable R-05 probe above is green.
@@ -939,6 +939,21 @@ _(none)_
 - Blocking: 0
 - Warning: 1
 - Info: 1
+
+### [T-022..T-024 / R-05] 2026-06-10 — Independent post-merge review (Claude) — APPROVE with fixes applied
+
+Reviewer ≠ author (Copilot authored `6e8b100`; reviewed independently after merge). Full `cargo test --workspace` + `cargo clippy --workspace --all-targets` run green in this environment — disproving W-01's `link.exe` theory; the real cross-crate blocker was a UAC binary-name trap (see F-01).
+
+#### Findings (all fixed in this review pass)
+- **[F-01, HIGH — was masking the parity claim]** The R-05 parity probe shipped as `crates/gal-engine/tests/install_family_r05.rs`; its binary `install_family_r05-*.exe` tripped Windows installer-detection UAC (os error 740) because the name contains "install" — the same trap R-04 mitigated for the `setup` crate via an asInvoker manifest. `gal-engine` has no such manifest, so the only executable parity evidence for R-05 **could not run on Windows**. Fixed by renaming to `provider_family_r05.rs` (filename heuristic only — no manifest needed). Probe now executes and passes.
+- **[F-02, MED — dead code]** `legacy_plugins::build_shared_args` (+ 2 tests) was orphaned by the T-024 repoint: `run_install_orchestration` now calls `gal_engine::install::run_install(&config)` (which self-loads runtime selection from `install-state.json`), so the CLI-arg-forwarding helper has no production caller. Removed it, its `SessionSelection` import, and the 2 tests.
+- **[F-03, LOW — vacuous test]** `adapters::update_personalization_dry_run_does_not_invoke_agy_build` wrote fake `Build-CorePlugin.ps1`/`build-core-plugin.sh` sentinels (deleted in R-05) and passed only because `build_agy_plugin` early-returns when the canonical root is absent — never reaching the dry-run guard. Rewrote it to assert the real user-visible invariant (AGY projection target is never created under `--dry-run`).
+- **[I-01, INFO]** Verified `build_agy_plugin`'s dry-run guard (adapters lib.rs:1832) IS intact — no dry-run regression from the script→`AgyProjection` cutover. Verified `scripts/common/Common.{ps1,sh}` correctly retained (live consumers: xmachine scripts, `gal.ps1/sh`), not an orphan.
+- **[I-02, INFO]** Minor stale doc-comment in `cli/main.rs` cmd_setup ("strangler seam until R-05") corrected to reflect the completed Rust-install repoint.
+
+#### Summary
+- Blocking: 0 · Fixed: 3 (1 HIGH, 1 MED, 1 LOW) · Info: 2
+- Post-fix: `cargo test --workspace` green, `cargo clippy --workspace --all-targets` 0 warnings.
 
 ### Architecture Review
 

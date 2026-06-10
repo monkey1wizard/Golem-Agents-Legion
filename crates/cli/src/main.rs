@@ -441,8 +441,8 @@ fn cmd_mcp(args: &[String]) -> ExitCode {
 /// Run `gal setup [...]` — machine-setup orchestration (T-018, R-04).
 ///
 /// Ports `Setup-Machine.{ps1,sh}`: AGY legacy pre-cleanup, machine surfaces
-/// (library call), MCP refresh (library call), then the legacy
-/// Install-GalPlugins script (strangler seam until R-05).
+/// (library call), MCP refresh (library call), then install orchestration via
+/// the Rust install path (`gal_engine::install`, repointed at R-05/T-024).
 fn cmd_setup(args: &[String]) -> ExitCode {
     let mut opts = setup::SetupOptions::default();
     let mut i = 1usize;

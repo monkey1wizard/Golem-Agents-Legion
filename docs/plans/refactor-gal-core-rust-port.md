@@ -314,7 +314,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。*(41ff61a；Uninstall-Machine 同 commit 改接 `gal setup --uninstall`)*
 
 **R-05 安裝家族**
-- [x] **T-022（R-05）** — 確認 `install-gal-plugins` 四 provider 安裝編排 parity(逐 provider 對齊 fixture:Claude/Copilot/Codex/AGY)。*(closeout: `gal install` 直接寫入四 provider lifecycle ledger / marketplace / projection root；聚焦測試 `install_family_r05` 綠)*
+- [x] **T-022（R-05）** — 確認 `install-gal-plugins` 四 provider 安裝編排 parity(逐 provider 對齊 fixture:Claude/Copilot/Codex/AGY)。*(closeout: `gal install` 直接寫入四 provider lifecycle ledger / marketplace / projection root；聚焦測試 `provider_family_r05` 綠)*
 - [x] **T-023** — 確認 `build-core-plugin`/`build-provider-plugins`/`provider-plugin` render parity。*(closeout: Rust canonical render 補齊 `.codex-plugin/plugin.json` 與 provider-neutral install artifacts，build-family 行為收斂進 `gal install` / render path)*
 - [x] **T-024** — 全 parity 綠後刪 install 家族(含內部專屬腳本);驗活讀取面仍對齊。*(closeout: 刪除 `Install-GalPlugins.*` / `Build-CorePlugin.*` / `Build-ProviderPlugins.*` / `common/ProviderPlugin.*`，`gal setup` 與 `adapters` caller 改走 Rust，live docs 對齊)*
 
