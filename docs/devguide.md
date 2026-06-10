@@ -1017,6 +1017,14 @@ Operational notes:
 - Because GAL commits are authored by a human after review, a freshly synced translation is stamped `PENDING` until the maintainer records the real source commit after committing; the check surfaces those as `stale` so they are not forgotten.
 - A translation flagged `status: stale` is knowingly behind its English source. Such files are excluded from the hard repo-wide broken-link gate — the freshness check owns them — until they are re-translated and re-stamped.
 
+#### Planning-Doc OQ Lifecycle
+
+Open Questions in `docs/plans/*.md` are scaffolding, not a permanent record:
+
+- When an OQ is resolved, bake the ruling into the section that owns it (typically a `## Decisions` table with the ruling, date, and who decided), then **delete the OQ entry** — do not keep `- [x]` OQ corpses.
+- When all of a plan's OQs are resolved, do a **full rewrite pass** of the plan instead of incremental patching. Incremental patches leave "see OQ-xxx" cross-references pointing at deleted or moved content, which makes plans progressively unreadable.
+- A plan body must never require the reader to reconstruct decision history from OQ archaeology; history belongs to git, the plan states only the current ruling.
+
 ### Token Discipline
 
 These rules apply to all maintainer and agent work in this repo. The full policy lives in [../conventions/token-budget.md](../conventions/token-budget.md). The developer-facing summary is here.
