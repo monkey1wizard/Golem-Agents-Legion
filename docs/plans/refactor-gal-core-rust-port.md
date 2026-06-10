@@ -308,7 +308,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。*(T-017 closeout: 刪除 `Sync-DevContext` / `update-skills` / `update-commands` / `update-personalization` 四對 legacy scripts；`.dev/project.md`、generated adapters 與 live docs 全面改以 `gal sync` / `gal update --machine-only` 為唯一指引；reviewer APPROVE，workspace 測試綠)*
 
 **R-04 setup（受保護,architect;實作期簽核 APPROVE-with-conditions C-1..C-10,2026-06-10,詳見 prompt ## Review Results）**
-- [ ] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。
+- [x] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。*(2c68fe2)*
 - [ ] **T-019** — port `setup-tools` → `gal setup --tools`;parity。
 - [ ] **T-020** — 註冊 git filter(冪等,由 `gal setup` 執行):`.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true`,指向現存 .sh(architect C-4);binary `gal clean/smudge` 切換 + 原子改註冊移至 T-025。bash-backed 行為不變;no-bash 條款延至 T-025 驗。
 - [ ] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。

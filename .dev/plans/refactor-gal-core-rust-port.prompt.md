@@ -104,10 +104,10 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 18 of 35
-Last activity: 2026-06-10 — R-04 pipeline run started (T-018..T-021, stop-at T-021); architect sign-off pending for protected setup work
-Next step: implement T-018
-Current Task: T-018
+Step: 19 of 35
+Last activity: 2026-06-10 — T-018 complete (commit: 2c68fe2) — setup crate split, gal setup ported with parity vs Setup-Machine; tested + reviewed (APPROVE)
+Next step: implement T-019 (port setup-tools → gal setup --tools)
+Current Task: —
 Task Base Commit: —
 Task Final Commit: —
 Test Retry Count: 0
@@ -160,8 +160,8 @@ R-03 adapters (protected, architect)
 - [x] T-016 — Port `Sync-DevContext` (init-time) → `adapters`; wire `gal sync`/`gal update`; parity.
 - [x] T-017 — After all four pairs reach parity green, delete them.
 
-R-04 setup (protected, architect)
-- [ ] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity.
+R-04 setup (protected, architect; implementation sign-off APPROVE-with-conditions C-1..C-10, 2026-06-10)
+- [x] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity. *(2c68fe2)*
 - [ ] T-019 — Port `setup-tools` → `gal setup --tools`; parity.
 - [ ] T-020 — Register git filter (idempotent, via `gal setup`): `.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true` — points at the existing .sh scripts (architect C-4); binary `gal clean/smudge` cutover + atomic re-register moves to T-025. Behavior-unchanged on Windows/Unix (bash-backed; no-bash clause verified at T-025).
 - [ ] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`.
@@ -251,6 +251,40 @@ Steps (a),(b): **library calls** — `gal setup` calls `adapters::run_machine_up
 8. **C-8** AGY cleanup path-safety guard + JSON edit preserves non-gal keys; both unit-tested.
 9. **C-9** `session.rs` supports non-interactive mode and stdin-injected prompts; `--reconfigure` and first-run flows fixture-tested.
 10. **C-10** `setup` crate implements `base::HealthCheck`, incl. Install-GalPlugins-presence check flagged for removal at T-024.
+
+### [T-018] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: a3e611f..2c68fe2 (+ in-phase fix for the `--check` persistence defect)
+Verification Independence: DEGRADED_BUNDLED (user-directed; review done as a separate critical pass over the diff)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** `adapters::machine_options_from_config` is called twice per run (defaults resolution + `build_machine_options`) — duplicate filesystem reads, no correctness impact.
+- **[I-02]** Purge gating validates before session resolution (legacy validated after AGY pre-cleanup). Fail-fast is strictly safer — no side effects before a usage error; intentional improvement.
+- **[I-03]** `health.rs::which` and `lib.rs::rg_available` duplicate PATH-probe logic; fold when convenient.
+- **[I-04]** If `install-state.json` exists but carries no `selectedRuntimes`, the adapters loader defaults to all six runtimes and the saved-state path reports them as stored selection; legacy would have re-prompted. Low risk; revisit if T-019 touches session.
+
+#### Architect conditions check (sign-off C-1..C-10, T-018 slice)
+- C-2 flag-mapping table test present (`flag_mapping_table_covers_all_forwarded_flags`); uninstall preserves stored runtimes (`uninstall_does_not_override_stored_runtime_selection`).
+- C-3 `legacy_plugins.rs` is the sole spawn site; missing script → hard error; child exit code propagated verbatim (live-verified); `GAL_BOOTSTRAP_INSTALL` child-env only (test: `bootstrap_env_is_child_only`).
+- C-7 dry-run + check zero-writes covered by tests and live diff; the `--check` persistence defect found in TEST was fixed before review.
+- C-8 path-safety guard refuses empty/root/home/outside-home paths (tests); JSON strip preserves non-gal keys incl. prefix-similar `galaxy` (test).
+- C-9 `Prompter` seam with `NonInteractivePrompter`/`StdinPrompter`; first-run/reconfigure flows tested with a scripted prompter.
+- C-10 `SetupHealthCheck` implements `base::HealthCheck` (config readable, rg present, Install-GalPlugins present — flagged for removal at T-024); doctor aggregation correctly deferred to T-031.
+
+#### Security note (conditional audit, task-scoped)
+T-018 adds process spawning (PowerShell `-Command` construction) and filesystem deletion. Injection surface into the constructed `-Command` string is mitigated: runtime values pass the `VALID_RUNTIMES` whitelist (`normalize_runtimes` / adapters loader filter) before reaching the builder, and the script path is single-quote-escaped. Deletion is bounded by the C-8 guard (absolute, under-home, never home/root). No secrets handling, no network. **Clear — no findings.**
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 4
 
 ### [R-03 independent review] 2026-06-11 — APPROVE (1 fix applied)
 
@@ -583,6 +617,19 @@ _(none)_
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-018] 2026-06-10 — PASS (TP-16 slice: gal setup orchestration parity)
+
+Verification Independence: DEGRADED_BUNDLED (user-directed single-runtime run; implement/test/review kept as separate passes with separate write-back). Spec = TP-16 sliced to T-018 (`gal setup` orchestration == legacy `Setup-Machine` behavior).
+
+- **Workspace green** — `cargo test --workspace --quiet`: **377 passed, 0 failed** (was 346; +31 setup-crate tests incl. C-2 flag-mapping table, C-7 dry-run/check zero-writes, C-8 path-guard + JSON-strip, C-9 prompter seam, C-3 invocation construction, C-10 HealthCheck). `cargo clippy -p setup` clean.
+- **Live parity (dev machine), two scenarios**:
+  - Detected-runtimes selection: `gal setup --dry-run` exit 0; step sequence (`ripgrep → runtime selection → AGY pre-cleanup → Machine Surfaces → MCP → Install Orchestration → summary`) and the summary footer match `Setup-Machine.ps1 -DryRun` output.
+  - Claude-selected with missing canonical root: `gal setup --dry-run` exit 1 with the legacy script's own `Claude canonical root not found` throw — **legacy `Setup-Machine.ps1 -DryRun` fails identically (exit 1, same message)** on the same machine state. Failure is legacy-faithful, caused by pre-existing degraded machine state (`~/.gal/plugins/gal` missing; only `.gal-plugin-backup-*`/`.gal-render-*` orphans remain), not by the port.
+- **C-7 verified live** — `install-state.json` byte-identical before/after `--dry-run`. A real defect was caught in this phase: `gal setup --check` persisted the prompted selection (write during read-only mode). Fixed (`session.rs` skips persistence under `check`) + regression test `check_mode_never_persists_selection`.
+- **Exit-code propagation (C-3) verified live** — legacy script throw → `gal setup` exits 1 with `install orchestration failed (exit code 1)`.
+- **Windows UAC trap fixed** — `setup-*.exe` test binaries triggered installer detection (os error 740); `build.rs` embeds an `asInvoker` manifest; `cargo test -p setup` runs unelevated.
+- **Intentional normalizations (C-6, recorded)**: (i) sh deprecated-`installMode` read retired — ps1 devMode+galRoot resolver is the baseline; (ii) MCP step suppressed under `--dry-run` (legacy ran `gal mcp update` for real during `-DryRun`; C-7 forbids); (iii) ripgrep winget auto-install deferred to T-019 `--tools` (check + guidance only); (iv) runtime detection uses GAL-marker existence probes (simplified from strict repo-link verification); (v) runtime list rendered sorted (legacy used catalog order); (vi) missing MCP manifest → `[SKIP]` + continue (legacy surfaced `gal mcp` error output and continued).
 
 ### [T-017] 2026-06-11 — PASS (TP-25 slice: R-03 deletion gate + live-surface sync)
 
