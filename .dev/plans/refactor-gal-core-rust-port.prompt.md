@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 29 of 35
-Last activity: 2026-06-10 — **T-028 complete** — Rust `gal resolve-catalog` now owns deterministic plugin resolution and lockfile output, and `Resolve-GalCatalog.ps1` plus its old PowerShell harness are deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-028 reached.
-Next step: implement T-029 (R-06 — release packaging into `gal release`)
+Step: 30 of 35
+Last activity: 2026-06-10 — **T-029 complete** — `gal release` is now the sole release-packaging path and the old packaging scripts are deleted. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-029 reached.
+Next step: implement T-030 (R-06 — translation freshness Rust port)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -123,9 +123,9 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-T-028 is closed: the catalog resolver now lives in Rust as `gal resolve-catalog`, preserves the existing profile/default/explicit selection contract, writes the lockfile shape directly, and the old resolver script plus its PowerShell harness are deleted.
+T-029 is closed: the existing Rust `gal release` path now fully owns release packaging, and the old packaging script pair is deleted.
 
-The exact next step is T-029: finish collapsing release packaging fully into `gal release`, then delete the remaining packaging script pair only after the existing release tests and one command-path check stay green.
+The exact next step is T-030: port translation freshness into Rust and only then delete `Test-TranslationFreshness.*` after the new command path is validated.
 
 ## Tasks
 
@@ -172,7 +172,7 @@ R-06 misc (per item: port → parity → delete)
 - [x] T-026 — `gal uninstall` parity (ledger precision); delete `uninstall-machine.{ps1,sh}`. *(closeout: uninstall now removes Rust-managed provider ledgers/projections, uses shared home resolution for ledger/uninstall paths, and deletes the uninstall wrapper pair after the focused uninstall probe passed)*
 - [x] T-027 — Port `init-repo` → Rust; parity; delete pair. *(closeout: added `crates/cli/src/init_repo.rs`, wired `gal init-repo` in the Rust CLI, repointed `scripts/gal.ps1` and `scripts/gal.sh` init branches to the binary path, and deleted `Init-Repo.*` after a temp-repo executable smoke check passed)*
 - [x] T-028 — Port catalog parsing (`Resolve-GalCatalog`) → Rust; parity; delete. *(closeout: added `crates/gal-engine/src/catalog.rs`, wired `gal resolve-catalog` in the CLI, matched the default/dart/full/explicit profile contract with focused tests, and deleted `Resolve-GalCatalog.ps1` plus `Test-ResolveGalCatalog.ps1` after an executable dry-run check passed)*
-- [ ] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`.
+- [x] T-029 — Fold release packaging into `gal release`; parity; delete `Package-ReleaseArtifacts.{ps1,sh}`. *(closeout: release packaging stayed on the existing Rust `gal release` path; focused release tests passed and the old packaging script pair was deleted with docs repointed)*
 - [ ] T-030 — Port translation freshness → Rust; parity; delete pair.
 
 R-11/R-07 closeout
@@ -696,6 +696,14 @@ Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-a
 
 ## Test Results
 
+### [T-029] 2026-06-10 — PASS (TP-20 slice: release packaging)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused T-029 parity for the Rust release path.
+
+- **Release tests green** — `cargo test -p gal-engine release` passes across the existing archive naming, checksum, manifest, winget, and homebrew coverage.
+- **Touched crate compiles cleanly** — `cargo check -p gal-engine` passes after deleting the old packaging scripts.
+- **Deletion gate held** — `scripts/Package-ReleaseArtifacts.ps1` and `scripts/package-release-artifacts.sh` deleted only after the Rust release tests stayed green.
+
 ### [T-028] 2026-06-10 — PASS (TP-20 slice: catalog resolver)
 
 Verification Independence: DEGRADED_BUNDLED. Spec = focused T-028 parity for deterministic catalog resolution and lockfile output.
@@ -952,6 +960,25 @@ Verification Independence: DEGRADED_SAME_RUNTIME. Spec = TP-09 (after renaming c
 - **Build** clean, 0 warnings.
 
 ## Review Results
+
+### [T-029] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** T-029 was a deletion-and-doc-convergence slice because the Rust `gal release` implementation and its focused tests were already in place before this task began.
+
+#### Summary
+- Blocking: 0
+- Warning: 0
+- Info: 1
 
 ### [T-028] 2026-06-10 — APPROVE
 

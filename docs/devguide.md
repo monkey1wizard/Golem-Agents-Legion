@@ -716,8 +716,7 @@ GAL does not guarantee same-day parity across every downstream channel. If a dow
 | --- | --- | --- |
 | Windows package metadata | `winget show --id Monkey1Wizard.GAL --exact` | reported version matches the current canonical release tag |
 | Homebrew metadata | `brew info monkey1wizard/tap/gal` | reported version matches the current canonical release tag |
-| PowerShell packaging dry run | `pwsh -File scripts/Package-ReleaseArtifacts.ps1 -SourceBinary <path> -Version <version> -TargetPlatform windows -TargetArch x64 -OutputDir <dir>` | emits versioned archive and binary names matching this matrix |
-| POSIX packaging dry run | `bash scripts/package-release-artifacts.sh --source-binary <path> --version <version> --target-platform linux --target-arch x64 --output-dir <dir>` | emits versioned archive and binary names matching this matrix |
+| Release packaging dry run | `gal release --dry-run --version <version> --output-dir <dir>` | emits `checksums.txt` and `artifact-manifest.json` for the canonical release asset matrix |
 | Release hash audit | compare `checksums.txt` with `artifact-manifest.json` | every published asset appears once with the same SHA-256 |
 
 **Fallback messaging**: every downstream channel that may lag must carry this guidance verbatim or with only minor style edits:

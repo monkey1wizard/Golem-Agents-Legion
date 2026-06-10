@@ -323,7 +323,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-026** — `gal uninstall` parity(ledger 精確);刪 `uninstall-machine.{ps1,sh}`。*(closeout: Rust uninstall now removes R-05 provider outputs with focused uninstall probe coverage; uninstall wrapper pair deleted after parity passed)*
 - [x] **T-027** — port `init-repo` → Rust;parity;刪對。*(closeout: Rust `gal init-repo` owns repo bootstrap generation; `gal init` shell branches forward to it; `Init-Repo.*` deleted after executable smoke validation)*
 - [x] **T-028** — port catalog 解析(`Resolve-GalCatalog`)→ Rust;parity;刪。*(closeout: Rust `gal resolve-catalog` matches the existing profile/default/explicit resolution contract and old resolver script/test harness are deleted after focused tests and dry-run validation)*
-- [ ] **T-029** — release packaging 併 `gal release`;parity;刪 `Package-ReleaseArtifacts.{ps1,sh}`。
+- [x] **T-029** — release packaging 併 `gal release`;parity;刪 `Package-ReleaseArtifacts.{ps1,sh}`。*(closeout: 既有 Rust `gal release` 路徑驗證綠，舊 packaging script pair 刪除，release 驗證文件改指 `gal release --dry-run`)*
 - [ ] **T-030** — port translation freshness → Rust;parity;刪對。
 
 **R-11/R-07/R-10 收尾**
