@@ -1618,7 +1618,7 @@ fn create_file_link(target: &Path, link: &Path) -> io::Result<()> {
             .output()?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(io::Error::new(io::ErrorKind::Other, stderr.into_owned()));
+            return Err(io::Error::other(stderr.into_owned()));
         }
         Ok(())
     }

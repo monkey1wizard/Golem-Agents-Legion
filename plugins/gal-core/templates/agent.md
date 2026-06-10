@@ -70,7 +70,7 @@ Resolve working-hours behavior from `conventions/working-hours.md` before starti
 
 | Category | Activation | Examples |
 | --- | --- | --- |
-| Pipeline | Specialist workflow or `/gal pipeline` | implementer, tester, reviewer, verifier |
+| Pipeline | Specialist workflow or `/gal pipeline` | implementer, tester, auditor, verifier |
 | Utility | No (any tier) | debugger, notewriter |
 | Domain | No (cross-workflow) | architect, analyst |
 

@@ -347,10 +347,10 @@ fn write_provider_lifecycle_artifacts(
 
     if primary.contains(&"claude".to_string()) {
         let projection = ClaudeSkillProjection::new(canonical_root.to_path_buf())
-            .map_err(|e| InstallError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| InstallError::Io(std::io::Error::other(e.to_string())))?;
         projection
             .apply()
-            .map_err(|e| InstallError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+            .map_err(|e| InstallError::Io(std::io::Error::other(e.to_string())))?;
         let marketplace_path = claude_marketplace_manifest_path()?;
         write_json_file(
             &marketplace_path,

@@ -1,7 +1,7 @@
 //! `gal-dispatch` binary entry point (T-004, T-007).
 //!
 //! Usage:
-//!   gal-dispatch --phase <implement|test|review|verify> --task <T-NNN>
+//!   gal-dispatch --phase <implement|test|audit|verify> --task <T-NNN>
 //!               [--workdir <path>] [--timeout <seconds>] [--routing <path>]
 //!               [--receipt <path>]
 //!
@@ -79,7 +79,13 @@ fn main() -> ExitCode {
                 dispatch_args.task,
                 role,
             );
-            eprintln!("gal-dispatch: no executor configured for role {role}; falling back to text dispatch");
+            if role == "AUDITOR" {
+                eprintln!(
+                    "gal-dispatch: no executor configured for role {role}; the `REVIEWER` key was renamed `AUDITOR`, update ~/.gal/config/executor-routing.json"
+                );
+            } else {
+                eprintln!("gal-dispatch: no executor configured for role {role}; falling back to text dispatch");
+            }
             return ExitCode::from(2);
         }
         Some(e) => e,
@@ -218,7 +224,7 @@ fn print_help() {
     println!("  (Pipe the task spec to stdin)");
     println!();
     println!("Required:");
-    println!("  --phase <implement|test|review|verify>   Pipeline phase");
+    println!("  --phase <implement|test|audit|verify>   Pipeline phase");
     println!("  --task  <T-NNN>                          Task identifier");
     println!();
     println!("Options:");

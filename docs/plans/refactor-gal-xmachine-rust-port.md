@@ -193,7 +193,7 @@ Not triggered（無 customer-facing UI）。
 **實作期約束(prompt 與執行須遵守):**
 
 1. **cross-plan 依賴閘** — T-002(`pipeline` 骨架)硬依賴**核心計畫 R-00(T-003..T-009 抽出 `base`、去前綴 `dispatch`)**;未完成前不啟動。
-2. **受保護核心 + 契約面簽核** — pipeline/xmachine crate 任務 + 契約面 T-012 實作前須 architect 簽核;CODER≠REVIEWER。
+2. **受保護核心 + 契約面簽核** — pipeline/xmachine crate 任務 + 契約面 T-012 實作前須 architect 簽核;CODER≠AUDITOR。
 3. **不重做下層** — 組合 `dispatch`,不重造 spawn/write-back/session/routing/stage;`Transport` trait 置 `pipeline`,xmachine 實作(方向 pipeline ← xmachine)。
 4. **前提只檢查不代設** — T-008 preflight 對 SSH/zellij/遠端 gal 只檢查 + fail-loud,**絕不代設**;T-009 session 紀錄延伸 `.dev/executor-logs/` 不另建 store。
 5. **刪除 gate** — T-010(oracle reparent)先於 T-014 刪除;`common.*`/`gal.{ps1,sh}`(T-015)掛兩計畫共同尾端 gate。

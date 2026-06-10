@@ -41,7 +41,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal research` | I need structured investigation | Invoke research golem via script |
 | `/gal deep-research` | I need multi-source investigation with cross-review | Invoke deep-research workflow via script |
 | `/gal xmachine <node> to do <task-ref>` | Run one active-plan task on a readied work node | Normalize to a bounded single-task xmachine pipeline dispatch |
-| `/gal <golem-name>` | Route to a supported specialist agent | Invoke a dispatcher-supported golem such as `architect`, `analyst`, `designer`, `researcher`, `debugger`, `notewriter`, `implementer`, `tester`, `reviewer`, or `verifier` |
+| `/gal <golem-name>` | Route to a supported specialist agent | Invoke a dispatcher-supported golem such as `architect`, `analyst`, `designer`, `researcher`, `debugger`, `notewriter`, `implementer`, `tester`, `auditor`, or `verifier` |
 
 ### `gal-*` — Discoverability Aliases
 
@@ -51,7 +51,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 | `/gal-status` | Active | Full state projection |
 | `/gal-whats-next` | Active | Next-action recommendation |
 | `/gal-wrap-up` | Active | Session close-out |
-| `/gal-pipeline` | Active | Task execution through implementer -> tester -> reviewer, with conditional security audit for security-sensitive changes, source/prompt/state task-closeout convergence, then verifier |
+| `/gal-pipeline` | Active | Task execution through implementer -> correctness gate -> tester -> auditor, source/prompt/state task-closeout convergence, then verifier |
 
 For Codex CLI, use the equivalent skill names with `$` invocation.
 

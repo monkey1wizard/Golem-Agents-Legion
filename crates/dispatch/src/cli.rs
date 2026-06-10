@@ -1,7 +1,7 @@
 //! CLI argument parsing for `gal-dispatch` (T-004).
 //!
 //! Accepted flags:
-//!   --phase   <implement|test|review|verify>   (required)
+//!   --phase   <implement|test|audit|verify>   (required)
 //!   --task    <T-NNN>                           (required)
 //!   --workdir <path>                            (optional; defaults to cwd)
 //!   --timeout <seconds>                         (optional; defaults to 300)

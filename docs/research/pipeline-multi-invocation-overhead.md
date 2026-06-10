@@ -110,7 +110,7 @@ The pipeline has no built-in way to automatically re-invoke itself after a tranc
 
 **Location**: `commands/gal-pipeline/SKILL.md` lines 66-77
 
-When the active runtime cannot enforce per-agent model routing (which is the case for OpenCode subagents that inherit the primary agent model), the pipeline degrades to "same-runtime fallback." However, even in this fallback mode, it still dispatches implementer, tester, and reviewer as separate invocations. Each dispatch pays the full context-loading cost without gaining the independent-verification benefit that separate models would provide.
+When the active runtime cannot enforce per-agent model routing (which is the case for OpenCode subagents that inherit the primary agent model), the pipeline degrades to "same-runtime fallback." However, even in this fallback mode, it still dispatches implementer, tester, and auditor as separate invocations. Each dispatch pays the full context-loading cost without gaining the independent-verification benefit that separate models would provide.
 
 The OpenCode-specific rule states:
 

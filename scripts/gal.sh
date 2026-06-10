@@ -720,7 +720,7 @@ case "$command" in
           cls="$(golem_class "$resolved")"
           if [[ "$cls" == utility ]]; then
             mode=utility
-          elif [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier|security)$ ]]; then
+          elif [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|auditor|verifier)$ ]]; then
             mode=bound
           else
             mode=consult
@@ -737,7 +737,7 @@ case "$command" in
           fi
 
           dispatch_extra=()
-          if [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|reviewer|verifier|security)$ ]]; then
+          if [[ "$PIPELINE_REQUESTED" -eq 1 && "$resolved" =~ ^golem-(implementer|tester|auditor|verifier)$ ]]; then
             dispatch_extra+=(DISPATCH_KIND pipeline-phase PIPELINE_PHASE "$PIPELINE_PHASE")
             if [[ -n "$PIPELINE_TASK_SCOPE" ]]; then
               dispatch_extra+=(TASK_SCOPE "$PIPELINE_TASK_SCOPE")

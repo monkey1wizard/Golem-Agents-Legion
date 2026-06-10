@@ -9,7 +9,7 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | --- | --- | --- |
 | **Pipeline** | Invoked by `/gal pipeline` or other specialist workflows | implementer, tester, auditor, verifier |
 | **Utility** | Callable at any tier | debugger, notewriter, dockeeper |
-| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, security, releaser |
+| **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, releaser |
 
 ## Why GAL Uses 12 Agents
 

@@ -76,7 +76,7 @@ bootstrap 打包、官方終端使用者安裝通道、marketplace discoverabili
 1. **初始化專案**：在專案內輸入 `/gal init`，建立基礎狀態檔。fresh repo 一開始可能還沒有 local `scripts/`，這時仍可由 GAL runtime checkout entrypoint 對目前專案完成初始化。
 2. **發想與規劃**：輸入 `/planning` 並告訴 AI「我要做一個 JWT 登入功能」。AI 會與你討論並將規格寫入 `docs/plans/`，再使用 `/deep-planning` 仔細審核規劃書。
 3. **鎖定規格**：輸入 `/refining-plan` 與 `/plan-to-prompt`，讓 AI 將人類可讀的規格轉化為 AI 可執行的「任務清單」與「測試計畫」。
-4. **自動實作與驗證**：輸入 `/gal pipeline`，GAL 會自動指派 Implementer（寫程式） -> Tester（寫測試） -> Reviewer（審查程式碼）。
+4. **自動實作與驗證**：輸入 `/gal pipeline`，GAL 會自動串接 Implementer（寫程式） -> orchestrator 正確性 gate -> Tester（寫測試） -> Auditor（深度效能與安全稽核）。
 5. **收工**：輸入 `/gal wrap-up` 紀錄今天進度。明天換別的 AI 工具開啟專案，依然能無縫接續！
 
 ## 指令
@@ -148,7 +148,7 @@ bootstrap 打包、官方終端使用者安裝通道、marketplace discoverabili
 GAL 的核心是 12 個專門化 agent，各自有獨立的 `.agent.md` 定義檔。分職而立的設計原則：
 
 - **prompt 精簡**：每個 agent 只載入自己的職責定義，不浪費脈絡視窗（context window）
-- **獨立性**：獨立的 tester / reviewer / verifier，以確保驗證結果的可信度
+- **獨立性**：獨立的 tester / auditor / verifier，以確保驗證結果的可信度
 - **可組合**：按任務風險等級決定啟用哪些 agent，不是一體全開
 
 除了使用 `/gal` 指令以外，你也能直接呼叫 `golem-` 進行指定類型的工作。
@@ -158,8 +158,8 @@ GAL 的核心是 12 個專門化 agent，各自有獨立的 `.agent.md` 定義�
 | 分類 | 啟動方式 | 成員 |
 | --- | --- | --- |
 | **Utility** | 任何時候直接呼叫 | debugger、notewriter |
-| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、security、releaser |
-| **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、reviewer、verifier |
+| **Domain** | 由指令或使用者直接諮詢 | architect、analyst、designer、researcher、releaser |
+| **Pipeline** | 由 `/gal pipeline` 自動串接 | implementer、tester、auditor、verifier |
 
 ### Utility Agents
 
@@ -178,7 +178,7 @@ Domain agents 提供專業諮詢，可以在任何階段被使用者或指令調
 | **analyst** | 商業邏輯審查：ROI、領域（Domain）正確性、使用者影響 |
 | **designer** | 設計系統建立、視覺探索、design-to-code 建置、即時 UI 稽核 |
 | **researcher** | 本機優先的研究與結構化統整，帶有來源歸屬（source attribution） |
-| **security** | 實作階段的 OWASP 與 STRIDE 安全性審查 |
+| **auditor** | 實作階段的深度效能與 OWASP / STRIDE 稽核 |
 | **releaser** | 發布準備（release prep）、部署編排（deploy orchestration）、文件同步 |
 
 ### Pipeline Agents
@@ -210,7 +210,7 @@ T-NNN ──> implementer ──> correctness gate ──> tester ──> audito
 Pipeline 流程中，GAL 強制以不同模型進行審查與測試：
 
 - Tester **必須**與 implementer 使用不同模型
-- Reviewer **應**與 implementer 不同，能力不應弱於 implementer
+- Auditor **應**與 implementer 不同，能力不應弱於 implementer
 - Planning 與 architect **應盡量**不同
 
 上述規則在 `~/.gal/config/executor-routing.json` 中設定；完整政策請參閱 `workflows/coding.md`。
@@ -267,8 +267,8 @@ GAL 將持久化資料分為兩個儲存邊界：
 | `DRAFT` | 執行工作檔剛建立，還沒正式進入任務執行 |
 | `IMPLEMENT` | 正在做某個 `T-NNN` 任務的實作 |
 | `TEST` | 實作已完成，正在測試 |
-| `REVIEW` | 測試已通過，正在做程式碼審查（Code Review） |
-| `REVIEW — 發現 N 個阻擋問題` | 審查發現阻擋問題，必須修正後再重跑 |
+| `AUDIT` | 測試已通過，正在做深度效能與安全稽核 |
+| `AUDIT — 發現 N 個阻擋問題` | 稽核發現阻擋問題，必須修正後再重跑 |
 | `ABSORBED` | 已確認目標達成，準備關閉企劃 |
 
 #### 回寫區段
@@ -277,8 +277,8 @@ GAL 將持久化資料分為兩個儲存邊界：
 | --- | --- | --- |
 | `## Open Questions` | 還有需求、假設、邊界沒定案時 | 集中列出尚未解決的問題 |
 | `## Tasks` | 要知道這個企劃實際要做哪些事時 | 任務清單，也是 pipeline 逐步執行的依據 |
-| `## Analyze` | 想確認目前變更是否仍在原本企劃範圍內時 | 記錄 reviewer 對變更是否偏離企劃範圍 |
-| `## Review Results` | 想看審核結果時 | 集中放 reviewer、designer、security 等審核結果 |
+| `## Analyze` | 想確認目前變更是否仍在原本企劃範圍內時 | 記錄 auditor 對變更是否偏離企劃範圍 |
+| `## Review Results` | 想看審核結果時 | 集中放 auditor、designer 等審核結果 |
 | `## Test Plan` | 還沒開始測試，想知道應該測什麼時 | 記錄預計驗證的測試範圍 |
 | `## Test Results` | 測試或 browser QA 跑完之後 | 記錄測試結果 |
 | `### Handoff Notes` | 中途停下來，想知道上次做到哪裡時 | 提供下次接手時的上下文（Context） |

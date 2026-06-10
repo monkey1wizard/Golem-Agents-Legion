@@ -12,7 +12,7 @@
 - [ ] 提供外部工具專屬的實體資料夾隔離 (例如：`plugins/vendor/` 或 `skills/external/`)。
 - [ ] 實作命名空間策略 (例如：`@vendor/repo/skill-name`)，以避免與內建或本地技能發生命名衝突。
 - [ ] 擴充 `scripts/Sync-DevContext.ps1` (及其 shell 對應版本)，讓它能掃描外部資料夾，並將找到的 `SKILL.md` 或 `plugin.json` 設定註冊到生成的 Provider adapters 中 (`AGENTS.md`, `GEMINI.md`, `CLAUDE.md` 等)。
-- [ ] 建立安全審查關卡 (例如：透過 `golem-security` 掃描或人工審查)，外部技能必須通過審查後才允許執行。
+- [ ] 建立安全審查關卡 (例如：透過 `golem-auditor` 掃描或人工審查)，外部技能必須通過審查後才允許執行。
 
 ## 實作方法 (Approach)
 
@@ -29,7 +29,7 @@
 - **驗證方式**: 執行 `/gal init` 後，Provider adapters 中能成功寫入帶有新命名空間的外部技能參考。
 
 ### 步驟 4: 實作安全審查關卡 (Security Review Gate)
-- **內容**: 定義外部 Prompt 的審查工作流。可以是在安裝時整合 `golem-security` 掃描步驟，或是要求清單檔中必須明確留下人工的 `<!-- REVIEW: CLEAR -->` 註解，同步腳本才會將其納入。
+- **內容**: 定義外部 Prompt 的審查工作流。可以是在安裝時整合 `golem-auditor` 掃描步驟，或是要求清單檔中必須明確留下人工的 `<!-- REVIEW: CLEAR -->` 註解，同步腳本才會將其納入。
 - **驗證方式**: 未經審查的外部技能會被 `Sync-DevContext.ps1` 忽略或觸發警告，從而阻止其執行。
 
 ## 需新增或修改的檔案

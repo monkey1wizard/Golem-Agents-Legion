@@ -854,7 +854,7 @@ Acceptance gate — do not present a raw command as an official install surface 
 
 #### 2. `/gal` only solves control-plane problems
 
-- `/gal` should not wrap a second copy of tester, reviewer, designer, security, debugger, or releaser work.
+- `/gal` should not wrap a second copy of tester, auditor, designer, debugger, or releaser work.
 - Execution-stage specialist behavior belongs in agents.
 - Planning commands can run directly because they are still part of the public command surface.
 

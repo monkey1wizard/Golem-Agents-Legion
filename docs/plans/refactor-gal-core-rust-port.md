@@ -148,7 +148,7 @@ install/render/doctor/mode/claude-skill 投影/bin 暴露/孤兒清理/跨平台
 
 ## Risks
 
-- **範圍大 + 受保護路徑（高）**:gal-engine 核心、Setup-Machine/Sync-DevContext(推翻 KEEP)。Mitigation:R-00/R-03/R-04/R-05 走 architect;CODER≠REVIEWER;推翻 KEEP 記入 Key Decisions。
+- **範圍大 + 受保護路徑（高）**:gal-engine 核心、Setup-Machine/Sync-DevContext(推翻 KEEP)。Mitigation:R-00/R-03/R-04/R-05 走 architect;CODER≠AUDITOR;推翻 KEEP 記入 Key Decisions。
 - **跨計畫共用檔（高）**:`common.*`/`gal.{ps1,sh}` 與 xmachine 計畫共用。Mitigation:只搬出核心函式/子命令,物理刪除掛跨計畫尾端共同 gate。
 - **真機驗收方法論(高,CORR-01)**:測試機若被當 build host(裝 rust/跨編譯)即違反「end-user 純裝 artifact」本質。Mitigation:R-13 先產 CI artifact;R-10/T-035 真機只裝預編譯檔;治理原則明令絕不在測試機 build。
 - **無 macOS artifact / CI 未建(中)**:目前無 macOS 預編譯產物,真機 end-user 驗收阻斷直到 R-13 管線(macOS CI runner)就緒;連動 GitHub 公開 + Actions(見 git-publish-strategy 私記)。Mitigation:T-034 為 T-035 硬前置。
@@ -233,7 +233,7 @@ Not triggered（無 customer-facing UI）。
 
 **實作期約束(prompt 與執行須遵守):**
 
-1. **受保護核心簽核** — T-003(R-00 抽 base/providers/去前綴)、T-007(R-03 adapters + Sync-DevContext)、T-008(R-04 setup,推翻 Setup-Machine KEEP)觸及 `gal-engine` 核心 + 受保護路徑,實作前須 architect 簽核;CODER≠REVIEWER,reviewer tier ≥ implementer。
+1. **受保護核心簽核** — T-003(R-00 抽 base/providers/去前綴)、T-007(R-03 adapters + Sync-DevContext)、T-008(R-04 setup,推翻 Setup-Machine KEEP)觸及 `gal-engine` 核心 + 受保護路徑,實作前須 architect 簽核;CODER≠AUDITOR,auditor tier ≥ implementer。
 2. **刪除硬 gate = fixture-parity 綠** — 任何 `[DELETE]` 任務的刪除動作須先對齊 P0 凍結 fixture;`T-004`(oracle reparent)必須先於其覆蓋的刪除任務。
 3. **混合態不變量** — 每個 phase 邊界系統完整可運作,不得讓 consumer 呼到已刪/半搬面;`common.*`/`gal.{ps1,sh}` 物理刪除(T-013 尾)掛跨計畫共同 gate(與姊妹計畫皆 done)。
 4. **JIT 解耦** — T-003 只抽 base+providers+去前綴並驗 228 test 綠;domain crate(install/mcp/adapters/release/vcs/setup)於各自 port 任務起點才拆。

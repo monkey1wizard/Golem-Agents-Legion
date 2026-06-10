@@ -139,10 +139,10 @@ None open — OQ-001..OQ-003 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: IMPLEMENT
+Workflow: VERIFY
 Step: 4 of 4
-Last activity: 2026-06-10 — **T-04 complete** — the remaining repo-owned reviewer/security references were zeroed, generated adapters were regenerated with `gal sync`, and the workspace test/clippy gates are green. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: run verifier / release-prep follow-up for the completed plan
+Last activity: 2026-06-10 — **Verifier returned VERIFIED** — all four implementation tasks are complete, the review→audit cutover is clean, and the workspace test/clippy gates are green. Run mode: DEGRADED_BUNDLED (focused manual validation + verifier write-back).
+Next step: hand off to release prep / downstream follow-up
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -193,7 +193,15 @@ _(none)_
 
 ## Analyze
 
-_(pending implementation)_
+### 2026-06-10 — Verifier: VERIFIED
+
+The plan goal is met end to end.
+
+- **R-001 through R-006** are implemented and aligned across the merged auditor contract, pipeline phase flow, policy docs, dispatch phase parser, `New-TaskSpec` agent map, and the routing example.
+- **R-007** is satisfied on effective source/runtime surfaces: the repo-wide residue scan is clean apart from the intentional migration-guidance string in `crates/dispatch/src/main.rs`.
+- **Executable validation is green**: `cargo test -p dispatch`, `cargo clippy -p dispatch --all-targets -- -D warnings`, `cargo test --workspace`, and `cargo clippy --workspace --all-targets -- -D warnings` all passed on the current workspace state.
+
+Release prep may proceed when the user wants it. This verifier pass is Steps 1–4 only; the plan is not marked ABSORBED and no lifecycle-ending deletion has been performed.
 
 ## Test Plan
 
