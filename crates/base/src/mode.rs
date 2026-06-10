@@ -130,7 +130,7 @@ pub fn resolve_gal_source_root(gal_root_str: &str) -> Result<PathBuf, ModeError>
     }
 
     // Old form: galRoot already points at gal-core (has required dirs directly).
-    if let None = first_missing_dir(&path) {
+    if first_missing_dir(&path).is_none() {
         return Ok(path);
     }
 

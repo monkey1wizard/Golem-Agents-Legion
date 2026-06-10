@@ -43,6 +43,7 @@ impl Phase {
     }
 
     /// Parse from a CLI string; case-insensitive.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, PhaseParseError> {
         match s.to_ascii_lowercase().as_str() {
             "implement" | "impl" => Ok(Phase::Implement),

@@ -176,7 +176,7 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
             stdout: String::new(),
             stderr: format!("executor '{}' not found in PATH", cfg.executor),
         };
-        write_log(&log_path, &cfg, &start_ts, &end_ts, duration_ms, &result)?;
+        write_log(&log_path, cfg, &start_ts, &end_ts, duration_ms, &result)?;
         return Ok(result);
     }
 
@@ -205,7 +205,7 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
                 stdout: String::new(),
                 stderr: format!("spawn failed: {e}"),
             };
-            write_log(&log_path, &cfg, &start_ts, &end_ts, duration_ms, &result)?;
+            write_log(&log_path, cfg, &start_ts, &end_ts, duration_ms, &result)?;
             return Ok(result);
         }
     };
@@ -276,7 +276,7 @@ pub fn spawn_executor(cfg: &SpawnConfig) -> Result<DispatchResult, DispatchError
         stderr: stderr_str,
     };
 
-    write_log(&log_path, &cfg, &start_ts, &end_ts, duration_ms, &result)?;
+    write_log(&log_path, cfg, &start_ts, &end_ts, duration_ms, &result)?;
     Ok(result)
 }
 

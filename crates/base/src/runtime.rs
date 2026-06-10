@@ -17,12 +17,10 @@ pub const VALID_RUNTIMES: &[&str] =
 pub fn default_primary_runtime<'a>(selected: &[&'a str]) -> Option<&'a str> {
     const PREFERRED: &[&str] =
         &["copilot", "antigravity", "codex", "claude", "opencode", "gemini"];
-    for &candidate in PREFERRED {
-        if selected.contains(&candidate) {
-            return Some(candidate);
-        }
-    }
-    None
+    PREFERRED
+        .iter()
+        .copied()
+        .find(|candidate| selected.contains(candidate))
 }
 
 /// Map a pipeline phase name to its role constant.

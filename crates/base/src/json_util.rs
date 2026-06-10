@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn read_empty_file_returns_empty_map() {
         let mut f = NamedTempFile::new().unwrap();
-        writeln!(f, "").unwrap();
+        writeln!(f).unwrap();
         let m = read_json_map(f.path()).unwrap();
         assert!(m.is_empty());
     }

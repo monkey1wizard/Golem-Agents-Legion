@@ -1846,25 +1846,12 @@ fn configure_git(
     ctx: &PersonalizationContext,
     report: &mut ProjectionReport,
 ) -> Result<(), AdapterError> {
-    let filter_script = if cfg!(windows) {
-        ctx.opts.repo_root.join("scripts").join("gal.ps1")
-    } else {
-        ctx.opts.repo_root.join("scripts").join("gal.sh")
-    };
-    let filter_script = filter_script.to_string_lossy().replace('\\', "/");
-    let clean_command = if cfg!(windows) {
-        format!("pwsh -NoProfile -File '{filter_script}' clean")
-    } else {
-        format!("bash '{filter_script}' clean")
-    };
-    let smudge_command = if cfg!(windows) {
-        format!("pwsh -NoProfile -File '{filter_script}' smudge")
-    } else {
-        format!("bash '{filter_script}' smudge")
-    };
+    // R-06/T-025 cutover: the gal-config filter is backed by the Rust binary
+    // subcommands `gal clean` / `gal smudge`, not the (now-deleted) bash/ps1
+    // filter scripts. Keep this in sync with `setup::git_filter::registration_entries`.
     for (key, value) in [
-        ("filter.gal-config.smudge", smudge_command.as_str()),
-        ("filter.gal-config.clean", clean_command.as_str()),
+        ("filter.gal-config.smudge", "gal smudge"),
+        ("filter.gal-config.clean", "gal clean"),
         ("filter.gal-config.required", "true"),
         ("core.hooksPath", "plugins/gal-core/hooks"),
     ] {
