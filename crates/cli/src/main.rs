@@ -30,6 +30,7 @@ fn print_help() {
     println!("  sync [repo-root]                  Regenerate repo-local adapter files");
     println!("  setup [--check|--dry-run|--reconfigure|--uninstall [--purge --confirm-purge]]");
     println!("        [--replace] [--bootstrap-install] [--selected-runtimes <csv>] [--primary-runtime <v>]");
+    println!("  setup --tools [--check] [--tool <gstack|graphify|opencli|xmachine>[,..]]");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
@@ -455,6 +456,26 @@ fn cmd_setup(args: &[String]) -> ExitCode {
             "--check" => opts.check = true,
             "--reconfigure" => opts.reconfigure = true,
             "--bootstrap-install" => opts.bootstrap_install = true,
+            "--tools" => opts.tools = true,
+            "--tool" => {
+                i += 1;
+                match args.get(i) {
+                    Some(value) => {
+                        let mut list = opts.tool.take().unwrap_or_default();
+                        list.extend(
+                            value
+                                .split(',')
+                                .map(|item| item.trim().to_string())
+                                .filter(|item| !item.is_empty()),
+                        );
+                        opts.tool = Some(list);
+                    }
+                    None => {
+                        eprintln!("gal setup: --tool requires a value");
+                        return ExitCode::Usage;
+                    }
+                }
+            }
             "--selected-runtimes" => {
                 i += 1;
                 match args.get(i) {

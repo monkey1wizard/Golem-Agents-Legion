@@ -21,6 +21,7 @@ pub mod agy;
 pub mod health;
 pub mod legacy_plugins;
 pub mod session;
+pub mod tools;
 
 use base::config::GalConfig;
 use std::io::Write;
@@ -39,6 +40,11 @@ pub struct SetupOptions {
     pub bootstrap_install: bool,
     pub selected_runtimes: Option<Vec<String>>,
     pub primary_runtime: Option<String>,
+    /// `gal setup --tools` — run the collaborative-tools flow instead of
+    /// machine setup (T-019).
+    pub tools: bool,
+    /// `--tool <csv>` filter for the tools flow.
+    pub tool: Option<Vec<String>>,
 }
 
 #[derive(Debug, Error)]
@@ -152,6 +158,42 @@ pub fn run_setup(
     validate_options(opts)?;
 
     let config = GalConfig::load();
+
+    // `gal setup --tools`: collaborative-tools flow (T-019), separate from
+    // machine setup.
+    if opts.tools {
+        let machine_defaults = adapters::machine_options_from_config(&config, opts.dry_run)
+            .map_err(|e| SetupError::Message(e.to_string()))?;
+        let env = tools::ToolsEnv {
+            user_home: machine_defaults.user_home.clone(),
+            repo_root: machine_defaults.repo_root.clone(),
+        };
+        let mut exec = tools::SystemExec;
+        let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
+        let result = if opts.check || !interactive {
+            tools::run_tools(
+                opts.tool.as_deref(),
+                opts.check,
+                &env,
+                &mut exec,
+                &mut tools::SkipAllPrompter,
+                out,
+            )
+        } else {
+            tools::run_tools(
+                opts.tool.as_deref(),
+                false,
+                &env,
+                &mut exec,
+                &mut tools::StdinToolsPrompter,
+                out,
+            )
+        };
+        return result
+            .map(|()| SetupOutcome { exit_code: 0 })
+            .map_err(SetupError::Usage);
+    }
+
     let install_mode = configured_install_mode(&config, opts.bootstrap_install);
 
     // Resolve repo root + default runtime selection from existing machine state.
