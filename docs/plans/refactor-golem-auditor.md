@@ -5,6 +5,7 @@
 - Human approval: **approved 2026-06-10**(OQ-001 接受、OQ-002 命名確認,見 Decisions)
 - Architect review: **APPROVE-with-conditions(2026-06-10 全面 deep-planning,C1..C5,見 ## Review Results)**
 - Additional domain review: [not requested]
+- Engineering review: **CLEAR（2026-06-10,見 ## Review Results）** — 4 T-NNN + 8 TP;下一步(Route ② · small-context 落地後)`/plan-to-prompt`。
 
 ## Goal
 
@@ -163,12 +164,49 @@ Not requested。
 
 ### Engineering Review
 
-Pending — 下一步 `/refining-plan`(在 small-context 計畫落地後啟動,D-3)。
+#### Verdict: CLEAR *(2026-06-10)*
+
+4 個 T-NNN 對映 R-001..R-007。task 粒度刻意對齊 architect C2 原子性:**相位鍵切換(stage.rs + gal-pipeline SKILL 相位流 + agentMap + routing example)合為單一 T-002,須一個 commit 落地**——拆開會產生「skill 發 `audit` 但 bin 只認 `review`」的中間裂縫。T-001(agent 合併)先行(SKILL 需引用 golem-auditor);T-003(coding.md 政策)、T-004(29 檔清零 + sync 重生)接續。C1(安全 STOP 逐字保留)、C3(三層獨立性文件化)、C4(routing 改鍵指引)映入對應 task 驗收。**跨計畫排序(C5/D-3)**:T-002 對 `New-TaskSpec.ps1` agentMap 的改動疊在 small-context T-002 擷取器升級之上——本計畫整體在 Route ① 落地後啟動。
+
+<!-- ENG_REVIEW: CLEAR -->
 
 ## Test Plan
 
-Pending(待 `/refining-plan`)。
+| ID | Type | Description | Covers |
+| --- | --- | --- | --- |
+| TP-001 | manual | `golem-auditor.agent.md` 存在,職責=深度效能(清單 14–16)+ 安全(17–23);`golem-reviewer.agent.md` 已刪;`agents.md` 索引更新且無指向已刪檔的連結 | T-001 |
+| TP-002 | manual (diff) | 合併後 auditor 逐字保留 golem-security 的嚴重度 STOP 規則(high/critical 開放即停);以 T-001 commit diff 證無語意刪減(C1) | T-001 |
+| TP-003 | unit (Rust) | `crates/dispatch/src/stage.rs`:`Phase::Audit` → role `AUDITOR`、`parse("audit")` Ok、`parse("review")` Err 且錯誤訊息列出有效相位集(含 audit、不含 review);既有 phase 測試更新 | T-002 |
+| TP-004 | manual | `gal-pipeline/SKILL.template.md` 相位序=implement → orchestrator 正確性 gate → test → auditor(常態)→ verify;無 dispatched REVIEWER 相位;Model Assignment 表更新;agentMap `audit→golem-auditor.agent.md`;`executor-routing.example.json` 鍵=`AUDITOR` | T-002 |
+| TP-005 | integration | `gal-dispatch --phase audit` 解析為 AUDITOR 角色並路由;`--phase review` 報錯;`audit` 相位查無路由時訊息明說「`REVIEWER` 鍵已改名 `AUDITOR`,請更新 ~/.gal/config/executor-routing.json」(C4) | T-002 |
+| TP-006 | manual | `workflows/coding.md` 移除/重定義 REVIEWER、新增 AUDITOR;明示三層獨立(auditor dispatch、TESTER≠CODER、VERIFIER≠CODER)+ 受保護路徑 architect 簽核;正確性 gate 定位「早期 catch」非獨立 review(C3) | T-003 |
+| TP-007 | manual (grep gate) | 全 repo 無 `golem-reviewer`/`golem-security`/`REVIEWER`(routing 鍵)有效引用(現勘 29 檔);生成 adapter 由 `gal sync` 重生無死連結;機器本地 `~/.gal/config/executor-routing.json` 由使用者按指引更新(不在 repo gate 內) | T-004 |
+| TP-008 | integration (Rust) | `cargo test --workspace` 綠(stage.rs 相位改名回歸);`cargo clippy --workspace --all-targets` 0 warning | T-002 |
 
 ## Tasks
 
-Pending(待 `/refining-plan`)。
+> 每個 task 自足(file:line 指標、具體改動、就地驗收、慣例指標)。受保護路徑(agents/gal-pipeline/coding.md/dispatch)實作期逐項簽核。整體在 small-context 計畫落地後啟動(D-3/C5)。
+
+- [ ] **T-001 (R-001) — golem 合併為 golem-auditor**
+  - 檔案:`[RENAME+EXPAND] plugins/gal-core/agents/golem-security.agent.md → golem-auditor.agent.md`、`[DELETE] plugins/gal-core/agents/golem-reviewer.agent.md`、`[MODIFY] plugins/gal-core/agents/agents.md`。現況:golem-security 有 Confidence Gate + Step 5 Write-Back「若 high/critical 開放則 `FINDINGS-OPEN`」(line 117);golem-reviewer 的深度效能在 Bug Pattern Scan(N+1 等,line 50-53)。
+  - 改動:以 golem-security 為基底改名 golem-auditor,吸收 golem-reviewer 的深度效能審查職責(清單 14–16:N+1、無邊界載入、熱路徑同步 I/O);安全清單(17–23)保留;正確性/架構/品質(1–13)**不**併入(改由 orchestrator gate,屬 T-002)。**C1:golem-security 的嚴重度 STOP/FINDINGS-OPEN 規則逐字保留**。刪 golem-reviewer;`agents.md` 索引移除 reviewer/security、加入 auditor。
+  - 驗收:TP-001、TP-002。
+  - 慣例:markdown-formatting;C1 以 diff 證無語意刪減。
+
+- [ ] **T-002 (R-002+R-003+R-004+R-006) — 相位鍵 + pipeline 原子切換【C2:單一 commit】**
+  - 檔案(**全部同一 commit**):`crates/dispatch/src/stage.rs`(`Phase::Review`/`"review"`/`REVIEWER` 在 line 28-50)、`plugins/gal-core/commands/gal-pipeline/SKILL.template.md`(2c implement line 368、2d test 391、2e review 418、2f conditional security 445、Model Assignment 表 56-63)、`scripts/common/New-TaskSpec.ps1`(agentMap line 149 `review = ...golem-reviewer.agent.md`)、`executor-routing.example.json`(`REVIEWER` 鍵)。
+  - 改動:(1) stage.rs `Phase::Review`→`Phase::Audit`,`as_str()`→`"audit"`,`role()`→`"AUDITOR"`,`parse()` 接受 `"audit"`、拒 `"review"` 且錯誤訊息列有效相位集;更新相關測試。(2) gal-pipeline SKILL:2c 後插「2d orchestrator 正確性 gate」(清單 1–13+明顯效能,不通過退 fix-mode 不進 test,不 dispatch),原 test 順延,移除 2e dispatched REVIEWER,2f conditional security 改「auditor 常態相位」(每 task dispatch,保留 high/critical STOP),Model Assignment 表反映新相位序。(3) New-TaskSpec agentMap `review`→`audit = ...golem-auditor.agent.md`(**疊在 small-context T-002 升級後的擷取器上**)。(4) routing example `REVIEWER`→`AUDITOR`。
+  - 驗收:TP-003、TP-004、TP-005、TP-008。**C2:四檔同 commit,無中間裂縫**。
+  - 慣例:rust(stage.rs)+ markdown(SKILL);依賴 T-001(SKILL/agentMap 引用 golem-auditor)。
+
+- [ ] **T-003 (R-005) — coding.md 跨模型政策對齊**
+  - 檔案:`plugins/gal-core/workflows/coding.md`(受保護)。
+  - 改動:移除或重定義 REVIEWER 角色、新增 AUDITOR;明示語意「正確性 gate=orchestrator(全 context、早期 catch,非獨立 review 替代品)、深度+安全稽核=獨立 auditor dispatch」;**C3:白紙黑字三層獨立保留**(auditor dispatch、TESTER≠CODER、VERIFIER≠CODER)+ 受保護路徑另有 architect 簽核。
+  - 驗收:TP-006。
+  - 慣例:markdown-formatting;與 T-002 的相位序一致(不得矛盾)。
+
+- [ ] **T-004 (R-007) — blast radius 清零 + adapter 重生**
+  - 檔案:現勘 **29 檔** `golem-reviewer`/`golem-security`/`REVIEWER` 引用(`commands/commands.md`、`commands/gal-status`、`commands/gal-whats-next`、`templates/plan-prompt.md`、`docs/manual.md`、`README.md` 等);`[REGEN] AGENTS.md、CLAUDE.md、GEMINI.md、.github/copilot-instructions.md、docs/i18n README` 由 `gal sync` 重生(不手改)。
+  - 改動:grep 掃全 repo,把人手維護的引用遷移為 auditor/AUDITOR/audit 相位;生成 adapter 一律 `gal sync` 重生;最後 grep gate 驗無 `golem-reviewer`/`golem-security` 有效引用、adapter 無死連結。機器本地 `~/.gal/config/executor-routing.json` 屬使用者,不在 repo gate(C4 指引由 T-002 的 dispatch 訊息承擔)。
+  - 驗收:TP-007。
+  - 慣例:token-budget(generated-artifact exclusion——adapter 不手改);階段化遷移 + grep gate。
