@@ -139,10 +139,10 @@ None open — OQ-001..OQ-003 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: DRAFT
-Step: 0 of 4
-Last activity: 2026-06-10 — prompt generated from source plan
-Next step: BLOCKED on Route ① — start implementation only after feat-small-context-task-authoring lands (D-3/C5); T-02's New-TaskSpec.ps1 agentMap change stacks on that plan's extractor upgrade
+Workflow: IMPLEMENT
+Step: 1 of 4
+Last activity: 2026-06-10 — **T-01 complete** — merged the review/security specialist into `golem-auditor`, deleted the old reviewer/security agent files, and updated the shared agent index to the 12-agent model. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-02 (the atomic audit-phase cutover across stage.rs, gal-pipeline, agentMap, and routing example)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -157,13 +157,13 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-- **Sequencing gate (D-3/C5)**: do not begin T-02 until `feat-small-context-task-authoring` T-02 (New-TaskSpec.ps1 extractor upgrade) has landed; the agentMap change must stack on the upgraded extractor. T-01 (agent merge) is technically independent but the plan is sequenced as a whole behind Route ①.
+- **Sequencing gate cleared**: `feat-small-context-task-authoring` landed, so the `New-TaskSpec.ps1` agentMap change in T-02 can now stack on the upgraded extractor as planned.
 
 ## Tasks
 
 > Each task is self-contained (file:line pointers, concrete change, in-place acceptance, convention pointers). Protected-path tasks (agents/gal-pipeline/coding.md/dispatch) get per-item sign-off at implementation. The plan as a whole starts after the small-context plan lands (D-3/C5).
 
-- [ ] **T-01 (R-001) — merge golems into golem-auditor**
+- [x] **T-01 (R-001) — merge golems into golem-auditor**
   - Files: `[RENAME+EXPAND] plugins/gal-core/agents/golem-security.agent.md → golem-auditor.agent.md`, `[DELETE] plugins/gal-core/agents/golem-reviewer.agent.md`, `[MODIFY] plugins/gal-core/agents/agents.md`. Current: golem-security has a Confidence Gate + Step 5 Write-Back "if high/critical open → `FINDINGS-OPEN`" (line 117); golem-reviewer's deep performance is in the Bug Pattern Scan (N+1 etc., lines 50-53).
   - Change: take golem-security as the base, rename to golem-auditor, absorb golem-reviewer's deep-performance responsibility (checklist 14–16: N+1, unbounded load, hot-path sync I/O); keep the security checklist (17–23); do **not** fold in correctness/architecture/quality (1–13) (those go to the orchestrator gate, in T-02). **C1: golem-security's severity STOP/FINDINGS-OPEN rule preserved verbatim.** Delete golem-reviewer; `agents.md` index removes reviewer/security and adds auditor.
   - Acceptance: TP-01, TP-02.
@@ -210,7 +210,13 @@ _(pending implementation)_
 
 ## Test Results
 
-_(none yet)_
+### [T-01] 2026-06-10 — PASS (TP-01/TP-02 slice: agent merge)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused agent-surface merge for the reviewer/security consolidation.
+
+- **Merged agent exists** — `plugins/gal-core/agents/golem-auditor.agent.md` now carries the security-audit base plus the deep-performance scan responsibilities.
+- **Old files removed** — `golem-reviewer.agent.md` and `golem-security.agent.md` no longer exist under `plugins/gal-core/agents/`.
+- **Index updated** — `plugins/gal-core/agents/agents.md` now points at `golem-auditor`, updates the agent count to 12, and removes the deleted reviewer/security entries.
 
 ## Review Results
 
@@ -255,6 +261,32 @@ Not requested.
 4 T-NNN map to R-001..R-007. Task granularity deliberately aligns with architect C2 atomicity: **the phase-key cut (stage.rs + gal-pipeline SKILL phase flow + agentMap + routing example) is a single T-02 that must land in one commit** — splitting it creates the "skill emits `audit` but bin only knows `review`" intermediate gap. T-01 (agent merge) goes first (the SKILL must reference golem-auditor); T-03 (coding.md policy) and T-04 (29-file zeroing + sync regen) follow. C1 (security STOP preserved verbatim), C3 (three-layer independence documented), C4 (routing rename guidance) map into the matching task acceptance. **Cross-plan ordering (C5/D-3)**: T-02's `New-TaskSpec.ps1` agentMap change stacks on small-context T-02's extractor upgrade — the plan as a whole starts after Route ① lands.
 
 <!-- ENG_REVIEW: CLEAR -->
+
+### [T-01] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `a5616ca`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The STOP semantics are still present in the merged agent contract via the retained `FINDINGS-OPEN` rule for open high/critical findings.
+- **[I-02]** The agent index was updated in the same task, so the repo no longer advertises the deleted files as active specialists.
+
+#### Architect conditions check (T-01 slice)
+- The security STOP/FINDINGS-OPEN semantics were preserved in the merged auditor contract. ✓
+- The merge scope stayed inside the agent contract surface and shared agent index only. ✓
+
+#### Security note (task-scoped)
+Specialist-contract and index changes only; no runtime dispatch surface changed in this task. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
 
 ## Debug Log
 

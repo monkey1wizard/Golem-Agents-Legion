@@ -187,7 +187,7 @@ Not requested。
 
 > 每個 task 自足(file:line 指標、具體改動、就地驗收、慣例指標)。受保護路徑(agents/gal-pipeline/coding.md/dispatch)實作期逐項簽核。整體在 small-context 計畫落地後啟動(D-3/C5)。
 
-- [ ] **T-01 (R-001) — golem 合併為 golem-auditor**
+- [x] **T-01 (R-001) — golem 合併為 golem-auditor**
   - 檔案:`[RENAME+EXPAND] plugins/gal-core/agents/golem-security.agent.md → golem-auditor.agent.md`、`[DELETE] plugins/gal-core/agents/golem-reviewer.agent.md`、`[MODIFY] plugins/gal-core/agents/agents.md`。現況:golem-security 有 Confidence Gate + Step 5 Write-Back「若 high/critical 開放則 `FINDINGS-OPEN`」(line 117);golem-reviewer 的深度效能在 Bug Pattern Scan(N+1 等,line 50-53)。
   - 改動:以 golem-security 為基底改名 golem-auditor,吸收 golem-reviewer 的深度效能審查職責(清單 14–16:N+1、無邊界載入、熱路徑同步 I/O);安全清單(17–23)保留;正確性/架構/品質(1–13)**不**併入(改由 orchestrator gate,屬 T-02)。**C1:golem-security 的嚴重度 STOP/FINDINGS-OPEN 規則逐字保留**。刪 golem-reviewer;`agents.md` 索引移除 reviewer/security、加入 auditor。
   - 驗收:TP-01、TP-02。

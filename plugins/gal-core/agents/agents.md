@@ -11,7 +11,7 @@ These are `.agent.md` files for VS Code Copilot custom agents.
 | **Utility** | Callable at any tier | debugger, notewriter, dockeeper |
 | **Domain** | Consulted directly by commands or users | architect, analyst, designer, researcher, security, releaser |
 
-## Why GAL Uses 13 Agents
+## Why GAL Uses 12 Agents
 
 GAL keeps these roles separate on purpose.
 
@@ -30,12 +30,11 @@ GAL keeps these roles separate on purpose.
 | [golem-researcher](golem-researcher.agent.md) | Domain | `/gal research`, `/gal deep-research`, or direct consult | Local-first research, cross-source synthesis, and reference-ready findings |
 | [golem-implementer](golem-implementer.agent.md) | Pipeline | `/gal pipeline` | Execute approved plans with atomic commits |
 | [golem-tester](golem-tester.agent.md) | Pipeline | `/gal pipeline` or direct verification | Run spec-driven tests and real-browser QA |
-| [golem-reviewer](golem-reviewer.agent.md) | Pipeline | `/gal pipeline` or direct review | Review for bugs, security, architecture, conventions, and standalone staff review write-back |
+| [golem-auditor](golem-auditor.agent.md) | Pipeline | `/gal pipeline` or direct audit | Audit for deep performance, security, and other high-confidence branch risks |
 | [golem-verifier](golem-verifier.agent.md) | Pipeline | `/gal pipeline` | Goal-backward verification + plan lifecycle ending |
 | [golem-debugger](golem-debugger.agent.md) | Utility | Any time | Scientific method bug investigation with internal freeze discipline |
 | [golem-notewriter](golem-notewriter.agent.md) | Utility | Any time | Obsidian writes, private captures, diary, shutdown ritual, and knowledge extraction |
 | [golem-dockeeper](golem-dockeeper.agent.md) | Utility | Pipeline closeout, reconcile, or direct drift audit | Maintain the doc structure map, detect stale docs, and coordinate doc sync |
-| [golem-security](golem-security.agent.md) | Domain | Direct audit or pre-release security pass | OWASP + STRIDE code-review-level security audit with plan write-back |
 | [golem-releaser](golem-releaser.agent.md) | Domain | Direct release prep / deploy / doc sync | Release prep, deploy orchestration, and documentation sync |
 
 ## Planning Reviews
@@ -48,9 +47,9 @@ GAL keeps these roles separate on purpose.
 
 Each of these domain lanes can also be invoked directly against the source plan outside of `/deep-planning`.
 
-Planning-stage security review remains part of architect's job in `/deep-planning`; `golem-security` is reserved for auditing implemented changes.
+Planning-stage security review remains part of architect's job in `/deep-planning`; `golem-auditor` is reserved for auditing implemented changes.
 
-`reviewer`, `debugger`, `security`, and `releaser` remain implementation-stage specialists. They are not default planning reviewers.
+`auditor`, `debugger`, and `releaser` remain implementation-stage specialists. They are not default planning reviewers.
 
 ## Direct Agent Invocation
 
@@ -65,7 +64,7 @@ Typical direct use examples:
 
 - `/gal [ask designer]`
 - `/gal [golem-researcher]`
-- `@golem-security audit this branch`
+- `@golem-auditor audit this branch`
 - `@golem-releaser prepare release`
 
 Consult output is advice unless the named agent's contract explicitly includes formal write-back for its specialist stage.
@@ -76,8 +75,8 @@ Workflow specialists may be explicitly named, but doing so does not skip PLAN, T
 Per [workflows/coding.md](../workflows/coding.md) — Model Roles and Per-Phase Assignment:
 
 - **Tester must be a different model from implementer** — independent verification
-- **Reviewer should differ from implementer** — fresh perspective
-- **Reviewer should be capable enough to review what the implementer produced** — prefer stronger or equal capability
+- **Auditor should differ from implementer** — fresh perspective
+- **Auditor should be capable enough to audit what the implementer produced** — prefer stronger or equal capability
 
 ## Activation Principles
 
