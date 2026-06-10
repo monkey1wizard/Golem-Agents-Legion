@@ -538,7 +538,7 @@ function Get-PipelineDispatchContext {
                         TaskScope = $null
                         FixMode = $false
                         RemainingTokens = @()
-                        Error = 'Missing phase after --pipeline-phase. Expected one of: implement, test, review, verify, security.'
+                        Error = 'Missing phase after --pipeline-phase. Expected one of: implement, test, audit, verify.'
                     }
                 }
 
@@ -612,7 +612,7 @@ function Get-PipelineDispatchContext {
     }
 
     if ($requested) {
-        $validPhases = @('implement','test','review','verify','security')
+        $validPhases = @('implement','test','audit','verify')
         if ([string]::IsNullOrWhiteSpace($phase)) {
             return [pscustomobject]@{
                 Requested = $false
@@ -622,7 +622,7 @@ function Get-PipelineDispatchContext {
                 StopAt = $null
                 FixMode = $false
                 RemainingTokens = @()
-                Error = 'Pipeline-bound dispatch requires --pipeline-phase <implement|test|review|verify|security>.'
+                Error = 'Pipeline-bound dispatch requires --pipeline-phase <implement|test|audit|verify>.'
             }
         }
 
@@ -635,7 +635,7 @@ function Get-PipelineDispatchContext {
                 StopAt = $null
                 FixMode = $false
                 RemainingTokens = @()
-                Error = "Unsupported pipeline phase '$phase'. Expected one of: implement, test, review, verify, security."
+                Error = "Unsupported pipeline phase '$phase'. Expected one of: implement, test, audit, verify."
             }
         }
     }

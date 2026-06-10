@@ -210,7 +210,7 @@ Before starting the task loop:
 1. If the active runtime is OpenCode, inspect the nearest repo `opencode.json` when present and note the active agent step budget when it is visible.
 2. In OpenCode, enter **single-task tranche mode** by default. Only disable it when the user explicitly asks for a multi-task turn and the visible active-agent `steps` budget is high enough for that larger run.
 3. If the active OpenCode agent is `build` and its `steps` value is `20` or lower, warn that even one full task may exceed the runtime budget and rely on the interrupted-phase handoff if the cutoff still happens.
-4. In single-task tranche mode, complete at most one blocking task per invocation, including implement, test, review, and any required security pass. After marking that task complete, stop cleanly and tell the user to rerun `/gal pipeline` to continue from the next unchecked task.
+4. In single-task tranche mode, complete at most one blocking task per invocation, including implement, the orchestrator correctness gate, test, and audit. After marking that task complete, stop cleanly and tell the user to rerun `/gal pipeline` to continue from the next unchecked task.
 
 This is a normal continuation strategy, not a BLOCKED state. It prevents low-step agents from finishing multiple tasks and then being cut off mid-implementation on the next one.
 

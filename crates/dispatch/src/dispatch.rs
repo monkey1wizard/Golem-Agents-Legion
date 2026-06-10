@@ -21,7 +21,7 @@
 //! timestamp_end:   <ISO-8601>
 //! duration_ms:     <u64>
 //! executor:        <name>
-//! phase:           <implement|test|review|verify>
+//! phase:           <implement|test|audit|verify>
 //! task_id:         <T-NNN>
 //! git_branch:      <branch>
 //! git_head:        <sha7>

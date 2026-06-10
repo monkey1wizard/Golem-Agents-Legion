@@ -25,7 +25,7 @@
   Task identifier, e.g. "T-001".
 
 .PARAMETER Phase
-  Pipeline phase: implement | test | review | verify. Default: implement.
+  Pipeline phase: implement | test | audit | verify. Default: implement.
 
 .PARAMETER PromptPath
   Path to the active execution prompt (.dev/plans/<slug>.prompt.md).

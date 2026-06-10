@@ -196,7 +196,7 @@ get_pipeline_dispatch_context() {
       --pipeline-phase)
         PIPELINE_REQUESTED=1
         if (($# == 0)) ; then
-          PIPELINE_ERROR="Missing phase after --pipeline-phase. Expected one of: implement, test, review, verify, security."
+          PIPELINE_ERROR="Missing phase after --pipeline-phase. Expected one of: implement, test, audit, verify."
           return 0
         fi
         PIPELINE_PHASE="${1,,}"
@@ -240,13 +240,13 @@ get_pipeline_dispatch_context() {
 
   if [[ "$PIPELINE_REQUESTED" -eq 1 ]]; then
     case "$PIPELINE_PHASE" in
-      implement|test|review|verify|security)
+      implement|test|audit|verify)
         ;;
       "")
-        PIPELINE_ERROR="Pipeline-bound dispatch requires --pipeline-phase <implement|test|review|verify|security>."
+        PIPELINE_ERROR="Pipeline-bound dispatch requires --pipeline-phase <implement|test|audit|verify>."
         ;;
       *)
-        PIPELINE_ERROR="Unsupported pipeline phase '$PIPELINE_PHASE'. Expected one of: implement, test, review, verify, security."
+        PIPELINE_ERROR="Unsupported pipeline phase '$PIPELINE_PHASE'. Expected one of: implement, test, audit, verify."
         ;;
     esac
   fi
