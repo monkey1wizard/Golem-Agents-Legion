@@ -30,12 +30,12 @@ Read every planning-stage document the user identifies. This may include:
 
 Before using a collaborative tool, resolve its state through the shared checking model in `docs/collaborative-tools/checking-contract.md`.
 
-- graphify: if `graphify-out/GRAPH_REPORT.md` exists, use it as structural context; if not, degrade to native codebase reading without prompting for graph generation. If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the current graphify version no longer matches the stamped version while the report is not newer than the stamp, treat the report as stale-by-tool-version and continue without it.
+- graphify: if `.tmp/graphify-out/GRAPH_REPORT.md` exists, use it as structural context; if not, degrade to native codebase reading without prompting for graph generation. If `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the current graphify version no longer matches the stamped version while the report is not newer than the stamp, treat the report as stale-by-tool-version and continue without it.
 - gstack review lanes: if the chosen lane is unavailable or not ready, describe the fallback golem lane instead of treating gstack as required.
 
-Read `graphify-out/GRAPH_REPORT.md` if it exists. Use god nodes, communities, and surprising connections as structural context for the plan.
+Read `.tmp/graphify-out/GRAPH_REPORT.md` if it exists. Use god nodes, communities, and surprising connections as structural context for the plan.
 
-If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the `graphify` CLI is available, compare the stamped version to the current `graphify --version` output. When the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, do not rely on the report for structural context and continue with native codebase reading.
+If `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the `graphify` CLI is available, compare the stamped version to the current `graphify --version` output. When the versions differ and `GRAPH_REPORT.md` is not newer than the stamp file, do not rely on the report for structural context and continue with native codebase reading.
 
 Prefer convergence over interrogation. Ask a focused question only when the plan cannot be made review-ready without resolving a security, irreversible scope, or taste decision.
 

@@ -45,7 +45,7 @@ When invoked directly rather than as a narrow pipeline step, you own the full st
 
 - Default to `git diff main` or `git diff origin/main` when a remote exists
 - If the active plan is task-scoped, also compare the changes against the task list and open questions
-- If graphify context exists, use it as an extra cross-check; if not, proceed without asking for regeneration. If `graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the installed graphify version differs while the report is not newer than the stamp, skip the graphify cross-check and continue without it.
+- If graphify context exists, use it as an extra cross-check; if not, proceed without asking for regeneration. If `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt` exists and the installed graphify version differs while the report is not newer than the stamp, skip the graphify cross-check and continue without it.
 
 ### Bug Pattern Scan
 

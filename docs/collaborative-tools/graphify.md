@@ -6,7 +6,7 @@ graphify is an optional CLI-driven structural-context collaborative tool for GAL
 
 This module defines GAL's consumption contract for prebuilt graphify CLI artifacts.
 
-When `graphify-out/GRAPH_REPORT.md` exists at the repo root, GAL may read it in these workflows:
+When `.tmp/graphify-out/GRAPH_REPORT.md` exists for this repo, GAL may read it in these workflows:
 
 - `/planning` to judge whether scope crosses module boundaries
 - `/deep-planning` to add structure-aware context before converging a source plan
@@ -33,8 +33,8 @@ This tool follows the shared preflight model in [checking-contract.md](checking-
 | --- | --- | --- |
 | `not-applicable` | The current lane does not use structural graph context. | Continue without graphify. |
 | `unavailable` | The current machine or runtime cannot run the graphify CLI. | Continue with native codebase reading. |
-| `available-but-needs-init` | graphify is installed, but the repo has not been generated into `graphify-out/` for the expected collaboration mode. | Do not auto-generate graph outputs during planning, review, or init. Continue through the normal non-graph workflow path. |
-| `available-but-not-ready` | graphify is installed, but the current lane is missing the required report artifact such as `graphify-out/GRAPH_REPORT.md`, or GAL can prove the installed graphify version no longer matches the stamped report. | Degrade to the normal non-graph workflow path. Mention manual regeneration only as an optional user action when updated graph context is desired. |
+| `available-but-needs-init` | graphify is installed, but the repo has not been generated into `.tmp/graphify-out/` for the expected collaboration mode. | Do not auto-generate graph outputs during planning, review, or init. Continue through the normal non-graph workflow path. |
+| `available-but-not-ready` | graphify is installed, but the current lane is missing the required report artifact such as `.tmp/graphify-out/GRAPH_REPORT.md`, or GAL can prove the installed graphify version no longer matches the stamped report. | Degrade to the normal non-graph workflow path. Mention manual regeneration only as an optional user action when updated graph context is desired. |
 | `ready` | The applicable graphify artifact exists for the current integration level. | Use graphify as advisory structural context. |
 
 Report-based integration uses repo readiness, not machine availability alone. A machine with graphify installed but no repo outputs is not graph-ready for GAL.
@@ -43,9 +43,9 @@ Report-based integration uses repo readiness, not machine availability alone. A 
 
 | Input | Required | GAL use |
 | --- | --- | --- |
-| `graphify-out/GRAPH_REPORT.md` | yes for report-based integration | Read god nodes, communities, and surprising connections as advisory structural context |
-| `graphify-out/GAL_GRAPHIFY_VERSION.txt` | no | Optional version stamp used only for tool-version freshness checks |
-| `graphify-out/graph.json` | no | Upstream CLI artifact only; GAL does not query it live or wire it through MCP |
+| `.tmp/graphify-out/GRAPH_REPORT.md` | yes for report-based integration | Read god nodes, communities, and surprising connections as advisory structural context |
+| `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt` | no | Optional version stamp used only for tool-version freshness checks |
+| `.tmp/graphify-out/graph.json` | no | Upstream CLI artifact only; GAL does not query it live or wire it through MCP |
 
 For report-based integration, GAL reads the report and keeps its normal write-back targets:
 
@@ -67,7 +67,7 @@ When `GAL_GRAPHIFY_VERSION.txt` exists, GAL may compare its stamped graphify ver
 
 | Level | Trigger | GAL behavior |
 | --- | --- | --- |
-| Level 1: report-based context | `graphify-out/GRAPH_REPORT.md` exists | Read the report before planning or review work and use it as advisory structural evidence |
+| Level 1: report-based context | `.tmp/graphify-out/GRAPH_REPORT.md` exists | Read the report before planning or review work and use it as advisory structural evidence |
 
 GAL's graphify integration is command-based and report-based only. Treat `INFERRED` edges as advisory signals rather than hard facts.
 

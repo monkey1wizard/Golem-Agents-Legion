@@ -16,7 +16,7 @@ Starting from the current working directory or opened workspace folder, walk upw
 - Resolve every row in `## Active Plans`. Table order is priority order. Treat the **primary active plan** as the first row whose plan phase is not terminal (`Complete`, `Done`, `Verified`, `Closed`); if all rows are terminal, fall back to the first row.
 - For each resolved row, read that plan's execution file from the `File` column. Resolve markdown-wrapped relative paths against the current repo root. If the row points to `docs/plans/<slug>.md`, prefer `.dev/plans/<slug>.prompt.md` when it exists, but also keep the source plan path for source/prompt task-sync checks. If the row points directly to `.dev/plans/<slug>.prompt.md`, also resolve the paired `docs/plans/<slug>.md` when it exists.
 - If the active plan file is missing, output the exact repo-state error and suggest inspecting `.dev/state.md` plus the referenced active plan file.
-- Also inspect `graphify-out/GRAPH_REPORT.md` and the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file. If the report is usable but no version stamp exists, keep the state `FRESH`, show `Report stamp: Not stamped`, and note that automatic version verification is unavailable.
+- Also inspect `.tmp/graphify-out/GRAPH_REPORT.md` and the optional `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt` when they exist. If the `graphify` CLI is available, capture `graphify --version` and classify graphify freshness as one of: `NOT-PRESENT`, `FRESH`, `STALE-BY-TOOL-VERSION`, or `UNSTAMPED`. Treat a report as `FRESH` whenever `GRAPH_REPORT.md` exists and GAL cannot prove a stale-by-tool-version mismatch. Treat a report as stale only when the stamped version differs from the current version and `GRAPH_REPORT.md` is not newer than the stamp file. If the report is usable but no version stamp exists, keep the state `FRESH`, show `Report stamp: Not stamped`, and note that automatic version verification is unavailable.
 
 ## Step 2 — Project
 
@@ -87,7 +87,7 @@ From `.dev/state.md` `## Session Continuity`, using one row per active plan matc
 
 ### Graphify Freshness
 
-From `graphify-out/GRAPH_REPORT.md`, the optional `graphify-out/GAL_GRAPHIFY_VERSION.txt`, and the current `graphify --version` output when available:
+From `.tmp/graphify-out/GRAPH_REPORT.md`, the optional `.tmp/graphify-out/GAL_GRAPHIFY_VERSION.txt`, and the current `graphify --version` output when available:
 
 - **State**: `NOT-PRESENT` / `FRESH` / `STALE-BY-TOOL-VERSION` / `UNSTAMPED`
 - **Report stamp**: stamped graphify version if the version file exists; otherwise *Not stamped*

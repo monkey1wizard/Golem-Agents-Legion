@@ -16,12 +16,36 @@
 use std::io::Write;
 use std::path::Path;
 
+fn quote_shell_path(path: &Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    format!("'{}'", normalized.replace('\'', "'\"'\"'"))
+}
+
+fn filter_command(repo_root: &Path, subcommand: &str) -> String {
+    if cfg!(windows) {
+        let script = repo_root.join("scripts").join("gal.ps1");
+        format!(
+            "pwsh -NoProfile -File {} {}",
+            quote_shell_path(&script),
+            subcommand
+        )
+    } else {
+        let script = repo_root.join("scripts").join("gal.sh");
+        format!("bash {} {}", quote_shell_path(&script), subcommand)
+    }
+}
+
 /// The exact (key, value) pairs registered for the repo at `repo_root`.
 pub fn registration_entries(repo_root: &Path) -> Vec<(String, String)> {
-    let _ = repo_root;
     vec![
-        ("filter.gal-config.clean".into(), "gal clean".into()),
-        ("filter.gal-config.smudge".into(), "gal smudge".into()),
+        (
+            "filter.gal-config.clean".into(),
+            filter_command(repo_root, "clean"),
+        ),
+        (
+            "filter.gal-config.smudge".into(),
+            filter_command(repo_root, "smudge"),
+        ),
         ("filter.gal-config.required".into(), "true".into()),
     ]
 }
@@ -126,11 +150,16 @@ mod tests {
     }
 
     #[test]
-    fn entries_point_at_gal_subcommands_with_required_true() {
+    fn entries_point_at_repo_local_wrapper_commands_with_required_true() {
         let entries = registration_entries(Path::new("/repo"));
         assert_eq!(entries.len(), 3);
-        assert_eq!(entries[0].1, "gal clean");
-        assert_eq!(entries[1].1, "gal smudge");
+        if cfg!(windows) {
+            assert_eq!(entries[0].1, "pwsh -NoProfile -File '/repo/scripts/gal.ps1' clean");
+            assert_eq!(entries[1].1, "pwsh -NoProfile -File '/repo/scripts/gal.ps1' smudge");
+        } else {
+            assert_eq!(entries[0].1, "bash '/repo/scripts/gal.sh' clean");
+            assert_eq!(entries[1].1, "bash '/repo/scripts/gal.sh' smudge");
+        }
         assert_eq!(entries[2], ("filter.gal-config.required".to_string(), "true".to_string()));
     }
 
@@ -160,7 +189,18 @@ mod tests {
 
         let clean = get_all(repo, "filter.gal-config.clean");
         assert_eq!(clean.len(), 1, "duplicates collapsed to one entry");
-        assert_eq!(clean[0], "gal clean");
+        let expected_clean = if cfg!(windows) {
+            format!(
+                "pwsh -NoProfile -File '{}' clean",
+                repo.join("scripts").join("gal.ps1").display().to_string().replace('\\', "/")
+            )
+        } else {
+            format!(
+                "bash '{}' clean",
+                repo.join("scripts").join("gal.sh").display().to_string().replace('\\', "/")
+            )
+        };
+        assert_eq!(clean[0], expected_clean);
         assert_eq!(get_all(repo, "filter.gal-config.required"), vec!["true"]);
         assert_eq!(
             registered_clean_filter(repo).unwrap(),
