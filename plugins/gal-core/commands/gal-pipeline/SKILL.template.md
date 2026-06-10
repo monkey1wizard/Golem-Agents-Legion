@@ -1,15 +1,15 @@
 ---
 name: gal-pipeline
-description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → test → review per task, inserts a conditional `golem-security` audit for security-sensitive implemented changes, keeps a mandatory git commit gate between tasks, and runs a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, working-hours boundary, or a user-specified stop boundary."
+description: "Task-driven autopilot. Iterates through every T-NNN task in the active plan running implement → orchestrator correctness gate → test → auditor per task, keeps a mandatory git commit gate between tasks, and runs a final verifier pass at the end. Stops only on human-required blockers, retry ceiling breach, working-hours boundary, or a user-specified stop boundary."
 ---
 
 # /gal-pipeline
 
-Run the full implementation pipeline task by task: for each blocking `T-NNN` task in the active plan, run implement → commit → test → review in sequence, insert a conditional `golem-security` audit when the implemented change is security-sensitive, then advance to the next task. Prefer different AI vendors per `~/.gal/config/executor-routing.json` when the active runtime can actually enforce that split. After all blocking tasks complete, run a final verifier pass.
+Run the full implementation pipeline task by task: for each blocking `T-NNN` task in the active plan, run implement → orchestrator correctness gate → test → audit in sequence, then advance to the next task. Prefer different AI vendors per `~/.gal/config/executor-routing.json` when the active runtime can actually enforce that split. After all blocking tasks complete, run a final verifier pass.
 
 ## Role
 
-Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + test + review gate, plus any required conditional security audit gate, is fully clean, and stopping only when a genuine human-required condition is encountered.
+Pipeline orchestrator. Your job is to iterate through plan tasks automatically, advancing only when each task's commit + correctness gate + test + audit gate is fully clean, and stopping only when a genuine human-required condition is encountered.
 
 ## When to Use
 
@@ -57,10 +57,10 @@ Prefer a different AI vendor for each phase, using `~/.gal/config/executor-routi
 | --- | --- | --- | --- |
 | Implement | `golem-implementer` | CODER | Writes the code |
 | Test | `golem-tester` | TESTER | Must not read implementation — writes tests from spec only |
-| Review | `golem-reviewer` | REVIEWER | Must differ from CODER — fresh eyes on bugs and architecture |
+| Audit | `golem-auditor` | AUDITOR | Must differ from CODER — independent deep-performance and security audit |
 | Verify | `golem-verifier` | VERIFIER | Must differ from CODER — goal-backward plan verification |
 
-`golem-security` is not an always-on fifth pipeline phase. It remains a domain specialist that `/gal pipeline` dispatches only when the implemented change touches auth, data storage or sensitive data handling, user input processing, public API surface, or deployment and environment trust boundaries.
+The orchestrator's correctness gate is not dispatched: it is the pipeline's own full-context check for checklist 1–13 plus obvious performance before test.
 
 ### Runtime Preflight
 
@@ -68,7 +68,7 @@ Before starting the task loop, resolve model separation in this order:
 
 1. Treat runtime-enforced per-agent model routing as authoritative.
 2. Treat `~/.gal/config/executor-routing.json` as the desired separation policy, not proof that the current runtime can enforce it.
-3. If the active runtime cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER routes, degrade explicitly to same-runtime fallback.
+3. If the active runtime cannot prove separate CODER, TESTER, AUDITOR, and VERIFIER routes, degrade explicitly to same-runtime fallback.
 
 OpenCode-specific rule:
 
@@ -78,19 +78,19 @@ OpenCode-specific rule:
 
 ### Same-Runtime Fallback Contract
 
-If runtime preflight cannot prove separate CODER, TESTER, REVIEWER, and VERIFIER routes:
+If runtime preflight cannot prove separate CODER, TESTER, AUDITOR, and VERIFIER routes:
 
 - Mark the run internally and in any user-facing summary as `Verification Independence: DEGRADED_SAME_RUNTIME`.
-- Keep implement, test, review, conditional security, and verify as separate bounded phase invocations with their normal durable write-back requirements. Same-runtime fallback does **not** collapse these phases into a single blended pass by default.
-- Do not silently bundle implement + test + review just to save tokens. Bundled same-runtime execution is allowed only when the user explicitly asks for it.
+- Keep implement, test, audit, and verify as separate bounded phase invocations with their normal durable write-back requirements. Same-runtime fallback does **not** collapse these phases into a single blended pass by default.
+- Do not silently bundle implement + test + audit just to save tokens. Bundled same-runtime execution is allowed only when the user explicitly asks for it.
 - If the user explicitly asks for bundled same-runtime execution, mark the run as `Verification Independence: DEGRADED_BUNDLED`, keep separate task-scoped `## Test Results` and `## Review Results` write-back, and state clearly that tester/reviewer independence was reduced for this invocation.
-- Same-runtime fallback never waives retry ceilings, protected-path escalation, conditional security review, interrupted-phase handoff, or final verifier requirements.
+- Same-runtime fallback never waives retry ceilings, protected-path escalation, audit STOP rules, interrupted-phase handoff, or final verifier requirements.
 
 ### Headless Executor Dispatch
 
 When `~/.gal/config/executor-routing.json` is present and maps the current phase's role to a CLI executor, the **`gal-dispatch` Rust bin** (T-007/T-008) takes over dispatch. The bin is the single cross-platform implementation; the `gal.ps1 pipeline` command is a thin shim that pipes the task spec to the bin's stdin. When the bin is absent, the shim outputs a minimal `--- GAL DISPATCH ---` text dispatch (backward-compatible, no regression).
 
-Phase-to-role map (implement→CODER, test→TESTER, review→REVIEWER, verify→VERIFIER).  
+Phase-to-role map (implement→CODER, test→TESTER, audit→AUDITOR, verify→VERIFIER).  
 Supported executors: **claude / codex / opencode / copilot / agy** — all five are first-class headless executors. The prior `non-dispatchable` status for codex and copilot has been overturned by spike evidence (T-001/T-002).
 
 #### How the Bin Dispatches
@@ -388,7 +388,33 @@ The implementation commit created for `T-NNN` must stay scoped to the implementa
 
 **xmachine mode:** if active, offload only the bounded implement slice for `T-NNN` to the selected work node, then retrieve and apply the returned patch on the control node before checking the hard commit gate. If the retrieved `status.json` is not `success`, **STOP immediately**. Write a `Retry Handoff — T-NNN / XMACHINE` block with the xmachine task id, exit code, `errorMessage`, local artifact paths under `.tmp/gal-results/<task-id>/`, whether `result.patch` was left unapplied, and the exact next human inspection step.
 
-### 2d — Test (TESTER model — different vendor from CODER)
+### 2d — Orchestrator Correctness Gate
+
+Before test, the pipeline itself performs a full-context correctness gate. This gate is **not dispatched**.
+
+Check checklist 1–13 from the plan's responsibility split, plus obvious performance problems visible from the implementation diff:
+
+- task-spec conformance
+- logical correctness
+- boundary conditions at the obvious/local level
+- error handling
+- return values and side effects
+- layer boundaries
+- existing-pattern consistency
+- abstraction fit (YAGNI)
+- naming conventions
+- file/module organization
+- readability
+- duplicate code
+- dead code
+- obvious performance issues
+
+Check result:
+
+- **Correctness gate fails**: **STOP immediately**. Return to implementer fix-mode for `T-NNN`. Do not proceed to test. Write a `Retry Handoff — T-NNN / IMPLEMENT` block that names the failed correctness checks and the next fix target.
+- **Correctness gate passes**: update `## Status` `Workflow: TEST`, proceed to 2e.
+
+### 2e — Test (TESTER model — different vendor from CODER)
 
 Update plan `## Status`: set `Workflow: TEST`
 
@@ -405,7 +431,7 @@ Check result:
 - **No task-scoped subsection was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / TEST` with the missing write-back as the problem. Do not infer PASS or FAIL from chat alone.
 - **`Workflow: TEST` is set but the latest task-scoped subsection is still missing or placeholder-only**: **STOP immediately**. Treat this as incomplete durable state, not as a passing or failing run.
 - **A dispatched test phase reports PASS without matching evidence**: **STOP immediately**. For dispatched runs, PASS requires the named evidence shape for that task, including executor-log terminal state `completed` plus the observable write-back pointer. Write `Retry Handoff — T-NNN / TEST` with the missing evidence as the problem. `DEGRADED_BUNDLED` runs still use reproducible `## Test Results` command output as their evidence and do not require executor logs.
-- **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
+- **All tests PASS**: update `## Status` `Workflow: AUDIT`, proceed to 2f
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
   - Refresh the active `Retry Handoff — T-NNN / TEST` block with the latest failing test names, the current `## Test Results` subsection, and the next fix target
@@ -416,62 +442,35 @@ If the tests pass after one or more failed rounds, mark `Retry Handoff — T-NNN
 
 **xmachine mode:** if active, offload only the bounded test task and converge any plan-section or artifact changes on the control node before deciding PASS/FAIL. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
-### 2e — Review (REVIEWER model — different vendor from CODER and TESTER)
+### 2f — Audit (AUDITOR model — different vendor from CODER and TESTER)
 
 Run:
 
 ```powershell
-.\scripts\gal.ps1 dispatch golem-reviewer --pipeline-phase review --task-scope T-NNN
+.\scripts\gal.ps1 dispatch golem-auditor --pipeline-phase audit --task-scope T-NNN
 ```
 
-The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: review`, and `TASK_SCOPE: T-NNN`. Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The reviewer writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
+The dispatcher must emit `MODE: bound`, `DISPATCH_KIND: pipeline-phase`, `PIPELINE_PHASE: audit`, and `TASK_SCOPE: T-NNN`. Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The auditor writes a `### [T-NNN] YYYY-MM-DD` subsection under `## Review Results`.
 
 Check result:
 
-- **No task-scoped subsection or verdict was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / REVIEW` with the missing write-back as the problem. Do not infer approval or block from chat alone.
-- **`Workflow: REVIEW` is set but the latest task-scoped subsection still has no verdict**: **STOP immediately**. Treat this as incomplete durable state, not as approval.
-- **A dispatched review phase reports APPROVE without matching evidence**: **STOP immediately**. For dispatched runs, approval requires the named evidence shape for that task, including executor-log terminal state `completed` plus the observable review write-back pointer. Write `Retry Handoff — T-NNN / REVIEW` with the missing evidence as the problem. `DEGRADED_BUNDLED` runs still rely on task-scoped `## Review Results` write-back instead of executor logs.
-- **APPROVE (no BLOCKING)**: proceed to 2f
+- **No task-scoped subsection or verdict was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / AUDIT` with the missing write-back as the problem. Do not infer approval or block from chat alone.
+- **`Workflow: AUDIT` is set but the latest task-scoped subsection still has no verdict**: **STOP immediately**. Treat this as incomplete durable state, not as approval.
+- **A dispatched audit phase reports APPROVE without matching evidence**: **STOP immediately**. For dispatched runs, approval requires the named evidence shape for that task, including executor-log terminal state `completed` plus the observable review write-back pointer. Write `Retry Handoff — T-NNN / AUDIT` with the missing evidence as the problem. `DEGRADED_BUNDLED` runs still rely on task-scoped `## Review Results` write-back instead of executor logs.
+- **APPROVE (no BLOCKING)**: proceed to 2g
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`
-  - Refresh the active `Retry Handoff — T-NNN / REVIEW` block with the latest open BLOCKING findings, current review subsection, and the next fix target
-  - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues with `--pipeline-phase implement --task-scope T-NNN --fix-mode`, update `Task Final Commit`, then re-run reviewer
+  - Refresh the active `Retry Handoff — T-NNN / AUDIT` block with the latest open BLOCKING findings, current review subsection, and the next fix target
+  - If `Review Retry Count` < 3: dispatch implementer to fix BLOCKING issues with `--pipeline-phase implement --task-scope T-NNN --fix-mode`, update `Task Final Commit`, then re-run auditor
   - If `Review Retry Count` = 3: **STOP**. Surface BLOCKING findings. Tell user the retry ceiling (3) has been reached for `T-NNN`, include attempts 1-3 from the handoff block, and request human intervention
 
 **Security / Protected Path escalation:** If any BLOCKING finding is a security vulnerability or Protected Path violation, **STOP immediately** regardless of retry count. Do not attempt an automated fix. Surface to human.
 
-If the review passes after one or more failed rounds, mark `Retry Handoff — T-NNN / REVIEW` as `RESOLVED` and note the reviewer pass that cleared it.
+**Severity STOP rule:** If any high or critical audit findings remain open, **STOP immediately**. Preserve the audit STOP semantics even when the general retry path might otherwise continue.
 
-**xmachine mode:** if active, offload only the bounded review task, then apply any review-result plan updates on the control node before evaluating APPROVE/BLOCKING. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
+If the audit passes after one or more failed rounds, mark `Retry Handoff — T-NNN / AUDIT` as `RESOLVED` and note the auditor pass that cleared it.
 
-### 2f — Conditional Security Audit
-
-Decide whether `T-NNN` needs a specialist security pass.
-
-Run `golem-security` only when the implemented change touches one or more of these surfaces:
-
-- authentication
-- data storage or sensitive data handling
-- user input processing
-- public API surface
-- deployment or environment trust boundaries
-
-If none apply: skip this step and proceed to 2g.
-
-If any apply, run:
-
-```powershell
-.\scripts\gal.ps1 dispatch golem-security
-```
-
-Invoke in task-scoped mode for `T-NNN` with commit range `Task Base Commit..Task Final Commit`. The security specialist writes a task-scoped subsection under `## Review Results`.
-
-Check result:
-
-- **Security review clear**: proceed to 2g
-- **High or critical findings remain open**: **STOP immediately**. Do not auto-fix inside the pipeline. Write `Retry Handoff — T-NNN / SECURITY` with the open findings, affected files, current remediation status, and the next human step before task closeout
-
-**xmachine mode:** if active, security audit remains a bounded offload and its returned results must be converged locally before continuing. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
+**xmachine mode:** if active, offload only the bounded audit task, then apply any audit-result plan updates on the control node before evaluating APPROVE/BLOCKING. If the retrieved `status.json` is not `success`, **STOP immediately** and write `Retry Handoff — T-NNN / XMACHINE` with the failed phase, task id, exit code, error message, and local artifact paths.
 
 ### 2g — Mark Task Complete And Converge State
 
@@ -607,14 +606,13 @@ If the script cannot be run (e.g. macOS / Linux), run:
 ./scripts/gal.sh dispatch golem-implementer --pipeline-phase implement --task-scope T-NNN
 ```
 
-(and equivalent phase-marked invocations for tester, reviewer, and verifier; keep `golem-security` as a direct specialist dispatch)
+(and equivalent phase-marked invocations for tester, auditor, and verifier)
 
 Or invoke each golem directly by asking the user to switch to the appropriate AI model and following the respective agent file:
 
 - `plugins/gal-core/agents/golem-implementer.agent.md`
 - `plugins/gal-core/agents/golem-tester.agent.md`
-- `plugins/gal-core/agents/golem-reviewer.agent.md`
-- `plugins/gal-core/agents/golem-security.agent.md`
+- `plugins/gal-core/agents/golem-auditor.agent.md`
 - `plugins/gal-core/agents/golem-verifier.agent.md`
 
 ---

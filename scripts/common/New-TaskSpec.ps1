@@ -242,7 +242,7 @@ $gitHead   = (git rev-parse --short HEAD 2>$null).Trim()
 $writeBackMap = @{
     implement = "Write implementation code changes to the files listed in 'Affected Files'. Do NOT modify any other files."
     test      = "Write test results to ``## Test Results`` in the file: $PromptPath"
-    review    = "Write review results to ``## Review Results`` in the file: $PromptPath"
+    audit     = "Write audit results to ``## Review Results`` in the file: $PromptPath"
     verify    = "Write verification results to ``## Analyze`` in the file: $PromptPath"
 }
 $writeBackInstruction = $writeBackMap[$Phase.ToLower()]
@@ -254,7 +254,7 @@ if (-not $writeBackInstruction) { $writeBackInstruction = $writeBackMap['impleme
 $agentMap = @{
     implement = 'plugins/gal-core/agents/golem-implementer.agent.md'
     test      = 'plugins/gal-core/agents/golem-tester.agent.md'
-    review    = 'plugins/gal-core/agents/golem-reviewer.agent.md'
+    audit     = 'plugins/gal-core/agents/golem-auditor.agent.md'
     verify    = 'plugins/gal-core/agents/golem-verifier.agent.md'
 }
 $agentContract = Join-Path $repoRoot ($agentMap[$Phase.ToLower()] ?? $agentMap['implement'])

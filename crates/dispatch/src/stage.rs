@@ -7,7 +7,7 @@
 //! |------------|----------|
 //! | implement  | CODER    |
 //! | test       | TESTER   |
-//! | review     | REVIEWER |
+//! | audit      | AUDITOR  |
 //! | verify     | VERIFIER |
 
 use thiserror::Error;
@@ -17,7 +17,7 @@ use thiserror::Error;
 pub enum Phase {
     Implement,
     Test,
-    Review,
+    Audit,
     Verify,
 }
 
@@ -27,7 +27,7 @@ impl Phase {
         match self {
             Phase::Implement => "implement",
             Phase::Test => "test",
-            Phase::Review => "review",
+            Phase::Audit => "audit",
             Phase::Verify => "verify",
         }
     }
@@ -37,7 +37,7 @@ impl Phase {
         match self {
             Phase::Implement => "CODER",
             Phase::Test => "TESTER",
-            Phase::Review => "REVIEWER",
+            Phase::Audit => "AUDITOR",
             Phase::Verify => "VERIFIER",
         }
     }
@@ -48,7 +48,7 @@ impl Phase {
         match s.to_ascii_lowercase().as_str() {
             "implement" | "impl" => Ok(Phase::Implement),
             "test" => Ok(Phase::Test),
-            "review" => Ok(Phase::Review),
+            "audit" => Ok(Phase::Audit),
             "verify" => Ok(Phase::Verify),
             _ => Err(PhaseParseError::Unknown(s.to_string())),
         }
@@ -57,7 +57,7 @@ impl Phase {
 
 #[derive(Debug, Error)]
 pub enum PhaseParseError {
-    #[error("unknown phase '{0}'; expected one of: implement, test, review, verify")]
+    #[error("unknown phase '{0}'; expected one of: implement, test, audit, verify")]
     Unknown(String),
 }
 
@@ -78,8 +78,8 @@ mod tests {
     }
 
     #[test]
-    fn review_maps_to_reviewer() {
-        assert_eq!(Phase::Review.role(), "REVIEWER");
+    fn audit_maps_to_auditor() {
+        assert_eq!(Phase::Audit.role(), "AUDITOR");
     }
 
     #[test]
@@ -91,7 +91,7 @@ mod tests {
     fn phase_from_str_case_insensitive() {
         assert_eq!(Phase::from_str("IMPLEMENT").unwrap(), Phase::Implement);
         assert_eq!(Phase::from_str("Test").unwrap(), Phase::Test);
-        assert_eq!(Phase::from_str("REVIEW").unwrap(), Phase::Review);
+        assert_eq!(Phase::from_str("AUDIT").unwrap(), Phase::Audit);
         assert_eq!(Phase::from_str("verify").unwrap(), Phase::Verify);
     }
 
@@ -103,6 +103,7 @@ mod tests {
     #[test]
     fn unknown_phase_is_error() {
         assert!(Phase::from_str("deploy").is_err());
+        assert!(Phase::from_str("review").is_err());
         assert!(Phase::from_str("").is_err());
     }
 
@@ -111,7 +112,7 @@ mod tests {
         let roles = [
             Phase::Implement.role(),
             Phase::Test.role(),
-            Phase::Review.role(),
+            Phase::Audit.role(),
             Phase::Verify.role(),
         ];
         let unique: std::collections::HashSet<_> = roles.iter().collect();

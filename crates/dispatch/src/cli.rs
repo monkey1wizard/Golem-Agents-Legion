@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn missing_task_is_error() {
-        let r = parse_args(&args(&["--phase", "review"]));
+        let r = parse_args(&args(&["--phase", "audit"]));
         assert!(matches!(r, Err(CliParseError::MissingTask)));
     }
 

@@ -140,9 +140,9 @@ None open — OQ-001..OQ-003 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 1 of 4
-Last activity: 2026-06-10 — **T-01 complete** — merged the review/security specialist into `golem-auditor`, deleted the old reviewer/security agent files, and updated the shared agent index to the 12-agent model. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-02 (the atomic audit-phase cutover across stage.rs, gal-pipeline, agentMap, and routing example)
+Step: 2 of 4
+Last activity: 2026-06-10 — **T-02 complete** — the `review` phase key has been cut over atomically to `audit` across stage parsing, the pipeline phase contract, `New-TaskSpec`, and the routing example. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-03 (align coding.md role policy with the orchestrator gate and auditor split)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -169,7 +169,7 @@ Review Retry Count: 0
   - Acceptance: TP-01, TP-02.
   - Conventions: markdown-formatting; prove no semantic deletion via C1 diff.
 
-- [ ] **T-02 (R-002+R-003+R-004+R-006) — phase key + pipeline atomic cut [C2: single commit]**
+- [x] **T-02 (R-002+R-003+R-004+R-006) — phase key + pipeline atomic cut [C2: single commit]**
   - Files (**all in one commit**): `crates/dispatch/src/stage.rs` (`Phase::Review`/`"review"`/`REVIEWER` at lines 28-50), `plugins/gal-core/commands/gal-pipeline/SKILL.template.md` (2c implement line 368, 2d test 391, 2e review 418, 2f conditional security 445, Model Assignment table 56-63), `scripts/common/New-TaskSpec.ps1` (agentMap line 149 `review = ...golem-reviewer.agent.md`), `executor-routing.example.json` (`REVIEWER` key).
   - Change: (1) stage.rs `Phase::Review`→`Phase::Audit`, `as_str()`→`"audit"`, `role()`→`"AUDITOR"`, `parse()` accepts `"audit"`, rejects `"review"` and the error lists valid phases; update related tests. (2) gal-pipeline SKILL: insert "2d orchestrator correctness gate" after 2c (checklist 1–13 + obvious perf, on fail return to fix-mode and do not proceed to test, not dispatched), shift the original test down, remove 2e dispatched REVIEWER, change 2f conditional security to the "constant auditor phase" (dispatch every task, keep high/critical STOP), Model Assignment table reflects the new phase order. (3) New-TaskSpec agentMap `review`→`audit = ...golem-auditor.agent.md` (**stacked on small-context T-02's upgraded extractor**). (4) routing example `REVIEWER`→`AUDITOR`.
   - Acceptance: TP-03, TP-04, TP-05, TP-08. **C2: four files in one commit, no intermediate gap.**
@@ -217,6 +217,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused agent-surface merge 
 - **Merged agent exists** — `plugins/gal-core/agents/golem-auditor.agent.md` now carries the security-audit base plus the deep-performance scan responsibilities.
 - **Old files removed** — `golem-reviewer.agent.md` and `golem-security.agent.md` no longer exist under `plugins/gal-core/agents/`.
 - **Index updated** — `plugins/gal-core/agents/agents.md` now points at `golem-auditor`, updates the agent count to 12, and removes the deleted reviewer/security entries.
+
+### [T-02] 2026-06-10 — PASS (TP-03/TP-04/TP-05/TP-08 slice: atomic audit cutover)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused `review`→`audit` cutover across the dispatch and pipeline surfaces.
+
+- **Dispatch crate checks green** — `cargo test -p dispatch` passed 55 tests and `cargo clippy -p dispatch --all-targets -- -D warnings` stayed clean after the phase rename.
+- **Runtime phase probes green** — `gal-dispatch --phase audit` reached the normal no-routing fallback with role `AUDITOR`, while `--phase review` now fails parsing and advertises `audit` in the valid phase set.
+- **Atomic cut held** — `stage.rs`, `gal-pipeline/SKILL.template.md`, `New-TaskSpec.ps1`, and `executor-routing.example.json` now agree on `audit` / `AUDITOR` / `golem-auditor`, so there is no mixed `review`/`audit` state in the T-02 slice.
 
 ## Review Results
 
@@ -284,6 +292,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Specialist-contract and index changes only; no runtime dispatch surface changed in this task. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-02] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `abbe639`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The required C2 files moved together: parser, pipeline contract, task-spec agentMap, and routing example all now use `audit` / `AUDITOR`.
+- **[I-02]** The runtime probes confirm the new phase is live and the retired `review` key is rejected rather than silently aliased.
+
+#### Architect conditions check (T-02 slice)
+- The `review`→`audit` cut is atomic across the planned files, preventing a mixed phase state. ✓
+- The example routing surface now reflects the `AUDITOR` rename, supporting the later user-facing migration guidance. ✓
+
+#### Security note (task-scoped)
+Phase-key and contract changes only; no new executor capability was introduced in this task. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2

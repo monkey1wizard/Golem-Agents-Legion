@@ -193,7 +193,7 @@ Not requested。
   - 驗收:TP-01、TP-02。
   - 慣例:markdown-formatting;C1 以 diff 證無語意刪減。
 
-- [ ] **T-02 (R-002+R-003+R-004+R-006) — 相位鍵 + pipeline 原子切換【C2:單一 commit】**
+- [x] **T-02 (R-002+R-003+R-004+R-006) — 相位鍵 + pipeline 原子切換【C2:單一 commit】**
   - 檔案(**全部同一 commit**):`crates/dispatch/src/stage.rs`(`Phase::Review`/`"review"`/`REVIEWER` 在 line 28-50)、`plugins/gal-core/commands/gal-pipeline/SKILL.template.md`(2c implement line 368、2d test 391、2e review 418、2f conditional security 445、Model Assignment 表 56-63)、`scripts/common/New-TaskSpec.ps1`(agentMap line 149 `review = ...golem-reviewer.agent.md`)、`executor-routing.example.json`(`REVIEWER` 鍵)。
   - 改動:(1) stage.rs `Phase::Review`→`Phase::Audit`,`as_str()`→`"audit"`,`role()`→`"AUDITOR"`,`parse()` 接受 `"audit"`、拒 `"review"` 且錯誤訊息列有效相位集;更新相關測試。(2) gal-pipeline SKILL:2c 後插「2d orchestrator 正確性 gate」(清單 1–13+明顯效能,不通過退 fix-mode 不進 test,不 dispatch),原 test 順延,移除 2e dispatched REVIEWER,2f conditional security 改「auditor 常態相位」(每 task dispatch,保留 high/critical STOP),Model Assignment 表反映新相位序。(3) New-TaskSpec agentMap `review`→`audit = ...golem-auditor.agent.md`(**疊在 small-context T-02 升級後的擷取器上**)。(4) routing example `REVIEWER`→`AUDITOR`。
   - 驗收:TP-03、TP-04、TP-05、TP-08。**C2:四檔同 commit,無中間裂縫**。
