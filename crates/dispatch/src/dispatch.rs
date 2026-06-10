@@ -42,6 +42,12 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
+const COPILOT_TOKEN_VARS: &[&str] = &[
+    "COPILOT_GITHUB_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+];
+
 // ── Terminal state ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,6 +80,13 @@ impl std::fmt::Display for TerminalState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Readiness {
+    Ready,
+    Unauthenticated { hint: String },
+    Unknown { message: String },
 }
 
 // ── Dispatch configuration ─────────────────────────────────────────────────────
@@ -288,6 +301,49 @@ pub fn is_available(name: &str) -> bool {
     let check = Command::new("which").arg(name).output();
 
     check.map(|o| o.status.success()).unwrap_or(false)
+}
+
+pub fn executor_readiness(executor: &str) -> Readiness {
+    match executor.to_ascii_lowercase().as_str() {
+        "copilot" => {
+            let has_token = COPILOT_TOKEN_VARS.iter().any(|name| env_var_present(name));
+            let has_local_state = copilot_local_state_exists();
+            copilot_readiness_from(has_token, has_local_state)
+        }
+        _ => Readiness::Unknown {
+            message: format!(
+                "executor '{executor}' has no dedicated readiness probe yet; allowing dispatch"
+            ),
+        },
+    }
+}
+
+fn env_var_present(name: &str) -> bool {
+    std::env::var(name)
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+}
+
+fn copilot_local_state_exists() -> bool {
+    dirs::home_dir()
+        .map(|home| home.join(".copilot").exists())
+        .unwrap_or(false)
+}
+
+fn copilot_readiness_from(has_token: bool, has_local_state: bool) -> Readiness {
+    if has_token {
+        return Readiness::Ready;
+    }
+
+    if has_local_state {
+        return Readiness::Unknown {
+            message: "copilot has local state under ~/.copilot but headless authentication could not be confirmed without a dedicated status command; allowing dispatch".to_string(),
+        };
+    }
+
+    Readiness::Unauthenticated {
+        hint: "run `copilot login` or set `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` for headless use".to_string(),
+    }
 }
 
 /// Build a [`Command`] for `executor`, resolving Windows script shims that
@@ -704,6 +760,42 @@ mod tests {
         let result = spawn_executor(&cfg).unwrap();
         assert_eq!(result.terminal_state, TerminalState::NoReceipt,
             "exit-0 but missing receipt file should give NoReceipt");
+    }
+
+    #[test]
+    fn copilot_readiness_is_ready_when_token_present() {
+        assert_eq!(copilot_readiness_from(true, false), Readiness::Ready);
+    }
+
+    #[test]
+    fn copilot_readiness_is_unknown_when_local_state_exists_without_token() {
+        assert_eq!(
+            copilot_readiness_from(false, true),
+            Readiness::Unknown {
+                message: "copilot has local state under ~/.copilot but headless authentication could not be confirmed without a dedicated status command; allowing dispatch".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn copilot_readiness_is_unauthenticated_when_no_token_or_local_state() {
+        assert_eq!(
+            copilot_readiness_from(false, false),
+            Readiness::Unauthenticated {
+                hint: "run `copilot login` or set `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` for headless use".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn unsupported_executor_defaults_to_unknown() {
+        assert_eq!(
+            executor_readiness("codex"),
+            Readiness::Unknown {
+                message: "executor 'codex' has no dedicated readiness probe yet; allowing dispatch"
+                    .to_string(),
+            }
+        );
     }
 
     // TP-007: executor exits 0 but receipt file is empty → NoReceipt (partial write)

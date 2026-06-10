@@ -206,7 +206,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-04。本計畫自身的 `## Tasks`(本區段)即符合此契約,作自舉示範。
   - 慣例:markdown-formatting;token-budget convention(`<5KB` 理由須對齊)。
 
-- [ ] **T-04 (R-005) — dispatch crate 本地 executor preflight(三態)**
+- [x] **T-04 (R-005) — dispatch crate 本地 executor preflight(三態)**
   - 檔案:`crates/dispatch/src/dispatch.rs`(現有 `is_available(name)` 在 line 283)、`crates/dispatch/src/main.rs`(safety gate 在 is_available 檢查處)。受保護(核心派工)。
   - 改動:新增 `fn executor_readiness(executor: &str) -> Readiness`(三態 enum `Ready`/`Unauthenticated{hint}`/`Unknown`),探測**便宜優先**:env token(如 copilot:`GH_TOKEN`/`COPILOT_GITHUB_TOKEN`)→ config 檔 → 工具 status 子命令;**絕不 spawn 完整 executor 跑 spec**。main.rs 在 `is_available` 通過後加 readiness gate:`Unauthenticated` → 印修復指引(copilot:run `/login` 或 set `GH_TOKEN`)並退出(reason=`executor-unauthenticated-confirmed`);`Unknown` → 放行 + stderr 警告(C1:不誤擋);`Ready` → 照常。
   - 驗收:TP-05、TP-06、TP-11。已知 copilot 未認證實證見 `## Evidence`。

@@ -21,7 +21,7 @@ use std::process::ExitCode;
 
 use dispatch::adapters::{self, SpecDelivery};
 use dispatch::cli::parse_args;
-use dispatch::dispatch::{is_available, spawn_executor, SpawnConfig, TerminalState};
+use dispatch::dispatch::{executor_readiness, is_available, spawn_executor, Readiness, SpawnConfig, TerminalState};
 use dispatch::routing::{load_routing, load_routing_default};
 
 fn main() -> ExitCode {
@@ -101,6 +101,28 @@ fn main() -> ExitCode {
         );
         eprintln!("gal-dispatch: executor '{executor_name}' not found in PATH; falling back to text dispatch");
         return ExitCode::from(2);
+    }
+
+    match executor_readiness(executor_name) {
+        Readiness::Ready => {}
+        Readiness::Unauthenticated { hint } => {
+            println!("--- GAL DISPATCH ---");
+            println!(
+                "Dispatch: phase={} task={} role={} executor={} model={} reason=executor-unauthenticated-confirmed",
+                dispatch_args.phase.as_str(),
+                dispatch_args.task,
+                role,
+                executor_name,
+                model,
+            );
+            eprintln!(
+                "gal-dispatch: executor '{executor_name}' is not authenticated for confirmed headless use; {hint}"
+            );
+            return ExitCode::from(2);
+        }
+        Readiness::Unknown { message } => {
+            eprintln!("warning: gal-dispatch: {message}");
+        }
     }
 
     // ── Build invocation via adapter ───────────────────────────────────────────

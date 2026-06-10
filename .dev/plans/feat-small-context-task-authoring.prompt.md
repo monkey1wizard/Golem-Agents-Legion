@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 3 of 8
-Last activity: 2026-06-10 — **T-03 complete** — `refining-plan/SKILL.template.md` now requires pointer-style self-contained tasks, forbids embedded full file contents, and encodes the `<5KB` split rule plus task-aligned test-plan guidance. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-04 (Route ① continues with local executor preflight in the dispatch crate)
+Step: 4 of 8
+Last activity: 2026-06-10 — **T-04 complete** — `gal-dispatch` now performs a conservative readiness check after PATH validation: Copilot tokens mark `Ready`, missing local state confirms `Unauthenticated`, and existing local state degrades to `Unknown` with a warning instead of over-blocking. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-05 (Route ① continues with routed-executor doctor aggregation)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -176,7 +176,7 @@ _(none yet)_
   - Acceptance: TP-04. This plan's own `## Tasks` (this section) already satisfies the contract as a self-bootstrapping demo.
   - Conventions: markdown-formatting; token-budget convention (`<5KB` rationale must align).
 
-- [ ] **T-04 (R-005) — dispatch crate local executor preflight (three-state)**
+- [x] **T-04 (R-005) — dispatch crate local executor preflight (three-state)**
   - File: `crates/dispatch/src/dispatch.rs` (existing `is_available(name)` at line 283), `crates/dispatch/src/main.rs` (safety gate at the is_available check). Protected (core dispatch).
   - Change: add `fn executor_readiness(executor: &str) -> Readiness` (three-state enum `Ready`/`Unauthenticated{hint}`/`Unknown`), probing **cheap-first**: env token (e.g. copilot: `GH_TOKEN`/`COPILOT_GITHUB_TOKEN`) → config file → tool status subcommand; **never spawn the full executor to run a spec**. main.rs adds a readiness gate after `is_available` passes: `Unauthenticated` → print fix guidance (copilot: run `/login` or set `GH_TOKEN`) and exit (reason=`executor-unauthenticated-confirmed`); `Unknown` → allow + stderr warning (C1: no over-block); `Ready` → proceed.
   - Acceptance: TP-05, TP-06, TP-11. Known copilot-unauthenticated evidence in `## Approach > Evidence`.
@@ -255,6 +255,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused `refining-plan` cont
 - **Step 3 contract landed** — the skill now requires exact file paths, concrete changes, local acceptance checks, and convention/dependency pointers for each `T-NNN`.
 - **Budget rule landed** — the skill now states that tasks stay within a `<5KB`-class instruction+pointer budget and must split when they cannot remain self-contained within that limit.
 - **Step 4 alignment landed** — the test-plan guidance now ties each test row directly to the matching task acceptance so the task spec remains sufficient on its own.
+
+### [T-04] 2026-06-10 — PASS (TP-05/TP-06 slice: dispatch readiness preflight)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused dispatch preflight for routed local executors.
+
+- **Dispatch crate tests green** — `cargo test -p dispatch` passed 55 tests, including the new readiness-state coverage for `Ready`, `Unauthenticated`, `Unknown`, and unsupported executors.
+- **Unknown path validated live** — running `cargo run -q -p dispatch --bin gal-dispatch` with Copilot routing in the current environment emitted `warning: gal-dispatch: copilot has local state under ~/.copilot... allowing dispatch` before continuing, which matches the C1 no-overblock rule.
+- **Fail-loud branch encoded** — the main preflight gate now emits `reason=executor-unauthenticated-confirmed` plus a `/login` or token hint when the readiness probe returns `Unauthenticated`.
 
 ## Review Results
 
@@ -376,6 +384,32 @@ Protected-path documentation update only; no runtime execution surface changed. 
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-04] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `a605130`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+- **[W-01]** The current Copilot probe can only confirm `Ready` from headless token presence and `Unauthenticated` from missing local state; a secure-store-backed login without a dedicated status command remains `Unknown` by design to satisfy C1.
+
+#### INFO
+- **[I-01]** The readiness API is exported from `dispatch.rs`, which keeps the later doctor aggregation task on a reuse path instead of duplicating the Copilot-specific logic.
+- **[I-02]** Unsupported executors remain `Unknown` explicitly, so this task does not silently invent readiness claims for tools it cannot probe yet.
+
+#### Architect conditions check (T-04 slice)
+- Only confirmed unauthenticated state blocks; local-state ambiguity degrades to warning + allow. ✓
+- The probe remains cheap and does not spawn a full task-spec execution just to determine readiness. ✓
+
+#### Security note (task-scoped)
+Preflight logic only; it changes early-exit behavior, not the spawned executor permissions or sandbox model. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 1 / Info: 2
 
 ## Debug Log
 
