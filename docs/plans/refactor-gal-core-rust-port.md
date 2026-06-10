@@ -310,7 +310,7 @@ Not triggered（無 customer-facing UI）。
 **R-04 setup（受保護,architect;實作期簽核 APPROVE-with-conditions C-1..C-10,2026-06-10,詳見 prompt ## Review Results）**
 - [x] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。*(2c68fe2)*
 - [x] **T-019** — port `setup-tools` → `gal setup --tools`;parity。*(b92b8b0)*
-- [ ] **T-020** — 註冊 git filter(冪等,由 `gal setup` 執行):`.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true`,指向現存 .sh(architect C-4);binary `gal clean/smudge` 切換 + 原子改註冊移至 T-025。bash-backed 行為不變;no-bash 條款延至 T-025 驗。
+- [x] **T-020** — 註冊 git filter(冪等,由 `gal setup` 執行):`.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true`,指向現存 .sh(architect C-4);binary `gal clean/smudge` 切換 + 原子改註冊移至 T-025。bash-backed 行為不變;no-bash 條款延至 T-025 驗。*(708ca94)*
 - [ ] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。
 
 **R-05 安裝家族**

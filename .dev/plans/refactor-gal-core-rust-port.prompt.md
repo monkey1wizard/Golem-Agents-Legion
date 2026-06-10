@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 20 of 35
-Last activity: 2026-06-10 — T-019 complete (commit: b92b8b0) — gal setup --tools ported with mocked-executor parity (C-5); tested + reviewed (APPROVE, 1 non-blocking warning)
-Next step: implement T-020 (git filter registration via gal setup)
+Step: 21 of 35
+Last activity: 2026-06-10 — T-020 complete (commit: 708ca94) — gal-config git filter registration via gal setup (idempotent, .sh-backed per C-4); tested + reviewed (APPROVE)
+Next step: implement T-021 (delete setup-machine.{ps1,sh} + setup-tools.{ps1,sh} after parity green; C-1 gate)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -163,7 +163,7 @@ R-03 adapters (protected, architect)
 R-04 setup (protected, architect; implementation sign-off APPROVE-with-conditions C-1..C-10, 2026-06-10)
 - [x] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity. *(2c68fe2)*
 - [x] T-019 — Port `setup-tools` → `gal setup --tools`; parity. *(b92b8b0)*
-- [ ] T-020 — Register git filter (idempotent, via `gal setup`): `.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true` — points at the existing .sh scripts (architect C-4); binary `gal clean/smudge` cutover + atomic re-register moves to T-025. Behavior-unchanged on Windows/Unix (bash-backed; no-bash clause verified at T-025).
+- [x] T-020 — Register git filter (idempotent, via `gal setup`): `.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true` — points at the existing .sh scripts (architect C-4); binary `gal clean/smudge` cutover + atomic re-register moves to T-025. Behavior-unchanged on Windows/Unix (bash-backed; no-bash clause verified at T-025). *(708ca94)*
 - [ ] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`.
 
 R-05 install family
@@ -251,6 +251,33 @@ Steps (a),(b): **library calls** — `gal setup` calls `adapters::run_machine_up
 8. **C-8** AGY cleanup path-safety guard + JSON edit preserves non-gal keys; both unit-tested.
 9. **C-9** `session.rs` supports non-interactive mode and stdin-injected prompts; `--reconfigure` and first-run flows fixture-tested.
 10. **C-10** `setup` crate implements `base::HealthCheck`, incl. Install-GalPlugins-presence check flagged for removal at T-024.
+
+### [T-020] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: d5cf463..708ca94
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** Registration uses absolute script paths (matching the historical global-config form); the pre-existing repo-local entries used relative paths. Both resolve correctly (git runs filters from the repo top); absolute is consistent with what T-025 will replace.
+- **[I-02]** Live full-run registration on this repo was exercised via `--dry-run` wiring + hermetic integration tests rather than a real `gal setup` (which would also spawn Install-GalPlugins against degraded machine state). Acceptable: register semantics are integration-tested against a real `git init` repo.
+
+#### Architect conditions check (T-020 slice)
+- C-4 honored: points at `.sh` via bash, never `gal clean/smudge`; `.gitattributes` untouched (already tracked); cutover text lives at T-025.
+- C-6 honored: recorded as behavior addition, not parity.
+- C-7 honored: `--check` never reaches registration (short-circuits earlier); `--dry-run` zero-writes verified by test.
+
+#### Security note (task-scoped)
+Values written to git config are constructed from the resolved repo root only; no user-controlled input. Filter scripts referenced are repo-tracked. **Clear.**
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
 
 ### [T-019] 2026-06-10 — APPROVE
 
@@ -645,6 +672,16 @@ _(none)_
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-020] 2026-06-10 — PASS (TP-17 as amended by C-4: bash-backed registration, behavior unchanged)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = TP-17 amended (architect C-4): registration idempotent, performed by `gal setup`, pointing at the .sh scripts; Windows-no-bash clause deferred to T-025.
+
+- **Workspace green** — `cargo test --workspace --quiet`: **392 passed, 0 failed** (+4 git_filter tests).
+- **Integration (hermetic temp git repo)**: registration sets exactly `filter.gal-config.clean/smudge` (bash + script path) + `required=true`; running twice is idempotent; `--replace-all` collapses seeded duplicate entries to one; dry-run writes nothing and prints would-set lines; non-repo / missing-scripts roots skip safely with `[SKIP]`.
+- **Live wiring** — `gal setup --dry-run` prints the `=== Git filter (gal-config) ===` section with the three would-set lines resolved to this repo's absolute script paths. `bash scripts/gal-clean.sh` executes (filter behavior unchanged — still the same bash-backed scripts).
+- **Pre-existing duplicate-config finding**: this machine carries the filter in BOTH global git config (absolute paths) and repo-local config (relative paths). Registration writes repo-local with `--replace-all`, collapsing local duplicates; global entries are untouched (tests read `--local`).
+- **Skipped on uninstall** (registration preserved, like MCP config); health check warns when unregistered in a GAL checkout.
 
 ### [T-019] 2026-06-10 — PASS (TP-16 slice: gal setup --tools, mocked-executor parity per C-5)
 
