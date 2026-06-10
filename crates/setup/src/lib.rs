@@ -18,6 +18,7 @@
 //!   suppressed here per C-7).
 
 pub mod agy;
+pub mod git_filter;
 pub mod health;
 pub mod legacy_plugins;
 pub mod session;
@@ -302,6 +303,13 @@ pub fn run_setup(
                 manifest.display()
             );
         }
+    }
+
+    // Git filter registration (T-020; behavior addition per C-6 — points at
+    // the .sh filters until T-025 cuts over to `gal clean`/`gal smudge`).
+    // Skipped on uninstall (registration is preserved like MCP config).
+    if !opts.uninstall {
+        git_filter::register_git_filter(&repo_root, opts.dry_run, out)?;
     }
 
     // Step 3: Install Orchestration (legacy script — strangler seam, T-024 repoints).

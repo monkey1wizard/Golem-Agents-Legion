@@ -47,6 +47,17 @@ impl HealthCheck for SetupHealthCheck {
             ));
         }
 
+        // Git filter registration state (T-020): only meaningful when the
+        // repo root is an actual git checkout carrying the filter scripts.
+        if self.repo_root.join(".git").exists()
+            && self.repo_root.join("scripts").join("gal-clean.sh").is_file()
+            && crate::git_filter::registered_clean_filter(&self.repo_root).is_none()
+        {
+            findings.push(DoctorFinding::warning(
+                "gal-config git filter is not registered — run `gal setup` to register smudge/clean",
+            ));
+        }
+
         findings
     }
 }
