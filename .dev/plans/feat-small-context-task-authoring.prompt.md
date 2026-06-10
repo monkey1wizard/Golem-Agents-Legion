@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 2 of 8
-Last activity: 2026-06-10 — **T-02 complete** — `New-TaskSpec.ps1` now extracts full multi-line task blocks from `## Tasks`, narrows `## Affected Files` to task-named paths, and has focused Pester coverage for the required boundary cases. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-03 (Route ① continues with the refining-plan task contract)
+Step: 3 of 8
+Last activity: 2026-06-10 — **T-03 complete** — `refining-plan/SKILL.template.md` now requires pointer-style self-contained tasks, forbids embedded full file contents, and encodes the `<5KB` split rule plus task-aligned test-plan guidance. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-04 (Route ① continues with local executor preflight in the dispatch crate)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -170,7 +170,7 @@ _(none yet)_
   - Acceptance: TP-02, TP-03, TP-11. Add Pester tests covering multi-line/single-line/trailing/single-task boundaries and per-task file narrowing.
   - Conventions: result-pattern N/A (PS); structured-logging; boundary regex must be commented. **Lands before the auditor plan's same-file agentMap change (Route ①→②).**
 
-- [ ] **T-03 (R-002+R-003) — refining-plan self-contained task + budget contract**
+- [x] **T-03 (R-002+R-003) — refining-plan self-contained task + budget contract**
   - File: `plugins/gal-core/commands/refining-plan/SKILL.template.md` (protected). Insertion points: Step 3 "Write ## Tasks" (line 42), Step 4 "Write ## Test Plan" (line 53).
   - Change: Step 3 adds the "pointer-style self-contained task" spec — each `T-NNN` carries (a) exact target file path, (b) concrete change, (c) in-place verifiable acceptance, (d) convention/signature/dependency pointers; state explicitly **no embedded full file contents, the executor reads named files itself** (D-1). Add the `<5KB`-class spec budget (rationale = focus + dispatch cost, not window) + the over-budget atomic-split rule.
   - Acceptance: TP-04. This plan's own `## Tasks` (this section) already satisfies the contract as a self-bootstrapping demo.
@@ -247,6 +247,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused extractor upgrade fo
 - **Pester boundary coverage green** — `Invoke-Pester -Script tests/powershell/New-TaskSpec.Tests.ps1 -PassThru` passed all 5 cases covering multi-line, trailing, single-line, and fallback extraction paths.
 - **Live prompt extraction green** — running `scripts/common/New-TaskSpec.ps1 -TaskScope T-02 -PromptPath ./.dev/plans/feat-small-context-task-authoring.prompt.md -ConventionHints tests/fixtures/README.md` wrote `.dev/task-specs/T-02-implement.md` at 2.01 KB with the expected multi-line task block.
 - **Task-scoped affected files now narrow correctly** — named task paths preserve the original `## Files to Create or Modify` annotations when present and fall back to plain path bullets only when no matching file-list line exists.
+
+### [T-03] 2026-06-10 — PASS (TP-04 slice: self-contained task contract)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused `refining-plan` contract update for self-contained task authoring and budget guidance.
+
+- **Step 3 contract landed** — the skill now requires exact file paths, concrete changes, local acceptance checks, and convention/dependency pointers for each `T-NNN`.
+- **Budget rule landed** — the skill now states that tasks stay within a `<5KB`-class instruction+pointer budget and must split when they cannot remain self-contained within that limit.
+- **Step 4 alignment landed** — the test-plan guidance now ties each test row directly to the matching task acceptance so the task spec remains sufficient on its own.
 
 ## Review Results
 
@@ -339,6 +347,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Task-spec extraction only; no privilege, network, or credential surface changed. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-03] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `f9f0f0f`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The protected-path change stays inside Step 3/4 authoring guidance and does not widen into the later honest-pass or self-clean clauses.
+- **[I-02]** The Step 4 addition keeps the test plan aligned to task acceptance without changing the command's existing scope guard.
+
+#### Architect conditions check (T-03 slice)
+- Self-contained task guidance is explicit about pointer-style authoring and the executor reading named files itself. ✓
+- The `<5KB` threshold is expressed as a dispatch-focus rule, not a context-window claim. ✓
+
+#### Security note (task-scoped)
+Protected-path documentation update only; no runtime execution surface changed. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2

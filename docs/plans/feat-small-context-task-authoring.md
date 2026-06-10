@@ -200,7 +200,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-02、TP-03、TP-11。新增 Pester 測試覆蓋多行/單行/末尾/單 task 邊界與每 task 檔案收斂。
   - 慣例:result-pattern 不適用(PS);structured-logging;邊界正則須註解化說明。**先於 auditor 計畫對同檔 agentMap 的改動(Route ①→②)。**
 
-- [ ] **T-03 (R-002+R-003) — refining-plan 自足 task + 預算契約**
+- [x] **T-03 (R-002+R-003) — refining-plan 自足 task + 預算契約**
   - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護)。插入點:Step 3「Write ## Tasks」(line 42)、Step 4「Write ## Test Plan」(line 53)。
   - 改動:Step 3 加「指標式自足 task」規格——每 `T-NNN` 須含 (a) 確切目標檔路徑、(b) 具體改動、(c) 就地可驗驗收、(d) 慣例/簽章/相依指標;明示**不內嵌檔案全文,executor 自讀指名檔**(D-1)。加 spec 預算 `<5KB` 量級(理由=聚焦+派工成本,非 window)+ 超限切分為原子 task 規則。
   - 驗收:TP-04。本計畫自身的 `## Tasks`(本區段)即符合此契約,作自舉示範。
