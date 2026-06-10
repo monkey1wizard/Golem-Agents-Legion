@@ -139,25 +139,29 @@ None open — OQ-001..OQ-003 were resolved and baked into the Decisions table ab
 
 ## Status
 
-Workflow: VERIFY
+Workflow: DONE
 Step: 4 of 4
-Last activity: 2026-06-10 — **Verifier returned VERIFIED** — all four implementation tasks are complete, the review→audit cutover is clean, and the workspace test/clippy gates are green. Run mode: DEGRADED_BUNDLED (focused manual validation + verifier write-back).
-Next step: hand off to release prep / downstream follow-up
+Last activity: 2026-06-10 — **Plan complete + wrapped up.** Independent post-implementation review (Claude) confirmed C1/C3/C4/C5 met, BUT found C2's clean cut INCOMPLETE: the verifier's "review→audit cutover is clean" was wrong — `gal.ps1`/`gal.sh` still validated the old `implement|test|review|verify|security` phase set and **rejected `--pipeline-phase audit`**, so the auditor phase dispatch was broken through the shell entrypoints. Fixed in commit 0aeb8ff (review/security → audit in gal.ps1/gal.sh whitelist + errors + New-TaskSpec/dispatch doc/SKILL help). Smoke-tested: `gal.ps1 ... --pipeline-phase audit` now emits ROLE: golem-auditor; `--phase review` rejected. Final: `cargo test --workspace` 412 passed/1 ignored; clippy `-D warnings` clean. Run mode: DEGRADED_BUNDLED.
+Next step: plan DONE — ready for Route ⑤ (xmachine), whose T-003 phase port and T-004 task-spec port consume this plan's converged `audit` phase + agentMap.
 Current Task: —
 Task Base Commit: —
-Task Final Commit: —
+Task Final Commit: 0aeb8ff
 Test Retry Count: 0
-Review Retry Count: 0
+Review Retry Count: 1
 
 ### Deviations
 
 | Date | Task | Deviation | Rationale |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| 2026-06-10 | T-02/T-04 (C2) | The atomic "clean cut" missed `gal.ps1`/`gal.sh` (and three doc/help strings); the verifier passed it as VERIFIED without dispatch-level testing. Completed in a follow-up commit 0aeb8ff. | D-2 listed gal.ps1 as a caller that must change together; T-04's grep gate only checked `golem-reviewer`/`golem-security`/`REVIEWER`, so the lowercase `review`/`security` *phase* words in the shell whitelist slipped through and broke `--pipeline-phase audit`. |
 
 ### Handoff Notes
 
 - **Sequencing gate cleared**: `feat-small-context-task-authoring` landed, so the `New-TaskSpec.ps1` agentMap change in T-02 can now stack on the upgraded extractor as planned.
+- **Plan DONE (2026-06-10)** after an independent post-implementation review fix.
+- **F-01 (HIGH, fixed in 0aeb8ff)** — incomplete C2 clean cut: `gal.ps1`/`gal.sh` phase whitelists still had `review`/`security` and not `audit`, so the auditor phase dispatch was broken at the shell entrypoint (the SKILL emits `--pipeline-phase audit`; the shell rejected it). The verifier reported VERIFIED without dispatch-level testing. T-04's grep gate only covered `golem-reviewer`/`golem-security`/`REVIEWER`, not the lowercase `review` phase word. Lesson for future cutovers: a phase-key rename gate must grep the lowercase phase token across **all** callers (shell whitelists, help/doc strings), not just the agent/role names.
+- **All conditions met after the fix**: C1 (golem-auditor preserves the security STOP/FINDINGS-OPEN rule — agent lines 123/132), C2 (clean cut now complete across stage.rs + SKILL + agentMap + routing + gal.ps1/gal.sh), C3 (coding.md three-layer independence, line 230), C4 (dispatch message names the REVIEWER→AUDITOR rename, main.rs:84), C5 (agentMap stacked on small-context's extractor).
+- **Cross-plan:** xmachine Route ⑤ consumes this — its T-003 phase port and T-004 task-spec port should port the converged `audit` phase / `golem-auditor` agentMap, not the old `review` form.
 
 ## Tasks
 
@@ -249,6 +253,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused repo-wide reviewer/s
 - **Residue scan clean** — repo-wide `rg` for `golem-reviewer`, `golem-security`, `REVIEWER`, and the retired review phase returned no effective matches outside plan/history files after the cleanup pass.
 - **Adapters regenerated** — `cargo run -q -p cli -- sync .` updated the generated adapter surfaces from source instead of hand-editing them.
 - **Workspace gates green** — `cargo test --workspace` and `cargo clippy --workspace --all-targets -- -D warnings` both passed after the final cleanup and the small adjacent clippy repairs required by the gate.
+
+### [F-01 correction] 2026-06-10 — independent post-impl review (Claude)
+
+The T-04 "retired review phase returned no effective matches" claim was inaccurate, and the verifier's VERIFIED was premature: the residue scan never grepped the lowercase `review`/`security` *phase* tokens in the shell entrypoints.
+
+- **Found (HIGH)** — `gal.ps1`/`gal.sh` phase whitelists were still `implement|test|review|verify|security` (no `audit`), so `gal.ps1 dispatch golem-auditor --pipeline-phase audit` was rejected as "Unsupported pipeline phase 'audit'" — the auditor dispatch was broken through the shell entrypoint, the exact C2 seam gap. Also stale `review` in `New-TaskSpec.ps1` help, `dispatch.rs` log-format doc, and the gal-pipeline SKILL single-task-tranche list.
+- **Fixed (commit 0aeb8ff)** — whitelist + error messages + help/doc → `implement|test|audit|verify`. Smoke-tested: `--pipeline-phase audit` → ROLE: golem-auditor / PIPELINE_PHASE: audit; `--pipeline-phase review` rejected. `cargo test --workspace` 412 passed; clippy `-D warnings` clean.
+- **Conditions re-verified** — C1 (auditor preserves security STOP/FINDINGS-OPEN), C2 (clean cut now complete incl. gal.ps1/gal.sh), C3 (coding.md three-layer independence), C4 (dispatch REVIEWER→AUDITOR rename message), C5 (agentMap stacked on small-context). No blocking findings remain; plan complete.
 
 ## Review Results
 
