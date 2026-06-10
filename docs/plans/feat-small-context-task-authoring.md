@@ -164,7 +164,7 @@ Not requested(無 customer-facing)。
 
 #### Verdict: CLEAR *(2026-06-10)*
 
-8 個 T-NNN 對映 R-001..R-008,每個 commit-size 可獨立驗。task 自身遵守本計畫 R-002 自足契約(file:line 指標、具體改動、就地驗收、慣例指標,不貼全文)作自舉示範。關鍵排序:T-004(dispatch 探測 fn)→ T-005(doctor 用該 fn);T-003→T-006→T-008 共改 `refining-plan/SKILL.template.md`,須依序疊加不同契約子節。受保護路徑(templates/refining-plan/gal-pipeline/dispatch)實作期逐項簽核。architect C1..C4 已逐條映入對應 task 驗收。跨計畫:T-006 改 `gal-pipeline/SKILL.template.md`,auditor 計畫亦重構同檔——本計畫先落,auditor rebase(Route ①→②)。
+8 個 T-NNN 對映 R-001..R-008,每個 commit-size 可獨立驗。task 自身遵守本計畫 R-002 自足契約(file:line 指標、具體改動、就地驗收、慣例指標,不貼全文)作自舉示範。關鍵排序:T-04(dispatch 探測 fn)→ T-05(doctor 用該 fn);T-03→T-06→T-08 共改 `refining-plan/SKILL.template.md`,須依序疊加不同契約子節。受保護路徑(templates/refining-plan/gal-pipeline/dispatch)實作期逐項簽核。architect C1..C4 已逐條映入對應 task 驗收。跨計畫:T-06 改 `gal-pipeline/SKILL.template.md`,auditor 計畫亦重構同檔——本計畫先落,auditor rebase(Route ①→②)。
 
 <!-- ENG_REVIEW: CLEAR -->
 
@@ -172,66 +172,66 @@ Not requested(無 customer-facing)。
 
 | ID | Type | Description | Covers |
 | --- | --- | --- | --- |
-| TP-001 | manual | `/planning` 產生新計畫,`## Approval` 在 `# Plan:` 後、`## Goal` 前;對既有計畫跑 `/refining-plan`+`/plan-to-prompt`+`New-TaskSpec.ps1` 仍以區段名正確解析(位置無關) | T-001 |
-| TP-002 | unit (Pester/PS) | `New-TaskSpec.ps1` 對含多行、子彈列表的 task 擷取完整區塊至下一 `T-NNN`/`##` 邊界;單 task、末尾 task、單行 task 三邊界皆正確 | T-002 |
-| TP-003 | unit (Pester/PS) | `## Affected Files` 僅含該 task 區塊指名檔案;task 未指名檔案時回退整份 `## Files to Create or Modify` | T-002 |
-| TP-004 | manual | `refining-plan/SKILL.template.md` 的 Step 3/4 含指標式自足規格(a 路徑/b 改動/c 驗收/d 慣例指標)+ `<5KB` 預算 + 超限切分規則;明示「不內嵌檔案全文」 | T-003 |
-| TP-005 | unit (Rust) | `dispatch` 的 per-executor 就緒探測對「確定未認證」回 fail 態、「無法判定」回 unknown 態;探測不 spawn 完整 executor(以 mock/便宜路徑驗) | T-004 |
-| TP-006 | integration (Rust) | routed executor 確定未認證 → `gal-dispatch` 退出附該工具修復步驟(copilot:`/login`/`GH_TOKEN`);unknown → 放行+stderr 警告;ready → 正常 offload | T-004 |
-| TP-007 | unit (Rust) | `gal doctor` 只對 `executor-routing.json` 指名的 executor 產就緒 finding;routing 檔缺失=INFO 非 ERROR(C2) | T-005 |
-| TP-008 | manual | `refining-plan/SKILL.template.md` 驗收契約要求聚焦 probe + 證據形態(executor-log 終態 `completed` + write-back 指標);`gal-pipeline/SKILL.template.md` 對無證據 PASS 硬擋走 retry/handoff;DEGRADED_BUNDLED 證據=Test Results 指令輸出(C3) | T-006 |
-| TP-009 | unit (Rust) | `gal-engine` 自掃測試:對含 `install`/`setup`/`update`/`patch` 子字串的 `crates/gal-engine/tests/*.rs` 檔名 assert 失敗(該測試自身檔名避開陷阱字);crate 有 asInvoker manifest 則豁免(C4) | T-007 |
-| TP-010 | manual | `refining-plan/SKILL.template.md` 含 refactor 自清條款(孤兒碼/測試同 task 清除、caveat 更新不跨 phase 複製)+ orchestrator/reviewer gate 檢查點 | T-008 |
-| TP-011 | manual | `cargo test --workspace` 綠;`cargo clippy --workspace --all-targets` 0 warning(R-004/005/007 Rust 改動回歸) | T-002,T-004,T-005,T-007 |
+| TP-01 | manual | `/planning` 產生新計畫,`## Approval` 在 `# Plan:` 後、`## Goal` 前;對既有計畫跑 `/refining-plan`+`/plan-to-prompt`+`New-TaskSpec.ps1` 仍以區段名正確解析(位置無關) | T-01 |
+| TP-02 | unit (Pester/PS) | `New-TaskSpec.ps1` 對含多行、子彈列表的 task 擷取完整區塊至下一 `T-NNN`/`##` 邊界;單 task、末尾 task、單行 task 三邊界皆正確 | T-02 |
+| TP-03 | unit (Pester/PS) | `## Affected Files` 僅含該 task 區塊指名檔案;task 未指名檔案時回退整份 `## Files to Create or Modify` | T-02 |
+| TP-04 | manual | `refining-plan/SKILL.template.md` 的 Step 3/4 含指標式自足規格(a 路徑/b 改動/c 驗收/d 慣例指標)+ `<5KB` 預算 + 超限切分規則;明示「不內嵌檔案全文」 | T-03 |
+| TP-05 | unit (Rust) | `dispatch` 的 per-executor 就緒探測對「確定未認證」回 fail 態、「無法判定」回 unknown 態;探測不 spawn 完整 executor(以 mock/便宜路徑驗) | T-04 |
+| TP-06 | integration (Rust) | routed executor 確定未認證 → `gal-dispatch` 退出附該工具修復步驟(copilot:`/login`/`GH_TOKEN`);unknown → 放行+stderr 警告;ready → 正常 offload | T-04 |
+| TP-07 | unit (Rust) | `gal doctor` 只對 `executor-routing.json` 指名的 executor 產就緒 finding;routing 檔缺失=INFO 非 ERROR(C2) | T-05 |
+| TP-08 | manual | `refining-plan/SKILL.template.md` 驗收契約要求聚焦 probe + 證據形態(executor-log 終態 `completed` + write-back 指標);`gal-pipeline/SKILL.template.md` 對無證據 PASS 硬擋走 retry/handoff;DEGRADED_BUNDLED 證據=Test Results 指令輸出(C3) | T-06 |
+| TP-09 | unit (Rust) | `gal-engine` 自掃測試:對含 `install`/`setup`/`update`/`patch` 子字串的 `crates/gal-engine/tests/*.rs` 檔名 assert 失敗(該測試自身檔名避開陷阱字);crate 有 asInvoker manifest 則豁免(C4) | T-07 |
+| TP-10 | manual | `refining-plan/SKILL.template.md` 含 refactor 自清條款(孤兒碼/測試同 task 清除、caveat 更新不跨 phase 複製)+ orchestrator/reviewer gate 檢查點 | T-08 |
+| TP-11 | manual | `cargo test --workspace` 綠;`cargo clippy --workspace --all-targets` 0 warning(R-004/005/007 Rust 改動回歸) | T-02,T-04,T-05,T-07 |
 
 ## Tasks
 
 > 每個 task 自足:含目標檔路徑、具體改動、就地驗收、慣例指標。受保護路徑(templates/refining-plan/gal-pipeline/dispatch)實作期逐項簽核。
 
-- [ ] **T-001 (R-001) — templates/plan.md Approval 置頂**
+- [ ] **T-01 (R-001) — templates/plan.md Approval 置頂**
   - 檔案:`plugins/gal-core/templates/plan.md`(受保護)。現況:`## Approval` 在 line 51(`## Open Questions` 後、`## Review Results` 前);`## Goal` 在 line 3。
   - 改動:整段 `## Approval`(含 3 行 bullet)上移到 `# Plan: [Feature Name]` 之後、`## Goal` 之前;其餘區段順序不變。
-  - 驗收:TP-001。`/planning` 新計畫 Approval 置頂;以區段名稱解析的命令(`/refining-plan` Step 1/3/4、`/plan-to-prompt`、`New-TaskSpec.ps1` 的 `## Files to Create or Modify`/`T-NNN` 掃描)不受位置影響——grep 確認這些解析器皆用區段名(`^## Approval` 等)非行號。
+  - 驗收:TP-01。`/planning` 新計畫 Approval 置頂;以區段名稱解析的命令(`/refining-plan` Step 1/3/4、`/plan-to-prompt`、`New-TaskSpec.ps1` 的 `## Files to Create or Modify`/`T-NNN` 掃描)不受位置影響——grep 確認這些解析器皆用區段名(`^## Approval` 等)非行號。
   - 慣例:markdown-formatting skill;區段重排不得改 bullet 內容。
 
-- [ ] **T-002 (R-004) — New-TaskSpec.ps1 擷取器升級(多行 + 每 task 檔案)**
+- [ ] **T-02 (R-004) — New-TaskSpec.ps1 擷取器升級(多行 + 每 task 檔案)**
   - 檔案:`scripts/common/New-TaskSpec.ps1`(非受保護)。現況 BUG:`$taskGoal` 在 line 103-104 用 `Where-Object {... $TaskScope ...} | Select-Object -First 1`(只取首行);`## Affected Files` 擷取 line 113-118 從 `## Files to Create or Modify` 整段。
   - 改動:(a) `$taskGoal` 改為擷取 `T-NNN` 起始行至下一個 `^\s*-\s*\[.?\]\s*T-\d` 或 `^##` 區段邊界的完整多行區塊(保留縮排子彈);(b) `## Affected Files` 改為從擷取出的 task 區塊內掃 backtick 包裹的檔案路徑(如 `` `path/to/file` ``),僅收斂該 task 指名者;task 內無指名路徑時才回退原 `## Files to Create or Modify` 整段。保留既有 `<5KB` 警告檢查。
-  - 驗收:TP-002、TP-003、TP-011。新增 Pester 測試覆蓋多行/單行/末尾/單 task 邊界與每 task 檔案收斂。
+  - 驗收:TP-02、TP-03、TP-11。新增 Pester 測試覆蓋多行/單行/末尾/單 task 邊界與每 task 檔案收斂。
   - 慣例:result-pattern 不適用(PS);structured-logging;邊界正則須註解化說明。**先於 auditor 計畫對同檔 agentMap 的改動(Route ①→②)。**
 
-- [ ] **T-003 (R-002+R-003) — refining-plan 自足 task + 預算契約**
+- [ ] **T-03 (R-002+R-003) — refining-plan 自足 task + 預算契約**
   - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護)。插入點:Step 3「Write ## Tasks」(line 42)、Step 4「Write ## Test Plan」(line 53)。
   - 改動:Step 3 加「指標式自足 task」規格——每 `T-NNN` 須含 (a) 確切目標檔路徑、(b) 具體改動、(c) 就地可驗驗收、(d) 慣例/簽章/相依指標;明示**不內嵌檔案全文,executor 自讀指名檔**(D-1)。加 spec 預算 `<5KB` 量級(理由=聚焦+派工成本,非 window)+ 超限切分為原子 task 規則。
-  - 驗收:TP-004。本計畫自身的 `## Tasks`(本區段)即符合此契約,作自舉示範。
+  - 驗收:TP-04。本計畫自身的 `## Tasks`(本區段)即符合此契約,作自舉示範。
   - 慣例:markdown-formatting;token-budget convention(`<5KB` 理由須對齊)。
 
-- [ ] **T-004 (R-005) — dispatch crate 本地 executor preflight(三態)**
+- [ ] **T-04 (R-005) — dispatch crate 本地 executor preflight(三態)**
   - 檔案:`crates/dispatch/src/dispatch.rs`(現有 `is_available(name)` 在 line 283)、`crates/dispatch/src/main.rs`(safety gate 在 is_available 檢查處)。受保護(核心派工)。
   - 改動:新增 `fn executor_readiness(executor: &str) -> Readiness`(三態 enum `Ready`/`Unauthenticated{hint}`/`Unknown`),探測**便宜優先**:env token(如 copilot:`GH_TOKEN`/`COPILOT_GITHUB_TOKEN`)→ config 檔 → 工具 status 子命令;**絕不 spawn 完整 executor 跑 spec**。main.rs 在 `is_available` 通過後加 readiness gate:`Unauthenticated` → 印修復指引(copilot:run `/login` 或 set `GH_TOKEN`)並退出(reason=`executor-unauthenticated-confirmed`);`Unknown` → 放行 + stderr 警告(C1:不誤擋);`Ready` → 照常。
-  - 驗收:TP-005、TP-006、TP-011。已知 copilot 未認證實證見 `## Evidence`。
+  - 驗收:TP-05、TP-06、TP-11。已知 copilot 未認證實證見 `## Evidence`。
   - 慣例:rust convention;result-pattern;C1 三態語意逐條對應。每 executor 的探測法以小 helper 隔離,未支援者預設 `Unknown`(放行)。
 
-- [ ] **T-005 (R-005) — doctor routed-executor 就緒 HealthCheck**
-  - 檔案:`crates/cli/src/main.rs`(doctor 聚合在 line 258-273,T-031 模式:`report.findings.extend(...HealthCheck.check())`)。依賴 T-004 的 `executor_readiness`。
+- [ ] **T-05 (R-005) — doctor routed-executor 就緒 HealthCheck**
+  - 檔案:`crates/cli/src/main.rs`(doctor 聚合在 line 258-273,T-031 模式:`report.findings.extend(...HealthCheck.check())`)。依賴 T-04 的 `executor_readiness`。
   - 改動:加一個 `HealthCheck`(實作 `base::health::HealthCheck`),讀 `~/.gal/config/executor-routing.json` 的角色→executor 映射,對**每個被指名的** executor 呼 `executor_readiness`,`Unauthenticated`→warning finding 附修復指引、`Unknown`→info、`Ready`→無 finding;routing 檔缺失=單一 INFO finding,非 ERROR(C2)。在 cmd_doctor 聚合處 extend。
-  - 驗收:TP-007、TP-011。`gal doctor` 對未認證 copilot 告警且只查 routed executors。
+  - 驗收:TP-07、TP-11。`gal doctor` 對未認證 copilot 告警且只查 routed executors。
   - 慣例:rust;沿 T-031 既有三個 HealthCheck 的聚合寫法(McpProjection/Setup/SkillsProjection)。
 
-- [ ] **T-006 (R-006) — honest-pass 硬擋契約**
-  - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-003 後)、`plugins/gal-core/commands/gal-pipeline/SKILL.template.md`(受保護;現況 2d test gate line 391、2e review line 418)。
+- [ ] **T-06 (R-006) — honest-pass 硬擋契約**
+  - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-03 後)、`plugins/gal-core/commands/gal-pipeline/SKILL.template.md`(受保護;現況 2d test gate line 391、2e review line 418)。
   - 改動:refining-plan 驗收契約加「每 task 須指明聚焦 probe + 證據形態(executor-log 終態 `completed` + 可觀察 write-back 指標)」。gal-pipeline 的 test/review gate 加硬擋規則:dispatched 相位回報 PASS 但無對應 executor-log 終態證據 → 視為未通過,走既有 retry/handoff,不推進(D-5)。C3:硬擋限 dispatched 相位;DEGRADED_BUNDLED 人工模式的證據=`## Test Results` 內可重現指令輸出(沿既有慣例),不要求 executor-log。
-  - 驗收:TP-008。對齊 honest-test-pass-bar(memory `feedback_honest_test_pass_bar`)。
+  - 驗收:TP-08。對齊 honest-test-pass-bar(memory `feedback_honest_test_pass_bar`)。
   - 慣例:markdown-formatting。**注意:gal-pipeline SKILL 亦被 auditor 計畫 R-002/R-004 重構——本計畫先落硬擋文字,auditor rebase 時保留之。**
 
-- [ ] **T-007 (R-007) — gal-engine 測試檔名陷阱自掃測試**
+- [ ] **T-07 (R-007) — gal-engine 測試檔名陷阱自掃測試**
   - 檔案:`[ADD] crates/gal-engine/tests/<避開陷阱字的檔名>.rs`(如 `test_filename_guard.rs`——自身不含 `install`/`setup`/`update`/`patch`)。
   - 改動:一個單元/整合測試,讀 `crates/gal-engine/tests/` 目錄列出 `*.rs` 檔名,assert 無檔名(去掉 `.rs`)含 `install`/`setup`/`update`/`patch` 子字串(case-insensitive);內建 asInvoker 豁免註記(若該 crate 日後加 manifest 則改為跳過)。陷阱字清單為測試內常數。
-  - 驗收:TP-009、TP-011。實證:R-05 `install_family_r05`、R-06 `uninstall_r06` 連兩次中招(見 `## Evidence`)。同步在 `golem-tester` 契約或 refining-plan 測試命名指引加一句:測試檔名避開該四字、spawn 失敗(含 os error 740)不得經 pipe 被讀成 exit 0。
+  - 驗收:TP-09、TP-11。實證:R-05 `install_family_r05`、R-06 `uninstall_r06` 連兩次中招(見 `## Evidence`)。同步在 `golem-tester` 契約或 refining-plan 測試命名指引加一句:測試檔名避開該四字、spawn 失敗(含 os error 740)不得經 pipe 被讀成 exit 0。
   - 慣例:rust;C4 守衛=crate 內自掃測試,零 CI 基礎設施。
 
-- [ ] **T-008 (R-008) — refactor 自清契約**
-  - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-006 後)。
+- [ ] **T-08 (R-008) — refactor 自清契約**
+  - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-06 後)。
   - 改動:task 撰寫契約加「自清」條款:改動孤兒化的碼/測試(死 helper、引用已刪檔的測試)須由**同一 task** 清除;phase 間 caveat 須更新、不得原文複製過期內容;orchestrator/reviewer gate 須檢查殘留。
-  - 驗收:TP-010。實證:R-05 死 `build_shared_args`、空轉 AGY 測試、`link.exe` caveat 跨 R-05→R-06 複製(見 `## Evidence`)。
+  - 驗收:TP-10。實證:R-05 死 `build_shared_args`、空轉 AGY 測試、`link.exe` caveat 跨 R-05→R-06 複製(見 `## Evidence`)。
   - 慣例:markdown-formatting。

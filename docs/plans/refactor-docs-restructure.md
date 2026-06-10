@@ -43,12 +43,12 @@
 - [ ] R7 (P7) — `project.md` 來源文件列出每一份標準文件；重新產生的轉接器 (adapters) 能夠反映它。
 - [ ] R8 (P8) — `structure-map.ndjson` 涵蓋每一個 `docs/` 節點並具備真實的 `syncStatus`。
 - [ ] R9 (合併) — `installation-topology.md`（maintainer 導覽圖）與 `release-matrix.md`（release/dist 參考）內容整理併入 `devguide.md`，原檔刪除，全 repo 連結改指 devguide 對應節。
-- [ ] R10 (README ≤400 壓縮地圖) — README 重構為「壓縮地圖」：本文（**排除**頂部語言切換 head、`References`、`License`）≤400 行（理想 ~280）。每個清單/參考節壓成 compact table + 連結，README 給地圖不給全文。**委派目標分層**：使用者「怎麼用」的深度 → `manual.md`（新手學習路徑）；canonical 契約 → `commands/commands.md`、`agent/agents.md`、`workflows/coding.md`（reference 連結，非新手教學入口，因屬 agent-facing 契約/protected paths）。安裝狀態如實標 deferred 並連出（OQ-008）；不細講 git/clone。
+- [ ] R10 (README ≤400 壓縮地圖) — README 重構為「壓縮地圖」：本文（**排除**頂部語言切換 head、`References`、`License`）≤400 行（理想 ~280）。每個清單/參考節壓成 compact table + 連結，README 給地圖不給全文。**委派目標分層**：使用者「怎麼用」的深度 → `manual.md`（新手學習路徑）；canonical 契約 → `commands/commands.md`、`agent/agents.md`、`workflows/coding.md`（reference 連結，非新手教學入口，因屬 agent-facing 契約/protected paths）。安裝狀態如實標 deferred 並連出（OQ-08）；不細講 git/clone。
 - [ ] R19 (README↔manual 邊界規則) — 明文一條規則防再重複：README「How GAL Works」只給**一眼心智模型 + 連結**（是什麼）；manual「Daily Use」給**實際操作步驟**（怎麼做）。同一主題不得在兩處都展開。
 - [ ] R11 (dev mode 落點) — 「如何開啟 dev mode」內容夠短，只放在 README 新增的精簡 Dev Mode 節（clone + `Setup-Machine`）；devguide **不**重複此啟用說明，只連回 README。
 - [ ] R12 (personalization → manual) — `personalization.md` → **`docs/manual.md`**（canonical EN）；`personalization.zh-Hant.md` → **`docs/i18n/zh-Hant/manual.zh-Hant.md`**（使用者操作手冊），吸收所有細部操作：runtime/config/placeholders/companion、daily-use 走查、headless routing、when-to-rerun，以及由 README 移入的 backup/migration/uninstall 與 install-status 細節。內容改寫為 plugin 模式，架構/擁有權仍委派 devguide。全 repo `personalization*` 參照改指新位置。
 - [ ] R13 (P9 · 決策) — `godot.md`、`graphics-workflow.md` 現為 zh-canonical → **補寫 EN canonical（由 zh 內容翻譯，留原位）+ 現有 zh 內容移入 `docs/i18n/zh-Hant/collaborative-tools/<name>.zh-Hant.md`** 並加新鮮度 front-matter。完成後全 docs 皆 EN canonical。*(人工決策 2026-06-02)*
-- [ ] R14 (P10) — `graphify-execution-guide.md`（1059 行，逐步教學 vs 契約混雜）處理：拆章或移出 contract 目錄（見 OQ-007）。
+- [ ] R14 (P10) — `graphify-execution-guide.md`（1059 行，逐步教學 vs 契約混雜）處理：拆章或移出 contract 目錄（見 OQ-07）。
 - [ ] R15 (P11) — 併入 devguide 時順手統一標題風格：`release-matrix` 的編號 H2（`## 1.`…）去編號，與全 repo 無編號 H2 一致。
 - [ ] R16 (P12 · 多語言新鮮度標記) — 每個 `docs/i18n/<lang>/` 翻譯檔 front-matter 帶 `source`（repo 相對路徑）/ `lang` / `source_commit` / `translated_at`；一個 check 掃 `docs/i18n/**` 比對 `git log -1 --format=%H -- <source>` 與 `source_commit`，逐 (doc, lang) 報 `current|stale|missing`。機制隨語言/文件數線性擴展，不擴 structure-map schema。
 - [ ] R20 (多語言擴展就緒) — 命名標籤、allowlist、新鮮度 check 三者設計即支援 N 語言；`ja` 為已知近期語言，機制須 JP-ready。**本計畫不產生 `ja` 檔案內容**（屬後續內容工作），僅確保政策與 check 可直接容納。
@@ -241,23 +241,23 @@
 - **高連結變動率 (High link churn)** — 參照計數：`personalization` 15，`collaborative-tools/` 19，`xmachine` 12，`devguide` 9，`installation-topology`/`release-matrix`/`graphworkflow(collab)` 各 4。任何移動若掃描不完整，都有破壞連結的風險 → 步驟 5 的連結檢查是嚴格的把關條件。
 - **觸及產生的轉接器** — `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` 是衍生的；它們「必須」透過 `Sync-DevContext` (一個受保護的腳本) 重新產生，而非手動編輯。
 - **completed plans 為對照、不可先刪** — install 相關 completed/VERIFIED 計畫是本次改寫的事實來源；本計畫不購除，purge 另案。
-- **標準文件的預期** — OQ-002 已決定保留 `devguide`/`manual` 等標準文件於 `docs/` 根目錄平面入口；後續實作不得再將其搬移至 `guides/`。
-- **devguide 體積膨脹** — 吸收 installation-topology(78) + release-matrix(336) 後 devguide 將達 ~1000–1100 行，逼近單檔可讀性上限（見 OQ-007）。
-- **README 安裝敘述準確性** — plugin/install 模式對 Claude/Codex/Copilot 仍 deferred；README 改寫不得 overclaim 尚未 ship 的 native install 路徑，否則與 repo 現況及 release-matrix 政策衝突（見 OQ-008）。
+- **標準文件的預期** — OQ-02 已決定保留 `devguide`/`manual` 等標準文件於 `docs/` 根目錄平面入口；後續實作不得再將其搬移至 `guides/`。
+- **devguide 體積膨脹** — 吸收 installation-topology(78) + release-matrix(336) 後 devguide 將達 ~1000–1100 行，逼近單檔可讀性上限（見 OQ-07）。
+- **README 安裝敘述準確性** — plugin/install 模式對 Claude/Codex/Copilot 仍 deferred；README 改寫不得 overclaim 尚未 ship 的 native install 路徑，否則與 repo 現況及 release-matrix 政策衝突（見 OQ-08）。
 - **內容改寫需現況真實來源** — `manual` / README / devguide 的 install 改寫屬內容（非純搬移），須以 install 相關 completed plans（`feat-plugin-arch-migration.md` 等）＋當前 `scripts/Install-GalPlugins.*`、`~/.gal` 佈局為事實來源，避免把舊敘述換成另一種錯誤敘述。使用者並要藉此確認 install 失敗的真正原因。
 - **i18n 遷移的相對連結與慣例變更** — 翻譯移入 `docs/i18n/<lang>/` 後，檔內相對連結需回指 canonical（多為 EN-only，可控）；此佈局**改變 project.md 既載慣例的「位置」**（sibling → 資料夾，檔名 `<name>.<lang>.md` infix 保留）＝methodology memory 變更，須一併更新並重生轉接器。連結檢查（T2）須涵蓋 `docs/i18n/**` 與 anchor 層級（MISS-03）。
 - **跨領域 / 架構師邊界 (Cross-cutting / architect fence)** — 此次重構修改了轉接器、來源文件索引及許多連結 → 超出了直接實作的範圍；在 `/plan-to-prompt` 之前需要 `/deep-planning` 架構師的審查。
 
 ## 待解決問題 (Open Questions)
 
-- [x] OQ-001 — 決定：保留 `docs/collaborative-tools/` 名稱，不重新命名為 `docs/tools/`。*(人工決策 2026-06-02；graphify 顯示 README 已將 Collaborative Tools 視為現有概念，且參照變動率高)*
-- [x] OQ-002 — 決定：標準指南/參考文件保持在 `docs/` 根目錄的平面結構，不建立 `docs/guides/` 搬移 `devguide` / `personalization`。*(人工決策 2026-06-02)*
-- [x] OQ-003 — 決定：命名與翻譯慣例新增為 `docs/devguide.md` 的一節。*(人工決策 2026-06-02)*
-- [x] OQ-005 — 決定：需要重新掃描 `docs/`。現有 schema 支援 doc-axis `doc-section`，不先新增 file-only doc record shape；本計畫以重新掃描後的 h2/h3 doc-section 物化作為覆蓋基準，只有掃描證明不足時才回到 schema 變更。*(graphify detect + codebase-memory/doc-sync 檢查 2026-06-02)*
-- [x] OQ-007 — 決定：接受單一大型 devguide，installation-topology 與 release-matrix 全部成為 devguide 內的節（~1100 行）。*(人工決策 2026-06-02；R9/R15)*
-- [x] OQ-008 — 決定：README Quick Start 如實標註 deferred — plugin 模式為方向，明列 AGY 已可用、Claude/Codex/Copilot 仍 deferred，與 release-matrix 政策一致。*(人工決策 2026-06-02；R10)*
-- [x] OQ-009 — 決定（翻譯範圍/擴展）：翻譯面積目前鎖 tier 2（README + manual + 按需少數工具文件），但政策須**允許成長**（不保證不升 tier 3）；語言**多語言可擴展**，`ja` 為已知近期語言。機制（命名標籤 + allowlist + 新鮮度 check）即支援 N 語言；本計畫不產 `ja` 內容。`godot`/`graphics-workflow` 補 EN canonical + zh 副本。*(人工決策 2026-06-02；R4/R13/R16/R20)*
-- [x] OQ-010 — 決定（翻譯佈局）：所有翻譯**全進 `docs/i18n/<lang>/`**，檔名保留 `<name>.<lang>.md`（如 `README.zh-Hant.md`，自描述且滿足 README 唯一）；canonical 留原位；舊 sibling 慣例改為資料夾；既有 `*.zh-Hant.md` 直接遷入 i18n（檔名不變）。*(人工決策 2026-06-02；R4/R18/R5)*
+- [x] OQ-01 — 決定：保留 `docs/collaborative-tools/` 名稱，不重新命名為 `docs/tools/`。*(人工決策 2026-06-02；graphify 顯示 README 已將 Collaborative Tools 視為現有概念，且參照變動率高)*
+- [x] OQ-02 — 決定：標準指南/參考文件保持在 `docs/` 根目錄的平面結構，不建立 `docs/guides/` 搬移 `devguide` / `personalization`。*(人工決策 2026-06-02)*
+- [x] OQ-03 — 決定：命名與翻譯慣例新增為 `docs/devguide.md` 的一節。*(人工決策 2026-06-02)*
+- [x] OQ-05 — 決定：需要重新掃描 `docs/`。現有 schema 支援 doc-axis `doc-section`，不先新增 file-only doc record shape；本計畫以重新掃描後的 h2/h3 doc-section 物化作為覆蓋基準，只有掃描證明不足時才回到 schema 變更。*(graphify detect + codebase-memory/doc-sync 檢查 2026-06-02)*
+- [x] OQ-07 — 決定：接受單一大型 devguide，installation-topology 與 release-matrix 全部成為 devguide 內的節（~1100 行）。*(人工決策 2026-06-02；R9/R15)*
+- [x] OQ-08 — 決定：README Quick Start 如實標註 deferred — plugin 模式為方向，明列 AGY 已可用、Claude/Codex/Copilot 仍 deferred，與 release-matrix 政策一致。*(人工決策 2026-06-02；R10)*
+- [x] OQ-09 — 決定（翻譯範圍/擴展）：翻譯面積目前鎖 tier 2（README + manual + 按需少數工具文件），但政策須**允許成長**（不保證不升 tier 3）；語言**多語言可擴展**，`ja` 為已知近期語言。機制（命名標籤 + allowlist + 新鮮度 check）即支援 N 語言；本計畫不產 `ja` 內容。`godot`/`graphics-workflow` 補 EN canonical + zh 副本。*(人工決策 2026-06-02；R4/R13/R16/R20)*
+- [x] OQ-10 — 決定（翻譯佈局）：所有翻譯**全進 `docs/i18n/<lang>/`**，檔名保留 `<name>.<lang>.md`（如 `README.zh-Hant.md`，自描述且滿足 README 唯一）；canonical 留原位；舊 sibling 慣例改為資料夾；既有 `*.zh-Hant.md` 直接遷入 i18n（檔名不變）。*(人工決策 2026-06-02；R4/R18/R5)*
 
 ## 審核 (Approval)
 
@@ -275,7 +275,7 @@
 
 | 決策 | 益處 | 成本 | 判定 |
 | --- | --- | --- | --- |
-| devguide 吸收 topology+release-matrix（單檔 ~1100 行） | 單一 maintainer 入口、零跨檔跳轉 | release 參考的高頻 churn 耦合進 maintainer guide | OK（OQ-007 已決） |
+| devguide 吸收 topology+release-matrix（單檔 ~1100 行） | 單一 maintainer 入口、零跨檔跳轉 | release 參考的高頻 churn 耦合進 maintainer guide | OK（OQ-07 已決） |
 | README ≤400 壓縮地圖、深度委派 | 最快理解、可讀性上限內 | 委派目標若是 agent-facing 契約，新手體驗下降 | REVISE→已修：usage→manual，契約僅 reference（R10） |
 | 3 文件零重複（README/manual/devguide） | 各一讀者、無重複維護 | README「glance」與 manual「practice」主題重疊易再漂移 | REVISE→已修：加邊界規則（R19） |
 | 直接執行 + 人工 commit | 文件變更可由人審視把關 | 一次 ~20 檔 mega-diff 難審 | REVISE→已修：5 段 commit 切片（執行模式） |
@@ -307,12 +307,12 @@
 Rationale：
 - 範圍純文件（`docs/`、`README*`、`.dev/` 索引、structure-map、一個新鮮度 check 腳本），無程式邏輯/runtime 風險。
 - 15 個 T-NNN 各自獨立可完成、可測；對齊執行模式 5 段 commit 切片，依風險遞增（機械 → 結構 → 內容 → 索引 → 轉接器），讓使用者逐片審後自行 commit。
-- 主要執行風險＝(a) 內容正確性、(b) 大型 diff、(c) anchor 重映；分別由「completed plans 為事實來源」「切片化」「T-015 連結+anchor 檢查 gate」緩解。
-- 架構師已 CLEAR（4 條件折入）；所有 OQ-001~010 已決；無未決阻斷。
+- 主要執行風險＝(a) 內容正確性、(b) 大型 diff、(c) anchor 重映；分別由「completed plans 為事實來源」「切片化」「T-15 連結+anchor 檢查 gate」緩解。
+- 架構師已 CLEAR（4 條件折入）；所有 OQ-01~010 已決；無未決阻斷。
 
 工程注意（非阻斷）：
-- T-011 新鮮度 check 須遵 repo 雙 runtime（PS/Bash）慣例；可先落單一 runtime，另一 runtime 補齊前於 devguide 註明。
-- TP-006 README 行數量測須明確定義「排除 head/References/License」的計法，避免判定爭議。
+- T-11 新鮮度 check 須遵 repo 雙 runtime（PS/Bash）慣例；可先落單一 runtime，另一 runtime 補齊前於 devguide 註明。
+- TP-06 README 行數量測須明確定義「排除 head/References/License」的計法，避免判定爭議。
 
 <!-- ENG_REVIEW: CLEAR -->
 
@@ -320,21 +320,21 @@ Rationale：
 
 | ID | Type | Description | Covers |
 | --- | --- | --- | --- |
-| TP-001 | manual | `docs/**/*.md` 無不相關 basename 衝突；`blender-mcp.md`/`graphics-workflow.md` 可從索引達 | T-001 |
-| TP-002 | script | `find docs -ipath '*xmachine*'` 僅單一子樹；無空 `docs/xmachine/` | T-002 |
-| TP-003 | script | 無 `personalization*` 殘留參照；root 與 docs 根目錄無 `*.zh-Hant.md`；i18n 既有翻譯就位 | T-003 |
-| TP-004 | manual | devguide 恰 6 個 H2、含標註 `Codebase`/`.gal` tree；`installation-topology.md` 已刪且無斷連 | T-004 |
-| TP-005 | manual | `Release Artifact Matrix` 去編號入 devguide；`release-matrix.md` 已刪；舊 anchor 已重映 | T-005 |
-| TP-006 | script | README 本文（排除 head/References/License）≤400 行；How GAL Works 委派連結全部有效 | T-006 |
-| TP-007 | manual | manual 涵蓋 First-Time/Daily/Machine Ops/Install Status；install 敘述對齊 completed plans；不複述 devguide 架構 | T-007 |
-| TP-008 | manual | `godot`/`graphics-workflow` 有 EN canonical；zh 在 i18n；全 docs 無 zh-canonical 殘留 | T-008 |
-| TP-009 | manual | devguide `Documentation Conventions` 含命名+多語言政策+新鮮度；被索引/路標參照 | T-009 |
-| TP-010 | manual | `docs/i18n/guide.md` 存在、不複製政策內文、連回 devguide 權威節 | T-010 |
-| TP-011 | script | 新鮮度 check 對現有翻譯輸出 `(doc,lang)=current\|stale\|missing`；故意改 source 後該翻譯轉 `stale` | T-011 |
-| TP-012 | script | `project.md` Source Documents 集合 == 重掃 `docs/**/*.md`（排除 `docs/plans/`）；Project Language 為 i18n 佈局 | T-012 |
-| TP-013 | script | `structure-map.ndjson` 解析 + schema 驗證；每 `docs/**/*.md` 有 doc-section；排序 `axis`→`id` 穩定 | T-013 |
-| TP-014 | script | `Sync-DevContext` 重生後再跑一次無 diff（idempotent）；轉接器反映新 project.md | T-014 |
-| TP-015 | script | 全 repo 相對連結 + section-anchor 檢查 0 斷連（涵蓋 `docs/i18n/**`） | T-015 |
+| TP-01 | manual | `docs/**/*.md` 無不相關 basename 衝突；`blender-mcp.md`/`graphics-workflow.md` 可從索引達 | T-01 |
+| TP-02 | script | `find docs -ipath '*xmachine*'` 僅單一子樹；無空 `docs/xmachine/` | T-02 |
+| TP-03 | script | 無 `personalization*` 殘留參照；root 與 docs 根目錄無 `*.zh-Hant.md`；i18n 既有翻譯就位 | T-03 |
+| TP-04 | manual | devguide 恰 6 個 H2、含標註 `Codebase`/`.gal` tree；`installation-topology.md` 已刪且無斷連 | T-04 |
+| TP-05 | manual | `Release Artifact Matrix` 去編號入 devguide；`release-matrix.md` 已刪；舊 anchor 已重映 | T-05 |
+| TP-06 | script | README 本文（排除 head/References/License）≤400 行；How GAL Works 委派連結全部有效 | T-06 |
+| TP-07 | manual | manual 涵蓋 First-Time/Daily/Machine Ops/Install Status；install 敘述對齊 completed plans；不複述 devguide 架構 | T-07 |
+| TP-08 | manual | `godot`/`graphics-workflow` 有 EN canonical；zh 在 i18n；全 docs 無 zh-canonical 殘留 | T-08 |
+| TP-09 | manual | devguide `Documentation Conventions` 含命名+多語言政策+新鮮度；被索引/路標參照 | T-09 |
+| TP-10 | manual | `docs/i18n/guide.md` 存在、不複製政策內文、連回 devguide 權威節 | T-10 |
+| TP-11 | script | 新鮮度 check 對現有翻譯輸出 `(doc,lang)=current\|stale\|missing`；故意改 source 後該翻譯轉 `stale` | T-11 |
+| TP-12 | script | `project.md` Source Documents 集合 == 重掃 `docs/**/*.md`（排除 `docs/plans/`）；Project Language 為 i18n 佈局 | T-12 |
+| TP-13 | script | `structure-map.ndjson` 解析 + schema 驗證；每 `docs/**/*.md` 有 doc-section；排序 `axis`→`id` 穩定 | T-13 |
+| TP-14 | script | `Sync-DevContext` 重生後再跑一次無 diff（idempotent）；轉接器反映新 project.md | T-14 |
+| TP-15 | script | 全 repo 相對連結 + section-anchor 檢查 0 斷連（涵蓋 `docs/i18n/**`） | T-15 |
 
 ## 工作項目
 
@@ -342,31 +342,31 @@ Rationale：
 
 **Slice 1 — 安全改名/移動（機械、低風險）**
 
-- [x] T-001 — P1 去重：root `graphworkflow.md` → `collaborative-tools/blender-mcp.md`（H1 改 `Blender MCP`）；`collaborative-tools/graphworkflow.md` → `graphics-workflow.md`；更新全 repo 參照。
-- [x] T-002 — P2 合併：`docs/xmachine/examples/` → `collaborative-tools/examples/`；移除空的 `docs/xmachine/`；更新參照。
-- [x] T-003 — 改名/遷移（純機械）：`personalization.md`→`docs/manual.md`（僅改 stem）；建 `docs/i18n/zh-Hant/` 並遷入 `README.zh-Hant.md`、`personalization.zh-Hant.md`→`manual.zh-Hant.md`、`xmachine.zh-Hant.md`→`collaborative-tools/xmachine.zh-Hant.md`；更新所有 `personalization*`/翻譯參照。
+- [x] T-01 — P1 去重：root `graphworkflow.md` → `collaborative-tools/blender-mcp.md`（H1 改 `Blender MCP`）；`collaborative-tools/graphworkflow.md` → `graphics-workflow.md`；更新全 repo 參照。
+- [x] T-02 — P2 合併：`docs/xmachine/examples/` → `collaborative-tools/examples/`；移除空的 `docs/xmachine/`；更新參照。
+- [x] T-03 — 改名/遷移（純機械）：`personalization.md`→`docs/manual.md`（僅改 stem）；建 `docs/i18n/zh-Hant/` 並遷入 `README.zh-Hant.md`、`personalization.zh-Hant.md`→`manual.zh-Hant.md`、`xmachine.zh-Hant.md`→`collaborative-tools/xmachine.zh-Hant.md`；更新所有 `personalization*`/翻譯參照。
 
 **Slice 2 — devguide 合併（結構）**
 
-- [x] T-004 — devguide 6-H2 重構：前置標註版 `Codebase`/`.gal` tree（吸收 Start-By-Finding-Layer / Where-Info-Belongs / Owning-Surfaces / Runtime-File-Schemas）、合併重疊節、刪 Quick Reference、dev-mode 連回 README；吸收 `installation-topology.md` 五塊後**刪原檔**。
-- [x] T-005 — `release-matrix.md` 九節去編號 → devguide `Release Artifact Matrix`；**刪原檔**；section-anchor 重映（`release-matrix.md#…`/`installation-topology.md#…` → `devguide.md#…`）。
+- [x] T-04 — devguide 6-H2 重構：前置標註版 `Codebase`/`.gal` tree（吸收 Start-By-Finding-Layer / Where-Info-Belongs / Owning-Surfaces / Runtime-File-Schemas）、合併重疊節、刪 Quick Reference、dev-mode 連回 README；吸收 `installation-topology.md` 五塊後**刪原檔**。
+- [x] T-05 — `release-matrix.md` 九節去編號 → devguide `Release Artifact Matrix`；**刪原檔**；section-anchor 重映（`release-matrix.md#…`/`installation-topology.md#…` → `devguide.md#…`）。
 
 **Slice 3 — 內容改寫（最高風險，以 completed plans 為事實來源）**
 
-- [x] T-006 — README ≤400 壓縮地圖：語言切換 head、Quick Start(plugin)/Dev Mode/Install Status(deferred)/Distribution&Migration、How GAL Works compact 表委派 `commands.md`/`agents.md`/`workflows`、Files&Storage 標註 tree、Learn More；`docs/i18n/zh-Hant/README.zh-Hant.md` 鏡像。
-- [x] T-007 — `manual.md` 內容改寫為 plugin 模式操作手冊（First-Time Setup / Daily Use / Machine Ops 含 backup·migration·uninstall / Install Status），吸收 README 移入操作、委派架構給 devguide；`manual.zh-Hant.md` 鏡像。
-- [x] T-008 — `godot.md`/`graphics-workflow.md` 補 EN canonical（由 zh 翻譯，留原位）；原 zh → `docs/i18n/zh-Hant/collaborative-tools/<name>.zh-Hant.md` + 新鮮度 front-matter。
+- [x] T-06 — README ≤400 壓縮地圖：語言切換 head、Quick Start(plugin)/Dev Mode/Install Status(deferred)/Distribution&Migration、How GAL Works compact 表委派 `commands.md`/`agents.md`/`workflows`、Files&Storage 標註 tree、Learn More；`docs/i18n/zh-Hant/README.zh-Hant.md` 鏡像。
+- [x] T-07 — `manual.md` 內容改寫為 plugin 模式操作手冊（First-Time Setup / Daily Use / Machine Ops 含 backup·migration·uninstall / Install Status），吸收 README 移入操作、委派架構給 devguide；`manual.zh-Hant.md` 鏡像。
+- [x] T-08 — `godot.md`/`graphics-workflow.md` 補 EN canonical（由 zh 翻譯，留原位）；原 zh → `docs/i18n/zh-Hant/collaborative-tools/<name>.zh-Hant.md` + 新鮮度 front-matter。
 
 **Slice 4 — 索引/慣例/結構**
 
-- [x] T-009 — devguide `Documentation Conventions` 節：命名慣例（`-mcp`、技能名對齊、`README.md` 唯一 R5）+ 多語言翻譯政策（allowlist、`docs/i18n/<lang>/<name>.<lang>.md`、鏡像規則）+ 新鮮度機制描述。
-- [x] T-010 — 新增 `docs/i18n/guide.md`（薄路標：用途+範例+語言清單+加語言步驟+front-matter 模板+連回 devguide，不複製政策）；可選 `docs/index.md` 索引。
-- [x] T-011 — 翻譯新鮮度：為每個 `docs/i18n/**` 翻譯加 front-matter（`source`/`lang`/`source_commit`/`translated_at`）+ 建 check（掃 i18n、比對 source commit，報 `(doc,lang)=current|stale|missing`；遵雙 runtime PS/Bash 慣例）。
-- [x] T-012 — `.dev/project.md`：更新 Source Documents 索引（全 docs、`manual` 取代 personalization、無 topology/release-matrix）+ Project Language 慣例改 `docs/i18n/<lang>/<name>.<lang>.md`。
-- [x] T-013 — `docs/structure/structure-map.ndjson` 重掃：為每個 `docs/**/*.md`（含 i18n）產 doc-axis `doc-section` 節點、真實 `syncStatus`、排序穩定，未動行 byte 保留。
+- [x] T-09 — devguide `Documentation Conventions` 節：命名慣例（`-mcp`、技能名對齊、`README.md` 唯一 R5）+ 多語言翻譯政策（allowlist、`docs/i18n/<lang>/<name>.<lang>.md`、鏡像規則）+ 新鮮度機制描述。
+- [x] T-10 — 新增 `docs/i18n/guide.md`（薄路標：用途+範例+語言清單+加語言步驟+front-matter 模板+連回 devguide，不複製政策）；可選 `docs/index.md` 索引。
+- [x] T-11 — 翻譯新鮮度：為每個 `docs/i18n/**` 翻譯加 front-matter（`source`/`lang`/`source_commit`/`translated_at`）+ 建 check（掃 i18n、比對 source commit，報 `(doc,lang)=current|stale|missing`；遵雙 runtime PS/Bash 慣例）。
+- [x] T-12 — `.dev/project.md`：更新 Source Documents 索引（全 docs、`manual` 取代 personalization、無 topology/release-matrix）+ Project Language 慣例改 `docs/i18n/<lang>/<name>.<lang>.md`。
+- [x] T-13 — `docs/structure/structure-map.ndjson` 重掃：為每個 `docs/**/*.md`（含 i18n）產 doc-axis `doc-section` 節點、真實 `syncStatus`、排序穩定，未動行 byte 保留。
 
 **Slice 5 — 轉接器重生（最後）**
 
-- [x] T-014 — 跑 `Sync-DevContext` 重生 `CLAUDE/GEMINI/AGENTS/copilot`（衍生物，不手改）。
-- [x] T-015 — 全 repo 相對連結 + section-anchor 檢查（涵蓋 `docs/i18n/**`），修正所有斷連（MISS-03 收尾）。
-- [x] T-016 (R22；2026-06-10 追加) — devguide `Documentation Conventions` 增「Planning-Doc OQ Lifecycle」節：OQ 解答後固化進 Decisions、刪 OQ 條目；全數解答後全文重寫、不留互指殘留。
+- [x] T-14 — 跑 `Sync-DevContext` 重生 `CLAUDE/GEMINI/AGENTS/copilot`（衍生物，不手改）。
+- [x] T-15 — 全 repo 相對連結 + section-anchor 檢查（涵蓋 `docs/i18n/**`），修正所有斷連（MISS-03 收尾）。
+- [x] T-16 (R22；2026-06-10 追加) — devguide `Documentation Conventions` 增「Planning-Doc OQ Lifecycle」節：OQ 解答後固化進 Decisions、刪 OQ 條目；全數解答後全文重寫、不留互指殘留。

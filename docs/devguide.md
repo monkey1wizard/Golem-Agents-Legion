@@ -1025,6 +1025,12 @@ Open Questions in `docs/plans/*.md` are scaffolding, not a permanent record:
 - When all of a plan's OQs are resolved, do a **full rewrite pass** of the plan instead of incremental patching. Incremental patches leave "see OQ-xxx" cross-references pointing at deleted or moved content, which makes plans progressively unreadable.
 - A plan body must never require the reader to reconstruct decision history from OQ archaeology; history belongs to git, the plan states only the current ruling.
 
+#### Planning-Doc Item IDs
+
+Requirement, task, and test-point IDs in `docs/plans/*.md` use **two-digit** numbering (`R1`/`R12`, `T-01`/`T-16`, `TP-01`/`TP-15`, `OQ-01`), never three-digit zero-padding (`T-001`). Two digits is also the cap: if a plan needs three-digit numbering — roughly 100+ tasks or test points — it is too large for one plan and must be split into multiple plans. A single source plan should stay well within two digits; a task count creeping toward that ceiling is a signal to decompose, not to widen the ID format.
+
+This is a format rule for new and not-yet-implemented plans. Do **not** retroactively renumber an in-flight plan whose IDs are already referenced by commit messages, an execution prompt, or `.dev/executor-logs/` — there the churn outweighs the consistency, and the IDs are load-bearing history.
+
 ### Token Discipline
 
 These rules apply to all maintainer and agent work in this repo. The full policy lives in [../conventions/token-budget.md](../conventions/token-budget.md). The developer-facing summary is here.
