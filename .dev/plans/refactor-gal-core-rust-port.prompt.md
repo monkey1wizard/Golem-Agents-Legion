@@ -104,9 +104,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: IMPLEMENT
-Step: 19 of 35
-Last activity: 2026-06-10 — T-018 complete (commit: 2c68fe2) — setup crate split, gal setup ported with parity vs Setup-Machine; tested + reviewed (APPROVE)
-Next step: implement T-019 (port setup-tools → gal setup --tools)
+Step: 20 of 35
+Last activity: 2026-06-10 — T-019 complete (commit: b92b8b0) — gal setup --tools ported with mocked-executor parity (C-5); tested + reviewed (APPROVE, 1 non-blocking warning)
+Next step: implement T-020 (git filter registration via gal setup)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -162,7 +162,7 @@ R-03 adapters (protected, architect)
 
 R-04 setup (protected, architect; implementation sign-off APPROVE-with-conditions C-1..C-10, 2026-06-10)
 - [x] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity. *(2c68fe2)*
-- [ ] T-019 — Port `setup-tools` → `gal setup --tools`; parity.
+- [x] T-019 — Port `setup-tools` → `gal setup --tools`; parity. *(b92b8b0)*
 - [ ] T-020 — Register git filter (idempotent, via `gal setup`): `.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true` — points at the existing .sh scripts (architect C-4); binary `gal clean/smudge` cutover + atomic re-register moves to T-025. Behavior-unchanged on Windows/Unix (bash-backed; no-bash clause verified at T-025).
 - [ ] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`.
 
@@ -251,6 +251,34 @@ Steps (a),(b): **library calls** — `gal setup` calls `adapters::run_machine_up
 8. **C-8** AGY cleanup path-safety guard + JSON edit preserves non-gal keys; both unit-tested.
 9. **C-9** `session.rs` supports non-interactive mode and stdin-injected prompts; `--reconfigure` and first-run flows fixture-tested.
 10. **C-10** `setup` crate implements `base::HealthCheck`, incl. Install-GalPlugins-presence check flagged for removal at T-024.
+
+### [T-019] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: c828b28..b92b8b0
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+- **[W-01]** Python-launcher asymmetry: `python_version` falls back to `py -3`, but the graphify module probe and both install commands invoke `python` directly. On a Windows machine with only the `py` launcher, graphify reports `unavailable` despite a valid Python. Low practical impact (python.exe ships alongside py in standard installs); fix opportunistically in a later setup touch. Logged, non-blocking.
+
+#### INFO
+- **[I-01]** graphify version-stamp staleness branch not ported (report present ⇒ `ready`); freshness-warning-only behavior, recorded as deviation.
+- **[I-02]** `http_get_json`/`download` delegate to `curl` (ubiquitous on Win10+/macOS/Linux) instead of adding an HTTP client dependency — matches the crate-vs-module discipline; failure is non-fatal (`action: install failed`).
+
+#### Architect conditions check (T-019 slice)
+- Ruling 3 honored: `tools.rs` is a module in `setup` (no new crate); `ToolsPrompter` + `ToolExec` are the only seams; `--check` and non-interactive runs never prompt and never execute (C-9; PanicPrompter test).
+- C-5 honored: parity = status classification + constructed commands + `--check` output under mocks; tests do not touch the network.
+
+#### Security note (task-scoped)
+Install commands are constants over whitelisted tool names; no user-controlled text enters command construction. The downloaded asset filename comes from the GitHub Releases API of the upstream repo (GitHub sanitizes asset names; no path separators) and lands only under `~/Downloads`. Probe stdin nulled (no interactive capture). **Clear — no findings.**
+
+#### Summary
+- Blocking: 0
+- Warning: 1 (open, non-blocking)
+- Info: 2
 
 ### [T-018] 2026-06-10 — APPROVE
 
@@ -617,6 +645,15 @@ _(none)_
 Real-machine end-user order (T-035, prereq T-034): (1) T-034 CI produces macOS-arm64 prebuilt artifact → (2) mac-mini installs it as end-user (brew/Releases/scp; **no rust/no repo/no build**), verified via SSH (packaged-source self-resolve + Unix symlink + doc-sync + doctor green) → (3) Windows normal installs artifact. Linux when a host is available. **Core rule: test machines are pure end-users; never install a toolchain or build on them.**
 
 ## Test Results
+
+### [T-019] 2026-06-10 — PASS (TP-16 slice: gal setup --tools, mocked-executor parity per C-5)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = TP-16 as redefined by architect C-5: status-probe classification parity (4 states × 4 tools) + constructed-command parity (mocked executor, byte-compared) + `--check` output parity; live npm/pip/network out of fixture scope.
+
+- **Workspace green** — `cargo test --workspace --quiet`: **388 passed, 0 failed** (+11 tools tests). Coverage: gstack/graphify/opencli/xmachine state classification across all four checking-contract states (mocked tool presence + temp filesystems); gstack bash install command byte-compared to the legacy string; graphify `pip install graphifyy` + `graphify install` command construction; opencli `npm install -g @jackwener/opencli` + release-asset download; `--tool` csv validation incl. unsupported-tool rejection; `--check` never prompts and never runs anything (PanicPrompter + empty run log); skip-by-user reflected in Final Summary.
+- **Live check** — `gal setup --tools --check` exit 0 on the dev machine; status report shape matches legacy (`=== Collaborative Tool Status ===`, per-tool state + reason); opencli probed `ready` via real `opencli doctor`. **Legacy `Setup-Tools.ps1 -Check` itself crashes on this machine (exit 1)** — opencli's stderr YAML warning becomes a `NativeCommandError` under `$ErrorActionPreference='Stop'` before any status prints; the Rust port captures stderr properly and is strictly more robust (normalization recorded).
+- **Two defects found & fixed in-phase**: (i) Windows could not spawn npm-style `.cmd`/`.ps1` shims (`opencli` probed as missing) — `resolve_program` now routes via `cmd /c` / `powershell -File`; (ii) `opencli doctor` blocked on inherited stdin and hung the run — probe stdin is now nulled.
+- **Deviations (recorded)**: graphify version-stamp staleness branch (report-vs-stamped-version downgrade) not ported — report present ⇒ `ready`; module probe / installs invoke `python` directly (the `py -3`-only machine fallback covers version probing but not module probe/install).
 
 ### [T-018] 2026-06-10 — PASS (TP-16 slice: gal setup orchestration parity)
 
