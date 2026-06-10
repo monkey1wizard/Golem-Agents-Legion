@@ -218,7 +218,7 @@ Not requested(無 customer-facing)。
   - 驗收:TP-07、TP-11。`gal doctor` 對未認證 copilot 告警且只查 routed executors。
   - 慣例:rust;沿 T-031 既有三個 HealthCheck 的聚合寫法(McpProjection/Setup/SkillsProjection)。
 
-- [ ] **T-06 (R-006) — honest-pass 硬擋契約**
+- [x] **T-06 (R-006) — honest-pass 硬擋契約**
   - 檔案:`plugins/gal-core/commands/refining-plan/SKILL.template.md`(受保護,疊在 T-03 後)、`plugins/gal-core/commands/gal-pipeline/SKILL.template.md`(受保護;現況 2d test gate line 391、2e review line 418)。
   - 改動:refining-plan 驗收契約加「每 task 須指明聚焦 probe + 證據形態(executor-log 終態 `completed` + 可觀察 write-back 指標)」。gal-pipeline 的 test/review gate 加硬擋規則:dispatched 相位回報 PASS 但無對應 executor-log 終態證據 → 視為未通過,走既有 retry/handoff,不推進(D-5)。C3:硬擋限 dispatched 相位;DEGRADED_BUNDLED 人工模式的證據=`## Test Results` 內可重現指令輸出(沿既有慣例),不要求 executor-log。
   - 驗收:TP-08。對齊 honest-test-pass-bar(memory `feedback_honest_test_pass_bar`)。

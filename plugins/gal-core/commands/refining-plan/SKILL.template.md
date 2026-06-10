@@ -55,6 +55,7 @@ Each `T-NNN` task must be a self-contained execution unit that includes:
 - exact target file path(s)
 - the concrete change to make in those files
 - an in-place acceptance check that can be run locally against that task
+- the focused probe and evidence shape that prove the task really passed
 - any required convention, signature, dependency, or call-site pointers needed to complete the task safely
 
 Keep the task pointer-style and budget-bounded:
@@ -62,6 +63,7 @@ Keep the task pointer-style and budget-bounded:
 - Do **not** embed full file contents in the task body. The executor reads the named files itself.
 - Target a `<5KB`-class instruction + pointer budget per task. The limit exists to keep the task focused and cheap to dispatch, not because of model context-window size.
 - If a task cannot stay within that budget while remaining self-contained, split it into smaller atomic tasks before finalizing `## Tasks`.
+- When the task is expected to run through headless dispatch, name the evidence as an executor-log terminal state of `completed` plus the observable write-back pointer the orchestrator should verify. When the run is intentionally `DEGRADED_BUNDLED`, name the reproducible command output or task-scoped write-back evidence instead of pretending an executor log exists.
 
 ## Step 4 — Write ## Test Plan
 
@@ -75,6 +77,7 @@ Overwrite the placeholder in the source plan `## Test Plan` with a matrix aligne
 
 Include unit, integration, and manual test entries as appropriate.
 Each test-plan row should validate the acceptance condition stated in its matching `T-NNN` task, so an implementer or tester can verify the task from the task spec alone instead of reconstructing missing context from the full plan.
+Where a task's acceptance depends on dispatch evidence, the matching test-plan row must check both the focused behavior and the named evidence shape instead of treating an unverified PASS claim as sufficient.
 
 ## Step 5 — Write Engineering Review Verdict
 

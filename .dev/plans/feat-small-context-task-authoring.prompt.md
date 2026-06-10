@@ -135,9 +135,9 @@ None open — OQ-002..OQ-006 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 5 of 8
-Last activity: 2026-06-10 — **T-05 complete** — `gal doctor` now aggregates routed-executor readiness findings by reusing the dispatch readiness API, warns when routing is missing or indeterminate, and stays non-error for the C2 informational cases. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-06 (Route ① continues with the honest-pass hard-block contract)
+Step: 6 of 8
+Last activity: 2026-06-10 — **T-06 complete** — `refining-plan` now requires focused probe + evidence shape in task contracts, and `gal-pipeline` hard-blocks dispatched PASS or APPROVE results that lack the named evidence while preserving `DEGRADED_BUNDLED` fallback evidence rules. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-07 (Route ① continues with the gal-engine filename guard test)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -188,7 +188,7 @@ _(none yet)_
   - Acceptance: TP-07, TP-11. `gal doctor` warns on unauthenticated copilot and only checks routed executors.
   - Conventions: rust; follow T-031's existing three HealthCheck aggregation style (McpProjection/Setup/SkillsProjection).
 
-- [ ] **T-06 (R-006) — honest-pass hard-block contract**
+- [x] **T-06 (R-006) — honest-pass hard-block contract**
   - File: `plugins/gal-core/commands/refining-plan/SKILL.template.md` (protected, stacked on T-03), `plugins/gal-core/commands/gal-pipeline/SKILL.template.md` (protected; current 2d test gate line 391, 2e review line 418).
   - Change: refining-plan acceptance contract adds "each task must name the focused probe + evidence shape (executor-log terminal `completed` + observable write-back pointer)". gal-pipeline test/review gates add a hard-block rule: a dispatched phase reporting PASS but with no matching executor-log terminal evidence → treated as not-passing, routes to existing retry/handoff, does not advance (D-5). C3: hard block applies to dispatched phases; in DEGRADED_BUNDLED manual mode the evidence = reproducible command output inside `## Test Results` (per existing convention), executor-log not required.
   - Acceptance: TP-08. Aligns with honest-test-pass-bar (memory `feedback_honest_test_pass_bar`).
@@ -271,6 +271,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused `gal doctor` aggrega
 - **CLI tests green** — `cargo test -p cli` passed 20 tests, including the new missing-routing and indeterminate-routing healthcheck cases.
 - **Aggregation path landed** — `cmd_doctor` now extends the report with `RoutedExecutorHealthCheck::from_default().check()` after the existing MCP/setup/skills health checks.
 - **C2 semantics preserved** — missing routing and indeterminate executor readiness both surface as non-error warnings, so `gal doctor` stays informational for the non-ready-but-not-confirmed-broken cases.
+
+### [T-06] 2026-06-10 — PASS (TP-08 slice: honest-pass hard block)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused contract update for evidence-backed dispatched PASS handling.
+
+- **Refining-plan contract landed** — task authoring guidance now requires the focused probe and evidence shape, including the executor-log `completed` + write-back pointer expectation for dispatched runs.
+- **Pipeline hard block landed** — the test and review gates now stop immediately when dispatched PASS or APPROVE results lack the named evidence instead of advancing on an unverified claim.
+- **C3 fallback preserved** — both gate bullets explicitly keep `DEGRADED_BUNDLED` evidence on task-scoped `## Test Results` or `## Review Results` write-back instead of imposing executor-log requirements on manual-mode runs.
 
 ## Review Results
 
@@ -444,6 +452,32 @@ Read-only aggregation only; no new mutation or credential flow was introduced. C
 
 #### Summary
 - Blocking: 0 / Warning: 1 / Info: 2
+
+### [T-06] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `e5874a0`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The hard block is inserted directly into the existing test/review stop conditions, so retry and handoff semantics stay on the same control path.
+- **[I-02]** `DEGRADED_BUNDLED` evidence remains explicitly exempt from executor-log requirements, which preserves the architect’s C3 scope limit.
+
+#### Architect conditions check (T-06 slice)
+- The hard block is scoped to dispatched phases only. ✓
+- Manual fallback evidence remains task-scoped command output or write-back, not synthetic executor-log requirements. ✓
+
+#### Security note (task-scoped)
+Contract and orchestrator-gate text only; no runtime permission or execution surface changed. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
 
 ## Debug Log
 

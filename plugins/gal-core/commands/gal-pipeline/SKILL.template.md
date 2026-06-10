@@ -404,6 +404,7 @@ Check result:
 
 - **No task-scoped subsection was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / TEST` with the missing write-back as the problem. Do not infer PASS or FAIL from chat alone.
 - **`Workflow: TEST` is set but the latest task-scoped subsection is still missing or placeholder-only**: **STOP immediately**. Treat this as incomplete durable state, not as a passing or failing run.
+- **A dispatched test phase reports PASS without matching evidence**: **STOP immediately**. For dispatched runs, PASS requires the named evidence shape for that task, including executor-log terminal state `completed` plus the observable write-back pointer. Write `Retry Handoff — T-NNN / TEST` with the missing evidence as the problem. `DEGRADED_BUNDLED` runs still use reproducible `## Test Results` command output as their evidence and do not require executor logs.
 - **All tests PASS**: update `## Status` `Workflow: REVIEW`, proceed to 2e
 - **Any tests FAIL**:
   - Increment `Test Retry Count` in `## Status`
@@ -429,6 +430,7 @@ Check result:
 
 - **No task-scoped subsection or verdict was written**: **STOP immediately**. Write `Retry Handoff — T-NNN / REVIEW` with the missing write-back as the problem. Do not infer approval or block from chat alone.
 - **`Workflow: REVIEW` is set but the latest task-scoped subsection still has no verdict**: **STOP immediately**. Treat this as incomplete durable state, not as approval.
+- **A dispatched review phase reports APPROVE without matching evidence**: **STOP immediately**. For dispatched runs, approval requires the named evidence shape for that task, including executor-log terminal state `completed` plus the observable review write-back pointer. Write `Retry Handoff — T-NNN / REVIEW` with the missing evidence as the problem. `DEGRADED_BUNDLED` runs still rely on task-scoped `## Review Results` write-back instead of executor logs.
 - **APPROVE (no BLOCKING)**: proceed to 2f
 - **REQUEST_CHANGES or BLOCK (BLOCKING findings)**:
   - Increment `Review Retry Count` in `## Status`
