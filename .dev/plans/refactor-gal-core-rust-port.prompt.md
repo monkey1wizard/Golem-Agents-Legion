@@ -103,15 +103,15 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 
 ## Status
 
-Workflow: IMPLEMENT — T-017 complete; T-018 ready
-Step: 17 of 35
-Last activity: 2026-06-11 — T-017 complete — removed the remaining legacy R-03 script pairs, updated `.dev/project.md` plus regenerated adapters/live docs to use `gal sync` and `gal update --machine-only`, workspace tests green, reviewer approve.
-Next step: T-018 (R-04) — split the thin `setup` orchestrator and port `setup-machine` to `gal setup`
+Workflow: IMPLEMENT
+Step: 18 of 35
+Last activity: 2026-06-10 — R-04 pipeline run started (T-018..T-021, stop-at T-021); architect sign-off pending for protected setup work
+Next step: implement T-018
 Current Task: T-018
-Task Base Commit: a011ff8
-Task Final Commit: pending T-017 closeout commit
-Test Retry Count: 1
-Review Retry Count: 1
+Task Base Commit: —
+Task Final Commit: —
+Test Retry Count: 0
+Review Retry Count: 0
 
 ### Deviations
 
@@ -163,7 +163,7 @@ R-03 adapters (protected, architect)
 R-04 setup (protected, architect)
 - [ ] T-018 (R-04) — Split `setup` crate (orchestrate-only); port `setup-machine` → `gal setup`; parity.
 - [ ] T-019 — Port `setup-tools` → `gal setup --tools`; parity.
-- [ ] T-020 — Register git filter: `.gitattributes` + `git config filter.gal-config.* = gal clean/smudge`; Windows/Unix smudge/clean unchanged.
+- [ ] T-020 — Register git filter (idempotent, via `gal setup`): `.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true` — points at the existing .sh scripts (architect C-4); binary `gal clean/smudge` cutover + atomic re-register moves to T-025. Behavior-unchanged on Windows/Unix (bash-backed; no-bash clause verified at T-025).
 - [ ] T-021 — After parity green, delete `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}`.
 
 R-05 install family
@@ -194,6 +194,63 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [R-04 architect sign-off] 2026-06-10 — APPROVE-with-conditions
+
+Protected-core implementation sign-off for T-018..T-021 (required before implementation). A first architect attempt was discarded: its file reads returned corrupted content (claimed setup scripts were 54-line stubs, missing prompt file, nonexistent crates); orchestrator re-verified ground truth directly and re-dispatched with verified context.
+
+#### R-04 implementation sign-off — APPROVE-with-conditions (2026-06-10)
+
+**Verdict: APPROVE-with-conditions** for T-018..T-021. The decomposition is sound and the strangler-style mixed state is acceptable. Conditions C-1..C-10 are binding; TP-17 wording must be amended (C-4).
+
+##### Ruling 1 — Decomposition
+
+`setup` crate = orchestration only, structured as:
+
+- `session.rs` — port of `Initialize-SetupSession` (runtime selection, primary runtime, `--reconfigure`, first-run prompt) behind a `Prompter` trait for stdin injection.
+- `legacy_plugins.rs` — the ONLY module that spawns `Install-GalPlugins.{ps1,sh}`. T-024 repoints exactly this one file.
+- `tools.rs` — setup-tools port (Ruling 3).
+- Health check implementing `base::HealthCheck` (Ruling 6).
+
+Steps (a),(b): **library calls** — `gal setup` calls `adapters::run_machine_update(machine_options_from_config(...))` and `mcp::run_mcp_update(...)` directly. Self-spawning `gal update` rejected (re-entrancy, PATH ambiguity, env propagation, double parsing). Step (c): mixed state spawns the script via `legacy_plugins.rs`; pass `GAL_BOOTSTRAP_INSTALL` + purge flags in the **child's env/args only** (no parent env mutation); propagate child exit code verbatim. `--check`: read-only — resolve session + install mode, delegate `--check` to Install-GalPlugins, print, exit; zero writes incl. no git-config registration. Deps: base, gal-engine, mcp, adapters.
+
+##### Ruling 2 — T-021 deletion timing
+
+**Acceptable. Delete in R-04 as planned.** Rust-spawns-script is the standard strangler seam; Install-GalPlugins remains a live fully-owned surface until R-05, `legacy_plugins.rs` its sole consumer. Deferring T-021 would leave two parallel entry points. **Do not delete `scripts/common/Common.ps1`/`common.sh` in T-021** — Install-GalPlugins still sources them (their deletion belongs to R-05).
+
+##### Ruling 3 — setup-tools
+
+`tools.rs` module inside `setup`, not a separate crate. Two seams: `Prompter` trait (shared with `session.rs`, stdin-drivable; `--check`/non-interactive bypass) and `CommandRunner` executor trait for network side effects. **TP-16 parity defined as:** (a) status-probe classification parity (4 states × 4 tools) against mocked tool presence; (b) constructed-command parity via mocked executor, byte-compared; (c) `--check` output parity. Live npm/pip/network OUT of fixture scope.
+
+##### Ruling 4 — T-020 sequencing
+
+**Option (a).** `gal setup` performs idempotent registration of `filter.gal-config.clean/smudge` pointing at the existing `gal-clean.sh`/`gal-smudge.sh` (same bash invocation form as today) plus `required=true`; binary cutover stays at T-025, which must **atomically** re-register and delete the two .sh. TP-17 "Windows (no bash)" not satisfiable at T-020 — amended: no-bash clause verified at T-025. T-020 registration is a deliberate behavior **addition** (neither script registers filters today; historical/manual), skipped under `--check`/`--dry-run`.
+
+##### Ruling 5 — installMode drift
+
+**Parity baseline = ps1's shared resolver** (devMode + galRoot; `installMode` deprecated). The sh python-read of the deprecated key is a bug being retired. Intentional normalization: sh aligned to ps1.
+
+##### Ruling 6 — Bug surface & conditions
+
+- **AGY pre-cleanup rm -rf**: highest blast radius — guard non-empty path components, refuse root/`$HOME`, sanity prefix check; Rust JSON edit strips only `gal`/`gal-*` keys preserving all else (jq dependency disappears).
+- **Dry-run completeness**: zero filesystem/git-config/env/network writes across ALL steps.
+- **Purge gating**: `--purge`⇒`--uninstall`, `--confirm-purge`⇒`--purge`, matching error text + non-zero exit.
+- **Uninstall**: `gal mcp update` skip-on-uninstall preserved in order.
+- **HealthCheck**: setup checks config readable, ripgrep present, Install-GalPlugins script present (removed at T-024), git filter registration state.
+- **CommandKind**: add `setup` (enum → 10); no clap migration smuggled in.
+
+**Conditions (all checkable; T-021 gated on C-1..C-3, C-7, C-8):**
+
+1. **C-1** Fixture parity green for `gal setup` against BOTH setup-machine.ps1 and .sh behavior (modulo C-6 normalizations) before T-021 deletes anything; `common/Common.{ps1,sh}` NOT deleted in T-021.
+2. **C-2** Flag-mapping table test: every flag setup-machine forwarded to `gal update --machine-only` maps to an asserted `MachineUpdateOptions` field.
+3. **C-3** `legacy_plugins.rs` hard-errors if Install-GalPlugins missing, propagates child exit code, passes `GAL_BOOTSTRAP_INSTALL` via child env only.
+4. **C-4** TP-17 amended: T-020 verifies behavior-unchanged (bash-backed filters); Windows-no-bash clause verified at T-025. T-020 task text registers against the .sh scripts; binary registration moves to T-025 (atomic re-register + delete).
+5. **C-5** TP-16 redefined: status-probe + constructed-command + `--check` output parity under mocked executor/Prompter; no live network in fixtures.
+6. **C-6** Plan records intentional normalizations: (i) sh installMode read retired, ps1 resolver baseline; (ii) T-020 filter registration is a behavior addition, not parity.
+7. **C-7** `--check` and `--dry-run` perform zero writes of any kind (incl. git-config registration, AGY cleanup); covered by tests.
+8. **C-8** AGY cleanup path-safety guard + JSON edit preserves non-gal keys; both unit-tested.
+9. **C-9** `session.rs` supports non-interactive mode and stdin-injected prompts; `--reconfigure` and first-run flows fixture-tested.
+10. **C-10** `setup` crate implements `base::HealthCheck`, incl. Install-GalPlugins-presence check flagged for removal at T-024.
 
 ### [R-03 independent review] 2026-06-11 — APPROVE (1 fix applied)
 
@@ -510,8 +567,8 @@ _(none)_
 | TP-13 | unit | after deleting `update-mcp.{ps1,sh}` no consumer breaks; mixed-state invariant | T-012 |
 | TP-14 | parity | `adapters`: update-skills/commands/personalization/Sync-DevContext each generate == fixture; shares `base::render` with install | T-013..T-016 |
 | TP-15 | integration | `gal sync`/`gal update` run through `adapters`, generated adapter files == fixture | T-016 |
-| TP-16 | parity | `gal setup` orchestration == fixture; `gal setup --tools` == fixture | T-018, T-019 |
-| TP-17 | integration (cross-platform) | git filter registration; Windows (no bash) and Unix both smudge/clean unchanged | T-020 |
+| TP-16 | parity | `gal setup` orchestration == fixture; `gal setup --tools` parity = status-probe classification (4 states × 4 tools, mocked tool presence) + constructed-command parity (mocked executor, byte-compared) + `--check` output parity; live npm/pip/network OUT of fixture scope (architect C-5) | T-018, T-019 |
+| TP-17 | integration (cross-platform) | git filter registration idempotent via `gal setup`, pointing at .sh scripts (bash-backed); behavior unchanged on Windows/Unix. Windows-no-bash clause deferred to T-025 binary cutover (architect C-4) | T-020 |
 | TP-18 | parity | install family per-provider parity: Claude/Copilot/Codex/AGY orchestration + render == fixture | T-022, T-023 |
 | TP-19 | unit | after install-family deletion, four-provider live read-surface aligned (doctor green) | T-024 |
 | TP-20 | parity | `vcs` (clean/smudge/commit-msg), `gal uninstall` (ledger), init-repo, catalog, release-packaging, translation each == fixture | T-025..T-030 |

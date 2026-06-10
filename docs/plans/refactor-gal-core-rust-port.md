@@ -263,8 +263,8 @@ Not triggered（無 customer-facing UI）。
 | TP-13 | unit | `update-mcp.{ps1,sh}` 刪除後無 consumer 失依;混合態不變量(刪除前後系統可運作) | T-012 |
 | TP-14 | parity | `adapters`:update-skills / update-commands / update-personalization / Sync-DevContext 各自生成 == fixture;與 install 共用 `base::render` 無重複實作 | T-013..T-016 |
 | TP-15 | integration | `gal sync`(init-time)/`gal update`(增量)走 `adapters` 後端,生成 adapter 檔 == fixture | T-016 |
-| TP-16 | parity | `gal setup` 機器設定編排 == fixture;`gal setup --tools` 工具鏈步驟 == fixture | T-018, T-019 |
-| TP-17 | integration（跨平台） | git filter 註冊:`.gitattributes` + `git config filter.gal-config.* = gal clean/smudge`;Windows(無 bash)與 Unix 皆 smudge/clean 行為不變 | T-020 |
+| TP-16 | parity | `gal setup` 編排 == fixture;`gal setup --tools` parity = 狀態探測分類(4 態 × 4 工具,mock 工具存在性)+ 構造命令 parity(mock executor,byte 比對)+ `--check` 輸出 parity;實網 npm/pip 不入 fixture(architect C-5) | T-018, T-019 |
+| TP-17 | integration（跨平台） | git filter 註冊冪等、由 `gal setup` 執行、指向 .sh(bash-backed);Windows/Unix 行為不變。no-bash 條款延至 T-025 binary 切換(architect C-4) | T-020 |
 | TP-18 | parity | install 家族逐 provider parity:Claude / Copilot / Codex / AGY 安裝編排 + render == fixture | T-022, T-023 |
 | TP-19 | unit | install 家族刪除後四 provider 活讀取面仍對齊 source(doctor green) | T-024 |
 | TP-20 | parity | `vcs`(clean/smudge/commit-msg)、`gal uninstall`(ledger 精確)、init-repo、catalog、release-packaging、translation 各 == fixture | T-025..T-030 |
@@ -307,10 +307,10 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-016** — port `Sync-DevContext`(init-time)→ `adapters`;接 `gal sync`/`gal update` CLI;parity。*(T-016 closeout: `crates/adapters` 新增 sync/machine-update orchestration，`crates/cli` 接上 `gal sync` 與 `gal update --machine-only`，`Init-Repo` / `Setup-Machine` caller scripts 改走 Rust binary；reviewer APPROVE，workspace 測試綠)*
 - [x] **T-017** — 四對(update-skills/commands/personalization + Sync-DevContext)parity 綠後成對刪除。*(T-017 closeout: 刪除 `Sync-DevContext` / `update-skills` / `update-commands` / `update-personalization` 四對 legacy scripts；`.dev/project.md`、generated adapters 與 live docs 全面改以 `gal sync` / `gal update --machine-only` 為唯一指引；reviewer APPROVE，workspace 測試綠)*
 
-**R-04 setup（受保護,architect）**
+**R-04 setup（受保護,architect;實作期簽核 APPROVE-with-conditions C-1..C-10,2026-06-10,詳見 prompt ## Review Results）**
 - [ ] **T-018（R-04）** — 拆 `setup` crate(只編排,無 domain 邏輯);port `setup-machine` → `gal setup`;parity。
 - [ ] **T-019** — port `setup-tools` → `gal setup --tools`;parity。
-- [ ] **T-020** — 註冊 git filter:`.gitattributes` + `git config filter.gal-config.* = gal clean/smudge`;Windows/Unix smudge/clean 行為不變。
+- [ ] **T-020** — 註冊 git filter(冪等,由 `gal setup` 執行):`.gitattributes` + `git config filter.gal-config.* = bash scripts/gal-clean.sh|gal-smudge.sh` + `required=true`,指向現存 .sh(architect C-4);binary `gal clean/smudge` 切換 + 原子改註冊移至 T-025。bash-backed 行為不變;no-bash 條款延至 T-025 驗。
 - [ ] **T-021** — `setup-machine.{ps1,sh}` + `setup-tools.{ps1,sh}` parity 綠後成對刪除。
 
 **R-05 安裝家族**
