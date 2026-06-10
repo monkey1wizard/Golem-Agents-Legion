@@ -199,7 +199,7 @@ Not requested。
   - 驗收:TP-03、TP-04、TP-05、TP-08。**C2:四檔同 commit,無中間裂縫**。
   - 慣例:rust(stage.rs)+ markdown(SKILL);依賴 T-01(SKILL/agentMap 引用 golem-auditor)。
 
-- [ ] **T-03 (R-005) — coding.md 跨模型政策對齊**
+- [x] **T-03 (R-005) — coding.md 跨模型政策對齊**
   - 檔案:`plugins/gal-core/workflows/coding.md`(受保護)。
   - 改動:移除或重定義 REVIEWER 角色、新增 AUDITOR;明示語意「正確性 gate=orchestrator(全 context、早期 catch,非獨立 review 替代品)、深度+安全稽核=獨立 auditor dispatch」;**C3:白紙黑字三層獨立保留**(auditor dispatch、TESTER≠CODER、VERIFIER≠CODER)+ 受保護路徑另有 architect 簽核。
   - 驗收:TP-06。

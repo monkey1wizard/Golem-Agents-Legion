@@ -140,9 +140,9 @@ None open — OQ-001..OQ-003 were resolved and baked into the Decisions table ab
 ## Status
 
 Workflow: IMPLEMENT
-Step: 2 of 4
-Last activity: 2026-06-10 — **T-02 complete** — the `review` phase key has been cut over atomically to `audit` across stage parsing, the pipeline phase contract, `New-TaskSpec`, and the routing example. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
-Next step: implement T-03 (align coding.md role policy with the orchestrator gate and auditor split)
+Step: 3 of 4
+Last activity: 2026-06-10 — **T-03 complete** — `coding.md` now documents the orchestrator correctness gate, the independent AUDITOR role, and the preserved tester/auditor/verifier separation. Run mode: DEGRADED_BUNDLED (focused manual validation + review write-back).
+Next step: implement T-04 (zero the remaining reviewer/security references and regenerate adapters)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -175,7 +175,7 @@ Review Retry Count: 0
   - Acceptance: TP-03, TP-04, TP-05, TP-08. **C2: four files in one commit, no intermediate gap.**
   - Conventions: rust (stage.rs) + markdown (SKILL); depends on T-01 (SKILL/agentMap reference golem-auditor).
 
-- [ ] **T-03 (R-005) — coding.md cross-model policy alignment**
+- [x] **T-03 (R-005) — coding.md cross-model policy alignment**
   - File: `plugins/gal-core/workflows/coding.md` (protected).
   - Change: remove or redefine the REVIEWER role, add AUDITOR; state "correctness gate = orchestrator (full context, early catch, not an independent-review replacement), deep+security audit = independent auditor dispatch"; **C3: spell out the three-layer independence preserved** (auditor dispatch, TESTER≠CODER, VERIFIER≠CODER) + architect sign-off on protected paths.
   - Acceptance: TP-06.
@@ -225,6 +225,14 @@ Verification Independence: DEGRADED_BUNDLED. Spec = focused `review`→`audit` c
 - **Dispatch crate checks green** — `cargo test -p dispatch` passed 55 tests and `cargo clippy -p dispatch --all-targets -- -D warnings` stayed clean after the phase rename.
 - **Runtime phase probes green** — `gal-dispatch --phase audit` reached the normal no-routing fallback with role `AUDITOR`, while `--phase review` now fails parsing and advertises `audit` in the valid phase set.
 - **Atomic cut held** — `stage.rs`, `gal-pipeline/SKILL.template.md`, `New-TaskSpec.ps1`, and `executor-routing.example.json` now agree on `audit` / `AUDITOR` / `golem-auditor`, so there is no mixed `review`/`audit` state in the T-02 slice.
+
+### [T-03] 2026-06-10 — PASS (TP-06 slice: coding policy alignment)
+
+Verification Independence: DEGRADED_BUNDLED. Spec = focused `coding.md` role-policy rewrite for the orchestrator gate and auditor split.
+
+- **Policy shift landed** — the workflow now routes scoped and structural work through implement → correctness gate → test → auditor instead of reviewer + conditional security.
+- **Three-layer independence is explicit** — `coding.md` now preserves the auditor/tester/verifier separation and states that the correctness gate is not an independent-review replacement.
+- **Role vocabulary aligned** — the model-role and per-phase sections now use `AUDITOR` consistently where this task owns policy.
 
 ## Review Results
 
@@ -318,6 +326,32 @@ _(none)_
 
 #### Security note (task-scoped)
 Phase-key and contract changes only; no new executor capability was introduced in this task. Clear.
+
+#### Summary
+- Blocking: 0 / Warning: 0 / Info: 2
+
+### [T-03] 2026-06-10 — APPROVE
+
+Reviewed: 2026-06-10
+Commit range: working tree review against base `6dfebb0`
+Verification Independence: DEGRADED_BUNDLED (separate critical pass)
+
+#### BLOCKING
+_(none)_
+
+#### WARNING
+_(none)_
+
+#### INFO
+- **[I-01]** The role-policy rewrite keeps the orchestrator gate explicitly scoped to early correctness checks and avoids presenting it as a substitute for independent audit.
+- **[I-02]** The workflow text now aligns with the T-02 cutover on `AUDITOR` naming and phase order, reducing the risk of mixed guidance between policy and pipeline contract.
+
+#### Architect conditions check (T-03 slice)
+- The three-layer independence is documented explicitly: auditor, tester, and verifier remain independent cross-checks. ✓
+- The correctness gate is positioned in writing as an early catch layer, not an independent review replacement. ✓
+
+#### Security note (task-scoped)
+Workflow-policy documentation only; no executable dispatch or runtime behavior changed in this task. Clear.
 
 #### Summary
 - Blocking: 0 / Warning: 0 / Info: 2
