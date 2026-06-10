@@ -28,6 +28,8 @@ fn print_help() {
     println!("Options:");
     println!("  doctor --dry-run                  Read-only health check (no filesystem changes)");
     println!("  sync [repo-root]                  Regenerate repo-local adapter files");
+    println!("  setup [--check|--dry-run|--reconfigure|--uninstall [--purge --confirm-purge]]");
+    println!("        [--replace] [--bootstrap-install] [--selected-runtimes <csv>] [--primary-runtime <v>]");
     println!("  doctor --release-gate             Include package-manager and marketplace checks");
     println!("  release --dry-run                 Local artifact dry-run (checksums + manifest)");
     println!("  release --version <tag>           Override version tag (default: Cargo.toml)");
@@ -435,6 +437,90 @@ fn cmd_mcp(args: &[String]) -> ExitCode {
     }
 }
 
+/// Run `gal setup [...]` — machine-setup orchestration (T-018, R-04).
+///
+/// Ports `Setup-Machine.{ps1,sh}`: AGY legacy pre-cleanup, machine surfaces
+/// (library call), MCP refresh (library call), then the legacy
+/// Install-GalPlugins script (strangler seam until R-05).
+fn cmd_setup(args: &[String]) -> ExitCode {
+    let mut opts = setup::SetupOptions::default();
+    let mut i = 1usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--uninstall" => opts.uninstall = true,
+            "--purge" => opts.purge = true,
+            "--confirm-purge" => opts.confirm_purge = true,
+            "--replace" => opts.replace = true,
+            "--dry-run" => opts.dry_run = true,
+            "--check" => opts.check = true,
+            "--reconfigure" => opts.reconfigure = true,
+            "--bootstrap-install" => opts.bootstrap_install = true,
+            "--selected-runtimes" => {
+                i += 1;
+                match args.get(i) {
+                    Some(value) => {
+                        opts.selected_runtimes = Some(
+                            value
+                                .split(',')
+                                .map(|item| item.trim().to_string())
+                                .filter(|item| !item.is_empty())
+                                .collect(),
+                        );
+                    }
+                    None => {
+                        eprintln!("gal setup: --selected-runtimes requires a value");
+                        return ExitCode::Usage;
+                    }
+                }
+            }
+            "--primary-runtime" => {
+                i += 1;
+                match args.get(i) {
+                    Some(value) => opts.primary_runtime = Some(value.trim().to_string()),
+                    None => {
+                        eprintln!("gal setup: --primary-runtime requires a value");
+                        return ExitCode::Usage;
+                    }
+                }
+            }
+            unknown => {
+                eprintln!("gal setup: unknown option '{unknown}'");
+                return ExitCode::Usage;
+            }
+        }
+        i += 1;
+    }
+
+    let mut stdout = std::io::stdout();
+    let interactive = std::io::IsTerminal::is_terminal(&std::io::stdin());
+    let result = if interactive {
+        let mut prompter = setup::session::StdinPrompter;
+        setup::run_setup(&opts, &mut prompter, &mut stdout)
+    } else {
+        let mut prompter = setup::session::NonInteractivePrompter;
+        setup::run_setup(&opts, &mut prompter, &mut stdout)
+    };
+
+    match result {
+        Ok(outcome) => {
+            if outcome.exit_code == 0 {
+                ExitCode::Success
+            } else {
+                // Propagate the legacy script's exit code verbatim (C-3).
+                std::process::exit(outcome.exit_code)
+            }
+        }
+        Err(setup::SetupError::Usage(message)) => {
+            eprintln!("gal setup: {message}");
+            ExitCode::Usage
+        }
+        Err(e) => {
+            eprintln!("gal setup: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
 /// Infer (platform, architecture, ArtifactKind) from a canonical asset filename.
 /// Falls back to ("unknown", "unknown", Binary) when the name does not match the
 /// convention — never panics.
@@ -560,6 +646,8 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::Release) => cmd_release(args),
         // T-011: wired gal mcp (R-02)
         Action::NotWired(CommandKind::Mcp) => cmd_mcp(args),
+        // T-018: wired gal setup (R-04)
+        Action::NotWired(CommandKind::Setup) => cmd_setup(args),
         // Not yet wired (dispatch-script, etc.)
         Action::NotWired(cmd) => {
             eprintln!("gal {}: not wired", cmd.as_str());
@@ -648,6 +736,24 @@ mod tests {
     fn commit_msg_without_arg_returns_usage() {
         let result = run(&["commit-msg".to_string()]);
         assert_eq!(result, ExitCode::Usage, "commit-msg with no file arg should be Usage");
+    }
+
+    // T-018: setup is wired. Use --purge (fails fast at the gating check)
+    // so the test never reaches filesystem or script side effects.
+    #[test]
+    fn setup_is_wired_and_purge_gating_returns_usage() {
+        let result = run(&["setup".to_string(), "--purge".to_string()]);
+        assert_eq!(
+            result,
+            ExitCode::Usage,
+            "setup must be wired (T-018) and --purge without --uninstall must be a usage error"
+        );
+    }
+
+    #[test]
+    fn setup_unknown_option_is_usage() {
+        let result = run(&["setup".to_string(), "--frobnicate".to_string()]);
+        assert_eq!(result, ExitCode::Usage);
     }
 
     #[test]

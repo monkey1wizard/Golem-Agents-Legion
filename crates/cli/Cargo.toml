@@ -15,3 +15,4 @@ adapters = { path = "../adapters" }
 base = { path = "../base" }
 gal-engine = { path = "../gal-engine" }
 mcp = { path = "../mcp" }
+setup = { version = "0.1.0", path = "../setup" }

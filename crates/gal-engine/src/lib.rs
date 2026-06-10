@@ -36,12 +36,14 @@ pub enum CommandKind {
     Release,
     /// `gal mcp [update]` — update per-provider MCP config files (T-011, R-02).
     Mcp,
+    /// `gal setup [...]` — machine-setup orchestration (T-018, R-04).
+    Setup,
     DispatchScript,
 }
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 9] = [
+    pub const ALL: [CommandKind; 10] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
@@ -50,6 +52,7 @@ impl CommandKind {
         CommandKind::CommitMsg,
         CommandKind::Release,
         CommandKind::Mcp,
+        CommandKind::Setup,
         CommandKind::DispatchScript,
     ];
 
@@ -64,6 +67,7 @@ impl CommandKind {
             CommandKind::CommitMsg => "commit-msg",
             CommandKind::Release => "release",
             CommandKind::Mcp => "mcp",
+            CommandKind::Setup => "setup",
             CommandKind::DispatchScript => "dispatch-script",
         }
     }
@@ -79,6 +83,7 @@ impl CommandKind {
             "commit-msg" => Some(CommandKind::CommitMsg),
             "release" => Some(CommandKind::Release),
             "mcp" => Some(CommandKind::Mcp),
+            "setup" => Some(CommandKind::Setup),
             "dispatch-script" => Some(CommandKind::DispatchScript),
             _ => None,
         }
@@ -146,6 +151,7 @@ mod tests {
         assert_eq!(CommandKind::parse("doctor"), Some(CommandKind::Doctor));
         assert_eq!(CommandKind::parse("uninstall"), Some(CommandKind::Uninstall));
         assert_eq!(CommandKind::parse("mcp"), Some(CommandKind::Mcp));
+        assert_eq!(CommandKind::parse("setup"), Some(CommandKind::Setup));
         assert_eq!(
             CommandKind::parse("dispatch-script"),
             Some(CommandKind::DispatchScript)

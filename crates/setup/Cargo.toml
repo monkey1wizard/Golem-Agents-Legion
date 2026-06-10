@@ -1,0 +1,22 @@
+[package]
+name = "setup"
+version = "0.1.0"
+edition = "2021"
+description = "GAL machine-setup orchestrator — ports Setup-Machine.{ps1,sh} to `gal setup` (R-04 T-018). Orchestrate-only: sequences adapters + mcp library calls and the legacy install script."
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[lib]
+name = "setup"
+path = "src/lib.rs"
+
+[dependencies]
+base = { path = "../base" }
+adapters = { path = "../adapters" }
+mcp = { path = "../mcp" }
+serde_json = "1.0"
+chrono = "0.4"
+thiserror = "2.0"
+
+[dev-dependencies]
+tempfile = "3.0"
