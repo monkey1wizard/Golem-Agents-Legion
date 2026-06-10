@@ -106,7 +106,7 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 Workflow: IMPLEMENT
 Step: 33 of 35
 Last activity: 2026-06-10 — **T-032 complete** — the shell entrypoints now forward Rust-owned core subcommands to the `gal` binary, and the `gal` / `gal-init` skill templates describe the binary-first init path instead of the old dispatch-init route. Run mode: DEGRADED_BUNDLED (user-directed single-runtime, separate phase passes + write-back). Stop-at boundary T-032 reached.
-Next step: assess T-033 hard gate against the cross-plan `gal.*` / `common.*` end-gate
+Next step: T-033 blocked — wait for sister xmachine plan T-015 cross-plan end-gate before deleting `gal.*` / `common.*`
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -125,7 +125,7 @@ Review Retry Count: 0
 
 T-032 is closed: `scripts/gal.ps1` and `scripts/gal.sh` now forward the Rust-owned core subcommands to the `gal` binary with a repo-local `target/debug` / `target/release` fallback when the binary is not on PATH, and the `gal` / `gal-init` skill templates now point init to `gal init-repo`.
 
-The exact next step is T-033: verify whether the remaining `gal.*` and `common.*` files are still blocked by the sister xmachine plan's shared end-gate before attempting any deletion.
+T-033 is currently BLOCKED by the shared end-gate with the sister xmachine plan. Evidence: `scripts/gal.ps1`, `scripts/gal.sh`, `scripts/common/Common.ps1`, and `scripts/common/common.sh` still have live xmachine-family consumers (`Invoke-XmachineTask.*`, `Invoke-XmachinePipeline.*`, `Test-Xmachine.ps1`) and the xmachine prompt explicitly reserves their deletion for its own `T-015` joint closeout.
 
 ## Tasks
 
@@ -178,7 +178,7 @@ R-06 misc (per item: port → parity → delete)
 R-11/R-07 closeout
 - [x] T-031 (R-11) — `cli` aggregates each domain's `HealthCheck` into `gal doctor`, extending to mcp/setup/sync/filter; fail-loud. *(closeout: CLI doctor now appends `McpProjectionHealthCheck`, `SetupHealthCheck`, and `SkillsProjectionHealthCheck` findings on top of the base doctor report)*
 - [x] T-032 (R-07) — Port core subcommands of `gal.{ps1,sh}` into `cli`; update `gal`/`gal-init` SKILL.template references. Entry-file physical deletion deferred to cross-plan end-gate. *(closeout: shell wrappers now forward Rust-owned core subcommands to the `gal` binary, with repo-local binary fallback, and `gal` / `gal-init` templates updated to the binary-first init path)*
-- [ ] T-033 (R-09/R-12, hard gate) — `scripts/` core family emptied (shared `common.*`/`gal.{ps1,sh}` at cross-plan end-gate); `cargo test` green and test code no longer spawns core live scripts (grep-verified).
+- [ ] T-033 (R-09/R-12, hard gate) — `scripts/` core family emptied (shared `common.*`/`gal.{ps1,sh}` at cross-plan end-gate); `cargo test` green and test code no longer spawns core live scripts (grep-verified). **BLOCKED** pending xmachine plan `T-015` joint deletion gate.
 
 R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test machine)
 - [ ] T-034 (R-13, prereq of T-035) — Build cross-platform release-artifact pipeline: CI (macOS/Linux/Windows runners, e.g. GitHub Actions matrix) produces prebuilt `gal` per target (macOS-arm64+) + packaged source (FHS/flat), published to GitHub Releases / brew tap. Wire `gal release` to CI; not current-platform-only.
@@ -190,6 +190,19 @@ R-13/R-10 pure end-user real-machine acceptance (CORR-01: never build on test ma
 - `curl|sh` convenience installer as a `gal release` artifact (optional, not tracked source).
 
 ## Review Results
+
+### [T-033] 2026-06-10 — BLOCKED
+
+Reviewed: 2026-06-10
+Verification Independence: DEGRADED_BUNDLED
+
+#### BLOCKING
+- **[B-01]** Cross-plan end-gate still active: the xmachine execution plan keeps `scripts/gal.ps1`, `scripts/gal.sh`, `scripts/common/Common.ps1`, and `scripts/common/common.sh` for its own `T-015` joint closeout. Live consumers still exist in the current repo (`Invoke-XmachineTask.*`, `Invoke-XmachinePipeline.*`, `Test-Xmachine.ps1`), so deleting them here would break the sister plan.
+
+#### Summary
+- Blocking: 1
+- Warning: 0
+- Info: 0
 
 ### [R-04 architect sign-off] 2026-06-10 — APPROVE-with-conditions
 
