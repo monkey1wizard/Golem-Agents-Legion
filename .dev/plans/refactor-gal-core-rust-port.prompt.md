@@ -1198,6 +1198,17 @@ Reviewer ≠ author (Copilot authored `f3dfe40..8c04b1e`, 6 commits; reviewed in
 - Post-fix: full `cargo test --workspace` green, `cargo clippy --workspace --all-targets` 0 warnings.
 - Process note: the install-substring UAC trap has now recurred twice (R-05, R-06). Future Rust test files under `gal-engine` must avoid `install`/`setup`/`update`/`patch` in their filename, or the crate needs an asInvoker manifest like `setup`.
 
+### [T-031 / T-032 — R-11 + R-07] 2026-06-10 — Independent post-merge review (Claude) — APPROVE, no fix needed
+
+Reviewer ≠ author (Copilot authored `4f5e15c`, `ef109f2`; reviewed independently after merge). Clean review — no code defect found, no UAC-trap test file this round (T-031's test lives in the `gal` cli binary; T-032 adds no Rust tests). Full `cargo test --workspace` (405 passed, 1 ignored) + `cargo clippy --workspace --all-targets` (0 warnings) green; both PASS claims are legitimate.
+
+#### Verified
+- **T-031 doctor aggregation** — `cli::cmd_doctor` appends `McpProjectionHealthCheck` / `SetupHealthCheck` / `SkillsProjectionHealthCheck` findings on top of `run_doctor`. Confirmed **zero overlap**: `run_doctor`'s 8 internal checks (CanonicalRoot, ProviderSurfaces, Dockeeper, BinInCanonicalRoot, Ledger, SkillSurface, AgySurfaces, OrphanTempDirs) cover different surfaces than the 3 domain checks — no double-counting. Architecturally correct: gal-engine cannot depend on setup/adapters (cycle), so domain `HealthCheck`s can only be aggregated at the `cli` composition root — matches the "HealthCheck in base + cli aggregates" decision. Fail-loud exit code preserved (`has_errors()` computed after extend). Live smoke: `gal.ps1 doctor` → binary produced the aggregated report.
+- **T-032 shell forwarding** — `gal.ps1`/`gal.sh` forward 14 Rust-owned core subcommands to the `gal` binary (PATH → repo `target/{debug,release}` fallback). Verified: `$repoRoot` (gal.ps1:398), `$script_dir`/`$repo_root` (gal.sh:66-67) all defined in scope; the `source "$script_root/..."` → `"$script_dir/..."` change is a **fix** (`script_root` was never defined); no duplicate switch/case arms for any of the 14 commands; PowerShell `exit $LASTEXITCODE` inside the helper terminates the script so there is no switch fall-through. SKILL templates correctly repoint `/gal init` → `gal init-repo` (T-027) while leaving control-plane skills (status/whats-next/wrap-up) and heavy dispatch (research/pipeline/xmachine/golem) on the existing paths. Live smoke: `gal.ps1 doctor` forwarded to `target/debug/gal.exe` successfully.
+
+#### Summary
+- Blocking: 0 · Fixed: 0 · Info: 0. Code accepted as-is; this entry is the review record only.
+
 ### Architecture Review
 
 APPROVE (4 review passes, 2026-06-09). Motivation (full Rust + single binary) sound; layered architecture, dependency law, engine retirement, fixture-gated deletion healthy. Folded: JIT decomposition, crate-vs-module discipline, mixed-state invariant, fixture-parity deletion gate, doctor dependency inversion (HealthCheck in base), render primitive shared (`base::render`), `base::platform` self-contained, setup thin. **4th pass CORR-01 (user, fundamental): real-machine validation must be pure end-user install of a prebuilt artifact — never build/install toolchain on a test machine. Missing prerequisite added as R-13 (cross-platform release-artifact pipeline); R-10 rewritten; T-002 re-scoped to dev-machine baseline; T-034 (pipeline) / T-035 (end-user acceptance) added; build-host vs end-user-machine roles strictly separated.** No blocking issues.
