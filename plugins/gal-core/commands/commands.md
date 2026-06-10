@@ -9,7 +9,7 @@ Everything else that used to live behind execution-stage slash commands is now o
 
 ## Architecture
 
-GAL keeps one shared public command contract and packages it into each supported runtime's native command or skill surface via `Setup-Machine`.
+GAL keeps one shared public command contract and packages it into each supported runtime's native command or skill surface via `gal setup`.
 
 Runtime-specific install paths, generated files, rule shims, and MCP details are documented in `scripts/scripts.md` and `docs/devguide.md`, not in this file.
 
@@ -20,7 +20,7 @@ Codex note: installed GAL skills are available as Codex skills, but explicit inv
 - `/gal` owns the control plane
 - planning remains a native command family
 - execution-stage specialist work is agent-owned, not command-owned
-- `Setup-Machine` still discovers installed commands from `commands/*/SKILL.template.md`
+- `gal setup` still discovers installed commands from `commands/*/SKILL.template.md`
 - cross-runtime behavior must stay consistent across supported runtimes
 
 ## Public Command Surface
@@ -146,7 +146,7 @@ ON_COMPLETE: <next-step hint>
 
 ## Installation
 
-Managed by `Setup-Machine.ps1` and `setup-machine.sh`. The scripts:
+Managed by `gal setup` (with `Install-GalPlugins.*` as the remaining legacy install-orchestration step until R-05). The flow:
 
 1. Create the runtime-facing GAL root links or references each supported runtime needs.
 2. Scan all remaining `commands/*/SKILL.template.md` files, replacing `{{GAL_ROOT}}` with the absolute path.

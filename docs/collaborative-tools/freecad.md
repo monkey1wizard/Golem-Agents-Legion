@@ -43,7 +43,7 @@ The matching local MCP config shape is:
 }
 ```
 
-On this machine, that alignment is represented in `~/.gal/config/mcp.local.json` and propagated by `scripts/Setup-Machine.ps1`.
+On this machine, that alignment is represented in `~/.gal/config/mcp.local.json` and propagated by `gal setup` / `gal mcp update`.
 
 ## Recommended Startup Path
 
@@ -61,7 +61,7 @@ Why:
 From the repo root on Windows:
 
 ```powershell
-scripts\Setup-Machine.ps1
+gal setup
 ```
 
 This makes sure the VS Code MCP configuration reflects the repo-local FreeCAD settings.
@@ -242,7 +242,7 @@ Best next action:
 Give the agent this sequence:
 
 1. Confirm ports `9873` and `9874`
-2. Run `scripts\Setup-Machine.ps1` if MCP config may be stale
+2. Run `gal mcp update` if MCP config may be stale
 3. Start FreeCAD GUI or `blocking_bridge.py`
 4. Run `freecad-mcp --check`
 5. If needed, run direct XML-RPC `ping()`
@@ -252,7 +252,7 @@ Give the agent this sequence:
 ## Related Files
 
 - `~/.gal/config/mcp.local.json`
-- `scripts/Setup-Machine.ps1`
+- `gal setup`
 - `docs/collaborative-tools/blender-mcp.md`
 - `M6OnePieceSpanner.FCStd`
 - `M6OnePieceSpanner.step`

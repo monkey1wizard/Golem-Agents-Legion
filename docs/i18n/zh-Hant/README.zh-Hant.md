@@ -38,7 +38,7 @@ GAL 在機器本機的安裝拓撲也只有一個 canonical plugin root：`~/.ga
    `git clone https://github.com/monkey1wizard/golem-agents-legion.git`
 
 2. **安裝與設定**：
-   進入專案目錄後執行安裝腳本。Windows 使用 `./scripts/Setup-Machine.ps1`，macOS/Linux 使用 `./scripts/setup-machine.sh`。安裝完成後就能在你的儲存庫中使用 GAL 指令。
+   進入專案目錄後執行 `gal setup`（Windows 與 macOS/Linux 皆同）。安裝完成後就能在你的儲存庫中使用 GAL 指令。
 
 3. **啟動 GAL**：
    進入你的目標儲存庫（Target Repository）後開啟你偏好的支援 runtime，然後用該 runtime 慣用的 command 或 skill 入口呼叫 GAL。
@@ -57,7 +57,7 @@ GAL 在機器本機的安裝拓撲也只有一個 canonical plugin root：`~/.ga
 
 ## 目前安裝器狀態
 
-目前這個 repo 的說明文件，實際上仍以 contributor/source mode 路徑作為主要可操作流程：先 clone GAL repo，再執行 `Setup-Machine`，並從本機 checkout 工作。
+目前這個 repo 的說明文件，實際上仍以 contributor/source mode 路徑作為主要可操作流程：先 clone GAL repo，再執行 `gal setup`，並從本機 checkout 工作。
 
 但同時，GAL 較新的 install mode 基礎已經有一部分落地：
 
@@ -339,7 +339,7 @@ applicability → availability → initialization status → readiness → route
 
 ### graphify
 
-圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。GAL 只會在儲存庫已經存在 `graphify-out/GRAPH_REPORT.md` 等 graphify 產物時使用它。`gal init` 不會自動產生這些檔案。`setup-tools`、`/gal status`、`/gal whats-next` 可以檢查既有 stamped report 是否仍與目前安裝的 graphify 版本一致，但若 repo 沒有 graphify 產物，GAL 仍會照常走非 graphify 流程。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
+圖形資料結構工具。它會將資料夾內的所有檔案進行圖形化分析，產出的檔案放置於 `graphify-out/`，能加強後續 AI 的查詢能力。GAL 只會在儲存庫已經存在 `graphify-out/GRAPH_REPORT.md` 等 graphify 產物時使用它。`gal init` 不會自動產生這些檔案。`gal setup --tools`、`/gal status`、`/gal whats-next` 可以檢查既有 stamped report 是否仍與目前安裝的 graphify 版本一致，但若 repo 沒有 graphify 產物，GAL 仍會照常走非 graphify 流程。詳見 [docs/collaborative-tools/graphify.md](docs/collaborative-tools/graphify.md)。
 
 ### Playwright MCP
 

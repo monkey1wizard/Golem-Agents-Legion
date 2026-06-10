@@ -87,7 +87,7 @@ Per [workflows/coding.md](../workflows/coding.md) — Model Roles and Per-Phase 
 
 ## Installation
 
-These agents are symlinked to `~/.copilot/agents/` by `scripts/Setup-Machine.ps1`.
+These agents are symlinked to `~/.copilot/agents/` by `gal setup`.
 VS Code Copilot discovers them as custom agents in Agent Mode.
 
 ## Research Flow

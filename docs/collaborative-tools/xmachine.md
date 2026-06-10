@@ -37,7 +37,7 @@ This tool adheres to the shared preflight model defined in [checking-contract.md
 | `available-but-not-ready` | The contract is present, but the selected node is only `tooling-ready` and has not cleared the final pipeline smoke gate. | Revert to the non-xmachine path or select a different node. |
 | `ready` | At least one readied node is available for the requested path. | Route to xmachine when the user specifies a readied work node. |
 
-xmachine is a repo-owned utility rather than a third-party package. `Setup-Tools.ps1` reports contract readiness and cached node states; it does not install xmachine from external sources.
+xmachine is a repo-owned utility rather than a third-party package. `gal setup --tools` reports contract readiness and cached node states; it does not install xmachine from external sources.
 
 ## Machine Prerequisites
 
@@ -64,7 +64,7 @@ xmachine readiness advances in two cacheable stages:
 1. **`tooling-ready`**: The node passed SSH connectivity, runtime checkout validation, detached-launcher checks, and the work-node smoke path. When a persistent project checkout is configured, the smoke path may use repo mode; otherwise it validates execute mode against the runtime checkout.
 2. **`readied`**: The node passed `pipeline-smoke`, verifying that the repo-local GAL entry point can successfully dispatch the pipeline from that node.
 
-Only `readied` nodes are considered `ready` by `Setup-Tools.ps1`.
+Only `readied` nodes are considered `ready` by `gal setup --tools`.
 
 ## SSH Troubleshooting
 

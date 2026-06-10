@@ -24,7 +24,7 @@ Antigravity CLI（AGY）是 GAL 在 Google 系上的主要終端 runtime。GAL �
 
 在 Windows 與 macOS/Linux 上，機器的設定介面現在已依據關注點（concern）拆分：
 
-- `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh` 執行完整流程
+- `gal setup` 執行完整流程
 - `gal update --machine-only` 更新 install-state、runtime 橋接、legacy Gemini 相容層、Antigravity 外掛程式整合，以及命令/skills 投影
 - `scripts/Update-Mcp.ps1` / `scripts/update-mcp.sh` 從追蹤的清單中更新 runtime MCP 設定，包含 Antigravity 外掛程式根目錄的 `mcp_config.json`
 - `gal sync` 重新產生 repo-local adapters，例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md` 與 `GEMINI.md`
@@ -91,7 +91,7 @@ GAL 支援兩種由 `~/.gal/config/config.json` 控制的操作模式：
 
 - 在 `~/.gal/config/config.json` 中將 `installMode` 設為 `install` 或 `source`。
 - 在 source mode 下，也需設定 `galRoot` 指向本機 GAL repo 路徑，並可選擇啟用 `devMode`。
-- 切換後重新執行 `Setup-Machine`。
+- 切換後重新執行 `gal setup`。
 
 目前邊界說明：
 
@@ -182,10 +182,10 @@ Game asset、Godot、GStack 框架類 skills 保留在 `gal-core`（GAL 自有�
 
 ### 2a. 命令技能的本機覆寫 (Command skill local overlays)
 
-如果你想為特定的命令技能（command skill）加入要在 `Setup-Machine` 之後依然保留的機器本機自訂內容，請建立 `plugins/gal-core/commands/<command>/SKILL.local.md`。
+如果你想為特定的命令技能（command skill）加入要在 `gal setup` 之後依然保留的機器本機自訂內容，請建立 `plugins/gal-core/commands/<command>/SKILL.local.md`。
 
 - `SKILL.local.md` 會被 Git 忽略，並被視為使用者擁有的機器本機輸入。
-- `Setup-Machine` 會處理 `SKILL.template.md`，然後在重新生成 legacy Gemini 與 Claude 命令檔案之前，將 `SKILL.local.md` 附加到生成的 `SKILL.md` 中。
+- `gal setup` 會處理 `SKILL.template.md`，然後在重新生成 legacy Gemini 與 Claude 命令檔案之前，將 `SKILL.local.md` 附加到生成的 `SKILL.md` 中。
 - **請勿**直接編輯 `plugins/gal-core/commands/<command>/SKILL.md`。它仍是產生的檔案，且會在下次執行 setup 時被覆蓋。
 - `SKILL.local.md` 僅能包含額外的指示內容。請勿在裡面加入第二個 frontmatter 區塊。
 
@@ -357,24 +357,15 @@ GAL 現在將 `mcp.json` 加上 `~/.gal/config/mcp.local.json` 視為 MCP 的唯
 - 更改 `plugins/gal-core/mcp.json`、`~/.gal/config/mcp.local.json` 或 `~/.gal/config/config.local.env` 中與 MCP 相關的值後，執行 `scripts/update-mcp.sh`
 - 更改會餵給 repo-local adapters 的 source-of-truth 內容（例如 `.github/copilot-instructions.md`、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 的來源資料）後，執行 `gal sync`
 
-`gal update --machine-only` 不會重新產生 repo-local adapters；`Update-Mcp` 也不會。
+`gal update --machine-only` 不會重新產生 repo-local adapters；`gal mcp update` 也不會。
 
-Windows：
-
-```powershell
-./scripts/Setup-Machine.ps1
-./scripts/Setup-Machine.ps1 -Reconfigure
-gal update --machine-only
-./scripts/Update-Mcp.ps1
-```
-
-macOS/Linux：
+所有平台：
 
 ```bash
-./scripts/setup-machine.sh
-./scripts/setup-machine.sh --reconfigure
+gal setup
+gal setup --reconfigure
 gal update --machine-only
-./scripts/update-mcp.sh
+gal mcp update
 gal sync
 ```
 

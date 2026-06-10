@@ -4,7 +4,7 @@ This document is maintainer navigation, not a second specification. Use it to de
 
 ## Overview & Dev Setup
 
-To set up GAL for working on GAL itself (clone + `Setup-Machine`), see the **[Dev Mode section in the README](../README.md#dev-mode)**. This guide does not repeat the dev-mode enablement steps; it assumes you already have a source-mode checkout.
+To set up GAL for working on GAL itself (clone + `gal setup`), see the **[Dev Mode section in the README](../README.md#dev-mode)**. This guide does not repeat the dev-mode enablement steps; it assumes you already have a source-mode checkout.
 
 If you cannot tell which layer you are touching, stop and resolve that first. Most broken refactors in GAL come from mixing README, docs, templates, scripts, and command contracts in one change. The `Codebase & Runtime Structure` section below is the map; the `Making Changes` section is the procedure.
 
@@ -59,7 +59,7 @@ Golem-Agents-Legion/
     └── plans/*.prompt.md     execution work files (mutable task memory)
 ```
 
-\* Protected scripts and callers: `Setup-Machine.*`, `Init-Repo.*`, and the adapter/setup orchestration surfaces that feed them. Touching any protected path requires an architect-reviewed plan before implementation.
+\* Protected scripts and callers: `crates/setup/`, `Init-Repo.*`, and the adapter/setup orchestration surfaces that feed them. Touching any protected path requires an architect-reviewed plan before implementation.
 
 ### Where Information Belongs
 
@@ -80,7 +80,7 @@ If a completed plan contains knowledge that should survive, extract it back into
 | --- | --- | --- |
 | `/gal` command surface, aliases, or dispatch | is this control-plane behavior or runtime plumbing? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [../scripts/scripts.md](../scripts/scripts.md) |
 | planning flow or optional collaborative-tool semantics | is this GAL-native planning, optional gstack behavior, or workflow teaching? | [../plugins/gal-core/commands/commands.md](../plugins/gal-core/commands/commands.md), [collaborative-tools/gstack.md](collaborative-tools/gstack.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
-| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`, `crates/adapters/src/lib.rs`, `crates/cli/src/main.rs` |
+| setup, install topology, baked command files, or MCP merge | is this machine-layer install or repo-layer adapter generation? | `Runtime / Setup Flow` below, [../scripts/scripts.md](../scripts/scripts.md), `crates/setup/src/lib.rs`, `crates/adapters/src/lib.rs`, `crates/cli/src/main.rs` |
 | templates and plan lifecycle | which file should own this information? | [../plugins/gal-core/templates/templates.md](../plugins/gal-core/templates/templates.md), [../plugins/gal-core/workflows/coding.md](../plugins/gal-core/workflows/coding.md) |
 | user-facing install copy | who owns the words users read? | [../README.md](../README.md), [manual.md](manual.md), `Release Artifact Matrix` below |
 | machine-local restore, mode switching, backup | which doc owns the user's machine intent? | [manual.md](manual.md), this guide |
@@ -284,13 +284,13 @@ Initial external companion candidates: `dart-lang/skills`, `flutter/skills`, `do
 
 ### Runtime / Setup Flow
 
-This subsection absorbs the setup topology that maintainers need when changing `Setup-Machine`, `gal update --machine-only`, command installation, or MCP wiring. The high-level flows:
+This subsection absorbs the setup topology that maintainers need when changing `gal setup`, `gal update --machine-only`, command installation, or MCP wiring. The high-level flows:
 
 ```text
 Contributor/source path:
 GAL checkout
-  → Setup-Machine.*
-  → gal update --machine-only / Update-Mcp
+  → gal setup
+  → gal update --machine-only / gal mcp update
   → Install-GalPlugins.*
   → Build-ProviderPlugins.*
   → Build-CorePlugin.*
@@ -418,7 +418,7 @@ For AGY, the plugin tree at `~/.gemini/antigravity-cli/plugins/gal/` replaces th
 
 GAL explicitly separates how the CLI is installed (Bootstrap Installer) from how provider plugins are managed (Install-Mode Plugin Distribution). This boundary ensures that package managers do not overwrite user data and that GAL plugins can update independently of the CLI payload.
 
-- `Setup-Machine.*` is the development and packaging harness. It should mirror the install-mode rules, but it is not the final end-user package payload.
+- `gal setup` is the development and packaging harness entry. It should mirror the install-mode rules, but it is not the final end-user package payload.
 - Package managers own only the package-managed `gal` binary payload.
 - GAL owns rebuildable runtime outputs such as provider projections, generated MCP state, generated xmachine state, and the canonical plugin root.
 - GAL also owns the per-provider ledgers under `~/.gal/dist/providers/<provider>/managed.json`; provider directories outside provable GAL-managed projections remain host-owned or user-owned.
@@ -443,7 +443,7 @@ After the package-managed `gal` binary is on disk, the first launch contract is:
 5. Render provider-native projections under `~/.gal/generated/` and any required stable targets under `~/.gal/active/<provider>/`.
 6. Hand off to install mode by default for bootstrap installs; source mode only begins after the user explicitly sets `installMode=source` plus `galRoot` and `devMode`.
 
-The canonical end-user bootstrap contract must work without a cloned repo. Repo-local workflow state such as `.dev/`, `docs/plans/`, or repo-root skill links is never a first-launch requirement for the installed package payload. The repo-owned `Setup-Machine.*` scripts are the development and packaging harness that should mirror the same install-mode-first branching and `~/.gal/` ownership rules, but they are not themselves the final end-user package payload.
+The canonical end-user bootstrap contract must work without a cloned repo. Repo-local workflow state such as `.dev/`, `docs/plans/`, or repo-root skill links is never a first-launch requirement for the installed package payload. The Rust `gal setup` orchestrator is the development and packaging harness that should mirror the same install-mode-first branching and `~/.gal/` ownership rules, but they are not themselves the final end-user package payload.
 
 #### First-Launch Branching Rules
 
@@ -922,16 +922,16 @@ The shared preflight model lives in [collaborative-tools/checking-contract.md](c
 #### Changing setup, installation, or MCP merge
 
 1. Read [../scripts/scripts.md](../scripts/scripts.md).
-2. Decide which concern owns the change first: `gal update --machine-only` (`adapters` backend), `Update-Mcp`, `gal sync`, or the top-level orchestrator.
-3. Windows and macOS/Linux both use the split Setup-Machine plus concern-script stack. Keep the two entrypoint families aligned unless the change is intentionally platform-specific.
+2. Decide which concern owns the change first: `gal update --machine-only` (`adapters` backend), `gal mcp update`, `gal sync`, or the top-level `gal setup` orchestrator.
+3. Windows and macOS/Linux share the single Rust `gal setup` orchestrator; only the remaining legacy `Install-GalPlugins.*` step is still per-platform. Keep that pair aligned unless the change is intentionally platform-specific.
 4. Check whether `commands/commands.md` should also change because the user-visible runtime surface changed.
 5. Keep README focused on entry points, keep setup plumbing here and in the source scripts.
 
 #### Refreshing MCP vs. Regenerating Adapters
 
-- Run `Update-Mcp.ps1` or `update-mcp.sh` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`. This refreshes runtime MCP config only.
+- Run `gal mcp update` after changing `mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`. This refreshes runtime MCP config only.
 - Run `gal sync` after changing source-of-truth content that should regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
-- Run `Setup-Machine.ps1` or `setup-machine.sh` when you need the full concern stack refreshed in one pass.
+- Run `gal setup` when you need the full concern stack refreshed in one pass.
 
 #### Refactoring docs themselves
 

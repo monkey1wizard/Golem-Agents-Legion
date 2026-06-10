@@ -28,8 +28,8 @@ To work on GAL itself (contributor / source mode), use a local clone:
 
 ```bash
 git clone https://github.com/monkey1wizard/golem-agents-legion.git
-# Windows:           ./scripts/Setup-Machine.ps1
-# macOS / Linux:     ./scripts/setup-machine.sh
+# All platforms:     gal setup
+
 ```
 
 This is the source-mode contributor path. Full dev setup, runtime topology, and the `~/.gal/` layout are in the **[developer guide](docs/devguide.md)**.

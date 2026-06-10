@@ -12,16 +12,12 @@ Machine setup and adapter sync scripts.
 | `gal-clean.sh` | cross-platform | Git clean filter — restores `<PLACEHOLDER>` tokens on commit |
 | `Init-Repo.ps1` | Windows | Initialize `<repo>/.dev/` + `docs/plans/`, generate `.github/copilot-instructions.md`, `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md`, then inspect any existing graphify artifacts without generating new ones |
 | `init-repo.sh` | macOS | Same for Mac |
-| `Setup-Machine.ps1` | Windows | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, orchestrate the concern chain through `Install-GalPlugins.ps1`, and expose the read-only `-Check` passthrough to the provider doctor surface |
 | `Install-GalPlugins.ps1` | Windows | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
 | `Build-ProviderPlugins.ps1` | Windows | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY, Copilot, Codex, and Claude are all wired to the core renderer |
 | `Update-Mcp.ps1` | Windows | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
-| `Setup-Tools.ps1` | Windows | Check optional collaborative tool status, ask which missing tools to install, install gstack / graphify / OpenCLI with official upstream methods, then verify GAL collaboration readiness |
-| `setup-machine.sh` | macOS | Prompt for selected runtimes + primary runtime on first run, persist `~/.gal/install-state.json`, orchestrate the concern chain through `install-gal-plugins.sh`, and expose the read-only `--check` passthrough to the provider doctor surface |
 | `install-gal-plugins.sh` | macOS/Linux | Install-mode orchestration for resolver-driven provider lifecycle work; owns `~/.gal/` runtime-state setup, provider build dispatch, and install/uninstall plus explicit purge dry-run visibility for ownership boundaries |
 | `build-provider-plugins.sh` | macOS/Linux | Build provider-specific install-mode package output and canonical-root metadata from resolver output; AGY, Copilot, Codex, and Claude are all wired to the core renderer |
 | `update-mcp.sh` | macOS | Resolve `plugins/gal-core/mcp.json` + `~/.gal/config/mcp.local.json` + `~/.gal/config/config.local.env`, then update VS Code Copilot, Copilot CLI, Antigravity, Codex, and Claude MCP runtime config from the tracked manifest; Google-side MCP install now lands in Antigravity's `mcp_config.json` and GAL-managed Gemini MCP entries are removed from `settings.json` |
-| `setup-tools.sh` | macOS | Same for Mac/Linux |
 | `Uninstall-Machine.ps1` | Windows | Remove GAL-managed machine artifacts while preserving user-owned config, lockfile, xmachine bindings, local overrides, and secrets by default; `-Purge -ConfirmPurge` makes destructive reset explicit |
 | `uninstall-machine.sh` | macOS | Same for Mac, using `--purge --confirm-purge` for explicit destructive reset |
 | `Invoke-XmachineRemoteTask.ps1` | Windows | Dispatch a task to the remote Windows xmachine lane over SSH |
@@ -87,18 +83,21 @@ By default, `gal init` scans the target repo for existing documentation:
 
 Use `--Blank` (PowerShell) or `--blank` (bash) to skip scanning and use a blank template.
 
-## Setup-Machine Flow
+## gal setup Flow
 
-`Setup-Machine.ps1` and `setup-machine.sh` are now thin orchestrators:
+`gal setup` (Rust, `crates/setup/`) is the machine-setup orchestrator:
 
-1. resolve or reconfigure runtime selection once
-2. run `gal update --machine-only`
-3. run `gal mcp update`
-4. run `Install-GalPlugins.ps1` or `install-gal-plugins.sh`
+1. resolve or reconfigure runtime selection once (persisted to `~/.gal/install-state.json`)
+2. run the machine-surface refresh (library call into `adapters`)
+3. run the MCP refresh (library call into `mcp`; skipped on uninstall)
+4. register the `gal-config` git filter
+5. run `Install-GalPlugins.ps1` or `install-gal-plugins.sh` (legacy step until R-05)
+
+`gal setup --tools` checks and optionally installs the collaborative tools (gstack / graphify / OpenCLI / xmachine status).
 
 Use `gal update --machine-only` when you only need machine-surface refreshes and `gal sync` when you only need repo-local adapter regeneration.
 
-`Setup-Machine.* -Check` / `setup-machine.sh --check` bypass the normal concern chain and delegate directly to `Install-GalPlugins.* -Check` / `install-gal-plugins.sh --check`, keeping the provider doctor path read-only.
+`gal setup --check` bypasses the normal concern chain and delegates directly to `Install-GalPlugins.* -Check` / `install-gal-plugins.sh --check`, keeping the provider doctor path read-only.
 
 ## Current Boundary
 
@@ -109,7 +108,7 @@ The current script surface is split across two adjacent concerns:
 
 Today the AGY, Claude, Copilot, and Codex provider-native lifecycle slices are implemented in the install-mode scripts, including the read-only provider doctor/check surface. Bootstrap packaging and official install-channel wording remain handled by the separate bootstrap-installer planning track.
 
-## Setup-Machine Symlinks
+## gal setup Symlinks
 
 The setup script creates these symlinks:
 
@@ -129,13 +128,13 @@ The setup script creates these symlinks:
 
 All `plugins/gal-core/commands/` subdirectories are picked up dynamically — adding a new command folder is sufficient.
 
-Additionally **generates** each `plugins/gal-core/commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. Setup-Machine then symlinks those command directories into Copilot and Codex skill targets while generating legacy Gemini native command files plus Claude and OpenCode markdown command files from the same baked content.
+Additionally **generates** each `plugins/gal-core/commands/*/SKILL.md` by baking `SKILL.template.md` (replacing `{{GAL_ROOT}}` with the absolute repo path) and appending any gitignored `SKILL.local.md` override from the same command directory. `gal setup` then symlinks those command directories into Copilot and Codex skill targets while generating legacy Gemini native command files plus Claude and OpenCode markdown command files from the same baked content.
 
 Antigravity installs as a provider plugin projected from the superset canonical root `~/.gal/plugins/gal/`. The canonical root carries all provider entry-point markers and is rendered by `Build-CorePlugin` from the provider-neutral common package model. Setup removes all prior GAL-managed AGY content (legacy skills directory, `GAL_ROOT` symlink, global MCP entries, prior plugin installs) before installing the clean plugin tree. Legacy GAL-managed links under `~/.gemini/skills/` are still cleaned up. AGY is projected to three surfaces: CLI junction (`~/.gemini/antigravity-cli/plugins/gal`), IDE junction (`~/.gemini/antigravity-ide/plugins/gal`), and GUI-config (`~/.gemini/config/plugins/gal` via `agy plugin install`).
 
 `gal sync` generates `.agents/rules/gal.md`, which references the repo-local `AGENTS.md` through Antigravity's documented `@filename` rule syntax instead of introducing a custom Antigravity-only adapter file.
 
-For legacy Gemini CLI compatibility, Setup-Machine writes GAL-managed `~/.gemini/commands/*.toml` files so Gemini exposes native slash commands without colliding with Agent Skills.
+For legacy Gemini CLI compatibility, `gal setup` writes GAL-managed `~/.gemini/commands/*.toml` files so Gemini exposes native slash commands without colliding with Agent Skills.
 
 Generates the legacy compatibility file `~/.gemini/gal-context.md` with sorted non-command `@file` skill imports. All import paths reference the current repo's `.agents/skills/` workspace directory.
 
@@ -158,9 +157,9 @@ For Playwright MCP, keep the tracked `plugins/gal-core/mcp.json` entry limited t
 Rerun guidance:
 
 - `gal update --machine-only`: refresh runtime bridges, command projections, skill projections, and local personalization after changing `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, `plugins/gal-core/commands/*/SKILL.*`, `~/.gal/config/config.local.env`, or `~/.gal/config/executor-routing.json`.
-- `Update-Mcp.ps1` / `update-mcp.sh`: refresh runtime MCP config after changing `plugins/gal-core/mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`.
+- `gal mcp update`: refresh runtime MCP config after changing `plugins/gal-core/mcp.json`, `~/.gal/config/mcp.local.json`, or MCP-related values in `~/.gal/config/config.local.env`.
 - `gal sync`: regenerate repo-local adapters such as `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` after changing their source-of-truth inputs.
-- `Setup-Machine.ps1` / `setup-machine.sh`: rerun the full machine refresh + install orchestration stack when you want one top-level refresh.
+- `gal setup`: rerun the full machine refresh + install orchestration stack when you want one top-level refresh.
 
 ## Core Plugin Renderer
 

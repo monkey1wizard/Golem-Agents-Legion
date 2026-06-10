@@ -194,7 +194,7 @@ pub fn run_sync(opts: &SyncOptions) -> Result<ProjectionReport, AdapterError> {
         &[
             "This is the repo-local adapter for Claude Code.",
             "Repo-local skills are indexed below by name so Claude Code can find the right skill file without duplicating every skill body in the adapter.",
-            "This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `Setup-Machine`.",
+            "This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `gal setup`.",
         ],
         &project_content,
         &conventions,

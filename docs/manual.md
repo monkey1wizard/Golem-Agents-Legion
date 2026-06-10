@@ -15,7 +15,7 @@ GAL runs in one of two modes, controlled by `~/.gal/config/config.json`:
 
 In both modes `~/.gal/plugins/gal/` is the canonical plugin root; provider-visible targets and `~/.gal/active/<provider>/` are projections, not content owners. For the full mode contract, `~/.gal/` layout, and ownership boundaries see [developer guide → Install Mode vs Source Mode](devguide.md#install-mode-vs-source-mode) and [→ .gal Data Structure](devguide.md#gal-data-structure).
 
-To switch modes: set `installMode` to `install` or `source` in `~/.gal/config/config.json` (in source mode also set `galRoot` and optionally `devMode`), then rerun `Setup-Machine`.
+To switch modes: set `installMode` to `install` or `source` in `~/.gal/config/config.json` (in source mode also set `galRoot` and optionally `devMode`), then rerun `gal setup`.
 
 ## First-Time Setup
 
@@ -28,7 +28,7 @@ The machine installer persists runtime selection in `~/.gal/install-state.json`:
 
 The GAL repo remains the single source of truth for `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, and `plugins/gal-core/commands/`. Antigravity CLI (AGY) is the primary Google terminal runtime; GAL links each AGY surface to the canonical root at `~/.gal/plugins/gal/`. Use setup again with `-Reconfigure` (Windows) or `--reconfigure` (macOS/Linux) to change selected or primary runtimes.
 
-The machine setup surface is split by concern; the full-sequence entry points are `scripts/Setup-Machine.ps1` / `scripts/setup-machine.sh`, `gal update --machine-only` refreshes machine projections, `gal sync` regenerates repo-local adapters, and `Update-Mcp.*` remains the direct MCP concern entrypoint. See [When To Rerun Setup](#when-to-rerun-setup).
+The machine setup surface is split by concern; the full-sequence entry point is `gal setup`, `gal update --machine-only` refreshes machine projections, `gal sync` regenerates repo-local adapters, and `gal mcp update` is the direct MCP concern entrypoint. See [When To Rerun Setup](#when-to-rerun-setup).
 
 ### Configuration & Placeholders
 
@@ -86,10 +86,10 @@ Put secrets, absolute paths, and machine-specific values in `~/.gal/config/confi
 
 ### Command Skill Local Overlays
 
-For a machine-local customization of a command skill that should survive `Setup-Machine`, create `plugins/gal-core/commands/<command>/SKILL.local.md`:
+For a machine-local customization of a command skill that should survive `gal setup`, create `plugins/gal-core/commands/<command>/SKILL.local.md`:
 
 - It is gitignored and treated as user-owned machine-local input.
-- `Setup-Machine` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md`.
+- `gal setup` bakes `SKILL.template.md`, then appends `SKILL.local.md` into the generated `SKILL.md`.
 - Do not edit `plugins/gal-core/commands/<command>/SKILL.md` directly — it is generated and will be replaced.
 - Keep `SKILL.local.md` to additional instruction content only; no second frontmatter block.
 
@@ -231,14 +231,14 @@ This aligns with the GAL memory contract: **provider-local chat history is advis
 
 Rerun setup when any of these change: `~/.gal/config/config.local.env`, `plugins/gal-core/mcp.json`, `~/.gal/config/mcp.local.json`, any `plugins/gal-core/commands/*/SKILL.local.md`, `~/.gal/install-state.json`, Obsidian routing/Guide mode, working-hours settings, model routing, or runtime install locations. (`~/.gal/config/xmachine.json` is read directly and needs no rerun.)
 
-Use the narrower concern entrypoint when only one concern changed — `gal update --machine-only` (runtime bridges, `config.local.env`, `executor-routing.json`, `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, `plugins/gal-core/commands/*/SKILL.*`), `Update-Mcp` (`plugins/gal-core/mcp.json`, `mcp.local.json`, MCP env), or `gal sync` for repo-local adapter regeneration. `gal update --machine-only` does not regenerate repo-local adapters; `gal sync` does not touch machine MCP config.
+Use the narrower concern entrypoint when only one concern changed — `gal update --machine-only` (runtime bridges, `config.local.env`, `executor-routing.json`, `plugins/gal-core/agents/`, `plugins/gal-core/skills/`, `plugins/gal-core/commands/*/SKILL.*`), `gal mcp update` (`plugins/gal-core/mcp.json`, `mcp.local.json`, MCP env), or `gal sync` for repo-local adapter regeneration. `gal update --machine-only` does not regenerate repo-local adapters; `gal sync` does not touch machine MCP config.
 
 ```bash
-# Windows                         # macOS / Linux
-./scripts/Setup-Machine.ps1        ./scripts/setup-machine.sh
-./scripts/Setup-Machine.ps1 -Reconfigure
+# All platforms
+gal setup
+gal setup --reconfigure
 gal update --machine-only
-./scripts/Update-Mcp.ps1             ./scripts/update-mcp.sh
+gal mcp update
 gal sync
 ```
 

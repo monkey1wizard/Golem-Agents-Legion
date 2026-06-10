@@ -45,7 +45,7 @@ xmachine 是 GAL 的一項可選執行工具，能夠將範圍明確的任務從
 | `available-but-not-ready` | 契約存在，但選定的節點僅處於 `tooling-ready` 狀態，尚未通過最終的 pipeline smoke 關卡。 | 回退到非 xmachine 路徑或選擇另一個節點。 |
 | `ready` | 所請求的路徑至少有一個處於 readied 狀態的節點可用。 | 當使用者指定了 readied 的工作節點時，路由至 xmachine。 |
 
-xmachine 是屬於儲存庫的公用程式，而非第三方套件。`Setup-Tools.ps1` 只負責回報契約就緒狀態與快取的節點狀態；它不會從外部來源安裝 xmachine。
+xmachine 是屬於儲存庫的公用程式，而非第三方套件。`gal setup --tools` 只負責回報契約就緒狀態與快取的節點狀態；它不會從外部來源安裝 xmachine。
 
 ## 機器前置需求
 
@@ -72,7 +72,7 @@ xmachine 的就緒狀態會分兩個可快取的階段推進：
 1. **`tooling-ready`**：節點已通過 SSH 連線、runtime checkout 驗證、背景 launcher 檢查，以及工作節點冒煙路徑。若有持久 project checkout，冒煙路徑會用 repo mode；否則就改驗證 execute mode。
 2. **`readied`**：節點通過了 `pipeline-smoke`，確認儲存庫本機的 GAL 進入點可以從該節點成功派發 pipeline。
 
-只有 `readied` 節點才會被 `Setup-Tools.ps1` 認定為 `ready`。
+只有 `readied` 節點才會被 `gal setup --tools` 認定為 `ready`。
 
 ## SSH 疑難排解
 

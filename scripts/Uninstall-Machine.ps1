@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-        Removes GAL-managed links and generated artifacts installed by Setup-Machine.ps1.
+        Removes GAL-managed links and generated artifacts installed by `gal setup`.
 
 .DESCRIPTION
-        Thin wrapper around the concern-based `Setup-Machine.ps1 -Uninstall` flow.
+        Thin wrapper around the `gal setup --uninstall` flow.
 
         Removes GAL-managed artifacts such as:
       - ~/.copilot/agents/*.agent.md symlinks
@@ -46,4 +46,14 @@ param(
     [switch]$ConfirmPurge
 )
 
-& "$PSScriptRoot\Setup-Machine.ps1" -Uninstall @PSBoundParameters
+$galExe = (Get-Command 'gal.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if ([string]::IsNullOrWhiteSpace($galExe)) {
+    throw 'gal.exe not found on PATH.'
+}
+
+$galArgs = @('setup', '--uninstall')
+if ($DryRun) { $galArgs += '--dry-run' }
+if ($Purge) { $galArgs += '--purge' }
+if ($ConfirmPurge) { $galArgs += '--confirm-purge' }
+& $galExe @galArgs
+exit $LASTEXITCODE

@@ -7,7 +7,7 @@
 
 - This is the repo-local adapter for Claude Code.
 - Repo-local skills are indexed below by name so Claude Code can find the right skill file without duplicating every skill body in the adapter.
-- This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `Setup-Machine`.
+- This generator only writes repo-local adapters such as `CLAUDE.md`; machine-level Claude setup belongs to `gal setup`.
 
 <!-- Source: .dev/project.md -->
 # Golem-Agents-Legion
@@ -71,7 +71,7 @@ Portable source-of-truth repository. Tracked contracts live in `plugins/gal-core
 - `plugins/gal-core/commands/` — changing the public command surface affects every runtime.
 - `plugins/gal-core/conventions/` and `plugins/gal-core/workflows/` — these define global workflow semantics used by all golem agents.
 - `plugins/gal-core/templates/` — template changes alter every initialized repo's durable state shape.
-- `scripts/Setup-Machine.ps1`, `scripts/setup-machine.sh`, `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` — these callers plus `gal sync` control generated adapter outputs and machine installation topology.
+- `crates/setup/` (`gal setup`), `scripts/Init-Repo.ps1`, `scripts/init-repo.sh` — these callers plus `gal sync` control generated adapter outputs and machine installation topology.
 
 ## Key Decisions
 
