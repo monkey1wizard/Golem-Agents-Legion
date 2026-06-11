@@ -17,6 +17,7 @@
 //! only transport-agnostic orchestration once moved.
 
 pub mod orchestration;
+pub mod task_spec;
 
 use thiserror::Error;
 
@@ -30,6 +31,8 @@ pub enum PipelineError {
     UnknownExecutor(String),
     #[error("dispatch failed: {0}")]
     Dispatch(String),
+    #[error("task '{0}' not found in ## Tasks section")]
+    TaskNotFound(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

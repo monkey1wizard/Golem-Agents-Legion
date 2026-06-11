@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 3 of 15
-Last activity: 2026-06-11 — started T-003 by porting remote run planning into `pipeline`
-Next step: Continue T-003 — port the next orchestration slice on top of the new run-planning helpers
+Step: 5 of 15
+Last activity: 2026-06-11 — architect completed R-01 (T-003 orchestration composing dispatch) + R-02 (T-004 task-spec port); F-2 resolved, F-1 still bound to T-005
+Next step: T-005 — scaffold `crates/xmachine` + SSH `Transport` impl; relocate the remote run-planning slice out of `pipeline` (F-1) as part of that step
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -107,6 +107,7 @@ Review Retry Count: 0
 
 | Date | Task | Planned | Actual | Reason |
 | --- | --- | --- | --- | --- |
+| 2026-06-11 | T-003 | Port local task-split + multi-provider dispatch + multi-stage orchestration into `pipeline`, composing `dispatch::spawn_executor` | What landed (`ef5ae36`/`bf41183`) is remote pipeline **path-planning** (`RemotePipelinePaths` with `launcher:"zellij"`, remote `Start-XmachinePipeline.*` runner path, remote temp dirs, `PipelineRunRecord`, dispatched/running state notes, local run-record staging) | Architect review (2026-06-11): scope + layer drift. Two binding corrections below. T-003 reverted to open. |
 
 ### Handoff Notes
 
@@ -115,6 +116,12 @@ Review Retry Count: 0
 - Core R-00 is already landed per `.dev/state.md`, so T-002 is no longer blocked by the base/dispatch extraction. Protected-core/contract architect sign-off still applies to T-002..T-009/T-011/T-012. Preflight remains check-only — never configure SSH, never install zellij, never scp gal. Session records must extend `.dev/executor-logs/`, not a new store. Cross-machine parity still needs the user's Win11 laptop SSH setup plus mac-mini.
 - 2026-06-11: T-002 created the new `crates/pipeline/` workspace member and established the dependency-correct skeleton: `Transport` trait owned by `pipeline`, `LocalTransport` marker in `pipeline`, and phase reuse through `dispatch::stage::Phase` rather than rebuilding stage semantics. Commit: `ccfad02`.
 - 2026-06-11: T-003 started by porting the legacy xmachine pipeline run-planning slice into `crates/pipeline/src/lib.rs`: remote path planning, dispatched-state note strings, and the dispatched run-record model now live in `pipeline` with Windows/POSIX parity tests. Commit: `ef5ae36`.
+- 2026-06-11 (architect review): T-003 reverted to open. The landed slice is **remote-transport planning** (zellij launcher, remote runner path, remote temp/session, run-record), which by the DAG + dep-isolation decision belongs in `crates/xmachine` (T-005), not `pipeline` (F-1). T-003's real deliverable — local task-split + multi-provider + multi-stage orchestration composing `dispatch::spawn_executor` — is still missing; `LocalTransport::dispatch` currently fabricates a receipt and never calls into `dispatch` (F-2). Constants themselves are parity-correct vs `Invoke-XmachinePipeline.{ps1,sh}` and worth keeping as test vectors when the remote slice moves to xmachine. Code left in place (no hard revert); the relocation is bound to T-005 and the orchestration core is bound to a T-003 redo. Source plan checkbox realigned to `[ ]`.
+- 2026-06-11 (architect implemented R-01 + R-02, F-2 resolved):
+  - **R-01 / T-003** — `crates/pipeline/src/orchestration.rs`. The `Transport` trait + `LocalTransport` now genuinely compose `dispatch`: `resolve_plan(task, phase, routing, workdir, spec)` maps phase→role (`Phase::role`), looks the role up in `RoutingTable`, and asks `dispatch::adapters::get_adapter` to build the invocation (multi-provider; stdin vs `-p` CliFlag handled). `LocalTransport::run` builds a `dispatch::SpawnConfig` and calls `dispatch::spawn_executor` — no rebuild of spawn/write-back/routing/stage. `default_stage_plan()` = implement→test→audit (multi-stage; verifier is a separate end pass). The old toy `PipelineRequest`/`TransportReceipt`/toy `LocalTransport` in lib.rs were replaced.
+  - **R-02 / T-004** — `crates/pipeline/src/task_spec.rs`. Faithful port of `New-TaskSpec.ps1`: multi-line task-block extraction (incl. indented sub-bullets, stops at next top-level `T-NNN`), per-task affected-file convergence (backtick paths in the block, case-insensitive dedup, matched to the Files section, fallback to the full section), per-phase write-back (`## Test Results`/`## Review Results`/`## Analyze`) + agent-contract maps, and spec assembly with the 5 KB size signal. Pure/deterministic (git/clock/convention passed in).
+  - **F-1 still open**: the remote run-planning slice remains in `lib.rs`, bound to relocate into `crates/xmachine` at T-005.
+  - Verification: `cargo test -p pipeline` 22 passed; `cargo clippy -p pipeline -- -D warnings` clean; `cargo test --workspace` 447 passed / 1 ignored. CODER=architect here → independent AUDITOR/TESTER pass still owed per CODER≠AUDITOR.
 
 ## Tasks
 
@@ -123,8 +130,8 @@ P0
 
 R-01/R-02 pipeline (protected, architect; prerequisite = core R-00)
 - [x] T-002 — Scaffold `pipeline` crate: define `Transport` trait + local impl composing `dispatch` (no rebuild); `cargo test` green.
-- [ ] T-003 — Port task-split + multi-provider dispatch + multi-stage orchestration → `pipeline`; parity.
-- [ ] T-004 — Port task-spec (`New-TaskSpec`, absorbing the small-context multi-line extraction + per-task file convergence spec) → `pipeline`; parity.
+- [x] T-003 — Port task-split + multi-provider dispatch + multi-stage orchestration → `pipeline`; parity. (R-01: `orchestration.rs` composes `dispatch` — routing→adapter→`spawn_executor`; F-2 resolved.)
+- [x] T-004 — Port task-spec (`New-TaskSpec`, absorbing the small-context multi-line extraction + per-task file convergence spec) → `pipeline`; parity. (R-02: `task_spec.rs`.)
 
 R-03/R-05/R-06 xmachine (protected, architect)
 - [ ] T-005 — Scaffold `xmachine` crate + SSH `Transport` impl; remote-execution parity.
@@ -182,8 +189,25 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 - 2026-06-11: `get_errors` clean for `tests/fixtures/xmachine/README.md` and all three baseline `.txt` artifacts.
 - 2026-06-11: `cargo test -p pipeline` PASS (3 tests, 0 failed).
 - 2026-06-11: `cargo test -p pipeline` PASS (7 tests, 0 failed) after the T-003 run-planning port slice.
+- 2026-06-11: `cargo test -p pipeline` PASS (22 tests) after R-01 (orchestration) + R-02 (task-spec); `cargo clippy -p pipeline -- -D warnings` clean.
+- 2026-06-11: `cargo test --workspace` PASS (447 passed, 1 ignored) — no regression from the pipeline changes.
 
 ## Review Results
+
+### Architecture Review — Post-Implementation (T-001..T-003), 2026-06-11
+
+**Verdict: FINDINGS-OPEN → F-2 RESOLVED (2026-06-11), F-1 deferred to T-005.** T-001 (fixture freeze) and T-002 (skeleton) are sound. T-003 had scope + layer drift; the orchestration core (F-2) has since been implemented (R-01 in `orchestration.rs`, T-003/T-004 now done — see Handoff Notes). F-1 (remote slice in the wrong crate) remains open, bound to relocate at T-005.
+
+**What's good (verified):** the ported constants are real parity, cross-checked against `scripts/Invoke-XmachinePipeline.{ps1,sh}` — `C:\Windows\Temp\gal-xmachine-pipeline\$RunId` / `/tmp/gal-xmachine-pipeline/$RunId`, `pipeline-$RunId` session, `.dev/xmachine-runs` staging, `convergeCommand "/gal status"` all match legacy. Skeleton is dependency-correct (`Transport` trait owned by pipeline, `Phase` reused from `dispatch` not rebuilt). 8 tests green, clippy `-D warnings` clean.
+
+**F-1 (HIGH — layer/altitude):** remote-transport-specific planning lives in `crates/pipeline` — `RemotePipelinePaths` carries `launcher:"zellij"` and the remote `Start-XmachinePipeline.*` runner path; `remote_pipeline_paths`, `PipelineRunRecord`, and the dispatched/running state notes are all remote-SSH concerns. The plan DAG and the dep-isolation decision (xmachine is a separate crate *specifically* to isolate SSH/zellij and keep `pipeline` lean for pure-local use) put these in `crates/xmachine` (T-005+), not `pipeline`. Leaving them here inverts the architecture and pre-loads the local layer with remote concerns. **Fix (bound to T-005):** relocate the remote run-planning into `crates/xmachine` when that crate is scaffolded; `pipeline` keeps only transport-agnostic orchestration. Not relocated now — creating `crates/xmachine` is T-005's protected-architecture step, out of a T-003 review's scope.
+
+**F-2 (HIGH — scope + honest state):** T-003's actual deliverable (local task-split + multi-provider dispatch + multi-stage orchestration) is absent. `LocalTransport::dispatch` fabricates a `TransportReceipt` and never calls `dispatch::spawn_executor` / `dispatch::adapters::get_adapter`; the only `dispatch` reuse is the `Phase` type. The "compose, don't rebuild — local execution delegates to dispatch" requirement (R-00/R-01) is not yet demonstrated. The source plan had marked T-003 `[x]` while the prompt itself showed it in-progress (Step 3/15). **RESOLVED 2026-06-11:** `orchestration.rs` now composes `dispatch` end-to-end (`resolve_plan` routing→adapter; `LocalTransport::run` → `dispatch::spawn_executor`); T-003/T-004 implemented and re-marked done; source/prompt realigned.
+
+<!-- ARCH_REVIEW: FINDINGS-OPEN -->
+<!-- F-1 open (remote slice relocation → T-005); F-2 resolved 2026-06-11 -->
+
+Note: this implementation was authored in the architect/CODER seat; an independent AUDITOR + TESTER pass is still owed (CODER≠AUDITOR) before T-003/T-004 are treated as cross-checked.
 
 ### Architecture Review
 

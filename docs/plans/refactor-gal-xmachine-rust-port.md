@@ -231,8 +231,8 @@ Not triggered（無 customer-facing UI）。
 
 **R-01/R-02 pipeline（受保護,architect;前置=核心 R-00）**
 - [x] **T-002** — 建 `pipeline` crate 骨架:定義 `Transport` trait + local impl 組合 `dispatch`(不重造);`cargo test` 綠。
-- [ ] **T-003** — port 切小 + 多 provider 分派 + 多 stage 編排 → `pipeline`;parity。
-- [ ] **T-004** — port task-spec(`New-TaskSpec`,吸收 small-context 多行擷取 + 每 task 檔案收斂規格)→ `pipeline`;parity。
+- [x] **T-003** — port 切小 + 多 provider 分派 + 多 stage 編排 → `pipeline`;parity。**(architect review 2026-06-11 完成 R-01:`crates/pipeline/src/orchestration.rs` 真正組合 `dispatch` —— `resolve_plan` 經 routing→adapter 做多 provider 分派、`default_stage_plan` 為 implement→test→audit 多 stage、`LocalTransport` 透過 `dispatch::spawn_executor` 執行,不重造 spawn/routing/stage。F-2 已解。先前誤置的遠端路徑規劃 slice 仍留 lib.rs,F-1 待 T-005 搬入 `crates/xmachine`。)**
+- [x] **T-004** — port task-spec(`New-TaskSpec`,吸收 small-context 多行擷取 + 每 task 檔案收斂規格)→ `pipeline`;parity。**(architect review 2026-06-11 完成 R-02:`crates/pipeline/src/task_spec.rs` 忠實移植 `New-TaskSpec.ps1` —— 多行 task block 擷取、每 task backtick 路徑收斂(fallback 全 Files 段)、phase write-back / agent contract map、spec 組裝;純函式可單測。)**
 
 **R-03/R-05/R-06 xmachine（受保護,architect）**
 - [ ] **T-005** — 建 `xmachine` crate + SSH `Transport` impl;遠端執行 parity。
