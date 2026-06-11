@@ -94,11 +94,11 @@ jobs:
 
       - name: Build binary (native)
         if: "!contains(matrix.target, 'musl')"
-        run: cargo build --release --target ${{ matrix.target }} -p gal-cli
+        run: cargo build --release --target ${{ matrix.target }} -p cli
 
       - name: Build binary (cross/musl)
         if: contains(matrix.target, 'musl')
-        run: cross build --release --target ${{ matrix.target }} -p gal-cli
+        run: cross build --release --target ${{ matrix.target }} -p cli
 
       - name: Prepare canonical asset name
         shell: bash
@@ -171,7 +171,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build gal release tool
-        run: cargo build --release -p gal-cli
+        run: cargo build --release -p cli
 
       - name: Generate checksums.txt and artifact-manifest.json
         shell: bash
