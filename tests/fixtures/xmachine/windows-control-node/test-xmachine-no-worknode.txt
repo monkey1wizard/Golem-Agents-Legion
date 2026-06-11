@@ -1,0 +1,4 @@
+Command: pwsh -NoProfile -File scripts/Test-Xmachine.ps1
+Exit code: 1
+
+[FAIL] control node=PC-9900XB650I work node=<unset> stage=summary :: WorkNode is required. Pass -WorkNode <configured-work-node-alias> and define that alias under 'xmachineNodeAliases' or legacy 'nodes' in 'C:\Users\leetz\.gal\config\xmachine.json'.

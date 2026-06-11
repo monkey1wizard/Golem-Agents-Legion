@@ -1,0 +1,4 @@
+Command: pwsh -NoProfile -File scripts/common/New-TaskSpec.ps1
+Exit code: 1
+
+New-TaskSpec.ps1: -TaskScope is required when not using -Cleanup
