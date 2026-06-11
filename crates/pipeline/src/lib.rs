@@ -1,28 +1,35 @@
-//! pipeline: GAL orchestration scaffold.
+//! pipeline: GAL local orchestration layer.
 //!
-//! T-002 establishes the dependency-correct skeleton only:
-//! - the `Transport` trait lives here (so xmachine can implement it later)
-//! - the local transport marker also lives here
-//! - pipeline phases reuse `dispatch::stage::Phase` instead of redefining them
+//! Responsibilities (DAG `base ← dispatch ← pipeline ← xmachine`):
+//! - `orchestration` (R-01): task-split + multi-provider dispatch + multi-stage
+//!   orchestration that *composes* `dispatch` (routing → adapter → `spawn_executor`),
+//!   never rebuilding spawn/write-back/routing/stage. Owns the `Transport` trait;
+//!   `LocalTransport` runs through `dispatch::spawn_executor`. xmachine implements
+//!   the remote `Transport` later (direction pipeline ← xmachine).
+//! - `task_spec` (R-02): the `New-TaskSpec.ps1` port — assembles a compact, single
+//!   task spec (multi-line task block + per-task affected files) from an execution
+//!   prompt for a secondary headless CLI.
 //!
-//! This crate intentionally does NOT implement task splitting or task-spec yet.
+//! NOTE (architect review 2026-06-11, F-1): the remote pipeline path-planning below
+//! (`RemotePipelinePaths`, `PipelineRunRecord`, remote state notes) is
+//! remote-transport-specific (zellij launcher, remote runner) and belongs in
+//! `crates/xmachine`. It is parked here pending relocation at T-005; pipeline keeps
+//! only transport-agnostic orchestration once moved.
 
-use dispatch::stage::Phase;
+pub mod orchestration;
+
 use thiserror::Error;
 
-/// One bounded pipeline execution request.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PipelineRequest {
-    pub task_id: String,
-    pub phase: Phase,
-}
-
-/// Result of sending one bounded request through a transport.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TransportReceipt {
-    pub task_id: String,
-    pub phase: Phase,
-    pub transport: &'static str,
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum PipelineError {
+    #[error("task id must not be blank")]
+    BlankTaskId,
+    #[error("no executor-routing configured for role '{0}'")]
+    UnroutedRole(String),
+    #[error("unknown executor '{0}' (no adapter)")]
+    UnknownExecutor(String),
+    #[error("dispatch failed: {0}")]
+    Dispatch(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,45 +98,6 @@ pub struct LocalRunArtifacts {
     pub local_run_record_path: String,
     pub local_plan_snapshot_path: String,
     pub local_state_snapshot_path: String,
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum PipelineError {
-    #[error("task id must not be blank")]
-    BlankTaskId,
-}
-
-/// Transport abstraction owned by the pipeline layer.
-///
-/// Later tasks add a real local executor path and the SSH+zellij xmachine impl.
-pub trait Transport {
-    fn label(&self) -> &'static str;
-    fn dispatch(&self, request: &PipelineRequest) -> Result<TransportReceipt, PipelineError>;
-}
-
-/// Local transport marker.
-///
-/// T-002 proves the ownership boundary only: local execution belongs to pipeline,
-/// but phase/role semantics come from `dispatch` rather than being rebuilt here.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct LocalTransport;
-
-impl Transport for LocalTransport {
-    fn label(&self) -> &'static str {
-        "local"
-    }
-
-    fn dispatch(&self, request: &PipelineRequest) -> Result<TransportReceipt, PipelineError> {
-        if request.task_id.trim().is_empty() {
-            return Err(PipelineError::BlankTaskId);
-        }
-
-        Ok(TransportReceipt {
-            task_id: request.task_id.clone(),
-            phase: request.phase,
-            transport: self.label(),
-        })
-    }
 }
 
 pub fn remote_pipeline_paths(
@@ -222,43 +190,6 @@ pub fn local_run_artifacts(repo_context_root: &str, run_id: &str) -> LocalRunArt
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn local_transport_accepts_valid_request() {
-        let transport = LocalTransport;
-        let request = PipelineRequest {
-            task_id: "T-002".to_string(),
-            phase: Phase::Implement,
-        };
-
-        let receipt = transport.dispatch(&request).unwrap();
-        assert_eq!(receipt.task_id, "T-002");
-        assert_eq!(receipt.phase, Phase::Implement);
-        assert_eq!(receipt.transport, "local");
-    }
-
-    #[test]
-    fn local_transport_rejects_blank_task_id() {
-        let transport = LocalTransport;
-        let request = PipelineRequest {
-            task_id: "   ".to_string(),
-            phase: Phase::Implement,
-        };
-
-        let err = transport.dispatch(&request).unwrap_err();
-        assert_eq!(err, PipelineError::BlankTaskId);
-    }
-
-    #[test]
-    fn pipeline_reuses_dispatch_phase_model() {
-        let request = PipelineRequest {
-            task_id: "T-002".to_string(),
-            phase: Phase::Audit,
-        };
-
-        assert_eq!(request.phase.role(), "AUDITOR");
-        assert_eq!(request.phase.as_str(), "audit");
-    }
 
     #[test]
     fn windows_remote_pipeline_paths_match_legacy_layout() {
