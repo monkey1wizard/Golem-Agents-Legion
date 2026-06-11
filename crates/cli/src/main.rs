@@ -16,6 +16,44 @@ use base::health::{DoctorFinding, HealthCheck, Severity};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode as ProcessExitCode;
 
+struct XmachineToolHealthCheck {
+    repo_root: PathBuf,
+}
+
+impl HealthCheck for XmachineToolHealthCheck {
+    fn name(&self) -> &str {
+        "xmachine"
+    }
+
+    fn check(&self) -> Vec<DoctorFinding> {
+        let Some(home) = base::paths::user_home() else {
+            return vec![DoctorFinding::warning(
+                "xmachine: home directory unavailable; skipping work-node readiness aggregation",
+            )];
+        };
+
+        let env = setup::tools::ToolsEnv {
+            user_home: home,
+            repo_root: self.repo_root.clone(),
+        };
+        let status = setup::tools::xmachine_status(&env);
+
+        match status.status {
+            setup::tools::ToolState::Ready => Vec::new(),
+            setup::tools::ToolState::NeedsInit | setup::tools::ToolState::NotReady => {
+                vec![DoctorFinding::warning(format!(
+                    "xmachine: {} Next step: {}",
+                    status.reason, status.next_step
+                ))]
+            }
+            setup::tools::ToolState::Unavailable => vec![DoctorFinding::error(
+                format!("xmachine: {}", status.reason),
+                status.next_step,
+            )],
+        }
+    }
+}
+
 fn print_help() {
     println!("gal — GAL bootstrap CLI");
     println!();
@@ -347,6 +385,9 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
         }
         .check(),
     );
+    report
+        .findings
+        .extend(XmachineToolHealthCheck { repo_root: repo_root.clone() }.check());
     if let Some(home) = base::paths::user_home() {
         let shared_skills_root = home.join(".agents").join("skills");
         report
@@ -370,6 +411,158 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
     } else {
         ExitCode::Success
     }
+}
+
+fn cmd_dispatch(args: &[String]) -> ExitCode {
+    let gal_dispatch = if cfg!(windows) { "gal-dispatch.exe" } else { "gal-dispatch" };
+    let status = std::process::Command::new(gal_dispatch).args(args.iter().skip(1)).status();
+    match status {
+        Ok(status) => match status.code() {
+            Some(0) => ExitCode::Success,
+            Some(1) => ExitCode::Error,
+            Some(2) => ExitCode::NotWired,
+            Some(_) | None => ExitCode::Error,
+        },
+        Err(e) => {
+            eprintln!("gal dispatch: failed to spawn gal-dispatch: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+fn cmd_pipeline(args: &[String]) -> ExitCode {
+    if args.len() < 2 {
+        eprintln!("gal pipeline: missing task spec path");
+        eprintln!("usage: gal pipeline <TaskSpecPath> [--phase <phase>] [--task <T-NNN>] [--receipt <path>]");
+        return ExitCode::Usage;
+    }
+
+    let spec_path = PathBuf::from(&args[1]);
+    if !spec_path.exists() {
+        eprintln!("gal pipeline: task spec not found: {}", spec_path.display());
+        return ExitCode::Error;
+    }
+
+    let mut phase = String::from("implement");
+    let mut task_id = spec_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|stem| stem.split('-').take(2).collect::<Vec<_>>().join("-"))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "T-unknown".to_string());
+    let mut receipt_path: Option<String> = None;
+
+    let mut index = 2usize;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--phase" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    eprintln!("gal pipeline: --phase requires a value");
+                    return ExitCode::Usage;
+                };
+                phase = value.clone();
+            }
+            "--task" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    eprintln!("gal pipeline: --task requires a value");
+                    return ExitCode::Usage;
+                };
+                task_id = value.clone();
+            }
+            "--receipt" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    eprintln!("gal pipeline: --receipt requires a value");
+                    return ExitCode::Usage;
+                };
+                receipt_path = Some(value.clone());
+            }
+            other => {
+                eprintln!("gal pipeline: unknown argument '{other}'");
+                return ExitCode::Usage;
+            }
+        }
+        index += 1;
+    }
+
+    let spec = match std::fs::read_to_string(&spec_path) {
+        Ok(value) => value,
+        Err(e) => {
+            eprintln!("gal pipeline: failed to read task spec '{}': {e}", spec_path.display());
+            return ExitCode::Error;
+        }
+    };
+
+    let mut cmd_args = vec![
+        "--phase".to_string(),
+        phase,
+        "--task".to_string(),
+        task_id,
+        "--workdir".to_string(),
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .display()
+            .to_string(),
+    ];
+    if let Some(receipt) = receipt_path {
+        cmd_args.push("--receipt".to_string());
+        cmd_args.push(receipt);
+    }
+
+    let gal_dispatch = if cfg!(windows) { "gal-dispatch.exe" } else { "gal-dispatch" };
+    let mut child = match std::process::Command::new(gal_dispatch)
+        .args(&cmd_args)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(e) => {
+            eprintln!("gal pipeline: failed to spawn gal-dispatch: {e}");
+            return ExitCode::Error;
+        }
+    };
+
+    if let Some(mut stdin) = child.stdin.take() {
+        use std::io::Write as _;
+        if let Err(e) = stdin.write_all(spec.as_bytes()) {
+            eprintln!("gal pipeline: failed to pipe task spec to gal-dispatch: {e}");
+            return ExitCode::Error;
+        }
+    }
+
+    match child.wait() {
+        Ok(status) => match status.code() {
+            Some(0) => ExitCode::Success,
+            Some(1) => ExitCode::Error,
+            Some(2) => ExitCode::NotWired,
+            Some(_) | None => ExitCode::Error,
+        },
+        Err(e) => {
+            eprintln!("gal pipeline: failed while waiting for gal-dispatch: {e}");
+            ExitCode::Error
+        }
+    }
+}
+
+fn cmd_xmachine(args: &[String]) -> ExitCode {
+    if args.len() < 4 || args[2] != "to" || args[3] != "do" {
+        eprintln!("gal xmachine: usage: gal xmachine <node> to do <task-ref> [#file:plan]");
+        return ExitCode::Usage;
+    }
+
+    println!("--- GAL DISPATCH ---");
+    println!("COMMAND: pipeline");
+    println!("EXECUTION: xmachine");
+    println!("OFFLOAD: direct-task");
+    println!("XMACHINE_MODE: execute");
+    println!("WORK_NODE: {}", args[1]);
+    println!("TASK_REF: {}", args[4]);
+    println!("FROM: {}", args[4]);
+    println!("STOP_AT: {}", args[4]);
+    println!("--- END DISPATCH ---");
+    ExitCode::Success
 }
 
 /// Run `gal release [--dry-run] [--version <tag>] [--output-dir <dir>]` (T-014).
@@ -962,6 +1155,9 @@ fn run(args: &[String]) -> ExitCode {
         Action::NotWired(CommandKind::Update) => cmd_update(args),
         Action::NotWired(CommandKind::Sync) => cmd_sync(args),
         Action::NotWired(CommandKind::Uninstall) => cmd_uninstall(),
+        Action::NotWired(CommandKind::Dispatch) => cmd_dispatch(args),
+        Action::NotWired(CommandKind::Pipeline) => cmd_pipeline(args),
+        Action::NotWired(CommandKind::Xmachine) => cmd_xmachine(args),
         // T-012: wired doctor
         Action::NotWired(CommandKind::Doctor) => cmd_doctor(args),
         // T-013: wired commit-msg (R5, optional)
@@ -1051,6 +1247,24 @@ mod tests {
     fn uninstall_is_wired_not_not_wired() {
         let result = run(&["uninstall".to_string()]);
         assert_ne!(result, ExitCode::NotWired, "uninstall must be wired (T-011)");
+    }
+
+    #[test]
+    fn dispatch_is_wired_not_not_wired() {
+        let result = run(&["dispatch".to_string(), "--help".to_string()]);
+        assert_ne!(result, ExitCode::NotWired, "dispatch must be wired (T-011)");
+    }
+
+    #[test]
+    fn pipeline_without_task_spec_is_usage_not_not_wired() {
+        let result = run(&["pipeline".to_string()]);
+        assert_eq!(result, ExitCode::Usage, "pipeline without a task spec should be a usage error");
+    }
+
+    #[test]
+    fn xmachine_without_shorthand_args_is_usage_not_not_wired() {
+        let result = run(&["xmachine".to_string()]);
+        assert_eq!(result, ExitCode::Usage, "xmachine without shorthand args should be a usage error");
     }
 
     // T-012: doctor is wired

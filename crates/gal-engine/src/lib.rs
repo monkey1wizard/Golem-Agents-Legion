@@ -32,6 +32,12 @@ pub enum CommandKind {
     Sync,
     Doctor,
     Uninstall,
+    /// `gal dispatch ...` — Rust CLI wrapper over the dispatch entry contract.
+    Dispatch,
+    /// `gal pipeline ...` — Rust CLI wrapper over the pipeline entry contract.
+    Pipeline,
+    /// `gal xmachine ...` — Rust CLI wrapper over the xmachine shorthand/entry contract.
+    Xmachine,
     /// `gal commit-msg <msg-file>` — git commit-msg hook (T-013, optional/R5).
     CommitMsg,
     /// `gal release [--dry-run] [--version <tag>] [--output-dir <dir>]`
@@ -55,12 +61,15 @@ pub enum CommandKind {
 
 impl CommandKind {
     /// Every known subcommand, in help/display order.
-    pub const ALL: [CommandKind; 15] = [
+    pub const ALL: [CommandKind; 18] = [
         CommandKind::Install,
         CommandKind::Update,
         CommandKind::Sync,
         CommandKind::Doctor,
         CommandKind::Uninstall,
+        CommandKind::Dispatch,
+        CommandKind::Pipeline,
+        CommandKind::Xmachine,
         CommandKind::CommitMsg,
         CommandKind::Release,
         CommandKind::Mcp,
@@ -81,6 +90,9 @@ impl CommandKind {
             CommandKind::Sync => "sync",
             CommandKind::Doctor => "doctor",
             CommandKind::Uninstall => "uninstall",
+            CommandKind::Dispatch => "dispatch",
+            CommandKind::Pipeline => "pipeline",
+            CommandKind::Xmachine => "xmachine",
             CommandKind::CommitMsg => "commit-msg",
             CommandKind::Release => "release",
             CommandKind::Mcp => "mcp",
@@ -102,6 +114,9 @@ impl CommandKind {
             "sync" => Some(CommandKind::Sync),
             "doctor" => Some(CommandKind::Doctor),
             "uninstall" => Some(CommandKind::Uninstall),
+            "dispatch" => Some(CommandKind::Dispatch),
+            "pipeline" => Some(CommandKind::Pipeline),
+            "xmachine" => Some(CommandKind::Xmachine),
             "commit-msg" => Some(CommandKind::CommitMsg),
             "release" => Some(CommandKind::Release),
             "mcp" => Some(CommandKind::Mcp),
@@ -177,6 +192,9 @@ mod tests {
         assert_eq!(CommandKind::parse("sync"), Some(CommandKind::Sync));
         assert_eq!(CommandKind::parse("doctor"), Some(CommandKind::Doctor));
         assert_eq!(CommandKind::parse("uninstall"), Some(CommandKind::Uninstall));
+        assert_eq!(CommandKind::parse("dispatch"), Some(CommandKind::Dispatch));
+        assert_eq!(CommandKind::parse("pipeline"), Some(CommandKind::Pipeline));
+        assert_eq!(CommandKind::parse("xmachine"), Some(CommandKind::Xmachine));
         assert_eq!(CommandKind::parse("mcp"), Some(CommandKind::Mcp));
         assert_eq!(CommandKind::parse("setup"), Some(CommandKind::Setup));
         assert_eq!(CommandKind::parse("clean"), Some(CommandKind::Clean));
