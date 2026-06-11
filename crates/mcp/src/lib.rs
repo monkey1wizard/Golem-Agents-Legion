@@ -1067,4 +1067,56 @@ mod tests {
         assert!(written.contains("[model]"), "non-MCP content preserved");
         assert!(written.contains("[mcp_servers.memory]"), "managed section appended");
     }
+
+    #[test]
+    fn run_mcp_update_does_not_treat_agy_as_an_mcp_provider() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path().join("home");
+        let appdata = tmp.path().join("appdata");
+        let xdg = tmp.path().join("xdg-config");
+        let gal_home = home.join(".gal");
+        let manifest_path = gal_home.join("generated").join("mcp").join("managed.json");
+
+        fs::create_dir_all(manifest_path.parent().unwrap()).unwrap();
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        fs::create_dir_all(home.join(".copilot")).unwrap();
+        fs::create_dir_all(appdata.join("Claude")).unwrap();
+        fs::create_dir_all(xdg.join("opencode")).unwrap();
+        fs::create_dir_all(gal_home.join("config")).unwrap();
+
+        fs::write(
+            &manifest_path,
+            r#"{
+  "servers": {
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mcp/server-memory"]
+    }
+  }
+}"#,
+        )
+        .unwrap();
+
+        #[cfg(windows)]
+        unsafe {
+            std::env::set_var("USERPROFILE", &home);
+            std::env::set_var("HOME", &home);
+            std::env::set_var("APPDATA", &appdata);
+            std::env::remove_var("XDG_CONFIG_HOME");
+        }
+
+        #[cfg(not(windows))]
+        unsafe {
+            std::env::set_var("HOME", &home);
+            std::env::set_var("XDG_CONFIG_HOME", &xdg);
+            std::env::remove_var("APPDATA");
+        }
+
+        let report = run_mcp_update(&manifest_path).unwrap();
+
+        assert!(report.providers_updated.contains(&"codex".to_string()));
+        assert!(!report.providers_updated.contains(&"agy".to_string()));
+        assert!(report.warnings.iter().all(|w| !w.contains("agy")));
+    }
 }
