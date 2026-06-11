@@ -170,7 +170,7 @@
 **Bookkeeping(全項後收尾)**
 
 - [x] T-009 — (R-07)裁決 `docs/plans/manage-external-plugins.md`(關閉 superseded 或續做)與 `feat-gal-file-memory-strategy`(有 prompt 但不在 `.dev/state.md` Active Plans)的真實狀態,使 `.dev/state.md` 與實際一致。**DONE 2026-06-11:** memory-strategy → CLOSED(已吸收進 `conventions/token-budget.md`;孤立 prompt 刪除);manage-external-plugins → STALE/DEFERRED(錨定已刪 Sync-DevContext)。兩者記入 `.dev/state.md` Non-Active 段。
-- [ ] T-010 — (R-08)全項閉合後,將 `docs/observations/install-followups.md` 瘦身為「全項已閉合 + 指向各 commit」或直接刪除。
+- [x] T-010 — (R-08)全項閉合後,將 `docs/observations/install-followups.md` 瘦身為「全項已閉合 + 指向各 commit」或直接刪除。**DONE 2026-06-11:** 瘦身為 compact closure index(各原項 ID → 處置 + commit/owner);唯一非 fix-install 殘留(FU-02 oracle-parity + macOS/Linux live run)交給核心 T-035。
 
 ## Test Plan
 

@@ -94,10 +94,10 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 ## Status
 
 ```
-Workflow: IMPLEMENT
-Step: 9 of 10
-Last activity: 2026-06-11 — T-009 orphan-plan adjudication done (memory-strategy CLOSED/absorbed, manage-external-plugins STALE)
-Next step: T-010 — slim/close docs/observations/install-followups.md, then wrap up
+Workflow: VERIFY
+Step: 10 of 10
+Last activity: 2026-06-11 — T-010 done (install-followups.md slimmed to closure index). All blocking tasks (T-001..T-006, T-008, T-009, T-010) + optional T-007 complete.
+Next step: verifier pass → wrap up. Only non-fix-install residual = core T-035 real-machine run.
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -142,7 +142,7 @@ Review Retry Count: 0
 **Bookkeeping (after all items)**
 
 - [x] T-009 — (R-07) Adjudicate `docs/plans/manage-external-plugins.md` (close superseded or continue) and `feat-gal-file-memory-strategy` (has prompt but not in `.dev/state.md` Active Plans) — confirm true state, align `.dev/state.md`. **DONE 2026-06-11:** memory-strategy CLOSED (substance absorbed into `conventions/token-budget.md` File-System Memory Contract; orphan prompt deleted; source banner). manage-external-plugins STALE/DEFERRED (targets deleted `Sync-DevContext.*` → re-plan against `adapters`/`gal sync` if revived). Both recorded in `.dev/state.md` Non-Active / Closed Plans; neither in Active Plans (correct).
-- [ ] T-010 — (R-08) After all items closed, slim `docs/observations/install-followups.md` to "all closed + commit refs" or delete.
+- [x] T-010 — (R-08) After all items closed, slim `docs/observations/install-followups.md` to "all closed + commit refs" or delete. **DONE 2026-06-11:** slimmed to a compact closure index (every original ID → resolution + commit/owner); the only non-fix-install residuals (FU-02 oracle-parity + macOS/Linux live run) handed to core T-035.
 
 ## Deferred Follow-up
 
