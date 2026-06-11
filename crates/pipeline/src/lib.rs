@@ -84,6 +84,15 @@ pub struct PipelineRunContext<'a> {
     pub dispatch_time_utc: &'a str,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalRunArtifacts {
+    pub run_records_dir: String,
+    pub local_staging_dir: String,
+    pub local_run_record_path: String,
+    pub local_plan_snapshot_path: String,
+    pub local_state_snapshot_path: String,
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PipelineError {
     #[error("task id must not be blank")]
@@ -194,6 +203,19 @@ pub fn planned_run_record(
         launcher: remote_paths.launcher,
         dispatch_time_utc: context.dispatch_time_utc.to_string(),
         converge_command: "/gal status",
+    }
+}
+
+pub fn local_run_artifacts(repo_context_root: &str, run_id: &str) -> LocalRunArtifacts {
+    let run_records_dir = format!("{repo_context_root}/.dev/xmachine-runs");
+    let local_staging_dir = format!("{run_records_dir}/{run_id}");
+
+    LocalRunArtifacts {
+        local_run_record_path: format!("{run_records_dir}/{run_id}.json"),
+        local_plan_snapshot_path: format!("{local_staging_dir}/plan.prompt.md"),
+        local_state_snapshot_path: format!("{local_staging_dir}/state.md"),
+        run_records_dir,
+        local_staging_dir,
     }
 }
 
@@ -320,6 +342,29 @@ mod tests {
         assert_eq!(
             running_state_note("20260611-abc123", "pipeline-20260611-abc123"),
             "Active run: 20260611-abc123; session: pipeline-20260611-abc123; status: running"
+        );
+    }
+
+    #[test]
+    fn local_run_artifacts_match_legacy_layout() {
+        let artifacts = local_run_artifacts("C:/Code/Golem-Agents-Legion", "20260611-abc123");
+
+        assert_eq!(artifacts.run_records_dir, "C:/Code/Golem-Agents-Legion/.dev/xmachine-runs");
+        assert_eq!(
+            artifacts.local_staging_dir,
+            "C:/Code/Golem-Agents-Legion/.dev/xmachine-runs/20260611-abc123"
+        );
+        assert_eq!(
+            artifacts.local_run_record_path,
+            "C:/Code/Golem-Agents-Legion/.dev/xmachine-runs/20260611-abc123.json"
+        );
+        assert_eq!(
+            artifacts.local_plan_snapshot_path,
+            "C:/Code/Golem-Agents-Legion/.dev/xmachine-runs/20260611-abc123/plan.prompt.md"
+        );
+        assert_eq!(
+            artifacts.local_state_snapshot_path,
+            "C:/Code/Golem-Agents-Legion/.dev/xmachine-runs/20260611-abc123/state.md"
         );
     }
 }
