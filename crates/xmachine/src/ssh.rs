@@ -152,8 +152,13 @@ pub fn classify_ssh_error(stderr: &str) -> SshErrorKind {
 
 /// Build the remote command that invokes the remote `gal` binary for one task
 /// phase. The execution body on the remote is `gal`, never a shell-script fleet.
+///
+/// The scp'd task spec lives at `spec_path`; `gal pipeline <spec>` reads that file
+/// and forwards to the dispatch bin. Flags match the real `gal pipeline` CLI
+/// contract (`--phase` / `--task`) — NOT the control-plane `--pipeline-phase` /
+/// `--task-scope` names, which `gal-dispatch` does not accept.
 pub fn remote_gal_task_command(task_id: &str, phase: &str, spec_path: &str) -> String {
-    format!("gal dispatch --pipeline-phase {phase} --task-scope {task_id} --task-spec {spec_path}")
+    format!("gal pipeline {spec_path} --phase {phase} --task {task_id}")
 }
 
 /// Remote SSH transport. Holds the target + dispatch context; `run` builds the
@@ -332,10 +337,12 @@ mod tests {
     #[test]
     fn remote_command_invokes_remote_gal_binary() {
         let cmd = remote_gal_task_command("T-005", "implement", "/tmp/x/spec.md");
-        assert!(cmd.starts_with("gal dispatch"));
-        assert!(cmd.contains("--pipeline-phase implement"));
-        assert!(cmd.contains("--task-scope T-005"));
-        assert!(cmd.contains("--task-spec /tmp/x/spec.md"));
+        // Must match the real `gal pipeline` CLI contract, not control-plane flags.
+        assert!(cmd.starts_with("gal pipeline /tmp/x/spec.md"));
+        assert!(cmd.contains("--phase implement"));
+        assert!(cmd.contains("--task T-005"));
+        assert!(!cmd.contains("--pipeline-phase"));
+        assert!(!cmd.contains("--task-scope"));
     }
 
     #[test]
@@ -350,7 +357,7 @@ mod tests {
         assert_eq!(args[0], "-o");
         assert_eq!(args[1], "BatchMode=yes");
         assert_eq!(args[2], "alice@mac-mini");
-        assert!(args[3].starts_with("gal dispatch"));
+        assert!(args[3].starts_with("gal pipeline"));
         assert!(args[3].contains("/tmp/gal-xmachine/task-T-005/T-005-implement.md"));
         assert_eq!(transport.label(), "ssh");
     }
