@@ -11,6 +11,11 @@
 
 派工注意:本機 copilot CLI 未認證(dispatch 根因,使用者保留現狀);headless 派工恢復前,pipeline 實作相位以 DEGRADED_BUNDLED 或使用者手動跨平台執行。
 
+## Non-Active / Closed Plans（2026-06-11,fix-install T-009/R-07 孤立計畫裁決）
+
+- **feat-gal-file-memory-strategy** — **CLOSED(已吸收)**。核心交付物(檔案記憶體契約)已落地於 `plugins/gal-core/conventions/token-budget.md` 的 File-System Memory Contract;孤立執行 prompt 已刪;source plan 加 CLOSED banner 保留為參考。非 active。
+- **manage-external-plugins** — **STALE / DEFERRED**。未核准草稿,實作法錨定已刪的 `Sync-DevContext.*`(現為 `adapters` crate + `gal sync`);功能目標仍是合理 backlog,復活須重規劃。source-only(無 prompt),非 active。
+
 ## Active Plans
 
 - .dev/plans/refactor-gal-core-rust-port.prompt.md

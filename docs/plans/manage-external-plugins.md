@@ -1,5 +1,7 @@
 # 企劃：管理外部 Plugins 與 Skills (Manage External Plugins and Skills)
 
+> **狀態:STALE / DEFERRED — 非 active(2026-06-11,fix-install T-009/R-07 裁決)。** 這是一個**未核准的草稿**(Approval/Review/Tasks 全 Pending),且實作方法錨定在**已刪除的腳本** `scripts/Sync-DevContext.ps1` / `sync-dev-context.sh`(核心計畫 T-016/T-017 已 port 為 `crates/adapters` + `gal sync`)。功能目標(外部 plugin/skill vendor 命名空間 + 安全審查關卡)仍是合理的**未來 backlog**,但若要復活必須對照現行 `adapters` crate / `gal sync` 架構**重新規劃**,不可照本草稿執行。未列入 `.dev/state.md` Active Plans(正確)。
+
 ## 目標 (Goal)
 
 讓 GAL 能夠作為統一的跨 AI Provider 管理中心，不只管理 MCP servers，也能管理從 GitHub 或網路上複製下來的外部 plugins 與 skills。這必須確保跨機器重建的穩定性、防止命名衝突，並確保外部程式碼在被注入到生成的轉接層 (adapters) 前，能經過安全的審查。

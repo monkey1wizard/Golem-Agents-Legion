@@ -1,5 +1,7 @@
 # Plan: GAL 統一檔案記憶體策略
 
+> **狀態:CLOSED — 已吸收(2026-06-11,fix-install T-009/R-07 裁決)。** 本計畫核心交付物(檔案記憶體契約:Memory Scopes、Retrieve/Encode/Summarize/Promote/Prune 操作、Promotion/Prune gates、拒絕 Mem0/Zep/向量庫/DB)**已落地於 `plugins/gal-core/conventions/token-budget.md` 的「File-System Memory Contract」段**(並透過生成 adapter 帶到各 provider)。非 active 計畫;孤立執行 prompt 已刪。本檔保留為被吸收契約的參考來源,不再排程執行。
+
 ## Goal
 
 GAL 擁有一套權威的檔案系統記憶體模型，可跨越不同對話、專案、供應商 (providers)、聊天互動以及實作 agents 運作。Copilot、Antigravity CLI、Codex、Claude Code 以及未來的 runtime 都必須在不依賴供應商本地的聊天歷史、外部記憶體框架、向量儲存庫、資料庫或手動編輯的生成轉接器 (generated adapters) 的情況下，能夠復原並更新相同的專案層級 Markdown 記憶體。

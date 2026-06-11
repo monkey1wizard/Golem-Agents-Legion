@@ -95,9 +95,9 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 
 ```
 Workflow: IMPLEMENT
-Step: 8 of 10
-Last activity: 2026-06-11 — completed T-008 cosign trust re-review (core T-034 shipped); fixed broken verify command in release.yml
-Next step: T-009/T-010 bookkeeping (orphan plan adjudication + slim install-followups.md)
+Step: 9 of 10
+Last activity: 2026-06-11 — T-009 orphan-plan adjudication done (memory-strategy CLOSED/absorbed, manage-external-plugins STALE)
+Next step: T-010 — slim/close docs/observations/install-followups.md, then wrap up
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -141,7 +141,7 @@ Review Retry Count: 0
 
 **Bookkeeping (after all items)**
 
-- [ ] T-009 — (R-07) Adjudicate `docs/plans/manage-external-plugins.md` (close superseded or continue) and `feat-gal-file-memory-strategy` (has prompt but not in `.dev/state.md` Active Plans) — confirm true state, align `.dev/state.md`.
+- [x] T-009 — (R-07) Adjudicate `docs/plans/manage-external-plugins.md` (close superseded or continue) and `feat-gal-file-memory-strategy` (has prompt but not in `.dev/state.md` Active Plans) — confirm true state, align `.dev/state.md`. **DONE 2026-06-11:** memory-strategy CLOSED (substance absorbed into `conventions/token-budget.md` File-System Memory Contract; orphan prompt deleted; source banner). manage-external-plugins STALE/DEFERRED (targets deleted `Sync-DevContext.*` → re-plan against `adapters`/`gal sync` if revived). Both recorded in `.dev/state.md` Non-Active / Closed Plans; neither in Active Plans (correct).
 - [ ] T-010 — (R-08) After all items closed, slim `docs/observations/install-followups.md` to "all closed + commit refs" or delete.
 
 ## Deferred Follow-up
