@@ -116,17 +116,30 @@ jobs:
           SRC="target/${{ matrix.target }}/release/gal${{ matrix.binary_ext }}"
           cp "${SRC}" "${BINARY_NAME}"
 
-      - name: Create fallback archive (zip — Windows)
+      # The end-user install archive must bundle the binary together with the
+      # GAL source (flat layout: `gal` + skills/agents/commands/… side by side)
+      # so `gal install` resolves the packaged source root from the binary's dir
+      # (R-13 "打包 source"). Without it, a normal-mode install fails with
+      # "Source root not found". The standalone binary asset stays binary-only.
+      - name: Stage end-user package (binary + flat source)
+        shell: bash
+        run: |
+          rm -rf pkg && mkdir -p pkg
+          cp "${BINARY_NAME}" "pkg/gal${{ matrix.binary_ext }}"
+          cp LICENSE pkg/
+          cp -r plugins/gal-core/. pkg/
+
+      - name: Create package archive (zip — Windows)
         if: matrix.archive_ext == '.zip'
         shell: pwsh
         run: |
-          Compress-Archive -Path $env:BINARY_NAME, "LICENSE" -DestinationPath $env:ARCHIVE_NAME
+          Compress-Archive -Path "pkg/*" -DestinationPath $env:ARCHIVE_NAME
 
-      - name: Create fallback archive (tar.gz — Unix)
+      - name: Create package archive (tar.gz — Unix)
         if: matrix.archive_ext == '.tar.gz'
         shell: bash
         run: |
-          tar -czf "${ARCHIVE_NAME}" "${BINARY_NAME}" LICENSE
+          tar -czf "${ARCHIVE_NAME}" -C pkg .
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4

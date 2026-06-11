@@ -1846,6 +1846,21 @@ fn configure_git(
     ctx: &PersonalizationContext,
     report: &mut ProjectionReport,
 ) -> Result<(), AdapterError> {
+    // The gal-config personalization filter + hooksPath only apply to the GAL
+    // *source* git repo (dev mode). An end-user install from a packaged artifact
+    // (e.g. a release tarball extracted to a plain directory) has no git repo to
+    // configure — skip best-effort instead of hard-failing on `not in a git
+    // directory`. Dev-mode installs run in the repo and proceed normally.
+    let in_git_repo = Command::new("git")
+        .current_dir(&ctx.opts.repo_root)
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !in_git_repo {
+        return Ok(());
+    }
+
     // R-06/T-025 cutover: the gal-config filter is backed by the Rust binary
     // subcommands `gal clean` / `gal smudge`, not the (now-deleted) bash/ps1
     // filter scripts. Keep this in sync with `setup::git_filter::registration_entries`.
