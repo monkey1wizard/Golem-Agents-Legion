@@ -399,14 +399,36 @@ pub fn process_commit_msg(
     let current_msg = std::fs::read_to_string(msg_path)?;
 
     // Derive scope from file paths (no body keyword inspection — no-hijack).
-    let _scope = derive_scope_from_files(staged_files);
+    let scope = derive_scope_from_files(staged_files);
 
-    // The message is accepted as-is (scope injection is opt-in, not forced).
-    // The main value of the hook is detecting the no-hijack case.
-    // Future work: scope injection when message lacks conventional format.
-    std::fs::write(msg_path, &current_msg)?;
+    let updated = inject_scope_prefix(&current_msg, scope.as_deref()).unwrap_or(current_msg);
+    std::fs::write(msg_path, updated)?;
 
     Ok(CommitMsgResult::Updated)
+}
+
+fn inject_scope_prefix(message: &str, scope: Option<&str>) -> Option<String> {
+    let scope = scope?;
+    let first_line = message.lines().next()?;
+    let trimmed = first_line.trim();
+    let colon = trimmed.find(':')?;
+    let prefix = &trimmed[..colon];
+
+    if prefix.contains('(') || prefix.contains(')') || prefix.is_empty() {
+        return None;
+    }
+
+    let allowed_types = ["feat", "fix", "refactor", "docs", "test", "chore", "perf", "ci"];
+    if !allowed_types.contains(&prefix) {
+        return None;
+    }
+
+    let scoped_first = first_line.replacen(prefix, &format!("{prefix}({scope})"), 1);
+    if let Some(rest) = message.strip_prefix(first_line) {
+        Some(format!("{scoped_first}{rest}"))
+    } else {
+        Some(scoped_first)
+    }
 }
 
 /// Non-destructive git commit-msg hook behavior.
@@ -622,6 +644,38 @@ mod tests {
         std::fs::write(&msg_path, original).unwrap();
 
         let files = vec!["crates/gal-engine/src/ledger.rs"];
+        let result = process_commit_msg(&msg_path, &files).unwrap();
+
+        assert_eq!(result, CommitMsgResult::Updated);
+        let content = std::fs::read_to_string(&msg_path).unwrap();
+        assert_eq!(content, original);
+    }
+
+    #[test]
+    fn process_commit_msg_injects_scope_when_header_lacks_one() {
+        let tmp = TempDir::new().unwrap();
+        let msg_path = tmp.path().join("COMMIT_EDITMSG");
+        std::fs::write(&msg_path, "fix: stabilize uninstall flow\n\nBody stays untouched.\n").unwrap();
+
+        let files = vec!["crates/gal-engine/src/install.rs"];
+        let result = process_commit_msg(&msg_path, &files).unwrap();
+
+        assert_eq!(result, CommitMsgResult::Updated);
+        let content = std::fs::read_to_string(&msg_path).unwrap();
+        assert_eq!(
+            content,
+            "fix(gal-engine): stabilize uninstall flow\n\nBody stays untouched.\n"
+        );
+    }
+
+    #[test]
+    fn process_commit_msg_keeps_freeform_message_without_conventional_prefix() {
+        let tmp = TempDir::new().unwrap();
+        let msg_path = tmp.path().join("COMMIT_EDITMSG");
+        let original = "stabilize uninstall flow manually\n";
+        std::fs::write(&msg_path, original).unwrap();
+
+        let files = vec!["crates/gal-engine/src/install.rs"];
         let result = process_commit_msg(&msg_path, &files).unwrap();
 
         assert_eq!(result, CommitMsgResult::Updated);
