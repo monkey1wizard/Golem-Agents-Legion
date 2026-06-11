@@ -11,7 +11,7 @@
 #   - `id-token: write` is the minimum OIDC permission required; it is scoped
 #     to the `sign` job only. The build matrix jobs have no OIDC access.
 #   - Verification: `cosign verify-blob checksums.txt
-#       --certificate-identity-regexp 'https://github.com/monkey1wizard/golem-agents-legion/.*'
+#       --certificate-identity-regexp 'https://github.com/monkey1wizard/Golem-Agents-Legion/\.github/workflows/release\.yml@.*'
 #       --certificate-oidc-issuer https://token.actions.githubusercontent.com`
 #
 # Security review S-3 note: this workflow is the cosign CI trust surface that
@@ -198,7 +198,7 @@ jobs:
         #   cosign verify-blob checksums.txt \
         #     --signature checksums.txt.sig \
         #     --certificate checksums.txt.pem \
-        #     --certificate-identity-regexp 'https://github.com/monkey1wizard/golem-agents-legion/.*' \
+        #     --certificate-identity-regexp 'https://github.com/monkey1wizard/Golem-Agents-Legion/\.github/workflows/release\.yml@.*' \
         #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
         run: |
           cosign sign-blob checksums.txt \

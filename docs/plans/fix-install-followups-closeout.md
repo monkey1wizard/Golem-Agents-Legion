@@ -38,7 +38,7 @@
 
 - [ ] **R-01(S-1)secret-guard backstop regex** — `crates/providers/src/lib.rs::has_unresolved_secrets` 的 anchored regex 只攔整串 `${SECRET}`;對齊內嵌型(如 `Bearer ${API_KEY}`)。縱深防禦(上游 resolver 已攔)。
 - [ ] **R-02(FU-03,擴大)uninstall ledger 精確度 + 必達** — `crates/gal-engine/src/install.rs::run_uninstall()`:(a) ledger entry 硬寫 `providers: []`/`mode: "normal"` 改用 `Ledger.last` 實際值;(b) 中途移除失敗(copilot/claude/dist hard-fail `?`)會跳過 ledger 寫入留無記錄半移除態——改為 best-effort 收集錯誤、ledger 必寫(記錄部分失敗),最後再回報錯誤。
-- [ ] **R-03(S-3)cosign CI 信任 security re-review** — 簽章信任設定(workflow identity + Rekor)re-review 並記錄;以 `cosign verify-blob` + Rekor 查詢實證。**掛核心計畫 T-034(R-13 管線)完成後、對外發佈前**執行。
+- [x] **R-03(S-3)cosign CI 信任 security re-review** — 簽章信任設定(workflow identity + Rekor)re-review 並記錄;以 `cosign verify-blob` + Rekor 查詢實證。**掛核心計畫 T-034(R-13 管線)完成後、對外發佈前**執行。**✅ DONE(2026-06-11,T-034 已產 `v0.1.0-rc1`):trust config 審查 + 對真實簽章 Release 實證(cosign v3.1.1 `verify-blob`→Verified OK、Rekor tlog 驗、keyless OIDC least-privilege)。發現並修正 release.yml 文件化 verify 指令的 identity 大小寫錯誤(`golem-agents-legion`→`Golem-Agents-Legion` 並 pin workflow 路徑)。詳見 prompt `### Security Review`。**
 - [ ] **R-04(AGY M2)交易/ledger** — `crates/providers/src/agy.rs` 三 surface 補交易回滾 + ledger 整合(OE-A 延後項)。
 - [ ] **R-05(MCP M2,縮減)AGY serializer + 覆蓋驗證** — 在 `crates/providers`(serializer 所在,非 `crates/mcp`)補 AGY `McpProviderConfig`(若 AGY 的 MCP 設定面確認適用);以測試確認既有 Codex/OpenCode serializer 覆蓋完整(已存在但原計畫未驗收)。
 - [ ] **R-06(R5,optional)commit-msg scope injection** — `crates/gal-engine/src/commit_msg.rs` + `crates/cli`:依 changed files 自動加 scope 前綴。最低優先。

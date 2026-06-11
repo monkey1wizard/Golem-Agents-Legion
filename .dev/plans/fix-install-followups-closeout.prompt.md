@@ -95,9 +95,9 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 
 ```
 Workflow: IMPLEMENT
-Step: 7 of 10
-Last activity: 2026-06-11 — completed optional T-007 with its own commit boundary
-Next step: Wait for T-034 gate on T-008, or continue to T-009 bookkeeping
+Step: 8 of 10
+Last activity: 2026-06-11 — completed T-008 cosign trust re-review (core T-034 shipped); fixed broken verify command in release.yml
+Next step: T-009/T-010 bookkeeping (orphan plan adjudication + slim install-followups.md)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -137,7 +137,7 @@ Review Retry Count: 0
 
 **Review Gate (gated on core T-034)**
 
-- [ ] T-008 — (R-03) Security re-review of `.github/workflows/release.yml` trust configuration (workflow identity + Rekor); prove with `cosign verify-blob` + Rekor query; produce written record. **Prerequisite: core plan T-034 (R-13 pipeline) complete, before public release.**
+- [x] T-008 — (R-03) Security re-review of `.github/workflows/release.yml` trust configuration (workflow identity + Rekor); prove with `cosign verify-blob` + Rekor query; produce written record. **DONE 2026-06-11** (core T-034 shipped `v0.1.0-rc1`). Trust config reviewed + empirically verified against the real signed Release; found+fixed a broken documented verify command. See `## Review Results > ### Security Review` and `## Test Results` TP-010.
 
 **Bookkeeping (after all items)**
 
@@ -185,8 +185,23 @@ Review Retry Count: 0
 - 2026-06-11: `cargo test -p gal-engine fill_commit_msg_file_leaves_already_scoped_header_untouched` PASS
 - 2026-06-11: `cargo test -p gal-engine fill_commit_msg_file_leaves_freeform_authored_message_untouched` PASS
 - 2026-06-11: `cargo test -p gal-engine` 136 passed; `cargo clippy -p gal-engine -- -D warnings` clean
+- 2026-06-11 (TP-010, T-008): `cosign verify-blob` against the real signed Release `v0.1.0-rc1` (downloaded `checksums.txt` + `.sig` + `.pem` via `gh release download`; cosign v3.1.1). **(A)** documented lowercase identity regexp → **FAILS**: `none of the expected identities matched … got [https://github.com/monkey1wizard/Golem-Agents-Legion/.github/workflows/release.yml@refs/tags/v0.1.0-rc1] issuer https://token.actions.githubusercontent.com`. **(B)** corrected-case identity regexp → **`Verified OK`** (keyless cert + Rekor tlog verified). Proven empirically, not "workflow ran".
 
 ## Review Results
+
+### Security Review
+
+**Verdict: CLEAR (with one fix applied)** *(2026-06-11, T-008 / R-03 cosign trust re-review, against the real `v0.1.0-rc1` Release)*
+
+<!-- SECURITY_REVIEW: CLEAR -->
+
+Trust configuration of `.github/workflows/release.yml` reviewed and empirically verified:
+
+- **Keyless OIDC, no long-term key** — signing uses sigstore/cosign keyless via GitHub Actions OIDC. ✓
+- **Least-privilege OIDC** — `id-token: write` is scoped to the `sign` job only; the build matrix jobs have no OIDC (`id-token: none` default). `contents: write` only for Release upload. ✓
+- **Identity pinned + verified** — the Fulcio cert SAN is `https://github.com/monkey1wizard/Golem-Agents-Legion/.github/workflows/release.yml@refs/tags/v0.1.0-rc1`, OIDC issuer `https://token.actions.githubusercontent.com`, OIDC subject `repo:monkey1wizard/Golem-Agents-Legion:ref:refs/tags/v0.1.0-rc1`, run `27336292655`. `cosign verify-blob` returns **Verified OK** (Rekor transparency-log inclusion checked). ✓
+- **FINDING (fixed):** the verify command documented in `release.yml` used lowercase `golem-agents-legion`, which does NOT match the case-sensitive cert identity `Golem-Agents-Legion` → following the docs produced a FALSE verification failure. It was also too loose (`/.*` matched any path under the repo, not just the release workflow). Fixed both comment occurrences to `…/Golem-Agents-Legion/\.github/workflows/release\.yml@.*` (correct case + pin the workflow path). Re-proven: corrected regexp → Verified OK.
+- **Advisory (not blocking):** cosign v3 deprecates `--signature`/`--certificate` in favor of `--bundle`; the legacy flags still verify OK. Consider switching the documented command to `--bundle` for future cosign majors.
 
 ### Architecture Review
 
