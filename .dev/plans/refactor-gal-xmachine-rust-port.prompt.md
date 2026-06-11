@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 5 of 15
-Last activity: 2026-06-11 — architect completed R-01 (T-003 orchestration composing dispatch) + R-02 (T-004 task-spec port); F-2 resolved, F-1 still bound to T-005
-Next step: T-005 — scaffold `crates/xmachine` + SSH `Transport` impl; relocate the remote run-planning slice out of `pipeline` (F-1) as part of that step
+Step: 9 of 15
+Last activity: 2026-06-11 — architect completed R-03/R-05/R-06 (T-005..T-009): xmachine crate (ssh/zellij/result/preflight/session_record); F-1 relocation done
+Next step: T-010 (oracle reparent) then T-011 (cli wiring: gal pipeline/xmachine/dispatch + xmachine HealthCheck into doctor) / T-012 (contract surface). T-013 live cross-machine parity stays gated on core R-13 artifact.
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -122,6 +122,14 @@ Review Retry Count: 0
   - **R-02 / T-004** — `crates/pipeline/src/task_spec.rs`. Faithful port of `New-TaskSpec.ps1`: multi-line task-block extraction (incl. indented sub-bullets, stops at next top-level `T-NNN`), per-task affected-file convergence (backtick paths in the block, case-insensitive dedup, matched to the Files section, fallback to the full section), per-phase write-back (`## Test Results`/`## Review Results`/`## Analyze`) + agent-contract maps, and spec assembly with the 5 KB size signal. Pure/deterministic (git/clock/convention passed in).
   - **F-1 still open**: the remote run-planning slice remains in `lib.rs`, bound to relocate into `crates/xmachine` at T-005.
   - Verification: `cargo test -p pipeline` 22 passed; `cargo clippy -p pipeline -- -D warnings` clean; `cargo test --workspace` 447 passed / 1 ignored. CODER=architect here → independent AUDITOR/TESTER pass still owed per CODER≠AUDITOR.
+- 2026-06-11 (architect implemented R-03 + R-05 + R-06, T-005..T-009; **F-1 resolved**): new `crates/xmachine` crate (added to workspace), composing `base`/`dispatch`/`pipeline`; does not rebuild the lower layers.
+  - **T-005 / R-03** `ssh.rs` — `RemoteTarget`, `remote_task_paths` (parity vs `Invoke-XmachineRemoteTask`: `C:\Windows\Temp\gal-xmachine\task-<id>` / `/tmp/gal-xmachine/task-<id>`, repo vs execute worktree), `remote_task_id` shape, `-o BatchMode=yes` ssh/scp builders, publickey/Permission-denied auth classification, and `SshTransport` implementing pipeline's `Transport`. **F-1 done**: the remote run-planning (`RemotePipelinePaths`/`PipelineRunRecord`/state notes/`local_run_artifacts`) was moved out of `pipeline` into `xmachine`; `pipeline` is now lean transport-agnostic (orchestration + task_spec).
+  - **T-006 / R-03** `zellij.rs` — `create-background` via `script`, `list-sessions` existence probe, `run --close-on-exit`, forced `delete-session`, `select_launcher` (zellij+script else nohup), reattach decision, and the full remote launch script (mkdir → background → poll 10× → `exit 41` if absent → run), matching the legacy inner SSH command.
+  - **T-007 / R-03** `result.rs` — `RESULT_FILES`, `RemoteStatus` serde model + `is_running`, `parse_status` (None when empty/unparsable → keep polling), `poll_should_continue`, `pull_file_args` (scp), mode-aware `cleanup_commands`.
+  - **T-008 / R-05** `preflight.rs` — `SshReachableCheck`/`ZellijInstalledCheck`/`RemoteGalCheck` implementing `base::HealthCheck`; grading is split from the IO probe and the module carries **no provisioning command** (structural "never configure SSH / install zellij / scp gal"); fail-loud with user-owned fix hints; `gal_version_compatible` rejects on mismatch; `node_health_checks` bundles all three for `gal doctor`.
+  - **T-009 / R-06** `session_record.rs` — `SessionRecord` (host/transport/work-node/session-id/times/result-path/terminal-state) written as a `.session.json` sidecar into the **same** `.dev/executor-logs/` dir (`executor_logs_dir` reuses `dispatch::…::SpawnConfig::default_log_dir` so the two cannot drift); no second store.
+  - **Honest scope boundary**: these are the deterministic command-construction / parsing / preflight / record-schema cores, fully unit-tested. The live SSH+zellij+scp round-trip (real remote execution & result parity) is **T-013** (hard gate: win→mac + win→win, prerequisite core R-13 artifact) — not exercised here.
+  - Verification: `cargo test -p xmachine` 43 passed; `cargo clippy -p xmachine -- -D warnings` clean; `cargo test --workspace` 485 passed / 1 ignored; `cargo clippy --workspace -- -D warnings` clean. CODER=architect → independent AUDITOR/TESTER still owed (CODER≠AUDITOR); live T-013 parity still owed.
 
 ## Tasks
 
@@ -133,12 +141,12 @@ R-01/R-02 pipeline (protected, architect; prerequisite = core R-00)
 - [x] T-003 — Port task-split + multi-provider dispatch + multi-stage orchestration → `pipeline`; parity. (R-01: `orchestration.rs` composes `dispatch` — routing→adapter→`spawn_executor`; F-2 resolved.)
 - [x] T-004 — Port task-spec (`New-TaskSpec`, absorbing the small-context multi-line extraction + per-task file convergence spec) → `pipeline`; parity. (R-02: `task_spec.rs`.)
 
-R-03/R-05/R-06 xmachine (protected, architect)
-- [ ] T-005 — Scaffold `xmachine` crate + SSH `Transport` impl; remote-execution parity.
-- [ ] T-006 — zellij session multiplexing integration; disconnect/reconnect behavior parity.
-- [ ] T-007 — Remote result collection; parity.
-- [ ] T-008 (R-05) — Preflight (`HealthCheck`: SSH/zellij/remote-gal, check-only, never provision, fail-loud with guidance).
-- [ ] T-009 (R-06) — Session records extend `.dev/executor-logs/` (host/transport/session-id/time/result-path), no new store.
+R-03/R-05/R-06 xmachine (protected, architect) — implemented 2026-06-11; live SSH parity stays the T-013 gate
+- [x] T-005 — Scaffold `xmachine` crate + SSH `Transport` impl; remote-execution parity. (ssh.rs; F-1 relocation done.)
+- [x] T-006 — zellij session multiplexing integration; disconnect/reconnect behavior parity. (zellij.rs.)
+- [x] T-007 — Remote result collection; parity. (result.rs.)
+- [x] T-008 (R-05) — Preflight (`HealthCheck`: SSH/zellij/remote-gal, check-only, never provision, fail-loud with guidance). (preflight.rs.)
+- [x] T-009 (R-06) — Session records extend `.dev/executor-logs/` (host/transport/session-id/time/result-path), no new store. (session_record.rs.)
 
 reparent / entry / contract
 - [ ] T-010 (R-08, before deletion) — Reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` to fixture/behavioral tests.
@@ -191,6 +199,8 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 - 2026-06-11: `cargo test -p pipeline` PASS (7 tests, 0 failed) after the T-003 run-planning port slice.
 - 2026-06-11: `cargo test -p pipeline` PASS (22 tests) after R-01 (orchestration) + R-02 (task-spec); `cargo clippy -p pipeline -- -D warnings` clean.
 - 2026-06-11: `cargo test --workspace` PASS (447 passed, 1 ignored) — no regression from the pipeline changes.
+- 2026-06-11: `cargo test -p xmachine` PASS (43 tests) after R-03/R-05/R-06 (ssh/zellij/result/preflight/session_record); `cargo clippy -p xmachine -- -D warnings` clean.
+- 2026-06-11: `cargo test --workspace` PASS (485 passed, 1 ignored); `cargo clippy --workspace -- -D warnings` clean — no regression from the new xmachine crate + F-1 relocation.
 
 ## Review Results
 
@@ -205,7 +215,7 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 **F-2 (HIGH — scope + honest state):** T-003's actual deliverable (local task-split + multi-provider dispatch + multi-stage orchestration) is absent. `LocalTransport::dispatch` fabricates a `TransportReceipt` and never calls `dispatch::spawn_executor` / `dispatch::adapters::get_adapter`; the only `dispatch` reuse is the `Phase` type. The "compose, don't rebuild — local execution delegates to dispatch" requirement (R-00/R-01) is not yet demonstrated. The source plan had marked T-003 `[x]` while the prompt itself showed it in-progress (Step 3/15). **RESOLVED 2026-06-11:** `orchestration.rs` now composes `dispatch` end-to-end (`resolve_plan` routing→adapter; `LocalTransport::run` → `dispatch::spawn_executor`); T-003/T-004 implemented and re-marked done; source/prompt realigned.
 
 <!-- ARCH_REVIEW: FINDINGS-OPEN -->
-<!-- F-1 open (remote slice relocation → T-005); F-2 resolved 2026-06-11 -->
+<!-- F-1 resolved 2026-06-11 (remote slice relocated to crates/xmachine at T-005); F-2 resolved 2026-06-11 -->
 
 Note: this implementation was authored in the architect/CODER seat; an independent AUDITOR + TESTER pass is still owed (CODER≠AUDITOR) before T-003/T-004 are treated as cross-checked.
 
