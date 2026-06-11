@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 9 of 15
-Last activity: 2026-06-11 — architect completed R-03/R-05/R-06 (T-005..T-009): xmachine crate (ssh/zellij/result/preflight/session_record); F-1 relocation done
-Next step: T-010 (oracle reparent) then T-011 (cli wiring: gal pipeline/xmachine/dispatch + xmachine HealthCheck into doctor) / T-012 (contract surface). T-013 live cross-machine parity stays gated on core R-13 artifact.
+Step: 11 of 15
+Last activity: 2026-06-11 — architect-reviewed T-010/T-011, fixed F-D (token-burn reparent), committed per task
+Next step: T-012 (contract surface → Rust binary refs, protected/architect). T-013 live cross-machine parity stays gated on core R-13 artifact. Follow-up F-E: give the pipeline/xmachine crates a real cli consumer.
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -130,6 +130,9 @@ Review Retry Count: 0
   - **T-009 / R-06** `session_record.rs` — `SessionRecord` (host/transport/work-node/session-id/times/result-path/terminal-state) written as a `.session.json` sidecar into the **same** `.dev/executor-logs/` dir (`executor_logs_dir` reuses `dispatch::…::SpawnConfig::default_log_dir` so the two cannot drift); no second store.
   - **Honest scope boundary**: these are the deterministic command-construction / parsing / preflight / record-schema cores, fully unit-tested. The live SSH+zellij+scp round-trip (real remote execution & result parity) is **T-013** (hard gate: win→mac + win→win, prerequisite core R-13 artifact) — not exercised here.
   - Verification: `cargo test -p xmachine` 43 passed; `cargo clippy -p xmachine -- -D warnings` clean; `cargo test --workspace` 485 passed / 1 ignored; `cargo clippy --workspace -- -D warnings` clean. CODER=architect → independent AUDITOR/TESTER still owed (CODER≠AUDITOR); live T-013 parity still owed.
+- 2026-06-11 (architect review of copilot's T-010 + T-011; committed per task):
+  - **T-010 — F-D (HIGH) found + fixed.** The token-burn reparent did `include_str!(".../Test-PipelineTokenBurn.ps1")` and asserted on the live script's source. That compile-couples the test to the script — it would have **blocked the T-014 deletion** (the opposite of an R-08 reparent) and tested wording, not behavior. Fixed: froze the dispatch-boundary contract as `tests/fixtures/xmachine/pipeline-token-burn-contract.md` and rewrote the test to assert the fixture. All 5 `include_str!` now read committed fixtures under `tests/fixtures/xmachine/`, zero live scripts (TP-10 satisfied). `cargo test --test oracle_reparent_t010` 6 passed. `test-t022-ssh.sh` stays deferred to TP-13.
+  - **T-011 — accepted with recorded debt F-E (MEDIUM).** Commands are callable (not NotWired) and `gal doctor` aggregates xmachine config-readiness; `cargo test -p cli` 23 passed, clippy clean. But **cli depends on neither the `pipeline` nor the `xmachine` crate** — `cmd_pipeline` forwards to the `gal-dispatch` binary (defensible: reuses the full dispatch flow incl. the safety gate), `cmd_xmachine` only emits the `/gal` shorthand block, and doctor uses `setup::tools::xmachine_status` rather than `xmachine::preflight` (T-008). So the plan's DAG edge `cli → {pipeline, xmachine}` and "gal pipeline runs through Rust pipeline" are not yet realized; the R-01..R-06 crates have no binary consumer, and `xmachine::preflight` is unreferenced. Not rewritten now (gal-dispatch reuse keeps the safety gate; doctor can't SSH-probe every node, so config-readiness is the pragmatic doctor surface). **Follow-up F-E**: wire `gal pipeline` through the `pipeline` crate and use `xmachine::preflight` on the remote-dispatch path — natural to fold into T-012/T-013 or a dedicated wiring task.
 
 ## Tasks
 
@@ -149,8 +152,8 @@ R-03/R-05/R-06 xmachine (protected, architect) — implemented 2026-06-11; live 
 - [x] T-009 (R-06) — Session records extend `.dev/executor-logs/` (host/transport/session-id/time/result-path), no new store. (session_record.rs.)
 
 reparent / entry / contract
-- [ ] T-010 (R-08, before deletion) — Reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` to fixture/behavioral tests.
-- [ ] T-011 (R-04) — `cli` wiring: `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` into doctor aggregation.
+- [x] T-010 (R-08, before deletion) — Reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` to fixture/behavioral tests. (oracle_reparent_t010.rs + frozen contract fixture; F-D fixed; test-t022-ssh.sh deferred to TP-13.)
+- [x] T-011 (R-04) — `cli` wiring: `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` into doctor aggregation. (Callable + doctor aggregation; F-E debt recorded: crates not yet consumed by cli.)
 - [ ] T-012 (R-04, protected, architect) — Repoint contract surface (gal-pipeline SKILL/task-xmachine templates/agents.md) to the Rust binary.
 
 parity / deletion / closeout
@@ -164,6 +167,8 @@ parity / deletion / closeout
 
 ## Analyze
 
+- 2026-06-11: T-010 landed as `crates/gal-engine/tests/oracle_reparent_t010.rs`, reparenting the frozen xmachine Windows-control-node oracle surfaces plus the pipeline token-burn dispatch-boundary contract into Rust-owned tests. Focused validation: `cargo test --test oracle_reparent_t010` PASS.
+- 2026-06-11: T-011 landed as a Rust CLI surface extension: `crates/gal-engine/src/lib.rs` now recognizes `dispatch` / `pipeline` / `xmachine`, and `crates/cli/src/main.rs` wires those commands plus xmachine readiness into `gal doctor` through the existing `setup::tools::xmachine_status` surface. Focused validation: `cargo test -p cli` PASS.
 - 2026-06-11: fixture freeze created `tests/fixtures/xmachine/README.md` plus three Windows control-node baseline artifacts under `tests/fixtures/xmachine/windows-control-node/`.
 - 2026-06-11: T-002 scaffold created `crates/pipeline/Cargo.toml` and `crates/pipeline/src/lib.rs`, with local transport tests proving phase reuse from `dispatch`.
 - 2026-06-11: T-003 planning slice added `WorkPlatform`, `RemotePipelinePaths`, `PipelineRunContext`, `PipelineRunRecord`, plus state-note helpers to `crates/pipeline/src/lib.rs`.
@@ -192,6 +197,8 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 
 ## Test Results
 
+- 2026-06-11: `cargo test --test oracle_reparent_t010` PASS (6 passed) after the F-D fix — reparent reads only committed fixtures, zero live xmachine scripts (TP-10).
+- 2026-06-11: `cargo test -p cli` PASS (23 passed); `cargo clippy -p cli -- -D warnings` clean — T-011 command surface (`dispatch`/`pipeline`/`xmachine` not NotWired; doctor aggregates xmachine readiness).
 - 2026-06-11: `list_dir tests/fixtures/xmachine` confirmed the new fixture domain root and `windows-control-node/` subdirectory.
 - 2026-06-11: `list_dir tests/fixtures/xmachine/windows-control-node` confirmed the three baseline artifacts.
 - 2026-06-11: `get_errors` clean for `tests/fixtures/xmachine/README.md` and all three baseline `.txt` artifacts.

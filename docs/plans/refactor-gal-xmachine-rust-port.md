@@ -242,8 +242,8 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-009（R-06）** — session 紀錄延伸 `.dev/executor-logs/`(host/transport/session-id/時間/結果路徑),不另建 store。(`session_record.rs`:`SessionRecord` sidecar、`executor_logs_dir` 重用 dispatch `default_log_dir`。)
 
 **reparent / 入口 / 契約**
-- [ ] **T-010（R-08,先於刪除）** — reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` 為 fixture/行為測試。
-- [ ] **T-011（R-04/P3）** — `cli` 接線 `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` 入 doctor 聚合。
+- [x] **T-010（R-08,先於刪除）** — reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` 為 fixture/行為測試。(`crates/gal-engine/tests/oracle_reparent_t010.rs` + 凍結 contract fixture。**architect 修 F-D**:原本 `include_str!` 活的 `Test-PipelineTokenBurn.ps1` 並斷言其原始碼 —— 會 compile-couple、擋住 T-014 刪除、且測的是字串非行為;改讀 `tests/fixtures/xmachine/pipeline-token-burn-contract.md`。`test-t022-ssh.sh` 延到 TP-13。)
+- [x] **T-011（R-04/P3）** — `cli` 接線 `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` 入 doctor 聚合。(指令皆可呼、doctor 聚合 xmachine readiness;**F-E 債務記錄**:cli 尚未依賴/消費 `pipeline`/`xmachine` crate —— `gal pipeline` 轉發 `gal-dispatch`、`gal xmachine` 只輸出 shorthand block、doctor 用 `setup::tools` 而非 `xmachine::preflight`。DAG 邊 `cli→{pipeline,xmachine}` 待後續接線實現。)
 - [ ] **T-012（R-04,受保護,architect）** — 改契約面(gal-pipeline SKILL/task-xmachine 模板/agents.md)引用指 Rust binary。
 
 **parity / 刪除 / 收尾**
