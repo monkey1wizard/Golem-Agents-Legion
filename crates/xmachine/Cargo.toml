@@ -1,0 +1,22 @@
+[package]
+name = "xmachine"
+version = "0.1.0"
+edition = "2021"
+description = "GAL xmachine — remote SSH+zellij transport upgrade of the pipeline orchestration layer."
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[lib]
+name = "xmachine"
+path = "src/lib.rs"
+
+[dependencies]
+base = { path = "../base" }
+dispatch = { path = "../dispatch" }
+pipeline = { path = "../pipeline" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[dev-dependencies]
+tempfile = "3.0"
