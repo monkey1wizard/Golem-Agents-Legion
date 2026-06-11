@@ -74,15 +74,23 @@ impl AgyProjection {
     
     /// Create or update all three AGY surfaces
     pub fn apply(&self) -> Result<(), AgyError> {
-        // Surface 1: CLI junction
+        let mut created_surfaces = Vec::new();
+
         self.create_cli_junction()?;
-        
-        // Surface 2: IDE junction
-        self.create_ide_junction()?;
-        
-        // Surface 3: GUI config files
-        self.create_gui_configs()?;
-        
+        created_surfaces.push(AgySurface::CliLink);
+
+        if let Err(err) = self.create_ide_junction() {
+            self.rollback_surfaces(&created_surfaces);
+            return Err(err);
+        }
+        created_surfaces.push(AgySurface::IdeLink);
+
+        if let Err(err) = self.create_gui_configs() {
+            self.rollback_surfaces(&created_surfaces);
+            return Err(err);
+        }
+        created_surfaces.push(AgySurface::GuiConfigs(self.expected_gui_configs()));
+
         Ok(())
     }
     
@@ -234,6 +242,24 @@ skill_path = "{}"
 
         Ok(())
     }
+
+    fn rollback_surfaces(&self, surfaces: &[AgySurface]) {
+        for surface in surfaces.iter().rev() {
+            match surface {
+                AgySurface::CliLink => {
+                    let _ = remove_link_if_present(&self.cli_target);
+                }
+                AgySurface::IdeLink => {
+                    let _ = remove_link_if_present(&self.ide_target);
+                }
+                AgySurface::GuiConfigs(paths) => {
+                    for path in paths {
+                        let _ = fs::remove_file(path);
+                    }
+                }
+            }
+        }
+    }
     
     /// Get the list of expected GUI config files
     pub fn expected_gui_configs(&self) -> Vec<PathBuf> {
@@ -257,8 +283,23 @@ skill_path = "{}"
     }
 }
 
+#[derive(Debug, Clone)]
+enum AgySurface {
+    CliLink,
+    IdeLink,
+    GuiConfigs(Vec<PathBuf>),
+}
+
 fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
+}
+
+fn remove_link_if_present(path: &Path) -> std::io::Result<()> {
+    if path.exists() || path.is_symlink() {
+        base::platform::remove_dir_link(path)
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -380,6 +421,42 @@ mod tests {
             let path = PathBuf::from("C:/temp/gal");
             assert_eq!(path_arg(&path), "C:/temp/gal");
         }
+    }
+
+    #[test]
+    fn apply_rolls_back_links_when_gui_config_creation_fails() {
+        let temp_canonical = TempDir::new().unwrap();
+        let canonical_root = temp_canonical.path().to_path_buf();
+        let commands_dir = canonical_root.join("commands");
+
+        fs::create_dir_all(commands_dir.join("gal")).unwrap();
+        fs::create_dir_all(commands_dir.join("gal-init")).unwrap();
+
+        let temp_home = TempDir::new().unwrap();
+        let cli_plugins_dir = temp_home.path().join(".gemini").join("antigravity-cli").join("plugins");
+        let ide_plugins_dir = temp_home.path().join(".gemini").join("antigravity-ide").join("plugins");
+        fs::create_dir_all(&cli_plugins_dir).unwrap();
+        fs::create_dir_all(&ide_plugins_dir).unwrap();
+
+        let broken_gui_path = temp_home.path().join("broken-gui-config");
+        fs::write(&broken_gui_path, "not a directory").unwrap();
+
+        let mut projection = AgyProjection::new(canonical_root).unwrap();
+        projection.cli_target = cli_plugins_dir.join("gal");
+        projection.ide_target = ide_plugins_dir.join("gal");
+        projection.gui_config_dir = broken_gui_path;
+
+        let result = projection.apply();
+
+        assert!(matches!(result, Err(AgyError::GuiConfigDirCreation(_))));
+        assert!(
+            !projection.cli_target.exists(),
+            "CLI link should be rolled back when a later surface fails"
+        );
+        assert!(
+            !projection.ide_target.exists(),
+            "IDE link should be rolled back when a later surface fails"
+        );
     }
     
     // Integration test: verify complete surface creation
