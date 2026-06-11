@@ -4,7 +4,7 @@
 
 1. **① feat-small-context-task-authoring** — ✅ **DONE(2026-06-10)**。8/8 task PASS、TP-11 綠(412 test + clippy clean)、independent review APPROVE。契約源頭已落地。
 2. **② refactor-golem-auditor** — ✅ **DONE(2026-06-10)**。4/4 task PASS;independent review 補修 F-01(C2 漏改 gal.ps1/gal.sh phase 白名單,曾使 `--pipeline-phase audit` 被拒、auditor 派工經 shell 壞掉;0aeb8ff 修)。412 test + clippy clean。`review`/`security` 相位全清為 `audit`。
-3. **③ 核心 T-034(R-13 release 管線)** — 與 ①② 平行可做;是核心 T-035 與 xmachine T-013 的共同硬前置。需使用者先定 GitHub 公開決策。
+3. **③ 核心 T-034(R-13 release 管線)** — ✅ **DONE(2026-06-11)**。`.github/workflows/release.yml` 漂移修好(`-p cli`,7e9a086);推 `v0.1.0-rc1` → Actions run 27336292655 全 success,發 **private prerelease Release** 含 macOS-arm64 等 6 target 預編譯 `gal` + cosign keyless 簽章 + checksums/manifest。不需公開(私有 Release owner 可裝)。**解鎖 T-035、xmachine T-013、fix-install T-008。** 雙 remote 拓樸亦已設(GitLab origin 私有源 + GitHub 私有);publish-public.sh 過渡匯出腳本已備(轉公開時用)。
 4. **④ fix-install-followups-closeout** — 重勘版已 APPROVE:M1(R-01/R-02/R-V1/R-V2)隨時可做;R-03 cosign 審查掛 T-034 後、發佈前;M2 獨立。
 5. **⑤ xmachine** — T-001(fixture 凍結)隨時;T-002+(pipeline crate)前置核心 R-00 已滿足;**T-004(task-spec port)等 ①② 收斂**;T-013 等 ③ artifact。auditor 的 stage.rs `audit` 相位改名應先於 xmachine T-003 編排 port,避免 port 舊相位名。
 6. **⑥ 核心 T-035** — 等 ③;**核心 T-033** — 等 xmachine T-015(兩計畫共同尾端,最後一步)。
