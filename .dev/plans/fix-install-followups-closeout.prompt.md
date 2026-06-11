@@ -95,9 +95,9 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 
 ```
 Workflow: IMPLEMENT
-Step: 0 of 10
-Last activity: 2026-06-10 — execution prompt generated from source plan
-Next step: Begin T-001 (R-01 has_unresolved_secrets regex backstop)
+Step: 4 of 10
+Last activity: 2026-06-11 — completed local M1 implementation and focused validation for T-001 through T-004
+Next step: Begin T-005 (AGY transaction rollback + ledger integration)
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -112,16 +112,20 @@ Review Retry Count: 0
 
 ### Handoff Notes
 
-*(none yet)*
+- 2026-06-11: T-001 implemented in `crates/providers/src/lib.rs` by widening the backstop placeholder regex from bare-only to embedded `${SECRET}` detection; validated with focused provider tests for embedded, standalone, and non-secret placeholders.
+- 2026-06-11: T-002 implemented in `crates/gal-engine/src/install.rs` by making uninstall removal best-effort, reusing prior ledger `providers`/`mode`, always writing the uninstall ledger entry, and surfacing partial failures as `InstallError::PartialUninstall`; validated with focused ledger persistence and uninstall removal tests.
+- 2026-06-11: T-003 implemented in `crates/providers/src/agy.rs` by replacing Windows removal-path `to_str().unwrap()` usage with lossy path conversion; validated with focused non-UTF-8-safe path helper coverage.
+- 2026-06-11: T-004 closed with evidence in `crates/base/src/mode.rs` by adding a Windows UNC dead-path timeout test around the existing `recv_timeout(Duration::from_secs(2))` behavior.
+- 2026-06-11: No commit boundary was taken in this session, so commit-ref bookkeeping in `docs/observations/install-followups.md` remains deferred.
 
 ## Tasks
 
 **M1 — Fixes + Verify-Close (ready now, mutually independent)**
 
-- [ ] T-001 — (R-01) In `crates/providers/src/lib.rs::has_unresolved_secrets`, change anchored `^\$\{([A-Z0-9_]+)\}$` to a backstop that also detects embedded-form `${SECRET}` (substring scan, reuse KEY/SECRET/TOKEN/PASSWORD keyword list). Standalone form must not regress.
-- [ ] T-002 — (R-02) Rewrite `crates/gal-engine/src/install.rs::run_uninstall`: (a) use `Ledger.last` actual `providers`/`mode` values instead of hardcoded `&[]`/`"normal"`; (b) change mid-removal to best-effort — collect each step's error into `warnings`, always write ledger (record partial failures), report aggregate error only after all steps attempted. No more unrecorded partial-removal state.
-- [ ] T-003 — (R-V1, upgraded to real fix) Change `crates/providers/src/agy.rs:106` and `:140` `to_str().unwrap()` to non-panic handling (`to_string_lossy` or `Option → AgyError`); add non-UTF-8 path unit test; mark RESOLVED in install-followups (commit ref).
-- [ ] T-004 — (R-V2) Confirm `crates/base/src/mode.rs::is_readable` dead-path timeout has unit test coverage (Windows UNC unreachable branch returns false within ~2s). No test exists — must add one. Mark RESOLVED-BY-PORT (with commit).
+- [x] T-001 — (R-01) In `crates/providers/src/lib.rs::has_unresolved_secrets`, change anchored `^\$\{([A-Z0-9_]+)\}$` to a backstop that also detects embedded-form `${SECRET}` (substring scan, reuse KEY/SECRET/TOKEN/PASSWORD keyword list). Standalone form must not regress.
+- [x] T-002 — (R-02) Rewrite `crates/gal-engine/src/install.rs::run_uninstall`: (a) use `Ledger.last` actual `providers`/`mode` values instead of hardcoded `&[]`/`"normal"`; (b) change mid-removal to best-effort — collect each step's error into `warnings`, always write ledger (record partial failures), report aggregate error only after all steps attempted. No more unrecorded partial-removal state.
+- [x] T-003 — (R-V1, upgraded to real fix) Change `crates/providers/src/agy.rs:106` and `:140` `to_str().unwrap()` to non-panic handling (`to_string_lossy` or `Option → AgyError`); add non-UTF-8 path unit test; mark RESOLVED in install-followups (commit ref).
+- [x] T-004 — (R-V2) Confirm `crates/base/src/mode.rs::is_readable` dead-path timeout has unit test coverage (Windows UNC unreachable branch returns false within ~2s). No test exists — must add one. Mark RESOLVED-BY-PORT (with commit).
 
 **M2 — Features (independent of M1)**
 
@@ -163,7 +167,11 @@ Review Retry Count: 0
 
 ## Test Results
 
-*(pending implementation)*
+- 2026-06-11: `cargo test -p providers embedded_secret` PASS
+- 2026-06-11: `cargo test -p providers path_arg_handles_non_utf8_lossily` PASS
+- 2026-06-11: `cargo test -p base test_is_readable_times_out_for_unreachable_unc_path` PASS
+- 2026-06-11: `cargo test -p gal-engine write_ledger_entry_persists_warnings` PASS
+- 2026-06-11: `cargo test -p gal-engine run_uninstall_removes_rust_managed_provider_outputs` PASS
 
 ## Review Results
 

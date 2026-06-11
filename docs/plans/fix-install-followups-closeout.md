@@ -149,10 +149,10 @@
 
 **M1 — 修復 + 驗證關閉(隨時可做,互不依賴)**
 
-- [ ] T-001 — (R-01)在 `crates/providers/src/lib.rs::has_unresolved_secrets` 將 anchored `^\$\{([A-Z0-9_]+)\}$` 改為可偵測內嵌型 `${SECRET}` 的 backstop(掃描子字串,沿用 KEY/SECRET/TOKEN/PASSWORD 關鍵字判定),整串型不回歸。
-- [ ] T-002 — (R-02)重寫 `crates/gal-engine/src/install.rs::run_uninstall`:(a) ledger entry 用 `Ledger.last` 的實際 `providers`/`mode`,不再硬寫 `&[]`/`"normal"`;(b) 將中途移除改 best-effort——收集每步錯誤入 `warnings`、ledger 必寫(記錄部分失敗),全部嘗試後再回報彙總錯誤,確保不留無記錄半移除態。
-- [ ] T-003 — (R-V1,升為修復)將 `crates/providers/src/agy.rs:106`、`:140` 的 `to_str().unwrap()` 改為非 panic 處理(`to_string_lossy` 或 Option→`AgyError`),非 UTF-8 path 不再 panic;修後於 `install-followups.md` 標 RESOLVED(commit ref)。
-- [ ] T-004 — (R-V2)確認 `crates/base/src/mode.rs::is_readable` dead-path 逾時已有單元測試覆蓋(Windows UNC 不可達分支 ~2s 內回 false);無則補一個;標 RESOLVED-BY-PORT(附 commit)。
+- [x] T-001 — (R-01)在 `crates/providers/src/lib.rs::has_unresolved_secrets` 將 anchored `^\$\{([A-Z0-9_]+)\}$` 改為可偵測內嵌型 `${SECRET}` 的 backstop(掃描子字串,沿用 KEY/SECRET/TOKEN/PASSWORD 關鍵字判定),整串型不回歸。
+- [x] T-002 — (R-02)重寫 `crates/gal-engine/src/install.rs::run_uninstall`:(a) ledger entry 用 `Ledger.last` 的實際 `providers`/`mode`,不再硬寫 `&[]`/`"normal"`;(b) 將中途移除改 best-effort——收集每步錯誤入 `warnings`、ledger 必寫(記錄部分失敗),全部嘗試後再回報彙總錯誤,確保不留無記錄半移除態。
+- [x] T-003 — (R-V1,升為修復)將 `crates/providers/src/agy.rs:106`、`:140` 的 `to_str().unwrap()` 改為非 panic 處理(`to_string_lossy` 或 Option→`AgyError`),非 UTF-8 path 不再 panic;修後於 `install-followups.md` 標 RESOLVED(commit ref)。
+- [x] T-004 — (R-V2)確認 `crates/base/src/mode.rs::is_readable` dead-path 逾時已有單元測試覆蓋(Windows UNC 不可達分支 ~2s 內回 false);無則補一個;標 RESOLVED-BY-PORT(附 commit)。
 
 **M2 — Features(獨立於 M1)**
 

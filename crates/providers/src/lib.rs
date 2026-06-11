@@ -39,20 +39,18 @@ pub trait McpProviderConfig {
 pub fn has_unresolved_secrets(server: &McpServer) -> bool {
     // Compile the capturing pattern once (not per field/iteration).
     static PLACEHOLDER: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let placeholder =
-        PLACEHOLDER.get_or_init(|| regex::Regex::new(r"^\$\{([A-Z0-9_]+)\}$").unwrap());
+    let placeholder = PLACEHOLDER.get_or_init(|| regex::Regex::new(r"\$\{([A-Z0-9_]+)\}").unwrap());
     let secret_keywords = ["KEY", "SECRET", "TOKEN", "PASSWORD"];
 
-    // Returns true if `value` is a bare `${VAR}` placeholder whose name looks
-    // like a secret (contains KEY/SECRET/TOKEN/PASSWORD).
+    // Returns true if `value` contains any `${VAR}` placeholder whose name
+    // looks like a secret (contains KEY/SECRET/TOKEN/PASSWORD).
     let is_unresolved_secret = |value: &str| -> bool {
-        if let Some(captures) = placeholder.captures(value) {
+        placeholder.captures_iter(value).any(|captures| {
             let var_name = &captures[1];
-            return secret_keywords
+            secret_keywords
                 .iter()
-                .any(|&keyword| var_name.contains(keyword));
-        }
-        false
+                .any(|&keyword| var_name.contains(keyword))
+        })
     };
 
     // Scalar fields.
@@ -85,4 +83,45 @@ pub fn has_unresolved_secrets(server: &McpServer) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn server_with_env(value: &str) -> McpServer {
+        let mut env = HashMap::new();
+        env.insert("AUTH".to_string(), value.to_string());
+
+        McpServer {
+            server_type: None,
+            command: None,
+            args: None,
+            env: Some(env),
+            url: None,
+            headers: None,
+        }
+    }
+
+    #[test]
+    fn detects_embedded_secret_placeholders() {
+        let server = server_with_env("Bearer ${API_KEY}");
+
+        assert!(has_unresolved_secrets(&server));
+    }
+
+    #[test]
+    fn keeps_standalone_secret_detection() {
+        let server = server_with_env("${API_KEY}");
+
+        assert!(has_unresolved_secrets(&server));
+    }
+
+    #[test]
+    fn ignores_non_secret_placeholders() {
+        let server = server_with_env("${FOO}");
+
+        assert!(!has_unresolved_secrets(&server));
+    }
 }

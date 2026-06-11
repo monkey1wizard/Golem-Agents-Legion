@@ -103,7 +103,7 @@ impl AgyProjection {
                 {
                     // On Windows, remove junction using rmdir
                     std::process::Command::new("cmd")
-                        .args(["/C", "rmdir", self.cli_target.to_str().unwrap()])
+                        .args(["/C", "rmdir", &path_arg(&self.cli_target)])
                         .output()
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing CLI junction: {}", e)))?;
                 }
@@ -137,7 +137,7 @@ impl AgyProjection {
                 {
                     // On Windows, remove junction using rmdir
                     std::process::Command::new("cmd")
-                        .args(["/C", "rmdir", self.ide_target.to_str().unwrap()])
+                        .args(["/C", "rmdir", &path_arg(&self.ide_target)])
                         .output()
                         .map_err(|e| AgyError::LinkCreation(format!("Failed to remove existing IDE junction: {}", e)))?;
                 }
@@ -249,12 +249,16 @@ skill_path = "{}"
             .filter(|p| {
                 // Only include if the corresponding command directory exists
                 let skill_path = self.canonical_root.join("commands").join(
-                    p.file_stem().unwrap().to_str().unwrap()
+                    p.file_stem().unwrap().to_string_lossy().as_ref()
                 );
                 skill_path.exists()
             })
             .collect()
     }
+}
+
+fn path_arg(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
 }
 
 #[cfg(test)]
@@ -358,6 +362,24 @@ mod tests {
         let gal_toml = fs::read_to_string(gui_config_dir.join("gal.toml")).unwrap();
         assert!(gal_toml.contains("name = \"gal\""));
         assert!(gal_toml.contains("skill_path"));
+    }
+
+    #[test]
+    fn path_arg_handles_non_utf8_lossily() {
+        #[cfg(unix)]
+        {
+            use std::ffi::OsString;
+            use std::os::unix::ffi::OsStringExt;
+
+            let path = PathBuf::from(OsString::from_vec(vec![0x66, 0x6f, 0x80, 0x6f]));
+            assert!(!path_arg(&path).is_empty());
+        }
+
+        #[cfg(not(unix))]
+        {
+            let path = PathBuf::from("C:/temp/gal");
+            assert_eq!(path_arg(&path), "C:/temp/gal");
+        }
     }
     
     // Integration test: verify complete surface creation

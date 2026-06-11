@@ -363,6 +363,17 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
+    fn test_is_readable_times_out_for_unreachable_unc_path() {
+        let start = std::time::Instant::now();
+        let readable = is_readable(Path::new(r"\\203.0.113.1\definitely-unreachable-gal"));
+        let elapsed = start.elapsed();
+
+        assert!(!readable);
+        assert!(elapsed < Duration::from_secs(5), "UNC readability check should fail fast, got {elapsed:?}");
+    }
+
+    #[test]
     fn test_resolve_mode_dev_with_invalid_gal_root() {
         let config = GalConfig {
             dev_mode: Some(true),

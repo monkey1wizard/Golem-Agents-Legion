@@ -35,6 +35,8 @@ pub enum InstallError {
     Json(serde_json::Error),
     /// Home directory could not be determined.
     NoHome,
+    /// Uninstall completed partially; ledger was written but some removals failed.
+    PartialUninstall { warnings: Vec<String> },
 }
 
 impl std::fmt::Display for InstallError {
@@ -45,6 +47,9 @@ impl std::fmt::Display for InstallError {
             InstallError::Io(e) => write!(f, "I/O error: {e}"),
             InstallError::Json(e) => write!(f, "JSON error: {e}"),
             InstallError::NoHome => write!(f, "could not determine home directory"),
+            InstallError::PartialUninstall { warnings } => {
+                write!(f, "uninstall completed with partial failures: {}", warnings.join("; "))
+            }
         }
     }
 }
@@ -141,7 +146,15 @@ fn run_update_with_op(config: &GalConfig, op: &str) -> Result<InstallReport, Ins
     }
 
     // Step 5: Write ledger.
-    write_ledger_entry(op, &canonical_root, &providers, mode_str, &mut warnings);
+    let ledger_warnings = warnings.clone();
+    write_ledger_entry(
+        op,
+        &canonical_root,
+        &providers,
+        mode_str,
+        &ledger_warnings,
+        &mut warnings,
+    );
 
     Ok(InstallReport {
         canonical_root,
@@ -565,6 +578,9 @@ pub fn run_uninstall() -> Result<(), InstallError> {
     let home = crate::paths::user_home().ok_or(InstallError::NoHome)?;
     let canonical_root = home.join(".gal").join("plugins").join("gal");
 
+    let previous_ledger = ledger_path().map(|path| Ledger::load(&path));
+    let previous_entry = previous_ledger.as_ref().and_then(|ledger| ledger.last.clone());
+
     let mut warnings = Vec::new();
 
     // Remove AGY surfaces before removing canonical root (they link to it).
@@ -581,24 +597,81 @@ pub fn run_uninstall() -> Result<(), InstallError> {
 
     // Remove canonical root.
     if canonical_root.exists() {
-        fs::remove_dir_all(&canonical_root)?;
+        if let Err(e) = fs::remove_dir_all(&canonical_root) {
+            warnings.push(format!("canonical root removal: {e}"));
+        }
     }
 
-    remove_path_if_present(&copilot_projection_root()?)?;
-    remove_path_if_present(&home.join(".claude").join("skills").join("gal"))?;
-    remove_path_if_present(&home.join(".claude").join("plugins").join("gal"))?;
-    remove_path_if_present(&gal_dist_providers_root()?)?;
-    remove_path_if_present(&home.join(".gal").join("plugins").join(".claude-plugin"))?;
-    remove_path_if_present(&home.join(".gal").join("plugins").join(".agents"))?;
+    collect_removal_error(
+        &mut warnings,
+        "copilot projection removal",
+        copilot_projection_root().and_then(|path| remove_path_if_present(&path)),
+    );
+    collect_removal_error(
+        &mut warnings,
+        "Claude skills removal",
+        remove_path_if_present(&home.join(".claude").join("skills").join("gal")),
+    );
+    collect_removal_error(
+        &mut warnings,
+        "Claude plugins removal",
+        remove_path_if_present(&home.join(".claude").join("plugins").join("gal")),
+    );
+    collect_removal_error(
+        &mut warnings,
+        "provider dist removal",
+        gal_dist_providers_root().and_then(|path| remove_path_if_present(&path)),
+    );
+    collect_removal_error(
+        &mut warnings,
+        "claude-plugin marker removal",
+        remove_path_if_present(&home.join(".gal").join("plugins").join(".claude-plugin")),
+    );
+    collect_removal_error(
+        &mut warnings,
+        ".agents marker removal",
+        remove_path_if_present(&home.join(".gal").join("plugins").join(".agents")),
+    );
 
-    // Write uninstall ledger entry.
-    write_ledger_entry("uninstall", &canonical_root, &[], "normal", &mut warnings);
+    let providers = previous_entry
+        .as_ref()
+        .map(|entry| entry.providers.clone())
+        .unwrap_or_default();
+    let mode = previous_entry
+        .as_ref()
+        .map(|entry| entry.mode.clone())
+        .unwrap_or_else(|| "normal".to_string());
+
+    // Write uninstall ledger entry with the warnings accumulated before ledger save.
+    let ledger_warnings = warnings.clone();
+    write_ledger_entry(
+        "uninstall",
+        &canonical_root,
+        &providers,
+        &mode,
+        &ledger_warnings,
+        &mut warnings,
+    );
 
     for w in &warnings {
         eprintln!("gal uninstall warning: {w}");
     }
 
-    Ok(())
+    if warnings.is_empty() {
+        Ok(())
+    } else {
+        Err(InstallError::PartialUninstall { warnings })
+    }
+}
+
+fn collect_removal_error(
+    warnings: &mut Vec<String>,
+    label: &str,
+    result: Result<(), InstallError>,
+) {
+    if let Err(err) = result {
+        warnings.push(format!("{label}: {err}"));
+    }
 }
 
 fn remove_path_if_present(path: &Path) -> Result<(), InstallError> {
@@ -619,6 +692,7 @@ fn write_ledger_entry(
     canonical_root: &Path,
     providers: &[String],
     mode: &str,
+    entry_warnings: &[String],
     warnings: &mut Vec<String>,
 ) {
     if let Some(ledger_p) = ledger_path() {
@@ -629,6 +703,7 @@ fn write_ledger_entry(
             timestamp: now_timestamp(),
             providers: providers.to_vec(),
             mode: mode.to_string(),
+            warnings: entry_warnings.to_vec(),
         });
         if let Err(e) = ledger.save(&ledger_p) {
             warnings.push(format!("ledger write warning: {e}"));
@@ -645,6 +720,9 @@ mod tests {
         assert!(!InstallError::NoHome.to_string().is_empty());
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "not found");
         assert!(InstallError::Io(io_err).to_string().contains("not found"));
+        assert!(InstallError::PartialUninstall { warnings: vec!["x".to_string()] }
+            .to_string()
+            .contains("partial failures"));
     }
 
     #[test]
@@ -703,5 +781,51 @@ mod tests {
         // We skip the real filesystem call and only test the error surface.
         let err = InstallError::NoHome;
         assert!(err.to_string().contains("home"));
+    }
+
+    #[test]
+    fn write_ledger_entry_persists_warnings() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut warnings = Vec::new();
+
+        #[cfg(windows)]
+        unsafe {
+            std::env::set_var("USERPROFILE", temp.path());
+            std::env::set_var("HOME", temp.path());
+        }
+
+        #[cfg(not(windows))]
+        unsafe {
+            std::env::set_var("HOME", temp.path());
+        }
+
+        let ledger_path = ledger_path().expect("fake home should yield a ledger path");
+
+        let mut ledger = Ledger::default();
+        ledger.record(LedgerEntry {
+            operation: "install".to_string(),
+            canonical_root: PathBuf::from("/tmp/gal"),
+            timestamp: now_timestamp(),
+            providers: vec!["claude".to_string()],
+            mode: "dev".to_string(),
+            warnings: vec![],
+        });
+        ledger.save(&ledger_path).unwrap();
+
+        write_ledger_entry(
+            "uninstall",
+            Path::new("/tmp/gal"),
+            &["claude".to_string()],
+            "dev",
+            &["partial failure".to_string()],
+            &mut warnings,
+        );
+
+        let loaded = Ledger::load(&ledger_path);
+        let last = loaded.last.expect("ledger entry should exist");
+        assert_eq!(last.operation, "uninstall");
+        assert_eq!(last.providers, vec!["claude".to_string()]);
+        assert_eq!(last.mode, "dev");
+        assert_eq!(last.warnings, vec!["partial failure".to_string()]);
     }
 }

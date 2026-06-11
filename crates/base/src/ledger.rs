@@ -23,6 +23,9 @@ pub struct LedgerEntry {
     pub providers: Vec<String>,
     /// Mode in use: "normal" | "dev".
     pub mode: String,
+    /// Non-fatal warnings observed during the operation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
 }
 
 /// The on-disk ledger format.
@@ -90,6 +93,7 @@ mod tests {
             timestamp: "2026-06-03T10:00:00Z".to_string(),
             providers: vec!["claude".to_string(), "copilot".to_string()],
             mode: "normal".to_string(),
+            warnings: vec![],
         };
 
         ledger.record(entry.clone());
@@ -120,6 +124,7 @@ mod tests {
                 timestamp: "2026-06-03T10:00:00Z".to_string(),
                 providers: vec!["claude".to_string()],
                 mode: "normal".to_string(),
+                warnings: vec![],
             });
         }
         assert_eq!(ledger.history.len(), 3);
