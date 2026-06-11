@@ -19,6 +19,7 @@
 //! finding F-1): it is remote-transport-specific (zellij launcher, remote runner)
 //! and keeping it out of `pipeline` preserves the lean-local-crate decision.
 
+pub mod result;
 pub mod ssh;
 pub mod zellij;
 
