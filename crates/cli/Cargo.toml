@@ -17,6 +17,7 @@ gal-engine = { path = "../gal-engine" }
 mcp = { path = "../mcp" }
 serde_json = "1"
 dispatch = { path = "../dispatch" }
+xmachine = { path = "../xmachine" }
 setup = { version = "0.1.0", path = "../setup" }
 
 [dev-dependencies]

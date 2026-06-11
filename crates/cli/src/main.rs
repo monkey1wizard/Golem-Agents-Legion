@@ -547,20 +547,84 @@ fn cmd_pipeline(args: &[String]) -> ExitCode {
 }
 
 fn cmd_xmachine(args: &[String]) -> ExitCode {
-    if args.len() < 4 || args[2] != "to" || args[3] != "do" {
+    use xmachine::config::{resolve_config_path, XmachineConfig};
+    use xmachine::remote_run::build_dispatch_plan;
+
+    if args.len() < 5 || args[2] != "to" || args[3] != "do" {
         eprintln!("gal xmachine: usage: gal xmachine <node> to do <task-ref> [#file:plan]");
         return ExitCode::Usage;
     }
+    let node_alias = &args[1];
+    let task_ref = &args[4];
 
+    // Resolve the node from xmachine.config.json (machine-local, read-only) and
+    // build the bounded remote dispatch plan. Live SSH execution is the T-013
+    // cross-machine seam; here we resolve + validate + preview the control-node
+    // command sequence so a misconfigured node fails loud before any dispatch.
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let home = base::paths::user_home();
+    let cfg_path = resolve_config_path(&repo_root, home.as_deref());
+
+    match XmachineConfig::load(&cfg_path) {
+        Ok(cfg) => match cfg.node(node_alias) {
+            Ok(node) => {
+                let platform = node.platform();
+                let mode = node.execution_mode();
+                let spec_file = format!("{task_ref}-implement.md");
+                let local_spec = format!(".dev/task-specs/{spec_file}");
+                let session = format!("xmachine-{task_ref}");
+                let plan = build_dispatch_plan(
+                    platform,
+                    &node.target,
+                    &mode,
+                    task_ref,
+                    "implement",
+                    &local_spec,
+                    &spec_file,
+                    &session,
+                );
+                println!(
+                    "gal xmachine: node '{node_alias}' → {} ({:?}, {} mode)",
+                    node.target,
+                    platform,
+                    mode.as_str()
+                );
+                println!("  bounded dispatch plan for {task_ref} (phase implement):");
+                for (i, step) in plan.steps.iter().enumerate() {
+                    let (prog, argv) = step.argv(&node.target);
+                    println!("    {}. {:<17} {prog} {}", i + 1, step.name, argv.join(" "));
+                }
+                println!(
+                    "  Live SSH execution is the cross-machine seam (xmachine T-013); \
+                     preflight (SSH/zellij/remote-gal) runs at execute time."
+                );
+            }
+            Err(e) => {
+                eprintln!("gal xmachine: {e}");
+                return ExitCode::Error;
+            }
+        },
+        Err(e) => {
+            eprintln!("gal xmachine: {e}");
+            eprintln!("  expected config at: {}", cfg_path.display());
+            eprintln!(
+                "  copy plugins/gal-core/templates/xmachine.config.example.json and define your nodes."
+            );
+            // Degrade: still emit the control-plane shorthand so the chat procedure
+            // can proceed, but the node was not validated.
+        }
+    }
+
+    // Control-plane shorthand block (consumed by the /gal chat procedure).
     println!("--- GAL DISPATCH ---");
     println!("COMMAND: pipeline");
     println!("EXECUTION: xmachine");
     println!("OFFLOAD: direct-task");
     println!("XMACHINE_MODE: execute");
-    println!("WORK_NODE: {}", args[1]);
-    println!("TASK_REF: {}", args[4]);
-    println!("FROM: {}", args[4]);
-    println!("STOP_AT: {}", args[4]);
+    println!("WORK_NODE: {node_alias}");
+    println!("TASK_REF: {task_ref}");
+    println!("FROM: {task_ref}");
+    println!("STOP_AT: {task_ref}");
     println!("--- END DISPATCH ---");
     ExitCode::Success
 }

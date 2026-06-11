@@ -101,6 +101,21 @@ impl NodeConfig {
             _ => ExecutionMode::Execute,
         }
     }
+
+    /// Infer the remote platform from the repo path shape (no platform field in
+    /// the config): a Windows path uses `\`, `%VAR%`, or a `X:` drive prefix;
+    /// otherwise POSIX. Used to pick remote shell/path conventions.
+    pub fn platform(&self) -> crate::WorkPlatform {
+        let hint = self.repo_path.as_deref().unwrap_or("");
+        let is_windows = hint.contains('\\')
+            || hint.contains('%')
+            || hint.as_bytes().get(1) == Some(&b':'); // drive letter, e.g. C:
+        if is_windows {
+            crate::WorkPlatform::Windows
+        } else {
+            crate::WorkPlatform::Posix
+        }
+    }
 }
 
 /// Default config locations, in resolution order: repo-local `xmachine.config.json`,
@@ -175,6 +190,15 @@ mod tests {
         );
         // 'scratch' has no repoPath → execute workspace.
         assert_eq!(cfg.node("scratch").unwrap().execution_mode(), ExecutionMode::Execute);
+    }
+
+    #[test]
+    fn platform_inferred_from_repo_path() {
+        let cfg = XmachineConfig::parse(SAMPLE).unwrap();
+        assert_eq!(cfg.node("mac-mini").unwrap().platform(), crate::WorkPlatform::Posix);
+        assert_eq!(cfg.node("win11-pc").unwrap().platform(), crate::WorkPlatform::Windows);
+        // no repoPath → default POSIX
+        assert_eq!(cfg.node("scratch").unwrap().platform(), crate::WorkPlatform::Posix);
     }
 
     #[test]
