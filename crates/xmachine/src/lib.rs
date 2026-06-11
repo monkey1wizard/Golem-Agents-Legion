@@ -20,6 +20,7 @@
 //! and keeping it out of `pipeline` preserves the lean-local-crate decision.
 
 pub mod ssh;
+pub mod zellij;
 
 use thiserror::Error;
 
