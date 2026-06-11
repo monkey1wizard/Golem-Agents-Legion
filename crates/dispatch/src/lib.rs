@@ -13,4 +13,5 @@ pub mod adapters;
 pub mod cli;
 pub mod dispatch;
 pub mod routing;
+pub mod run;
 pub mod stage;

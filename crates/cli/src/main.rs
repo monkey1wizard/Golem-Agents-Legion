@@ -414,19 +414,34 @@ fn cmd_doctor(args: &[String]) -> ExitCode {
 }
 
 fn cmd_dispatch(args: &[String]) -> ExitCode {
-    let gal_dispatch = if cfg!(windows) { "gal-dispatch.exe" } else { "gal-dispatch" };
-    let status = std::process::Command::new(gal_dispatch).args(args.iter().skip(1)).status();
-    match status {
-        Ok(status) => match status.code() {
-            Some(0) => ExitCode::Success,
-            Some(1) => ExitCode::Error,
-            Some(2) => ExitCode::NotWired,
-            Some(_) | None => ExitCode::Error,
-        },
+    // In-process via the dispatch library — self-contained, no separate
+    // `gal-dispatch` executable (which is not in the end-user release artifact).
+    // The task spec is read from stdin, matching the gal-dispatch contract.
+    let flags: Vec<String> = args.iter().skip(1).cloned().collect();
+    if flags.iter().any(|a| a == "--help" || a == "-h") {
+        println!("gal dispatch --phase <implement|test|audit|verify> --task <T-NNN> [--workdir <p>] [--timeout <s>] [--routing <p>] [--receipt <p>]");
+        println!("(pipe the task spec to stdin)");
+        return ExitCode::Success;
+    }
+    let args = match dispatch::cli::parse_args(&flags) {
+        Ok(a) => a,
         Err(e) => {
-            eprintln!("gal dispatch: failed to spawn gal-dispatch: {e}");
-            ExitCode::Error
+            eprintln!("gal dispatch: {e}");
+            return ExitCode::Usage;
         }
+    };
+    let mut spec = String::new();
+    use std::io::Read as _;
+    if let Err(e) = std::io::stdin().read_to_string(&mut spec) {
+        eprintln!("gal dispatch: failed to read spec from stdin: {e}");
+        return ExitCode::Usage;
+    }
+    let outcome = dispatch::run::run_dispatch(&args, &spec);
+    match outcome.exit_code {
+        0 => ExitCode::Success,
+        1 => ExitCode::Error,
+        2 => ExitCode::NotWired,
+        _ => ExitCode::Error,
     }
 }
 
@@ -495,7 +510,11 @@ fn cmd_pipeline(args: &[String]) -> ExitCode {
         }
     };
 
-    let mut cmd_args = vec![
+    // Run the dispatch in-process via the dispatch library — the single `gal`
+    // binary is self-contained and does not depend on a separate `gal-dispatch`
+    // executable (which is not in the end-user release artifact). The T-007 safety
+    // gate lives in `dispatch::run::run_dispatch`.
+    let mut raw_args = vec![
         "--phase".to_string(),
         phase,
         "--task".to_string(),
@@ -507,42 +526,24 @@ fn cmd_pipeline(args: &[String]) -> ExitCode {
             .to_string(),
     ];
     if let Some(receipt) = receipt_path {
-        cmd_args.push("--receipt".to_string());
-        cmd_args.push(receipt);
+        raw_args.push("--receipt".to_string());
+        raw_args.push(receipt);
     }
 
-    let gal_dispatch = if cfg!(windows) { "gal-dispatch.exe" } else { "gal-dispatch" };
-    let mut child = match std::process::Command::new(gal_dispatch)
-        .args(&cmd_args)
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
+    let args = match dispatch::cli::parse_args(&raw_args) {
+        Ok(a) => a,
         Err(e) => {
-            eprintln!("gal pipeline: failed to spawn gal-dispatch: {e}");
-            return ExitCode::Error;
+            eprintln!("gal pipeline: {e}");
+            return ExitCode::Usage;
         }
     };
 
-    if let Some(mut stdin) = child.stdin.take() {
-        use std::io::Write as _;
-        if let Err(e) = stdin.write_all(spec.as_bytes()) {
-            eprintln!("gal pipeline: failed to pipe task spec to gal-dispatch: {e}");
-            return ExitCode::Error;
-        }
-    }
-
-    match child.wait() {
-        Ok(status) => match status.code() {
-            Some(0) => ExitCode::Success,
-            Some(1) => ExitCode::Error,
-            Some(2) => ExitCode::NotWired,
-            Some(_) | None => ExitCode::Error,
-        },
-        Err(e) => {
-            eprintln!("gal pipeline: failed while waiting for gal-dispatch: {e}");
-            ExitCode::Error
-        }
+    let outcome = dispatch::run::run_dispatch(&args, &spec);
+    match outcome.exit_code {
+        0 => ExitCode::Success,
+        1 => ExitCode::Error,
+        2 => ExitCode::NotWired,
+        _ => ExitCode::Error,
     }
 }
 
