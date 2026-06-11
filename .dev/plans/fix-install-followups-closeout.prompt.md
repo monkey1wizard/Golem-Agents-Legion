@@ -95,8 +95,8 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 
 ```
 Workflow: IMPLEMENT
-Step: 6 of 10
-Last activity: 2026-06-11 — completed T-005 and T-006 with per-task commit boundaries
+Step: 7 of 10
+Last activity: 2026-06-11 — completed optional T-007 with its own commit boundary
 Next step: Wait for T-034 gate on T-008, or continue to T-009 bookkeeping
 Current Task: —
 Task Base Commit: —
@@ -118,6 +118,8 @@ Review Retry Count: 0
 - 2026-06-11: T-004 closed with evidence in `crates/base/src/mode.rs` by adding a Windows UNC dead-path timeout test around the existing `recv_timeout(Duration::from_secs(2))` behavior.
 - 2026-06-11: T-005 implemented in `crates/providers/src/agy.rs` by making `AgyProjection::apply()` transactional across CLI, IDE, and GUI surfaces with rollback on later-surface failure; committed as `6264f7a`.
 - 2026-06-11: T-006 closed with evidence in `crates/mcp/src/lib.rs`: AGY is not part of `run_mcp_update()` and therefore has no `.mcp.json` serializer applicability in the current architecture, while existing Codex/OpenCode serializer suites already provide direct coverage; committed as `267cfe4`.
+- 2026-06-11: T-007 implemented in `crates/gal-engine/src/commit_msg.rs` by injecting path-derived scopes into unscoped conventional commit headers while preserving already-scoped and freeform author messages; committed as `9dd2ef3`.
+- 2026-06-11: Architect review of `9dd2ef3` found the injection was wired into `process_commit_msg`, which has no production caller — the live git-hook path is `cmd_commit_msg` → `fill_commit_msg_file`, which returned `NoOp` for every non-blank message, so the feature never ran. Fix: moved `inject_scope_prefix` onto the wired `fill_commit_msg_file` path (non-blank branch enriches an unscoped conventional header; freeform/already-scoped untouched), using the generator's `derive_scope_from_entries` so injection and blank-fill agree. Added three `fill_commit_msg_file` tests (inject, already-scoped, freeform). `cargo test -p gal-engine` 136 passed; clippy `-D warnings` clean. Advisory debt: `derive_scope_from_entries` yields coarse `crates` vs `derive_scope_from_files`' crate name — left for separate generator-scope cleanup.
 
 ## Tasks
 
@@ -144,7 +146,7 @@ Review Retry Count: 0
 
 ## Deferred Follow-up
 
-- T-007 — (R-06, lowest priority) `crates/gal-engine/src/commit_msg.rs` + `crates/cli`: auto-add scope prefix from changed files. Do only if bandwidth allows after M1/M2.
+*(none)*
 
 ## Analyze
 
@@ -177,6 +179,12 @@ Review Retry Count: 0
 - 2026-06-11: `cargo test -p providers codex` PASS
 - 2026-06-11: `cargo test -p providers opencode` PASS
 - 2026-06-11: `cargo test -p mcp run_mcp_update_does_not_treat_agy_as_an_mcp_provider` PASS
+- 2026-06-11: `cargo test -p gal-engine process_commit_msg_injects_scope_when_header_lacks_one` PASS
+- 2026-06-11: `cargo test -p gal-engine process_commit_msg_keeps_freeform_message_without_conventional_prefix` PASS
+- 2026-06-11: `cargo test -p gal-engine fill_commit_msg_file_injects_scope_into_authored_unscoped_header` PASS (architect fix — live hook path)
+- 2026-06-11: `cargo test -p gal-engine fill_commit_msg_file_leaves_already_scoped_header_untouched` PASS
+- 2026-06-11: `cargo test -p gal-engine fill_commit_msg_file_leaves_freeform_authored_message_untouched` PASS
+- 2026-06-11: `cargo test -p gal-engine` 136 passed; `cargo clippy -p gal-engine -- -D warnings` clean
 
 ## Review Results
 

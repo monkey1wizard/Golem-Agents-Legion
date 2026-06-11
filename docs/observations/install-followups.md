@@ -109,9 +109,21 @@ Acceptable for developer workstations; matters for UNC/network paths.
 
 ### R5/T-013 — Commit-msg scope injection
 
-`process_commit_msg()` preserves the message (no-hijack confirmed, TP-019 passes).
-Full scope injection (auto-prefix based on changed files) is not implemented.
-This is a future enhancement; no-hijack is the core R5 requirement.
+The live commit-msg hook path (`gal commit-msg <file>` → `cmd_commit_msg` →
+`fill_commit_msg_file`) now injects a path-derived scope into an unscoped conventional
+header while preserving already-scoped and freeform author messages, and still
+filling blank messages from staged changes. No-hijack behavior remains intact
+because the scope is derived only from staged file paths
+(`derive_scope_from_entries`, the same source the message generator uses, so
+injection and blank-fill agree). Initial work (`9dd2ef3`) added the
+`inject_scope_prefix` helper but only wired it into the unused `process_commit_msg`
+function; the architect fix moved it onto the live `fill_commit_msg_file` path.
+
+Known divergence (advisory, not blocking): `derive_scope_from_entries` returns the
+coarse top-level `crates` bucket for crate changes, while `derive_scope_from_files`
+unwraps to the crate name (`providers`, `gal-engine`) matching the repo's own
+`fix(providers):` convention. Unifying them changes the tested cross-crate-rename
+contract and is left as separate generator-scope cleanup.
 
 ### AGY transaction/ledger (M2) — PARTIALLY RESOLVED (commit 6264f7a)
 

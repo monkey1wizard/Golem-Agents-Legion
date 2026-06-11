@@ -161,7 +161,7 @@
 
 **Optional**
 
-- [ ] T-007 — (R-06,最低優先)`crates/gal-engine/src/commit_msg.rs` + `crates/cli`:依 changed files 自動加 scope 前綴。
+- [x] T-007 — (R-06,最低優先)`crates/gal-engine/src/commit_msg.rs` + `crates/cli`:依 changed files 自動加 scope 前綴。
 
 **審查 gate(掛核心 T-034)**
 

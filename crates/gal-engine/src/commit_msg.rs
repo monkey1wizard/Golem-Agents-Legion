@@ -448,7 +448,17 @@ pub fn fill_commit_msg_file(
 
     let current = std::fs::read_to_string(msg_path)?;
     if !message_is_blank(&current) {
-        // Preserve the author's message verbatim — never clobber.
+        // Author wrote a message: never clobber its wording. A conventional
+        // header that merely lacks a scope can still be enriched in place
+        // (no-hijack holds: scope derives only from staged paths, and freeform
+        // or already-scoped headers are left untouched by inject_scope_prefix).
+        let scope = derive_scope_from_entries(entries);
+        if let Some(updated) = inject_scope_prefix(&current, scope.as_deref()) {
+            if updated != current {
+                std::fs::write(msg_path, updated)?;
+                return Ok(CommitMsgResult::Updated);
+            }
+        }
         return Ok(CommitMsgResult::NoOp);
     }
 
@@ -679,6 +689,54 @@ mod tests {
         let result = process_commit_msg(&msg_path, &files).unwrap();
 
         assert_eq!(result, CommitMsgResult::Updated);
+        let content = std::fs::read_to_string(&msg_path).unwrap();
+        assert_eq!(content, original);
+    }
+
+    #[test]
+    fn fill_commit_msg_file_injects_scope_into_authored_unscoped_header() {
+        // The live hook path (cmd_commit_msg → fill_commit_msg_file): an author's
+        // unscoped conventional header must be enriched with the path-derived scope.
+        // Scope source is the same derive_scope_from_entries the generator uses, so
+        // injection and blank-fill agree (top-level "scripts" bucket here).
+        let tmp = TempDir::new().unwrap();
+        let msg_path = tmp.path().join("COMMIT_EDITMSG");
+        std::fs::write(&msg_path, "fix: stabilize uninstall flow\n").unwrap();
+
+        let entries = parse("M\tscripts/install.sh");
+        let result = fill_commit_msg_file(&msg_path, &entries).unwrap();
+
+        assert_eq!(result, CommitMsgResult::Updated);
+        let content = std::fs::read_to_string(&msg_path).unwrap();
+        assert_eq!(content, "fix(scripts): stabilize uninstall flow\n");
+    }
+
+    #[test]
+    fn fill_commit_msg_file_leaves_already_scoped_header_untouched() {
+        let tmp = TempDir::new().unwrap();
+        let msg_path = tmp.path().join("COMMIT_EDITMSG");
+        let original = "fix(install): stabilize uninstall flow\n";
+        std::fs::write(&msg_path, original).unwrap();
+
+        let entries = parse("M\tcrates/gal-engine/src/install.rs");
+        let result = fill_commit_msg_file(&msg_path, &entries).unwrap();
+
+        assert_eq!(result, CommitMsgResult::NoOp);
+        let content = std::fs::read_to_string(&msg_path).unwrap();
+        assert_eq!(content, original);
+    }
+
+    #[test]
+    fn fill_commit_msg_file_leaves_freeform_authored_message_untouched() {
+        let tmp = TempDir::new().unwrap();
+        let msg_path = tmp.path().join("COMMIT_EDITMSG");
+        let original = "stabilize uninstall flow manually\n";
+        std::fs::write(&msg_path, original).unwrap();
+
+        let entries = parse("M\tcrates/gal-engine/src/install.rs");
+        let result = fill_commit_msg_file(&msg_path, &entries).unwrap();
+
+        assert_eq!(result, CommitMsgResult::NoOp);
         let content = std::fs::read_to_string(&msg_path).unwrap();
         assert_eq!(content, original);
     }
