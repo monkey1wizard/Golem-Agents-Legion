@@ -156,8 +156,8 @@
 
 **M2 — Features(獨立於 M1)**
 
-- [ ] T-005 — (R-04)`crates/providers/src/agy.rs` 三 surface(CLI/IDE/GUI-config junction)補交易回滾 + ledger 整合:任一 surface 失敗時回滾已建立的 link,避免半投影態;成功/失敗納入 ledger 記錄。
-- [ ] T-006 — (R-05,路徑更正)先 5 分鐘現勘 AGY 是否消費 `.mcp.json` 型設定面:若適用,在 `crates/providers/src/agy.rs`(或新模組)實作 `McpProviderConfig` 並接入 `crates/mcp` write 流程;若不適用,以證據關閉。同時補測試確認既有 Codex/OpenCode serializer 覆蓋完整。
+- [x] T-005 — (R-04)`crates/providers/src/agy.rs` 三 surface(CLI/IDE/GUI-config junction)補交易回滾 + ledger 整合:任一 surface 失敗時回滾已建立的 link,避免半投影態;成功/失敗納入 ledger 記錄。
+- [x] T-006 — (R-05,路徑更正)先 5 分鐘現勘 AGY 是否消費 `.mcp.json` 型設定面:若適用,在 `crates/providers/src/agy.rs`(或新模組)實作 `McpProviderConfig` 並接入 `crates/mcp` write 流程;若不適用,以證據關閉。同時補測試確認既有 Codex/OpenCode serializer 覆蓋完整。
 
 **Optional**
 

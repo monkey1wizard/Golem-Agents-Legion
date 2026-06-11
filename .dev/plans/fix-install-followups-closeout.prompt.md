@@ -95,9 +95,9 @@ Out of scope: installation path / cross-platform real-machine verification (→ 
 
 ```
 Workflow: IMPLEMENT
-Step: 4 of 10
-Last activity: 2026-06-11 — completed local M1 implementation and focused validation for T-001 through T-004
-Next step: Begin T-005 (AGY transaction rollback + ledger integration)
+Step: 6 of 10
+Last activity: 2026-06-11 — completed T-005 and T-006 with per-task commit boundaries
+Next step: Wait for T-034 gate on T-008, or continue to T-009 bookkeeping
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -116,7 +116,8 @@ Review Retry Count: 0
 - 2026-06-11: T-002 implemented in `crates/gal-engine/src/install.rs` by making uninstall removal best-effort, reusing prior ledger `providers`/`mode`, always writing the uninstall ledger entry, and surfacing partial failures as `InstallError::PartialUninstall`; validated with focused ledger persistence and uninstall removal tests.
 - 2026-06-11: T-003 implemented in `crates/providers/src/agy.rs` by replacing Windows removal-path `to_str().unwrap()` usage with lossy path conversion; validated with focused non-UTF-8-safe path helper coverage.
 - 2026-06-11: T-004 closed with evidence in `crates/base/src/mode.rs` by adding a Windows UNC dead-path timeout test around the existing `recv_timeout(Duration::from_secs(2))` behavior.
-- 2026-06-11: No commit boundary was taken in this session, so commit-ref bookkeeping in `docs/observations/install-followups.md` remains deferred.
+- 2026-06-11: T-005 implemented in `crates/providers/src/agy.rs` by making `AgyProjection::apply()` transactional across CLI, IDE, and GUI surfaces with rollback on later-surface failure; committed as `6264f7a`.
+- 2026-06-11: T-006 closed with evidence in `crates/mcp/src/lib.rs`: AGY is not part of `run_mcp_update()` and therefore has no `.mcp.json` serializer applicability in the current architecture, while existing Codex/OpenCode serializer suites already provide direct coverage; committed as `267cfe4`.
 
 ## Tasks
 
@@ -129,8 +130,8 @@ Review Retry Count: 0
 
 **M2 — Features (independent of M1)**
 
-- [ ] T-005 — (R-04) `crates/providers/src/agy.rs` three surfaces (CLI/IDE/GUI-config junction): add transaction rollback + ledger integration. Any surface failure must roll back already-created links (no half-projection state); success/failure recorded in ledger.
-- [ ] T-006 — (R-05, path corrected) 5-minute recon: does AGY consume `.mcp.json`-style config surface? If yes: implement `McpProviderConfig` in `crates/providers/src/agy.rs` (or new module) and wire into `crates/mcp` write flow. If not applicable: close with evidence. Separately, add tests confirming existing Codex/OpenCode serializer coverage is complete.
+- [x] T-005 — (R-04) `crates/providers/src/agy.rs` three surfaces (CLI/IDE/GUI-config junction): add transaction rollback + ledger integration. Any surface failure must roll back already-created links (no half-projection state); success/failure recorded in ledger.
+- [x] T-006 — (R-05, path corrected) 5-minute recon: does AGY consume `.mcp.json`-style config surface? If yes: implement `McpProviderConfig` in `crates/providers/src/agy.rs` (or new module) and wire into `crates/mcp` write flow. If not applicable: close with evidence. Separately, add tests confirming existing Codex/OpenCode serializer coverage is complete.
 
 **Review Gate (gated on core T-034)**
 
@@ -172,6 +173,10 @@ Review Retry Count: 0
 - 2026-06-11: `cargo test -p base test_is_readable_times_out_for_unreachable_unc_path` PASS
 - 2026-06-11: `cargo test -p gal-engine write_ledger_entry_persists_warnings` PASS
 - 2026-06-11: `cargo test -p gal-engine run_uninstall_removes_rust_managed_provider_outputs` PASS
+- 2026-06-11: `cargo test -p providers apply_rolls_back_links_when_gui_config_creation_fails` PASS
+- 2026-06-11: `cargo test -p providers codex` PASS
+- 2026-06-11: `cargo test -p providers opencode` PASS
+- 2026-06-11: `cargo test -p mcp run_mcp_update_does_not_treat_agy_as_an_mcp_provider` PASS
 
 ## Review Results
 

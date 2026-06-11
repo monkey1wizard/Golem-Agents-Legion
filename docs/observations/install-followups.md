@@ -48,6 +48,7 @@ Human-inspected, temp dir deleted. Confirms FU-01 works in practice and install
 produces a correct canonical root in a clean home.
 
 **Still open**:
+
 1. Byte-level oracle parity vs the frozen `Install-GalPlugins` PowerShell output —
    needs the frozen script run side-by-side and the P2 artifact layout locked.
 2. TP-015 entry-switch end-to-end in an installed environment.
@@ -112,15 +113,27 @@ Acceptable for developer workstations; matters for UNC/network paths.
 Full scope injection (auto-prefix based on changed files) is not implemented.
 This is a future enhancement; no-hijack is the core R5 requirement.
 
-### AGY transaction/ledger (M2)
+### AGY transaction/ledger (M2) — PARTIALLY RESOLVED (commit 6264f7a)
 
-AGY three-surface best-effort is complete (T-010). Full transactional rollback and
-ledger integration are deferred to M2 per OE-A.
+AGY three-surface projection now rolls back already-created CLI/IDE links when a
+later surface fails, so `AgyProjection::apply()` no longer leaves half-projected
+state. Focused test coverage added for GUI-config failure rollback.
 
-### MCP AGY/Codex/OpenCode serializers (M2)
+**Still open**: install/uninstall ledger integration at the AGY surface level is
+not implemented separately from the install ledger yet.
 
-Claude Desktop and Copilot CLI MCP serializers are done (T-009). AGY, Codex CLI,
-and OpenCode (TOML) serializers are M2.
+### MCP AGY/Codex/OpenCode serializers (M2) — UPDATED (commit 267cfe4)
+
+Claude Desktop and Copilot CLI MCP serializers are done (T-009). Codex CLI and
+OpenCode serializers already exist in `crates/providers/src/codex.rs` and
+`crates/providers/src/opencode.rs` and now have explicit acceptance evidence via
+their focused test suites.
+
+AGY does **not** consume the `.mcp.json` provider-write path in the current
+architecture: `crates/mcp/src/lib.rs::run_mcp_update()` updates only Claude,
+Copilot, OpenCode, and Codex. AGY remains a three-surface projection provider,
+not an MCP serializer target. The AGY serializer portion is therefore closed as
+not applicable with code evidence.
 
 ### macOS/Linux cross-platform parity (M2, T-022 — code complete, live run pending)
 
