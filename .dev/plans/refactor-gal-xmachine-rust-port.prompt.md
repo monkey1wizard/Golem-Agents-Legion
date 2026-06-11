@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 11 of 15
-Last activity: 2026-06-11 — architect-reviewed T-010/T-011, fixed F-D (token-burn reparent), committed per task
-Next step: T-012 (contract surface → Rust binary refs, protected/architect). T-013 live cross-machine parity stays gated on core R-13 artifact. Follow-up F-E: give the pipeline/xmachine crates a real cli consumer.
+Step: 12 of 15
+Last activity: 2026-06-11 — completed ALL pre-SSH work: xmachine config + remote-run orchestration + cli wiring (F-E) + T-012 contract surface. T-001..T-012 done.
+Next step: T-013 (live cross-machine parity — NEEDS the user's hardware: win→mac-mini + win→win, remote gal = v0.1.0-rc1 artifact) → T-014 (delete xmachine scripts, after T-013 green) → T-015 (joint end-gate ≡ core T-033). Everything remaining is machine-gated.
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -142,6 +142,13 @@ Review Retry Count: 0
   - Note: this was a same-MODEL architect audit on REAL code (the cross-MODEL subagent path is non-viable in this env due to output redaction → confabulation). A different-model audit remains nice-to-have but the real-code findings here are authoritative.
 - 2026-06-11 (superseded by the full audit above; earlier quick self-review): **CLEAR** — compose-don't-rebuild honored (`LocalTransport::run`→`dispatch::spawn_executor`, `resolve_plan`→routing+`get_adapter`), parity constants match the live scripts (ssh paths, zellij create-background/exit-41, RESULT_FILES, New-TaskSpec extraction), `preflight.rs` has zero provisioning surface, `session_record` reuses `SpawnConfig::default_log_dir`. One LOW (cosmetic): `ssh.rs` `status_path()` uses `\` on Windows vs legacy `/` (PowerShell path-agnostic, not a bug). A different-MODEL audit remains advisable; self-review by the author is not a full substitute.
 - 2026-06-11 (architect Phase 3a, core T-034 prep): fixed `.github/workflows/release.yml` stale `-p gal-cli`→`-p cli` (3 refs); pipeline now press-ready (validated `cargo build --release -p cli` + `gal release` output). See core plan T-034. **Refined gate analysis**: T-012's *remote* contract refs (`Invoke-XmachineRemoteTask`, remote-smoke template) cannot honestly repoint to `gal xmachine` until the remote-run CLI exists — that wiring's validation is the machine-gated T-013, so T-012-remote is effectively gated on T-013. F-E pipeline-half is low marginal value (single-task `gal pipeline` ≈ `gal-dispatch`). Net: after Phase 3a the spine is gated on (1) user running T-034 (enable Actions + tag push), (2) real machines for T-013/T-035.
+- 2026-06-11 (architect — ALL pre-SSH work, after T-034 shipped `v0.1.0-rc1`): built the remaining xmachine work that does not need real machines.
+  - **config.rs** — parse `xmachine.config.json` → resolve node alias to SSH `RemoteTarget` + repo/execute mode + inferred platform; clear errors; fully tested.
+  - **remote_run.rs** — control-node command sequence composing the building blocks: `build_dispatch_plan` (ensure-temp → upload-spec → prepare-workspace → launch) parity with `Invoke-XmachineRemoteTask`; `build_collect_plan` (status read + pull RESULT_FILES + cleanup) parity with `Get-XmachineRemoteResult`; POSIX zellij launch / Windows hidden Start-Process; each step → ssh/scp argv. Pure + fully unit-tested. **The earlier "T-012-remote gated on T-013" worry is resolved**: the remote run is now real, deterministic, unit-tested code; only the *live* ssh/scp round-trip remains the T-013 seam.
+  - **cli wiring (F-E)** — `gal xmachine <node> to do <task>` now consumes the xmachine crate: resolves the node from config (fail-loud on unknown/missing), builds + previews the bounded dispatch plan, keeps the control-plane shorthand block. Live-smoked. **F-E xmachine-half RESOLVED** (xmachine crate now has a binary consumer). F-E pipeline-half: intentionally NOT changed — `gal pipeline` reuses the gated `gal-dispatch` bin (keeps the safety gate); the `pipeline` crate stays the orchestration library substrate (its LocalTransport is what a future multi-stage driver / the remote `gal pipeline` body compose). Documented as a design choice, not debt.
+  - **T-012** — contract surface repointed to `gal xmachine`/`gal pipeline` (now honest).
+  - **LOW advisories dispositioned**: (1) `ssh.rs status_path` Windows `\` vs legacy `/` — WON'T-FIX (functionally identical, PowerShell path-agnostic; platform-consistent is cleaner than legacy's mixed convention). (2) remote-command shell quoting — DEFERRED to T-013 (correct quoting depends on the remote shell, unknown until the live target; inputs are controlled/space-free by construction).
+  - Verification: `cargo test -p xmachine` 56, `cargo test -p cli` 23; `cargo clippy -p cli -p xmachine -- -D warnings` clean. **T-001..T-012 complete; everything remaining (T-013/T-014/T-015) needs the user's real machines.**
 
 ## Tasks
 
@@ -163,7 +170,7 @@ R-03/R-05/R-06 xmachine (protected, architect) — implemented 2026-06-11; live 
 reparent / entry / contract
 - [x] T-010 (R-08, before deletion) — Reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` to fixture/behavioral tests. (oracle_reparent_t010.rs + frozen contract fixture; F-D fixed; test-t022-ssh.sh deferred to TP-13.)
 - [x] T-011 (R-04) — `cli` wiring: `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` into doctor aggregation. (Callable + doctor aggregation; F-E debt recorded: crates not yet consumed by cli.)
-- [ ] T-012 (R-04, protected, architect) — Repoint contract surface (gal-pipeline SKILL/task-xmachine templates/agents.md) to the Rust binary.
+- [x] T-012 (R-04, protected, architect) — Repoint contract surface (gal-pipeline SKILL/task-xmachine templates/agents.md) to the Rust binary. **DONE 2026-06-11** (honest now that `gal xmachine`/`gal pipeline` resolve config + build real plans): SKILL.template `Invoke-XmachineTask.ps1`→`gal xmachine node to do <task>`, `Test-Xmachine.ps1` readiness→config+preflight wording; local-smoke→`gal pipeline`, remote-smoke→`gal xmachine` (legacy scripts noted as removed at T-014); agents.md had no script refs. Generated adapters pick this up on next `gal sync`/install.
 
 parity / deletion / closeout
 - [ ] T-013 (R-07, hard gate) — Cross-machine SSH parity: win→mac-mini (covers win→linux) + win→win (Win11 laptop); align to fixtures; run TP-17 write-back spike opportunistically.

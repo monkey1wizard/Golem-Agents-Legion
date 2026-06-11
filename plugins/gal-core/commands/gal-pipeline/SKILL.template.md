@@ -225,10 +225,10 @@ Use the dispatcher path resolved by `/gal`'s invoke rules for every script-dispa
 Rules:
 
 - Do not send the entire pipeline to the work node.
-- If the dispatcher emits `OFFLOAD: direct-task`, use the GAL runtime checkout's `scripts/Invoke-XmachineTask.ps1 -WorkNode node-name -TaskSpec <phase-task-spec> -Wait` for the bounded phase; do not use `Invoke-XmachinePipeline.ps1` / `Invoke-XmachinePipeline.sh`.
+- If the dispatcher emits `OFFLOAD: direct-task`, use `gal xmachine node-name to do <task-ref>` (the Rust binary resolves the node from `xmachine.config.json`, builds the bounded remote dispatch plan, and runs it) for the bounded phase; do not use `Invoke-XmachinePipeline.ps1` / `Invoke-XmachinePipeline.sh`.
 - If the dispatcher emits `XMACHINE_MODE: execute`, do not pass `-WorkRepoPath` unless the target repo has an intentional persistent checkout on the work node.
 - In `XMACHINE_MODE: execute`, make the phase task spec self-contained: include the exact file contents, minimal reproduction commands, or explicit temporary-materialization instructions needed on the work node. Do not tell the work node to inspect local control-node paths or stale remote repo paths.
-- Use the GAL runtime checkout's `scripts/Invoke-XmachineTask.ps1 -WorkNode node-name -TaskSpec <phase-task-spec> -Wait` for supported bounded phases when no repo-local wrapper exists.
+- Use `gal xmachine node-name to do <task-ref>` (the Rust binary resolves the node from `xmachine.config.json`, builds the bounded remote dispatch plan, and runs it) for supported bounded phases when no repo-local wrapper exists.
 - Retrieve and inspect `status.json`, `summary.md`, `runtime.log`, and `result.patch` on the control node.
 - Apply any returned patch only on the control-node checkout.
 - Keep commit gates, plan-state convergence, and protected-path escalation local.
@@ -274,7 +274,7 @@ Do not leave this convergence to implementer, tester, reviewer, or a later chat.
 
 If prerequisites are not met: tell the user what is missing and stop. If the execution prompt is still stubbed, run `/refining-plan` on the source plan and then rerun `/plan-to-prompt` before attempting the pipeline again.
 
-If xmachine mode is requested, also verify that the selected node is already `readied`. If not, stop and instruct the user to run the GAL runtime checkout's `scripts/Test-Xmachine.ps1 -WorkNode node-name -Wait` first.
+If xmachine mode is requested, also verify that the selected node is defined in `xmachine.config.json` and ready. `gal xmachine` resolves the node and runs SSH/zellij/remote-gal preflight at dispatch time — a missing/misconfigured node or unmet precondition fails loud with fix guidance. GAL never provisions SSH, installs zellij, or scp's the remote `gal`; those are user preconditions.
 
 ### Retry And Blocker Handoff Contract
 

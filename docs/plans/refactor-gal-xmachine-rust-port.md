@@ -244,7 +244,7 @@ Not triggered（無 customer-facing UI）。
 **reparent / 入口 / 契約**
 - [x] **T-010（R-08,先於刪除）** — reparent `Test-Xmachine`/`test-t022-ssh.sh`/`Test-PipelineTokenBurn` 為 fixture/行為測試。(`crates/gal-engine/tests/oracle_reparent_t010.rs` + 凍結 contract fixture。**architect 修 F-D**:原本 `include_str!` 活的 `Test-PipelineTokenBurn.ps1` 並斷言其原始碼 —— 會 compile-couple、擋住 T-014 刪除、且測的是字串非行為;改讀 `tests/fixtures/xmachine/pipeline-token-burn-contract.md`。`test-t022-ssh.sh` 延到 TP-13。)
 - [x] **T-011（R-04/P3）** — `cli` 接線 `gal pipeline`/`gal xmachine`/`gal dispatch` + xmachine `HealthCheck` 入 doctor 聚合。(指令皆可呼、doctor 聚合 xmachine readiness;**F-E 債務記錄**:cli 尚未依賴/消費 `pipeline`/`xmachine` crate —— `gal pipeline` 轉發 `gal-dispatch`、`gal xmachine` 只輸出 shorthand block、doctor 用 `setup::tools` 而非 `xmachine::preflight`。DAG 邊 `cli→{pipeline,xmachine}` 待後續接線實現。)
-- [ ] **T-012（R-04,受保護,architect）** — 改契約面(gal-pipeline SKILL/task-xmachine 模板/agents.md)引用指 Rust binary。
+- [x] **T-012（R-04,受保護,architect）** — 改契約面(gal-pipeline SKILL/task-xmachine 模板/agents.md)引用指 Rust binary。**DONE 2026-06-11**(`gal xmachine`/`gal pipeline` 已能解析 config + 建真實 plan,改指誠實):SKILL.template `Invoke-XmachineTask.ps1`→`gal xmachine`、`Test-Xmachine.ps1` 就緒→config+preflight 措辭;local-smoke→`gal pipeline`、remote-smoke→`gal xmachine`(舊腳本註記 T-014 刪);agents.md 無 script ref。生成 adapter 待下次 `gal sync`。
 
 **parity / 刪除 / 收尾**
 - [ ] **T-013（R-07,硬 gate;前置=核心 R-13 artifact）** — 跨機 SSH parity:win→mac-mini(涵蓋 win→linux)+ win→win(Win11 筆電),遠端裝**核心 R-13 預編譯 artifact**(純 end-user,不在遠端 build);對齊 fixture;順手做 TP-17 write-back spike。

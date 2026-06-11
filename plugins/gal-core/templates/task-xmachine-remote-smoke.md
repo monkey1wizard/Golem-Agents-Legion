@@ -24,9 +24,7 @@ Key files to read:
 
 - `.dev/project.md` — project architecture and constraints
 - `docs/collaborative-tools/xmachine.md` — current xmachine collaborative-tool contract
-- `scripts/Invoke-XmachineRemoteTask.ps1` — remote Windows dispatcher
-- `scripts/Get-XmachineRemoteResult.ps1` — remote Windows result retrieval
-- `scripts/Start-xMachine.ps1` — runtime output contract
+- `gal xmachine <node> to do <task-ref>` — the Rust remote lane (resolves the node from `xmachine.config.json`, builds + runs the bounded SSH+zellij dispatch plan, collects `status.json`/`summary.md`/`runtime.log`/`result.patch`). The legacy `Invoke-XmachineRemoteTask.ps1` / `Get-XmachineRemoteResult.ps1` / `Start-xMachine.ps1` are superseded and removed at xmachine T-014.
 
 ## Constraints
 

@@ -24,9 +24,7 @@ Key files to read:
 
 - `.dev/project.md` — project architecture and constraints
 - `docs/collaborative-tools/xmachine.md` — current xmachine collaborative-tool contract
-- `scripts/Invoke-XmachineLocalTask.sh` — local async dispatcher
-- `scripts/Get-XmachineLocalResult.sh` — local async result retrieval
-- `scripts/Start-xMachine.sh` — runtime output contract
+- `gal pipeline <task-spec>` — the Rust local lane (reads the spec, dispatches via the gated `gal-dispatch` bin). The legacy `Invoke-XmachineLocalTask.sh` / `Get-XmachineLocalResult.sh` / `Start-xMachine.sh` are superseded and removed at xmachine T-014.
 
 ## Constraints
 
