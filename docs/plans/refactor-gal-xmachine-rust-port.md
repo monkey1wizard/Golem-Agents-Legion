@@ -247,6 +247,6 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-012（R-04,受保護,architect）** — 改契約面(gal-pipeline SKILL/task-xmachine 模板/agents.md)引用指 Rust binary。**DONE 2026-06-11**(`gal xmachine`/`gal pipeline` 已能解析 config + 建真實 plan,改指誠實):SKILL.template `Invoke-XmachineTask.ps1`→`gal xmachine`、`Test-Xmachine.ps1` 就緒→config+preflight 措辭;local-smoke→`gal pipeline`、remote-smoke→`gal xmachine`(舊腳本註記 T-014 刪);agents.md 無 script ref。生成 adapter 待下次 `gal sync`。
 
 **parity / 刪除 / 收尾**
-- [ ] **T-013（R-07,硬 gate;前置=核心 R-13 artifact）** — 跨機 SSH parity:win→mac-mini(涵蓋 win→linux)+ win→win(Win11 筆電),遠端裝**核心 R-13 預編譯 artifact**(純 end-user,不在遠端 build);對齊 fixture;順手做 TP-17 write-back spike。
+- [ ] **T-013（R-07,硬 gate;前置=核心 R-13 artifact）** — 跨機 SSH parity:win→mac-mini(涵蓋 win→linux)+ win→win(Win11 筆電),遠端裝**核心 R-13 預編譯 artifact**(純 end-user,不在遠端 build);對齊 fixture;順手做 TP-17 write-back spike。**進度(2026-06-11,win→mac 前置勘察):SSH ✓ 可連、`script` pty ✓、遠端 gal `v0.1.0-rc2` 已 end-user 安裝(T-035)且 `gal 0.1.0` 可跑。但 USER 前置未齊 —— `zellij` **未裝**、`gal` **不在 PATH**(裝在 `~/gal-t035/`)。依設計 R-05 preflight 只檢查不代設 → 這兩項會 fail-loud(正確行為)。dispatch/collect command plan 已單測;live remote run + TP-17 spike 待使用者在 mac-mini 裝 zellij + 把 gal 上 PATH。win→win(Win11)依使用者指示暫不做。**
 - [ ] **T-014（R-10/P4）** — 對齊 fixture 後刪 xmachine 家族 ps1/sh + `common/New-TaskSpec.ps1`。
 - [ ] **T-015（R-09/P5,跨計畫尾端）** — 與核心計畫共同刪 `common/Common.{ps1,sh}` + `gal.{ps1,sh}`(兩計畫皆 done 才整檔刪)。
