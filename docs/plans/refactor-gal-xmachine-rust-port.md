@@ -230,7 +230,7 @@ Not triggered（無 customer-facing UI）。
 - [x] **T-001（P0）** — 凍結 xmachine/pipeline parity fixtures;盤點 SSH 行為基準。
 
 **R-01/R-02 pipeline（受保護,architect;前置=核心 R-00）**
-- [ ] **T-002** — 建 `pipeline` crate 骨架:定義 `Transport` trait + local impl 組合 `dispatch`(不重造);`cargo test` 綠。
+- [x] **T-002** — 建 `pipeline` crate 骨架:定義 `Transport` trait + local impl 組合 `dispatch`(不重造);`cargo test` 綠。
 - [ ] **T-003** — port 切小 + 多 provider 分派 + 多 stage 編排 → `pipeline`;parity。
 - [ ] **T-004** — port task-spec(`New-TaskSpec`,吸收 small-context 多行擷取 + 每 task 檔案收斂規格)→ `pipeline`;parity。
 

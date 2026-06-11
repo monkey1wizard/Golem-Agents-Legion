@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 1 of 15
-Last activity: 2026-06-11 — completed T-001 fixture freeze and committed baseline artifacts
-Next step: T-002 — scaffold `pipeline` crate (protected surface; architect gate applies)
+Step: 2 of 15
+Last activity: 2026-06-11 — completed T-002 pipeline scaffold and committed the crate skeleton
+Next step: T-003 — port task-split + multi-provider dispatch + multi-stage orchestration into `pipeline`
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -113,6 +113,7 @@ Review Retry Count: 0
 - 2026-06-11: T-001 froze the initial xmachine control-node baselines under `tests/fixtures/xmachine/`: Windows `Test-Xmachine.ps1` no-work-node failure, `common/New-TaskSpec.ps1` missing-TaskScope failure, and the current Windows bash-wrapper unavailability surface. Commit: `b952a1c`.
 - 2026-06-11: `scripts/Invoke-XmachinePipeline.ps1` did not yield a stable no-argument output in this environment, so it was intentionally excluded from the first fixture freeze rather than treated as a trustworthy oracle.
 - Core R-00 is already landed per `.dev/state.md`, so T-002 is no longer blocked by the base/dispatch extraction. Protected-core/contract architect sign-off still applies to T-002..T-009/T-011/T-012. Preflight remains check-only — never configure SSH, never install zellij, never scp gal. Session records must extend `.dev/executor-logs/`, not a new store. Cross-machine parity still needs the user's Win11 laptop SSH setup plus mac-mini.
+- 2026-06-11: T-002 created the new `crates/pipeline/` workspace member and established the dependency-correct skeleton: `Transport` trait owned by `pipeline`, `LocalTransport` marker in `pipeline`, and phase reuse through `dispatch::stage::Phase` rather than rebuilding stage semantics. Commit: `ccfad02`.
 
 ## Tasks
 
@@ -120,7 +121,7 @@ P0
 - [x] T-001 (P0) — Freeze xmachine/pipeline parity fixtures; capture SSH behavior baseline.
 
 R-01/R-02 pipeline (protected, architect; prerequisite = core R-00)
-- [ ] T-002 — Scaffold `pipeline` crate: define `Transport` trait + local impl composing `dispatch` (no rebuild); `cargo test` green.
+- [x] T-002 — Scaffold `pipeline` crate: define `Transport` trait + local impl composing `dispatch` (no rebuild); `cargo test` green.
 - [ ] T-003 — Port task-split + multi-provider dispatch + multi-stage orchestration → `pipeline`; parity.
 - [ ] T-004 — Port task-spec (`New-TaskSpec`, absorbing the small-context multi-line extraction + per-task file convergence spec) → `pipeline`; parity.
 
@@ -148,6 +149,7 @@ parity / deletion / closeout
 ## Analyze
 
 - 2026-06-11: fixture freeze created `tests/fixtures/xmachine/README.md` plus three Windows control-node baseline artifacts under `tests/fixtures/xmachine/windows-control-node/`.
+- 2026-06-11: T-002 scaffold created `crates/pipeline/Cargo.toml` and `crates/pipeline/src/lib.rs`, with local transport tests proving phase reuse from `dispatch`.
 
 ## Test Plan
 
@@ -176,6 +178,7 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 - 2026-06-11: `list_dir tests/fixtures/xmachine` confirmed the new fixture domain root and `windows-control-node/` subdirectory.
 - 2026-06-11: `list_dir tests/fixtures/xmachine/windows-control-node` confirmed the three baseline artifacts.
 - 2026-06-11: `get_errors` clean for `tests/fixtures/xmachine/README.md` and all three baseline `.txt` artifacts.
+- 2026-06-11: `cargo test -p pipeline` PASS (3 tests, 0 failed).
 
 ## Review Results
 
