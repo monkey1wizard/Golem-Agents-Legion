@@ -94,9 +94,9 @@ None open — all planning-stage OQs resolved and internalized as Decisions in t
 ## Status
 
 Workflow: DRAFT
-Step: 2 of 15
-Last activity: 2026-06-11 — completed T-002 pipeline scaffold and committed the crate skeleton
-Next step: T-003 — port task-split + multi-provider dispatch + multi-stage orchestration into `pipeline`
+Step: 3 of 15
+Last activity: 2026-06-11 — started T-003 by porting remote run planning into `pipeline`
+Next step: Continue T-003 — port the next orchestration slice on top of the new run-planning helpers
 Current Task: —
 Task Base Commit: —
 Task Final Commit: —
@@ -114,6 +114,7 @@ Review Retry Count: 0
 - 2026-06-11: `scripts/Invoke-XmachinePipeline.ps1` did not yield a stable no-argument output in this environment, so it was intentionally excluded from the first fixture freeze rather than treated as a trustworthy oracle.
 - Core R-00 is already landed per `.dev/state.md`, so T-002 is no longer blocked by the base/dispatch extraction. Protected-core/contract architect sign-off still applies to T-002..T-009/T-011/T-012. Preflight remains check-only — never configure SSH, never install zellij, never scp gal. Session records must extend `.dev/executor-logs/`, not a new store. Cross-machine parity still needs the user's Win11 laptop SSH setup plus mac-mini.
 - 2026-06-11: T-002 created the new `crates/pipeline/` workspace member and established the dependency-correct skeleton: `Transport` trait owned by `pipeline`, `LocalTransport` marker in `pipeline`, and phase reuse through `dispatch::stage::Phase` rather than rebuilding stage semantics. Commit: `ccfad02`.
+- 2026-06-11: T-003 started by porting the legacy xmachine pipeline run-planning slice into `crates/pipeline/src/lib.rs`: remote path planning, dispatched-state note strings, and the dispatched run-record model now live in `pipeline` with Windows/POSIX parity tests. Commit: `ef5ae36`.
 
 ## Tasks
 
@@ -150,6 +151,7 @@ parity / deletion / closeout
 
 - 2026-06-11: fixture freeze created `tests/fixtures/xmachine/README.md` plus three Windows control-node baseline artifacts under `tests/fixtures/xmachine/windows-control-node/`.
 - 2026-06-11: T-002 scaffold created `crates/pipeline/Cargo.toml` and `crates/pipeline/src/lib.rs`, with local transport tests proving phase reuse from `dispatch`.
+- 2026-06-11: T-003 planning slice added `WorkPlatform`, `RemotePipelinePaths`, `PipelineRunContext`, `PipelineRunRecord`, plus state-note helpers to `crates/pipeline/src/lib.rs`.
 
 ## Test Plan
 
@@ -179,6 +181,7 @@ TP-17 venue: run at core plan TP-02 (mac-mini install) in the same SSH session. 
 - 2026-06-11: `list_dir tests/fixtures/xmachine/windows-control-node` confirmed the three baseline artifacts.
 - 2026-06-11: `get_errors` clean for `tests/fixtures/xmachine/README.md` and all three baseline `.txt` artifacts.
 - 2026-06-11: `cargo test -p pipeline` PASS (3 tests, 0 failed).
+- 2026-06-11: `cargo test -p pipeline` PASS (7 tests, 0 failed) after the T-003 run-planning port slice.
 
 ## Review Results
 
