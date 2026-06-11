@@ -21,6 +21,7 @@
 
 pub mod preflight;
 pub mod result;
+pub mod session_record;
 pub mod ssh;
 pub mod zellij;
 
