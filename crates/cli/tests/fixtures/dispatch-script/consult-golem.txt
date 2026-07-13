@@ -1,0 +1,6 @@
+--- GAL DISPATCH ---
+ACTION: Invoke golem-architect — awaiting user instruction.
+MODE: consult
+ON_COMPLETE: Report result to user.
+ROLE: golem-architect
+--- END DISPATCH ---

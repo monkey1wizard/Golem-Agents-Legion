@@ -1,0 +1,22 @@
+[package]
+name = "mcp"
+version = "0.1.0"
+edition = "2021"
+description = "GAL MCP config orchestration — variable resolution, safe-merge, per-provider write, HealthCheck."
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[lib]
+name = "mcp"
+path = "src/lib.rs"
+
+[dependencies]
+gal-foundation = { path = "../gal-foundation" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.0"
+thiserror = "2.0"
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3.0"

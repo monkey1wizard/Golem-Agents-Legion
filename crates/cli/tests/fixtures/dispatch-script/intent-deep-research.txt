@@ -1,0 +1,5 @@
+--- GAL DISPATCH ---
+ACTION: Activate the /gal deep-research skill for multi-source investigation with cross-review and independent reference verification.
+COMMAND: deep-research
+ON_COMPLETE: Synthesize findings, verify references, and surface RESEARCH_COMPLETE to the user.
+--- END DISPATCH ---
