@@ -1,0 +1,6 @@
+--- GAL DISPATCH ---
+ACTION: Invoke golem-debugger — awaiting user instruction.
+MODE: utility
+ON_COMPLETE: Report result to user.
+ROLE: golem-debugger
+--- END DISPATCH ---
