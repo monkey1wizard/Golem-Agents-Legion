@@ -1,0 +1,706 @@
+//! Doctor command + its aggregated health checks (routed-executor and others).
+
+use gal_engine::ExitCode;
+use gal_foundation::health::{DoctorFinding, HealthCheck, Severity};
+use std::path::PathBuf;
+
+pub(crate) struct RoutedExecutorHealthCheck {
+    routing_path: Option<PathBuf>,
+}
+
+impl RoutedExecutorHealthCheck {
+    fn from_default() -> Self {
+        Self {
+            routing_path: dispatch::routing::default_routing_path(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_path(path: PathBuf) -> Self {
+        Self {
+            routing_path: Some(path),
+        }
+    }
+}
+
+impl HealthCheck for RoutedExecutorHealthCheck {
+    fn name(&self) -> &str {
+        "routed-executor-readiness"
+    }
+
+    fn check(&self) -> Vec<DoctorFinding> {
+        let Some(routing_path) = self.routing_path.clone() else {
+            return vec![DoctorFinding::warning(
+                "executor-routing: home directory unavailable; skipping routed-executor readiness check",
+            )];
+        };
+
+        if !routing_path.exists() {
+            return vec![DoctorFinding::warning(format!(
+                "executor-routing: '{}' not found; skipping routed-executor readiness check",
+                routing_path.display()
+            ))];
+        }
+
+        let routing = dispatch::routing::load_routing(&routing_path);
+        let mut findings: Vec<DoctorFinding> = routing
+            .warnings
+            .into_iter()
+            .map(DoctorFinding::warning)
+            .collect();
+
+        let mut routed_executors = std::collections::BTreeSet::new();
+        for entry in routing.entries.values() {
+            routed_executors.insert(entry.executor.clone());
+        }
+
+        if routed_executors.is_empty() {
+            findings.push(DoctorFinding::warning(
+                "executor-routing: no routed executors configured; skipping readiness aggregation",
+            ));
+            return findings;
+        }
+
+        for executor in routed_executors {
+            match dispatch::dispatch::executor_readiness(&executor) {
+                dispatch::dispatch::Readiness::Ready => {}
+                dispatch::dispatch::Readiness::Unknown { message } => {
+                    findings.push(DoctorFinding::warning(format!(
+                        "routed executor '{executor}' readiness indeterminate: {message}"
+                    )));
+                }
+                dispatch::dispatch::Readiness::Unauthenticated { hint } => {
+                    findings.push(DoctorFinding {
+                        severity: Severity::Warning,
+                        message: format!(
+                            "routed executor '{executor}' is not authenticated for confirmed headless use"
+                        ),
+                        fix_hint: Some(hint),
+                    });
+                }
+            }
+        }
+
+        findings
+    }
+}
+/// Names of skills + commands the canonical plugin root currently declares —
+/// the dynamic required-skill inventory for the Codex shared-skill-surface
+/// health check. A missing/unreadable subdirectory yields an empty list
+/// (fail-safe: no canonical root means nothing to require yet).
+pub(crate) fn required_shared_skill_names(canonical_root: &std::path::Path) -> Vec<String> {
+    let mut names = Vec::new();
+    for sub in ["skills", "commands"] {
+        let dir = canonical_root.join(sub);
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                if let Some(name) = entry.file_name().to_str() {
+                    names.push(name.to_string());
+                }
+            }
+        }
+    }
+    names.sort();
+    names.dedup();
+    names
+}
+
+/// Parsed `--executor-smoke` flags. Presence of `--executor-smoke` itself is
+/// checked by the caller; this struct only carries the opt-in sub-flags.
+struct SmokeFlags {
+    executors: Vec<String>,
+    timeout_secs: u64,
+    strict: bool,
+    json: bool,
+    report_dir: Option<PathBuf>,
+    transport: String,
+    ssh_target: Option<String>,
+    remote_workdir: Option<String>,
+}
+
+fn parse_smoke_flags(args: &[String]) -> SmokeFlags {
+    let mut executors = Vec::new();
+    let mut timeout_secs: u64 = 300;
+    let mut strict = false;
+    let mut json = false;
+    let mut report_dir = None;
+    let mut transport = "local".to_string();
+    let mut ssh_target = None;
+    let mut remote_workdir = None;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--executor" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    executors.push(v.clone());
+                }
+            }
+            "--timeout" => {
+                i += 1;
+                if let Some(v) = args.get(i).and_then(|s| s.parse::<u64>().ok()) {
+                    timeout_secs = v;
+                }
+            }
+            "--strict" => strict = true,
+            "--json" => json = true,
+            "--report-dir" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    report_dir = Some(PathBuf::from(v));
+                }
+            }
+            "--transport" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    transport = v.clone();
+                }
+            }
+            "--ssh-target" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    ssh_target = Some(v.clone());
+                }
+            }
+            "--remote-workdir" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    remote_workdir = Some(v.clone());
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    SmokeFlags {
+        executors,
+        timeout_secs,
+        strict,
+        json,
+        report_dir,
+        transport,
+        ssh_target,
+        remote_workdir,
+    }
+}
+
+/// SSH reachability connect timeout (seconds). Kept short and independent of the
+/// per-executor smoke `--timeout` so an unreachable target fails fast rather than
+/// waiting the full smoke budget on the TCP connect.
+const SSH_CONNECT_TIMEOUT_SECS: u64 = 10;
+
+/// Run `gal doctor --executor-smoke [...]` — the durable, repeatable headless-executor
+/// self-test. Never runs unless `--executor-smoke` is explicitly present; plain
+/// `gal doctor` never reaches this function.
+fn run_executor_smoke(args: &[String]) -> ExitCode {
+    use crate::commands::executor_smoke::{
+        generate_run_id, run_local_smoke, run_ssh_smoke, RunStore, SmokeStatus, SshProbe,
+        UnsafeReportDir,
+    };
+
+    let flags = parse_smoke_flags(args);
+    if flags.transport != "local" && flags.transport != "ssh" {
+        eprintln!(
+            "gal doctor --executor-smoke: CONFIG_ERROR: unsupported --transport '{}' (supported: 'local', 'ssh')",
+            flags.transport
+        );
+        return ExitCode::Error;
+    }
+
+    // SSH transport requires a target + a dedicated remote workdir; fail fast before any run.
+    let ssh_route = if flags.transport == "ssh" {
+        match (flags.ssh_target.as_deref(), flags.remote_workdir.as_deref()) {
+            (Some(t), Some(w)) if !t.is_empty() && !w.is_empty() => {
+                Some((t.to_string(), w.to_string()))
+            }
+            _ => {
+                eprintln!(
+                    "gal doctor --executor-smoke: CONFIG_ERROR: --transport ssh requires both --ssh-target <target> and --remote-workdir <dedicated-checkout>"
+                );
+                return ExitCode::Error;
+            }
+        }
+    } else {
+        None
+    };
+
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let default_report_root = repo_root.join(".dev").join("executor-smoke");
+    let report_root = flags.report_dir.clone().unwrap_or(default_report_root);
+
+    if let Err(UnsafeReportDir(msg)) = crate::commands::executor_smoke::validate_report_dir(
+        &repo_root,
+        flags.report_dir.as_deref().unwrap_or(&report_root),
+    ) {
+        eprintln!("gal doctor --executor-smoke: CONFIG_ERROR: {msg}");
+        return ExitCode::Error;
+    }
+
+    let run_id = generate_run_id();
+    let store = RunStore::new(report_root, run_id, &flags.transport);
+    let generated = run_id_as_generated_timestamp(&store.run_id);
+
+    let rows = match &ssh_route {
+        Some((ssh_target, remote_workdir)) => {
+            let probe = SshProbe::real(SSH_CONNECT_TIMEOUT_SECS);
+            run_ssh_smoke(
+                &flags.executors,
+                ssh_target,
+                remote_workdir,
+                &probe,
+                &store,
+                flags.timeout_secs,
+                &generated,
+            )
+        }
+        None => run_local_smoke(&flags.executors, &store, flags.timeout_secs, &generated),
+    };
+
+    if let Err(e) = store.write_reports(&rows) {
+        eprintln!("gal doctor --executor-smoke: failed to write report: {e}");
+        return ExitCode::Error;
+    }
+
+    if flags.json {
+        println!(
+            "{}",
+            crate::commands::executor_smoke::render_summary_json(&store.run_id, &store.transport, &rows)
+        );
+    } else {
+        println!(
+            "{}",
+            crate::commands::executor_smoke::render_summary_md(&store.run_id, &store.transport, &rows)
+        );
+        println!("Report: {}", store.summary_json_path().display());
+    }
+
+    let any_non_pass = rows.iter().any(|r| r.final_status != SmokeStatus::Pass);
+    if flags.strict && any_non_pass {
+        ExitCode::Error
+    } else {
+        ExitCode::Success
+    }
+}
+
+/// `<run-id>` is already `YYYYMMDDTHHMMSSZ`; reuse it directly as the smoke
+/// spec's `Generated:` timestamp so no second clock read is needed.
+fn run_id_as_generated_timestamp(run_id: &str) -> String {
+    run_id.to_string()
+}
+
+/// Run `gal doctor [--dry-run]` — read-only health checks.
+pub(crate) fn cmd_doctor(args: &[String]) -> ExitCode {
+    use gal_engine::doctor::{run_doctor, DoctorOptions};
+
+    if args.iter().any(|a| a == "--executor-smoke") {
+        return run_executor_smoke(args);
+    }
+
+    let dry_run = args.iter().any(|a| a == "--dry-run");
+
+    let opts = DoctorOptions { dry_run };
+    let mut report = run_doctor(&opts);
+
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    if let Some(check) = mcp::McpProjectionHealthCheck::from_standard_path() {
+        report.findings.extend(check.check());
+    }
+    report.findings.extend(
+        gal_engine::doctor::SetupHealthCheck {
+            repo_root: repo_root.clone(),
+        }
+        .check(),
+    );
+    if let Some(canonical_root) = gal_foundation::paths::gal_plugin_root("gal") {
+        report.findings.extend(
+            gal_engine::doctor::ClaudePluginCacheCheck::from_user_home(canonical_root.clone())
+                .check(),
+        );
+        report.findings.extend(
+            gal_engine::doctor::BinaryRefreshCheck::from_current_exe(canonical_root).check(),
+        );
+    }
+    let canonical_root = gal_foundation::paths::gal_plugin_root("gal");
+    let required_names = canonical_root
+        .as_ref()
+        .map(|root| required_shared_skill_names(root))
+        .unwrap_or_default();
+    if let Some(home) = gal_foundation::paths::user_home() {
+        let shared_skills_root = home.join(".agents").join("skills");
+        let lockfile_path = gal_foundation::paths::plugins_lock_path();
+        let mut check = projection::SkillsProjectionHealthCheck::with_inventory(
+            shared_skills_root,
+            required_names.clone(),
+            lockfile_path,
+        );
+        // Freshness: compare each projected shared skill against the current
+        // canonical plugin-root source so Codex drift after a source-contract
+        // change (needing `gal refresh`) is reported, not silently passed.
+        if let Some(root) = &canonical_root {
+            check = check.with_canonical_source(root.clone());
+        }
+        report.findings.extend(check.check());
+    }
+
+    // Dev-checkout binary/source skew: the `gal` binary on PATH bakes the git
+    // stamp it was built from; when doctor runs inside a GAL source checkout
+    // whose HEAD is newer, the projected contract can be ahead of the binary
+    // even after `gal refresh`. This is a distinct signal from stale projection.
+    report
+        .findings
+        .extend(binary_source_skew_finding(env!("GAL_GIT_STAMP"), current_gal_checkout_head().as_deref()));
+    if let Some(codex_config_path) = gal_foundation::paths::codex_config_path() {
+        report.findings.extend(
+            projection::CodexSkillsConfigCheck::new(codex_config_path, required_names).check(),
+        );
+    }
+    report
+        .findings
+        .extend(RoutedExecutorHealthCheck::from_default().check());
+
+    if report.findings.is_empty() {
+        println!("gal doctor: all checks passed.");
+    } else {
+        for f in &report.findings {
+            println!("{f}");
+        }
+    }
+
+    if report.has_errors() {
+        ExitCode::Error
+    } else {
+        ExitCode::Success
+    }
+}
+
+/// Pure: emit a dev-checkout binary/source-skew warning when the baked git
+/// stamp differs from the current GAL-checkout HEAD. An empty baked stamp
+/// (packaged build with no git) or no resolvable HEAD yields no finding —
+/// never a false skew report. Comparison is on the shorter length so a short
+/// baked stamp matches a full HEAD.
+fn binary_source_skew_finding(baked_stamp: &str, head: Option<&str>) -> Option<DoctorFinding> {
+    let baked = baked_stamp.trim();
+    if baked.is_empty() {
+        return None;
+    }
+    let head = head?.trim();
+    if head.is_empty() {
+        return None;
+    }
+    let n = baked.len().min(head.len());
+    if baked.get(..n) == head.get(..n) {
+        return None;
+    }
+    Some(DoctorFinding::warning(format!(
+        "gal binary was built from git {baked} but this GAL checkout HEAD is {head} — the binary \
+         on PATH is older than source; rebuild + reinstall (`cargo build --release -p gal-cli`) \
+         before trusting projection/dispatch output"
+    )))
+}
+
+/// Resolve the current GAL-checkout HEAD short hash, or `None` when cwd is not
+/// inside a GAL source checkout (no `plugins/gal-core` at the git toplevel) or
+/// git is unavailable. Read-only.
+fn current_gal_checkout_head() -> Option<String> {
+    let cwd = std::env::current_dir().ok()?;
+    let run = |args: &[&str]| -> Option<String> {
+        let out = std::process::Command::new("git")
+            .args(args)
+            .current_dir(&cwd)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())?;
+        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        (!s.is_empty()).then_some(s)
+    };
+    let toplevel = run(&["rev-parse", "--show-toplevel"])?;
+    // Only a GAL source checkout carries the projection source contract.
+    if !PathBuf::from(&toplevel)
+        .join("plugins")
+        .join("gal-core")
+        .is_dir()
+    {
+        return None;
+    }
+    run(&["rev-parse", "--short", "HEAD"])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn a(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn doctor_wires_codex_skill_freshness_and_binary_skew() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        // ── binary/source skew (pure) ──
+        assert!(
+            binary_source_skew_finding("abc1234", Some("def5678")).is_some(),
+            "differing baked stamp vs HEAD must warn"
+        );
+        assert!(
+            binary_source_skew_finding("abc1234", Some("abc1234def")).is_none(),
+            "a short baked stamp matching the HEAD prefix must not warn"
+        );
+        assert!(
+            binary_source_skew_finding("", Some("def5678")).is_none(),
+            "empty baked stamp (packaged build) must never warn"
+        );
+        assert!(
+            binary_source_skew_finding("abc1234", None).is_none(),
+            "no resolvable HEAD (not a GAL checkout) must never warn"
+        );
+        let skew = binary_source_skew_finding("abc1234", Some("def5678")).unwrap();
+        assert!(skew.message.contains("older than source"));
+        assert!(skew.message.contains("gal-cli"));
+
+        // ── freshness wiring: a drifted command-projected skill is reported stale ──
+        let tmp = TempDir::new().unwrap();
+        let shared = tmp.path().join("skills");
+        let plugin_root = tmp.path().join("plugin");
+        let sdir = shared.join("gal-pipeline");
+        fs::create_dir_all(&sdir).unwrap();
+        fs::write(
+            sdir.join("SKILL.md"),
+            "---\nname: gal-pipeline\ndescription: d\n---\nstale projected body\n",
+        )
+        .unwrap();
+        let cdir = plugin_root.join("commands").join("gal-pipeline");
+        fs::create_dir_all(&cdir).unwrap();
+        fs::write(
+            cdir.join("SKILL.md"),
+            "---\nname: gal-pipeline\ndescription: d\n---\ncurrent canonical body\n",
+        )
+        .unwrap();
+
+        let findings = projection::SkillsProjectionHealthCheck::with_inventory(
+            shared,
+            vec!["gal-pipeline".into()],
+            None,
+        )
+        .with_canonical_source(plugin_root)
+        .check();
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.message.contains("differs from current canonical source")
+                    && f.message.contains("gal refresh")),
+            "doctor's freshness wiring must surface stale Codex skill projection with remediation"
+        );
+    }
+
+    #[test]
+    fn parse_smoke_flags_defaults_when_nothing_given() {
+        let f = parse_smoke_flags(&a(&["--executor-smoke"]));
+        assert!(f.executors.is_empty());
+        assert_eq!(f.timeout_secs, 300);
+        assert!(!f.strict);
+        assert!(!f.json);
+        assert!(f.report_dir.is_none());
+        assert_eq!(f.transport, "local");
+    }
+
+    #[test]
+    fn parse_smoke_flags_collects_repeated_executor_and_other_flags() {
+        let f = parse_smoke_flags(&a(&[
+            "--executor-smoke",
+            "--executor",
+            "codex",
+            "--executor",
+            "claude",
+            "--timeout",
+            "15",
+            "--strict",
+            "--json",
+            "--transport",
+            "local",
+            "--report-dir",
+            "/tmp/report",
+        ]));
+        assert_eq!(f.executors, vec!["codex".to_string(), "claude".to_string()]);
+        assert_eq!(f.timeout_secs, 15);
+        assert!(f.strict);
+        assert!(f.json);
+        assert_eq!(f.transport, "local");
+        assert_eq!(f.report_dir, Some(PathBuf::from("/tmp/report")));
+    }
+
+    #[test]
+    fn cmd_doctor_executor_smoke_rejects_unsafe_report_dir_before_any_write() {
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let exit = cmd_doctor(&a(&[
+            "doctor",
+            "--executor-smoke",
+            "--report-dir",
+            "docs",
+        ]));
+
+        std::env::set_current_dir(original).unwrap();
+        assert!(matches!(exit, ExitCode::Error));
+        assert!(
+            !tmp.path().join("docs").exists(),
+            "unsafe report-dir must be rejected before any write"
+        );
+    }
+
+    #[test]
+    fn cmd_doctor_executor_smoke_json_covers_unsupported_filter_without_dispatch() {
+        // A fictitious --executor name is UNSUPPORTED and never dispatches — a
+        // safe way to exercise the full doctor -> smoke-core -> persisted-report
+        // -> --json/--strict plumbing without a real (quota-consuming) CLI call.
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let exit = cmd_doctor(&a(&[
+            "doctor",
+            "--executor-smoke",
+            "--executor",
+            "nonexistent-executor-doctor-test",
+            "--strict",
+            "--json",
+        ]));
+
+        std::env::set_current_dir(original).unwrap();
+        // --strict + a non-pass (UNSUPPORTED) row must be a non-zero exit.
+        assert!(matches!(exit, ExitCode::Error));
+
+        let latest = tmp
+            .path()
+            .join(".dev")
+            .join("executor-smoke")
+            .join("latest.json");
+        assert!(latest.exists(), "persisted latest.json must exist");
+        let body = std::fs::read_to_string(&latest).unwrap();
+        assert!(body.contains("nonexistent-executor-doctor-test"));
+        assert!(body.contains("UNSUPPORTED"));
+    }
+
+    #[test]
+    fn parse_smoke_flags_parses_ssh_transport_target_and_remote_workdir() {
+        let f = parse_smoke_flags(&a(&[
+            "--executor-smoke",
+            "--transport",
+            "ssh",
+            "--ssh-target",
+            "user@host",
+            "--remote-workdir",
+            "/home/user/gal-smoke",
+        ]));
+        assert_eq!(f.transport, "ssh");
+        assert_eq!(f.ssh_target.as_deref(), Some("user@host"));
+        assert_eq!(f.remote_workdir.as_deref(), Some("/home/user/gal-smoke"));
+    }
+
+    #[test]
+    fn parse_smoke_flags_ssh_fields_default_to_none() {
+        let f = parse_smoke_flags(&a(&["--executor-smoke"]));
+        assert!(f.ssh_target.is_none());
+        assert!(f.remote_workdir.is_none());
+    }
+
+    #[test]
+    fn cmd_doctor_ssh_transport_without_remote_workdir_fails_fast_before_any_run() {
+        // Missing --remote-workdir is a usage/config error that must fail before a run id
+        // is generated or any report directory is created (and before any ssh spawn).
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let exit = cmd_doctor(&a(&[
+            "doctor",
+            "--executor-smoke",
+            "--transport",
+            "ssh",
+            "--ssh-target",
+            "user@host",
+        ]));
+
+        let smoke_dir_exists = tmp.path().join(".dev").join("executor-smoke").exists();
+        std::env::set_current_dir(original).unwrap();
+        assert!(matches!(exit, ExitCode::Error));
+        assert!(
+            !smoke_dir_exists,
+            "missing --remote-workdir must fail fast before writing any report"
+        );
+    }
+
+    #[test]
+    fn cmd_doctor_ssh_transport_without_ssh_target_fails_fast() {
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let exit = cmd_doctor(&a(&[
+            "doctor",
+            "--executor-smoke",
+            "--transport",
+            "ssh",
+            "--remote-workdir",
+            "/home/user/gal-smoke",
+        ]));
+
+        let smoke_dir_exists = tmp.path().join(".dev").join("executor-smoke").exists();
+        std::env::set_current_dir(original).unwrap();
+        assert!(matches!(exit, ExitCode::Error));
+        assert!(!smoke_dir_exists, "missing --ssh-target must fail fast");
+    }
+
+    #[test]
+    fn cmd_doctor_rejects_unknown_transport() {
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+        let exit = cmd_doctor(&a(&[
+            "doctor",
+            "--executor-smoke",
+            "--transport",
+            "carrier-pigeon",
+        ]));
+        std::env::set_current_dir(original).unwrap();
+        assert!(matches!(exit, ExitCode::Error));
+    }
+
+    #[test]
+    fn cmd_doctor_without_executor_smoke_flag_never_writes_a_smoke_report() {
+        // Plain `gal doctor` (no --executor-smoke) must never touch
+        // .dev/executor-smoke/ — run it against a fresh temp cwd and confirm no
+        // smoke run directory was created, no matter what plain doctor's own
+        // (unrelated) health checks decide.
+        use crate::commands::ENV_GUARD;
+        let _guard = ENV_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::TempDir::new().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+        let _ = cmd_doctor(&a(&["doctor"]));
+        let smoke_dir_exists = tmp.path().join(".dev").join("executor-smoke").exists();
+        std::env::set_current_dir(original).unwrap();
+        assert!(
+            !smoke_dir_exists,
+            "plain `gal doctor` must never create .dev/executor-smoke/"
+        );
+    }
+}

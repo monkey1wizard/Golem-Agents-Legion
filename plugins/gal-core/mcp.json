@@ -1,0 +1,30 @@
+{
+  "servers": {
+    "github-mcp-server": {
+        "type": "http",
+        "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "microsoftdocs/mcp": {
+        "type": "http",
+        "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "microsoft/markitdown": {
+      "type": "stdio",
+      "command": "uvx",
+			"args": [
+				"markitdown-mcp@latest"
+			]
+    },
+    "DeusData/codebase-memory-mcp": {
+      "type": "stdio",
+      "command": "codebase-memory-mcp"
+    },
+    "upstash/context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
