@@ -1,0 +1,27 @@
+[package]
+name = "dispatch"
+version = "0.1.1"
+edition = "2021"
+description = "GAL headless dispatch — routing, stage→role, spawn, write-back verification (binary: gal-dispatch)"
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+# Architect note: the bin OUTPUT name stays `gal-dispatch` even though the
+# package/lib de-prefix to `dispatch`. scripts/gal.ps1 spawns `gal-dispatch` by
+# name; renaming the bin would break live dispatch.
+[[bin]]
+name = "gal-dispatch"
+path = "src/main.rs"
+
+[lib]
+name = "dispatch"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "5.0"
+thiserror = "2.0"
+
+[dev-dependencies]
+tempfile = "3.0"
