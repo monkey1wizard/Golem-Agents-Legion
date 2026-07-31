@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# pre-commit hook — three independent gates, each can block the commit:
+#   1. naming-authority gate (plan-task IDs / retired terms) — always runs
+#   2. .dev commit policy — blocks .gitignore-ignored .dev/* (force-added local state)
+#   3. personal-path leak scan — blocks config.json values in staged content
+#      (catches leaks from files NOT covered by the .gitattributes clean filter)
+
+set -euo pipefail
+
+# --- Naming-authority gate (plan-task IDs / retired terms) — BLOCKING ---
+# Runs FIRST and unconditionally so it always enforces (see
+# docs/naming.md). Enforced by infra-naming-authority. Resolves the repo root via
+# `git rev-parse` so it works regardless of where the hook is installed (.git/hooks,
+# .githooks, or core.hooksPath=plugins/gal-core/hooks). Skips silently only when the
+# `gal` binary is unavailable, so a fresh checkout without a built binary is not blocked.
+NG_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+NG_BIN=""
+if command -v gal >/dev/null 2>&1; then
+    NG_BIN="gal"
+elif [ -x "$NG_ROOT/target/release/gal" ]; then
+    NG_BIN="$NG_ROOT/target/release/gal"
+elif [ -x "$NG_ROOT/target/release/gal.exe" ]; then
+    NG_BIN="$NG_ROOT/target/release/gal.exe"
+fi
+if [ -n "$NG_BIN" ]; then
+    if ! "$NG_BIN" naming-gate --staged; then
+        echo "pre-commit: naming-authority gate failed — fix the violations above before committing (see docs/naming.md)." >&2
+        exit 1
+    fi
+fi
+
+# --- Collect the staged file list once (shared by the .dev policy + leak scan) ---
+staged_files=()
+while IFS= read -r -d '' f; do
+    staged_files+=("$f")
+done < <(git diff --cached --diff-filter=ACMR --name-only -z)
+
+# Nothing staged (e.g. `git commit --allow-empty`) → no .dev or leak checks to run.
+# Also keeps the "${staged_files[@]}" loops below safe under `set -u` on bash < 4.4
+# (macOS system bash 3.2), where expanding an empty array would otherwise abort.
+if [ ${#staged_files[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# --- .dev commit policy (unconditional) ---
+# The committable .dev/* set = whatever this repo's .gitignore allows. A staged
+# .dev/* path that git considers ignored was force-added (git add -f) and is
+# local-only workflow state that must not be committed. Deriving the allowlist from
+# .gitignore (not a hardcoded list) stays correct even for downstream repos whose
+# .gitignore differs. `git check-ignore -q` exit 0 = ignored, 1 = not ignored.
+# --no-index is REQUIRED: the hook runs after staging, and without it git treats a
+# staged (tracked-in-index) path as never-ignored, so force-added .dev/* would slip
+# through. --no-index applies the ignore rules regardless of index/tracked state.
+for f in "${staged_files[@]}"; do
+    case "$f" in
+        .dev/*)
+            ci=0
+            git check-ignore --no-index -q -- "$f" || ci=$?
+            if [ "$ci" -eq 0 ]; then
+                echo "BLOCKED: ignored local .dev state is staged!" >&2
+                echo "  File:  $f" >&2
+                echo "" >&2
+                echo "This path is .gitignore-ignored (local workflow state) and must not be committed." >&2
+                echo "If it truly should be tracked, allowlist it in .gitignore first." >&2
+                echo "" >&2
+                echo "Fix: git reset HEAD -- '$f'" >&2
+                echo "Override: git commit --no-verify (use with caution)" >&2
+                exit 1
+            elif [ "$ci" -ne 1 ]; then
+                echo "BLOCKED: git check-ignore failed (exit $ci) for $f — refusing .dev/* conservatively." >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve repo root via git's own toplevel so .gitattributes lookup works
+# regardless of where the hook runs (core.hooksPath=plugins/gal-core/hooks).
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/.." && pwd))"
+
+# config.json: canonical machine config at ~/.gal/config/config.json;
+# fall back to repo-local config.json (gitignored). No file → nothing to scan.
+if [ -n "${HOME:-}" ] && [ -f "$HOME/.gal/config/config.json" ]; then
+    CONFIG="$HOME/.gal/config/config.json"
+elif [ -f "$REPO_ROOT/config.json" ]; then
+    CONFIG="$REPO_ROOT/config.json"
+else
+    exit 0
+fi
+
+# Collect non-empty values from config.json
+declare -a VALS=()
+declare -a KEYS=()
+
+# Some config.json keys are machine-local knobs but not sensitive.
+# Their values can legitimately appear in docs and should not block commits.
+# Includes both UPPER_SNAKE (secrets.* section) and dotted-path (depth ≤2) forms.
+# Most of these are also filtered by MIN_VAL_LEN=15; the map is belt-and-suspenders.
+declare -A NON_SENSITIVE_KEYS=(
+    [OBSIDIAN_GUIDE_MODE]=1
+    [RESEARCH_DEFAULT_DEST]=1
+    [WORKING_HOURS_ENABLED]=1
+    [GAL_NODE_ID]=1
+    [GAL_NODE_CAPABILITIES]=1
+    [obsidian.guideMode]=1
+    [obsidianGuideMode]=1
+    [research.defaultDest]=1
+    [research.researchDefaultDest]=1
+    [researchDefaultDest]=1
+    [workingHoursEnabled]=1
+    [galNodeId]=1
+    [galNodeCapabilities]=1
+)
+
+# Parse config.json. Emits "KEY=VALUE" per line for:
+#   secrets.* → UPPER_SNAKE key (matches NON_SENSITIVE_KEYS when applicable)
+#   other string values at depth ≤2 → dotted JSON path as key
+# Tries python3 then python; if neither is available, falls back to grep-based
+# extraction of quoted string values (conservative — misses nested objects but
+# ensures the scan always runs rather than silently degrading).
+_PY_EXTRACT=$(cat << 'PYEOF'
+import json, sys
+
+def emit(key, val):
+    if isinstance(val, str) and val:
+        sys.stdout.write(f"{key}={val}\n")
+
+try:
+    with open(sys.argv[1], encoding='utf-8') as f:
+        d = json.load(f)
+except Exception:
+    sys.exit(0)
+
+for k, v in d.get('secrets', {}).items():
+    emit(k, v)
+
+for k, v in d.items():
+    if k == 'secrets':
+        continue
+    if isinstance(v, str):
+        emit(k, v)
+    elif isinstance(v, dict):
+        for kk, vv in v.items():
+            if isinstance(vv, str):
+                emit(f'{k}.{kk}', vv)
+PYEOF
+)
+
+_run_json_scan() {
+    local py_cmd="$1"
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        key="${line%%=*}"
+        val="${line#*=}"
+        [ -z "$val" ] && continue
+        if [ -n "${NON_SENSITIVE_KEYS[$key]+x}" ]; then continue; fi
+        KEYS+=("$key")
+        VALS+=("$val")
+    done < <("$py_cmd" -c "$_PY_EXTRACT" "$CONFIG" 2>/dev/null)
+}
+
+if command -v python3 >/dev/null 2>&1; then
+    _run_json_scan python3
+elif command -v python >/dev/null 2>&1; then
+    _run_json_scan python
+else
+    # grep fallback: extract "key": "value" pairs from flat JSON (no python available)
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -z "$line" ] && continue
+        key="${line%%=*}"
+        val="${line#*=}"
+        [ -z "$val" ] && continue
+        if [ -n "${NON_SENSITIVE_KEYS[$key]+x}" ]; then continue; fi
+        KEYS+=("$key")
+        VALS+=("$val")
+    done < <(grep -o '"[^"]*"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG" 2>/dev/null \
+        | sed 's/^"\([^"]*\)"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1=\2/' \
+        | grep -v '^_\|^#')
+fi
+
+if [ ${#VALS[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# --- Policy B: Collect files covered by gal-config clean filter ---
+# These files are already sanitized by the clean filter on stage.
+# Scanning them again causes false positives when smudge has run.
+declare -A FILTERED_FILES=()
+if [ -f "$REPO_ROOT/.gitattributes" ]; then
+    while IFS= read -r attr_line || [ -n "$attr_line" ]; do
+        [[ "$attr_line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${attr_line// /}" ]] && continue
+        if echo "$attr_line" | grep -qF "filter=gal-config"; then
+            # Extract the file path (first whitespace-delimited token)
+            fpath="$(echo "$attr_line" | awk '{print $1}')"
+            FILTERED_FILES["$fpath"]=1
+        fi
+    done < "$REPO_ROOT/.gitattributes"
+fi
+
+# --- Policy C: Minimum value length for leak detection ---
+# Short generic values (e.g. "Obsidian Vault") cause false positives
+# in files that legitimately mention the term. Only check values ≥ 15 chars.
+MIN_VAL_LEN=15
+
+# Check staged content (what would actually be committed).
+# staged_files was collected once near the top (shared with the .dev policy gate).
+leaked=0
+
+for ((i = 0; i < ${#VALS[@]}; i++)); do
+    val="${VALS[$i]}"
+    key="${KEYS[$i]}"
+
+    # Policy C: skip short values
+    if [ ${#val} -lt $MIN_VAL_LEN ]; then
+        continue
+    fi
+
+    # Policy B: only check non-filtered files for this value
+    key_leaked=0
+    leaked_files=()
+    for f in "${staged_files[@]}"; do
+        # Skip files covered by gal-config clean filter
+        if [ -n "${FILTERED_FILES[$f]+x}" ]; then
+            continue
+        fi
+        if git show ":$f" 2>/dev/null | grep -qF "$val"; then
+            leaked_files+=("$f")
+            key_leaked=1
+        fi
+    done
+
+    if [ "$key_leaked" -eq 1 ]; then
+        echo "BLOCKED: Personal path leaked in staged files!" >&2
+        echo "  Key:   $key" >&2
+        echo "  Value: $val" >&2
+        echo "" >&2
+        for f in "${leaked_files[@]}"; do
+            echo "  File:  $f" >&2
+        done
+        echo "" >&2
+        leaked=1
+    fi
+done
+
+if [ "$leaked" -eq 1 ]; then
+    echo "Commit aborted. Possible causes:" >&2
+    echo "  1. File missing from .gitattributes (clean filter not applied)" >&2
+    echo "  2. Clean filter bug (path not replaced back to placeholder)" >&2
+    echo "  3. Personal path in a file that shouldn't have one" >&2
+    echo "" >&2
+    echo "Fix: add the file to .gitattributes or remove the personal path." >&2
+    echo "Override: git commit --no-verify (use with caution)" >&2
+    exit 1
+fi
+
+exit 0

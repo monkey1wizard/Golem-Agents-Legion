@@ -1,0 +1,92 @@
+# Changelog
+
+All notable changes to GAL are recorded here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+The public repository receives a curated snapshot rather than a per-commit
+mirror, so this file — not the auto-generated GitHub release notes — is the
+authoritative record of what changed in each release.
+
+## [0.1.3] - 2026-07-31
+
+### Added
+
+- `gal release-notes` drafts a CHANGELOG section from a commit range.
+- `gal release` requires a curated CHANGELOG section for stable versions.
+
+### Changed
+
+- `/gal finalize` resolves a `.dev/state.md`-only merge conflict automatically.
+
+## [0.1.2] - 2026-07-29
+
+### Added
+
+- `gal planning-check` gained an `approval-shape` row. A plan's `## Approval`
+  section must now carry exactly four lines in the fixed order `Human approval`,
+  `Architect review`, `Design review`, `Business review`, each written as
+  `- <label>: [<token>]` with an optional ` — <reason>` tail, and each token
+  drawn from that field's closed vocabulary. Failures name the offending field,
+  the expected order, and the closed set, so the message is actionable without
+  reading the checker source.
+- `gal planning-check` gained a separate `arch-review-consistency` row. It is a
+  biconditional: `Architect review: [clear]` holds if and only if a standalone
+  `<!-- ARCH_REVIEW: CLEAR -->` marker exists in the plan. The pre-existing
+  `arch-review-clear` row only inspects the marker, so it could not see the
+  token and the marker drifting apart. This row catches that in both directions.
+
+### Changed
+
+- **Breaking for existing plans.** Both plan templates now ship the four-line
+  Approval block. The retired `Additional domain review` line and the spaced
+  `[not requested]` spelling no longer validate. Plans written against the old
+  three-line shape fail `approval-shape` with a prescriptive migration message.
+- `/plan-to-prompt` now gates on the literal line `- Human approval: [approved]`.
+  The previous contract accepted `[clear]` and instructed the reader to treat
+  equivalent explicit approvals as satisfied. Both readings are removed, so the
+  gate no longer depends on model interpretation.
+- `/deep-planning` review lanes now write deterministic Approval tokens. The
+  architect lane maps approve and block to `[clear]` and `[blocked]`. The design
+  and business lanes each name their own write-back targets and map approve,
+  block, and untriggered to `[clear]`, `[blocked]`, and `[not-requested]`.
+- The operator manual and its Japanese and Traditional Chinese translations now
+  quote the exact approval literal and list all four fields with their closed
+  vocabularies, replacing the old equals-sign prose.
+
+### Fixed
+
+- `gal finalize-check`'s `durable-layer-commit` row no longer scrapes a hash out
+  of the plan's task lines. It is registered in `--hygiene-only` mode and
+  verifies exactly the hash the orchestrator supplies through `--durable-commit`.
+  An omitted flag reports `NotRun` so the receipt fails closed instead of passing
+  vacuously on whatever hash happened to be nearby.
+- `gal planning-check` no longer treats a by-design deleted English draft as a
+  checker failure. Once `/plan-to-prompt` stamps a real 64-lowercase-hex
+  `prompt-hash` together with `equivalence-verdict: EQUIVALENT`, the draft's role
+  has ended and its absence is expected, so `localized-metadata` and
+  `machine-anchor-parity` pass. Every other combination — pre-prompt
+  placeholders, a malformed hash, a mixed hash and verdict pair — keeps a missing
+  draft a hard failure. The terminal-state check runs before the self-referential
+  `rendered-source-hash` comparison, which previously stranded such plans in a
+  permanently failing state with no way to re-stamp them.
+
+## [0.1.1] - 2026-07-22
+
+### Fixed
+
+- The naming gate's full-tree and staged scans are now git-proven and fail
+  closed. A scan that cannot establish its file set from git reports failure
+  instead of silently passing on an empty set.
+
+## [0.1.0] - 2026-07-13
+
+First public release. The `gal` binary ships the control-plane command surface,
+the golem agent roster, the receipt-driven planning and pipeline gates, and
+repo-local adapter generation for Claude Code, GitHub Copilot, Gemini, Codex,
+and Antigravity CLI.
+
+[0.1.3]: https://github.com/monkey1wizard/Golem-Agents-Legion/releases/tag/v0.1.3
+[0.1.2]: https://github.com/monkey1wizard/Golem-Agents-Legion/releases/tag/v0.1.2
+[0.1.1]: https://github.com/monkey1wizard/Golem-Agents-Legion/releases/tag/v0.1.1
+[0.1.0]: https://github.com/monkey1wizard/Golem-Agents-Legion/releases/tag/v0.1.0

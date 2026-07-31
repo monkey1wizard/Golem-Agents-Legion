@@ -1,0 +1,5 @@
+--- GAL DISPATCH ---
+ACTION: Initialize .dev/ for the target repo, then surface the manual next step.
+COMMAND: init
+ON_COMPLETE: Tell the user to review .dev/project.md, then invoke /gal status for next steps.
+--- END DISPATCH ---
