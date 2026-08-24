@@ -1,0 +1,331 @@
+//! Black-box fixtures for the continuation authority command.
+
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use tempfile::{tempdir, TempDir};
+
+fn git(repo: &Path, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .current_dir(repo)
+        .args(args)
+        .output()
+        .expect("git must be available");
+    assert!(
+        output.status.success(),
+        "git {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn repo() -> TempDir {
+    let temp = tempdir().expect("fixture tempdir");
+    git(temp.path(), &["init", "-q", "-b", "main"]);
+    git(
+        temp.path(),
+        &["config", "user.email", "fixture@example.com"],
+    );
+    git(temp.path(), &["config", "user.name", "CLI Fixture"]);
+    git(temp.path(), &["config", "commit.gpgsign", "false"]);
+    git(temp.path(), &["config", "core.hooksPath", ".git/hooks"]);
+    temp
+}
+
+fn task(number: u32) -> String {
+    format!("T-{number:02}")
+}
+
+fn initial_commit(repo: &Path) -> String {
+    git(repo, &["commit", "--allow-empty", "-q", "-m", "fixture"]);
+    git(repo, &["rev-parse", "HEAD"])
+}
+
+fn prompt(tasks: &str, current: &str, extra: &str) -> String {
+    format!("# fixture\n\n## Tasks\n{tasks}\n\n## Status\nCurrent Task: {current}\n\n{extra}\n")
+}
+
+fn write_prompt(repo: &Path, name: &str, text: &str) -> (PathBuf, PathBuf) {
+    let plans = repo.join(".dev").join("plans");
+    std::fs::create_dir_all(&plans).unwrap();
+    let prompt_path = plans.join(format!("{name}.prompt.md"));
+    let source_path = plans.join(format!("{name}.md"));
+    std::fs::write(&prompt_path, text).unwrap();
+    (source_path, prompt_path)
+}
+
+fn run(repo: &Path, prompt: &Path, receipt: &Path, extra: &[String]) -> (i32, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_gal"))
+        .current_dir(repo)
+        .arg("pipeline-handback-check")
+        .arg(prompt)
+        .arg("--receipt")
+        .arg(receipt)
+        .args(extra)
+        .output()
+        .expect("failed to spawn gal binary");
+    let code = output
+        .status
+        .code()
+        .expect("process was not terminated by signal");
+    let receipt_text = std::fs::read_to_string(receipt).unwrap_or_default();
+    assert!(
+        output.stderr.is_empty() || code != 0,
+        "unexpected stderr on success: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    (code, receipt_text)
+}
+
+fn checked(task: &str, head: &str) -> String {
+    format!("- [x] {task} — complete *({head})*")
+}
+
+fn goal(prompt: &Path, text: &str, head: &str, checked_tasks: &str, sha: &str) -> String {
+    format!(
+        "prompt_path: {}\nprompt_sha256: {sha}\nhead: {head}\nverdict: VERIFIED\nchecked_tasks: {checked_tasks}\nmust_have_1: cargo test passed\ncommand: cargo test\n{text}",
+        prompt.display()
+    )
+}
+
+fn sha256(path: &Path) -> String {
+    format!("{:x}", Sha256::digest(std::fs::read(path).unwrap()))
+}
+
+#[test]
+fn continuation_is_process_restart_safe_and_preserves_bindings() {
+    let fixture = repo();
+    let head = initial_commit(fixture.path());
+    let t1 = task(1);
+    let t2 = task(2);
+    let text = prompt(
+        &format!("{}\n- [ ] {t2} — pending", checked(&t1, &head)),
+        &t2,
+        "",
+    );
+    let (_, prompt_path) = write_prompt(fixture.path(), "continuation", &text);
+    let receipt = fixture.path().join("explicit").join("first.md");
+
+    for _ in 0..2 {
+        let (code, receipt_text) = run(fixture.path(), &prompt_path, &receipt, &[]);
+        assert_eq!(code, 1);
+        assert!(receipt_text.contains("decision: continue"));
+        assert!(receipt_text.contains(&format!("unchecked_tasks: {t2}")));
+        assert!(receipt_text.contains("current_task: ")); // active cursor is bound, not invented
+        assert!(receipt_text.contains("evidence_path:"));
+    }
+
+    let (code, receipt_text) = run(
+        fixture.path(),
+        &prompt_path,
+        &receipt,
+        &["--stop-at".into(), t2.clone()],
+    );
+    assert_eq!(code, 1);
+    assert!(receipt_text.contains(&format!(
+        "next_action: gal.exe pipeline <prompt> from {t2} stop-at {t2}"
+    )));
+    assert!(!receipt_text.contains("next_action: gal.exe pipeline-handback-check"));
+}
+
+#[test]
+fn source_and_prompt_inputs_share_sanitized_scope_and_collision_isolated() {
+    let fixture = repo();
+    let head = initial_commit(fixture.path());
+    let t1 = task(1);
+    let text = prompt(&checked(&t1, &head), "—", "");
+    let (source, prompt_path) = write_prompt(fixture.path(), "fix weird.plan", &text);
+    std::fs::write(&source, &text).unwrap();
+    let source_receipt = fixture.path().join("receipts").join("source.md");
+    let prompt_receipt = fixture.path().join("receipts").join("prompt.md");
+
+    let (source_code, source_output) = run(fixture.path(), &source, &source_receipt, &[]);
+    let (prompt_code, prompt_output) = run(fixture.path(), &prompt_path, &prompt_receipt, &[]);
+    assert_eq!(source_code, 1);
+    assert_eq!(prompt_code, 1);
+    assert!(source_output.contains("decision: continue"));
+    assert!(prompt_output.contains("decision: continue"));
+    let source_scope = source_output
+        .lines()
+        .find(|line| line.starts_with("evidence_path:"))
+        .unwrap();
+    let prompt_scope = prompt_output
+        .lines()
+        .find(|line| line.starts_with("evidence_path:"))
+        .unwrap();
+    assert_eq!(source_scope, prompt_scope);
+    assert!(source_scope.contains("fix-weird.plan"));
+}
+
+#[test]
+fn only_fresh_bound_goal_authorizes_finalization() {
+    let fixture = repo();
+    let head = initial_commit(fixture.path());
+    let t1 = task(1);
+    let text = prompt(&checked(&t1, &head), "—", "");
+    let (_, prompt_path) = write_prompt(fixture.path(), "goal", &text);
+    let receipt = fixture.path().join("goal-result.md");
+    let goal_path = fixture
+        .path()
+        .join(".dev/pipeline/receipts/goal/goal-verification.receipt.md");
+    std::fs::create_dir_all(goal_path.parent().unwrap()).unwrap();
+
+    let checked_tasks = t1.clone();
+    let canonical_prompt = std::fs::canonicalize(&prompt_path).unwrap();
+    let foreign_goal = fixture
+        .path()
+        .join(".dev/pipeline/receipts/foreign/goal-verification.receipt.md");
+    std::fs::create_dir_all(foreign_goal.parent().unwrap()).unwrap();
+    std::fs::write(
+        &foreign_goal,
+        goal(
+            &canonical_prompt,
+            "",
+            &head,
+            &checked_tasks,
+            &sha256(&prompt_path),
+        ),
+    )
+    .unwrap();
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 1);
+    assert!(output.contains("decision: continue"));
+    assert!(output.contains("next_action: run-goal-backward-verification"));
+
+    std::fs::write(
+        &goal_path,
+        goal(
+            &canonical_prompt,
+            "",
+            &"0".repeat(40),
+            &checked_tasks,
+            &sha256(&prompt_path),
+        ),
+    )
+    .unwrap();
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 1);
+    assert!(output.contains("decision: continue"));
+    assert!(output.contains("next_action: run-goal-backward-verification"));
+
+    let valid = goal(
+        &canonical_prompt,
+        "",
+        &head,
+        &checked_tasks,
+        &sha256(&prompt_path),
+    );
+    std::fs::write(&goal_path, valid).unwrap();
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 0, "unexpected bound-goal result: {output}");
+    assert!(output.contains("decision: ready-to-finalize"));
+    assert!(output.contains("final_authorized: true"));
+
+    let generic_only = goal(
+        &canonical_prompt,
+        "",
+        &head,
+        &checked_tasks,
+        &sha256(&prompt_path),
+    )
+    .replace(
+        "must_have_1: cargo test passed\n",
+        "evidence: advisory only\n",
+    );
+    std::fs::write(&goal_path, generic_only).unwrap();
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 1);
+    assert!(output.contains("decision: continue"));
+    assert!(output.contains("next_action: run-goal-backward-verification"));
+
+    for malformed in [
+        "must_have_2: gap\n",
+        "must_have_1: first\nmust_have_1: duplicate\n",
+        "must_have_x: malformed\n",
+    ] {
+        let invalid = goal(
+            &canonical_prompt,
+            malformed,
+            &head,
+            &checked_tasks,
+            &sha256(&prompt_path),
+        )
+        .replace("must_have_1: cargo test passed\n", "");
+        std::fs::write(&goal_path, invalid).unwrap();
+        let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+        assert_eq!(code, 1, "malformed must-have authorized: {malformed}");
+        assert!(output.contains("next_action: run-goal-backward-verification"));
+    }
+
+    let changed = prompt(&checked(&t1, &head), "—", "changed prompt");
+    std::fs::write(&prompt_path, changed).unwrap();
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 1);
+    assert!(output.contains("decision: continue"));
+    assert!(output.contains("next_action: run-goal-backward-verification"));
+}
+
+#[test]
+fn human_producers_retry_ceiling_and_invalid_stop_at_fail_closed() {
+    let fixture = repo();
+    let head = initial_commit(fixture.path());
+    let t1 = task(1);
+    let receipt = fixture.path().join("human.md");
+    let cases = [
+        ("security-protected-path", "AUDIT", "AUDITOR"),
+        ("goal-gaps-blocked", "VERIFY", "VERIFY"),
+        ("head-drift", "CONVERGE", "PIPELINE"),
+        ("boundary-scope-decision", "BOUNDARY", "BOUNDARY"),
+        ("convergence-human-repair", "CONVERGE", "CONVERGE"),
+    ];
+    for (reason, phase, producer) in cases {
+        let drift = if reason == "head-drift" {
+            format!("Baseline HEAD: {}\nObserved HEAD: {head}\n", "0".repeat(40))
+        } else {
+            String::new()
+        };
+        let handback = format!(
+            "#### Human Handback — {reason}\nStatus: OPEN\nReason: {reason}\nTask: {t1}\nPhase: {phase}\nProducer: {producer}\nProducer state: blocked\nNext human step: await the required decision\nGit HEAD: {head}\n{drift}"
+        );
+        let (_, prompt_path) = write_prompt(
+            fixture.path(),
+            "human",
+            &prompt(&checked(&t1, &head), "—", &handback),
+        );
+        let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+        assert_eq!(code, 0, "producer {producer}");
+        assert!(output.contains("decision: human-required"));
+        assert!(output.contains(&format!("reason: {reason}")));
+    }
+
+    let invalid = format!(
+        "#### Human Handback — goal-gaps-blocked\nStatus: OPEN\nReason: goal-gaps-blocked\nTask: {t1}\nPhase: VERIFY\nProducer state: blocked\nNext human step: await the required decision\nGit HEAD: "
+    );
+    let (_, prompt_path) = write_prompt(
+        fixture.path(),
+        "invalid-human",
+        &prompt(&checked(&t1, &head), "—", &invalid),
+    );
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 1);
+    assert!(output.contains("decision: continue"));
+
+    let retry = format!("#### Retry Handoff — {t1} / TEST\nStatus: OPEN\nTest Retry Count: 3\n");
+    let (_, prompt_path) = write_prompt(
+        fixture.path(),
+        "retry",
+        &prompt(&checked(&t1, &head), "—", &retry),
+    );
+    let (code, output) = run(fixture.path(), &prompt_path, &receipt, &[]);
+    assert_eq!(code, 0);
+    assert!(output.contains("decision: retry-ceiling"));
+
+    let (code, output) = run(
+        fixture.path(),
+        &prompt_path,
+        &receipt,
+        &["--stop-at".into(), task(99)],
+    );
+    assert_eq!(code, 0);
+    assert!(output.contains("decision: retry-ceiling"));
+}

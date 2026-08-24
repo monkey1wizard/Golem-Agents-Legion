@@ -1,0 +1,16 @@
+--- GAL DISPATCH ---
+ACTION: Run: gal.exe pipeline '<REPO>/.dev/plans/x.prompt.md' --phase implement --task T-NN --workdir '<REPO>'. The single gal binary reads routing, assembles and dispatches the executor in-process with no sibling dispatch executable, and emits a Dispatch: marker line. For test/audit it auto-resolves a deterministic receipt (.dev/pipeline/receipts/<plan-scope-key>/T-NN-implement.receipt.md), embeds it in the spec, invalidates managed stale evidence before spawn, and accepts only a non-empty receipt written by the current run; pass --receipt only to select another path, where a pre-existing external path fails closed. Exit 0 -> completed (write-back verified). Exit 1 -> no-receipt or disconnected-partial. Exit 2 -> unavailable/degraded. Fall back to role-playing the CODER golem only on exit 2.
+BYPASS_PERMISSION_WARNING: SECURITY: headless executor runs with --dangerously-skip-permissions or --allow-all. Full trust of secondary CLI filesystem access. Enable only in a trusted local environment.
+COMMAND: offload
+DISPATCH_MODE: offload
+EFFORT: medium
+EXECUTOR: claude
+MODEL: claude-haiku-4-5
+OFFLOAD: headless-executor
+ON_COMPLETE: Record in the execution prompt the Dispatch: marker line emitted by gal pipeline (phase=implement task=T-NN role=CODER executor=claude model=claude-haiku-4-5 state=<state> session_id=<id> log=<path>).
+PIPELINE_PHASE: implement
+REPORT_LINE: Dispatched: implement T-NN - CODER as claude, model claude-haiku-4-5, effort medium
+ROLE: CODER
+TASK_SCOPE: T-NN
+TASK_SPEC: <REPO>/.dev/plans/x.prompt.md
+--- END DISPATCH ---
