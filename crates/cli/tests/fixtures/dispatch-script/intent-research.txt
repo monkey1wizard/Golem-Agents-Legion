@@ -1,0 +1,5 @@
+--- GAL DISPATCH ---
+ACTION: Activate the /gal research skill for structured investigation.
+COMMAND: research
+ON_COMPLETE: Synthesize findings and surface RESEARCH_COMPLETE to the user.
+--- END DISPATCH ---
