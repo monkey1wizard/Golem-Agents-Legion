@@ -1,0 +1,13 @@
+--- GAL DISPATCH ---
+ACTION: Invoke golem-implementer for pipeline phase 'scaffold'.
+CONTEXT_CARRY: true
+DISPATCH_KIND: pipeline-phase
+MODE: bound
+ON_COMPLETE: Report result to user.
+PIPELINE_CONTEXT_FILES: <REPO>/.dev/project.md; <REPO>/.dev/state.md
+PIPELINE_CONTEXT_MODE: full
+PIPELINE_PHASE: scaffold
+ROLE: golem-implementer
+TASK_SCOPE: T-NN
+WORKFLOW_STATE: IDLE
+--- END DISPATCH ---

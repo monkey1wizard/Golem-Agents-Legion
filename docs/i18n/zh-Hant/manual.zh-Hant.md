@@ -1,0 +1,986 @@
+---
+source: docs/manual.md
+lang: zh-Hant
+source_commit: 23f0d6298c1974d148a4f215c99a85bbeb5ec9d0
+translated_at: 2026-09-08
+status: current
+---
+
+# GAL 使用手冊
+
+[English](../../manual.md) · [日本語](../ja/manual.ja.md) · **繁體中文**
+
+GAL 日常使用指南涵蓋安裝、初始儲存庫設定、工作流程操作、設定、個人化、無頭執行器 (executor) 路由以及 golem 代理程式。
+
+本手冊詳細說明 **GAL 操作**。系統架構（程式碼庫與 `~/.gal/` 拓樸、發行血緣）記載於 [`docs/architecture.md`](../../architecture.md)。維護者程序（發行機制、提供者打包、修改指南）記載於 [開發者指南](../../devguide.md)。本手冊排除這些主題。
+
+## 概觀
+
+GAL 使用 `~/.gal/plugins/gal/` 作為標準根目錄 (canonical root)。提供者可見目標作為投影 (projection) 運作，而非內容擁有者。設定儲存於 `~/.gal/config/config.json`。關於 `~/.gal/` 佈局與擁有權邊界，請參閱 [架構 → `~/.gal/` 執行環境佈局](../../architecture.md#gal-runtime-layout)。
+
+`gal` 二進位檔會透過以 `.git` 為界的目前工作目錄搜尋，接著進行二進位檔封裝佈局，自動定位其來源根目錄 (source root)。不需亦不會讀取 `devMode` 與 `galRoot` 設定鍵。
+
+## 安裝 GAL
+
+選擇合適的平台安裝選項。安裝完成後，於儲存庫內執行 `gal init` 以產生儲存庫本機轉接器（`AGENTS.md` 與 `CLAUDE.md`）— 請參閱 [在您的儲存庫首次執行](#在您的儲存庫首次執行)。
+
+### 安裝選項
+
+#### `cargo install --git` (從原始碼)
+
+```bash
+cargo install --git https://github.com/monkey1wizard/golem-agents-legion gal-cli
+```
+
+GAL 未包含於 crates.io — 必須使用 `--git` 旗標。Cargo 工作區內必須使用 `gal-cli` 套件名稱。安裝的二進位檔名稱為 `gal`。
+
+#### Homebrew (macOS / Linux)
+
+```bash
+brew install monkey1wizard/tap/gal
+```
+
+此為 macOS 與 Linux 的標準套件管理員安裝方法。
+
+#### winget (Windows — 請先探測)
+
+```sh
+winget install Monkey1Wizard.GAL
+```
+
+目錄可見度可能落後於發行版本，安裝前請透過 `winget show Monkey1Wizard.GAL` 驗證可用性。此處適用 `Get-Alias gal` 遮蔽限制。
+
+#### 直接下載 (壓縮檔)
+
+從 GitHub 頁面下載 `gal-<version>-<platform>-<arch>[.zip|.tar.gz]`，解壓縮內容，並將 `gal`（或 `gal.exe`）新增至 `PATH`（macOS / Linux：請透過 `chmod +x gal` 確保執行權限）。
+
+#### curl (Linux / macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/monkey1wizard/golem-agents-legion/main/packaging/install.sh | bash
+```
+
+指令碼會比對 `checksums.txt` 驗證 SHA-256 總和檢查碼（強制需求，不符則中止），接著進行 cosign 無金鑰簽章驗證。簽章驗證的可用性採盡力而為，但結果判定嚴格。若 cosign 不存在或簽章檔案下載失敗，安裝程式會發出警告並僅使用 SHA-256 結果繼續。若 cosign 執行並回報簽章不符，安裝會在解壓縮或寫入前中止。二進位檔安裝至 `~/.local/bin`，GAL 原始碼負載安裝至 `~/.local/share/gal`。版本覆寫使用 `GAL_VERSION`。
+
+#### irm (Windows)
+
+```sh
+irm https://raw.githubusercontent.com/monkey1wizard/golem-agents-legion/main/packaging/install.ps1 | iex
+```
+
+此方法與 curl 路徑共用 SHA-256 及 cosign 驗證，包含簽章檢查失敗時中止安裝。將 `gal.exe` 與 GAL 原始碼負載直接安裝至 `%LOCALAPPDATA%\Programs\gal`（將此目錄新增至使用者 `PATH`，安裝程式會輸出確切指令）。版本覆寫使用 `$env:GAL_VERSION`。
+
+注意：PowerShell 內建的 `Get-Alias gal` 可能遮蔽二進位檔。若 `gal` 解析為替代目標，請改用絕對路徑呼叫執行檔。
+
+### 依執行環境註冊外掛程式 (Plugin Registration)
+
+外掛程式註冊是支援 Markdown 外掛程式容器的執行環境之主要載入路徑。所有已註冊的執行環境皆直接從 `gal refresh` 算繪於 `~/.gal/plugins/gal/` 的單一標準根目錄載入。缺乏 Markdown 外掛程式容器的執行環境（目前僅有 OpenCode）則改採檔案投影作為後備方案。
+
+為防止外掛程式提供的成果與投影檔案之間出現重複的技能或代理程式清單，每個執行環境的設定皆以在 `~/.gal/config/config.json` 中啟用 `pluginMode.<runtime>` 並執行 `gal refresh` 作結。
+
+#### Claude Code
+
+Claude Code 將標準根目錄註冊為即時的 skills-directory 外掛程式：
+
+1. 建立指向標準根目錄 `~/.gal/plugins/gal` 的 `~/.claude/skills/gal` 接合點 (junction) 或符號連結 (symbolic link)：
+   - Windows (PowerShell)：
+     ```powershell
+     New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\gal" -Target "$env:USERPROFILE\.gal\plugins\gal"
+     ```
+   - macOS / Linux：
+     ```bash
+     ln -s ~/.gal/plugins/gal ~/.claude/skills/gal
+     ```
+2. 執行 `claude plugin list` 並確認清單中列出 `gal@skills-dir` 且已載入。在此 skills-directory 模式下，Claude Code 直接從接合點就地載入，完全不使用快取。
+3. 在 `~/.gal/config/config.json` 中啟用 Claude 外掛程式模式：
+   ```json
+   {
+     "pluginMode": {
+       "claude": true
+     }
+   }
+   ```
+4. 執行 `gal refresh`。當 `pluginMode.claude` 為 true 時，GAL 會略過將指令檔案寫入 `~/.claude/commands/*.md` 並刪除既有複本，避免與外掛程式技能並列出現重複項目。
+
+市集路徑作為 snapshot 使用者的次要路線保留，透過 `claude plugin add` 安裝會將檔案複製至 `~/.claude/plugins/cache/<marketplace>/gal/<version>/`。
+
+#### Codex
+
+Codex 從本機外掛程式目錄註冊 GAL：
+
+1. 註冊本機外掛程式市集目錄：
+   ```bash
+   codex plugin marketplace add ~/.gal/plugins
+   ```
+   此指令會讀取 `gal refresh` 產生的 `~/.gal/plugins/.agents/plugins/marketplace.json`。
+2. 新增外掛程式：
+   ```bash
+   codex plugin add gal@gal
+   ```
+   Codex 會將外掛程式複製至 `~/.codex/plugins/cache/gal/gal/<version>/`。
+3. 執行 `codex plugin list` 並確認清單中出現 `gal@gal`。
+4. 在 `~/.gal/config/config.json` 中啟用 Codex 外掛程式模式：
+   ```json
+   {
+     "pluginMode": {
+       "codex": true
+     }
+   }
+   ```
+5. 執行 `gal refresh`。
+
+**共用 `~/.agents/skills` 的注意事項：** Codex 與 OpenCode 共用 `~/.agents/skills`。若機器上未選取 OpenCode，設定 `pluginMode.codex: true` 會略過將核心技能投影至 `~/.agents/skills` 並刪除既有複本。若同一台機器上同時選取了 Codex 與 OpenCode，GAL 會繼續將核心技能投影至 `~/.agents/skills` 以維持 OpenCode 正常運作，這表示 Codex 將同時看見外掛程式技能與投影技能。
+
+#### GitHub Copilot
+
+GitHub Copilot 將 GAL 作為 Agent Plugins 1.0.0 套件取用：
+
+1. 在 Copilot 設定或組態中將 `~/.gal/plugins` 註冊為目錄型市集（讀取 `~/.gal/plugins/.claude-plugin/marketplace.json`），並啟用 `gal`。Copilot 會就地即時載入外掛程式而不進行複製，從 `com.github.copilot/agents/` 探索代理程式、從 `com.github.copilot/rules/` 探索規則，以及從 `mcp.json` 讀取 MCP 設定。
+2. 執行 `copilot plugin list` 並確認 `gal` 已啟用。
+3. 在 `~/.gal/config/config.json` 中啟用 Copilot 外掛程式模式：
+   ```json
+   {
+     "pluginMode": {
+       "copilot": true
+     }
+   }
+   ```
+4. 執行 `gal refresh`。當 `pluginMode.copilot` 為 true 時，GAL 會略過將代理程式檔案投影至 `~/.copilot/agents/*.agent.md` 並刪除既有複本。Copilot 指令技能仍會保留投影在 `~/.copilot/skills/` 下，因為 Copilot 不會載入外掛程式的 `commands/`。
+
+#### Antigravity
+
+Antigravity 透過本機目錄探索安裝 GAL：
+
+1. 從標準根目錄安裝外掛程式：
+   ```bash
+   agy plugin install ~/.gal/plugins/gal
+   ```
+   這會在 `~/.gemini/antigravity-cli/plugins/gal` 建立指向標準根目錄的接合點。
+2. 移除重複的 `claude-code` 匯入：若 Antigravity 先前曾從 Claude Code 匯入外掛程式，`agy plugin list` 會回報兩筆 `gal` 項目（`local-install` 與 `claude-code`）。由於 `agy` 沒有提供從 `import_manifest.json` 移除特定匯入項目的指令，請在文字編輯器中開啟 `~/.gemini/config/import_manifest.json`，自 `imports` 陣列中移除 `claude-code` 物件，僅保留 `local-install` 項目。接著以 `agy plugin list` 確認恰好只剩下一筆 `gal` 項目。
+3. 在 `~/.gal/config/config.json` 中啟用 Antigravity 外掛程式模式：
+   ```json
+   {
+     "pluginMode": {
+       "agy": true
+     }
+   }
+   ```
+4. 執行 `gal refresh`。當 `pluginMode.agy` 為 true 時，GAL 會略過將指令技能投影至 `~/.gemini/antigravity-cli/skills/` 並刪除既有複本。
+
+#### OpenCode (投影後備方案)
+
+OpenCode 不使用 Markdown 外掛程式容器，其擴充模型仰賴透過 npm 或本機套件安裝的 JavaScript 或 TypeScript 程式碼模組。因此 OpenCode 採用 GAL 的檔案投影後備方案而非外掛程式註冊。執行 `gal refresh` 會將原生 Markdown 指令投影至 `~/.config/opencode/commands/`、將代理程式投影至 `~/.config/opencode/agents/`，並將核心技能投影至 `~/.agents/skills/`。
+
+#### 透過市集進行對話式二進位檔安裝 (次要市集路線)
+
+透過 Claude Code 或 Codex 外掛程式市集快照分支發現 GAL 的使用者，可以使用對話式安裝：
+
+1. 在 Claude Code 或 Codex 外掛程式市集中找出並安裝 **GAL 外掛程式**（搜尋「gal」），或從 [市集快照分支](https://github.com/monkey1wizard/golem-agents-legion/tree/marketplace-snapshot) 新增。
+2. 向代理程式詢問 **"help me install gal"** 要求安裝。外掛程式提供 `install-gal` 技能，該技能會徵求同意、執行適當的套件管理工具（Homebrew、winget 或 `cargo install --git`）、驗證二進位檔，並在未初始化的儲存庫執行 `gal init`（若儲存庫已初始化，則改為執行 `gal render-adapters`）。
+
+獨立的市集外掛程式本身無法提供完整的 GAL 環境。所有工作流程指令皆需要 `gal` 二進位檔，因此安裝二進位檔為必要步驟。完成安裝 `gal` 後，請遵循上述的主要就地註冊序列以供日常使用。
+
+---
+
+單獨執行 `gal` 指令（不加任何參數）會印出使用說明，並以結束碼 0 結束。若輸入無法辨識的子指令，則會以結束碼 64 失敗。
+
+### 升級 (`gal update`)
+
+`gal update` 指令會輸出已安裝版本及平台專屬升級指示。不支援自我更新。升級必須使用原始安裝方法：
+
+```bash
+cargo install --git https://github.com/monkey1wizard/golem-agents-legion gal-cli  # cargo
+winget upgrade Monkey1Wizard.GAL                                                   # Windows
+brew upgrade gal                                                                   # macOS / Linux
+```
+
+## 在您的儲存庫首次執行
+
+### `gal init`
+
+在未初始化的儲存庫首次執行時，`gal init` 指令會從 `gal-core` 範本產生兩個儲存庫本機轉接器根目錄（`AGENTS.md` 與 `CLAUDE.md`），並建立 `.dev/` 目錄骨架（`.dev/project.md` 與 `.dev/state.md`）。若儲存庫已經初始化或處於半初始化狀態，`gal init` 會拒絕執行、不寫入任何內容，並以結束碼 1 結束。
+
+| 狀態 | `.dev/project.md` | `.dev/state.md` | `gal init` | 結束碼 |
+| --- | --- | --- | --- | --- |
+| 未初始化 | 不存在 | 不存在 | 全新啟動。從範本寫入這兩個檔案，並算繪轉接器 | 0 |
+| 已初始化 | 存在 | 存在 | 錯誤。指出 `.dev/project.md`，並提示執行 `gal render-adapters` 或先刪除後執行 init | 1 |
+| 半初始化 | 存在 | 不存在 | 錯誤。指出存在的檔案與缺失的檔案，並提示從版本控制還原或先刪除後執行 init | 1 |
+| 半初始化 | 不存在 | 存在 | 同上，情況相反 | 1 |
+
+```
+gal init: this repository is already initialized (.dev/project.md exists).
+  To regenerate AGENTS.md and CLAUDE.md from .dev/project.md, run: gal render-adapters
+  To start over from the templates, delete .dev/project.md and .dev/state.md, then run gal init again.
+```
+
+```
+gal init: this repository is half-initialized: .dev/project.md exists but .dev/state.md is missing.
+  Restore .dev/state.md from version control, or delete .dev/project.md and run gal init again.
+  gal init does not overwrite .dev/project.md.
+```
+
+### `gal render-adapters`
+
+`gal render-adapters` 指令在已初始化的儲存庫上，從 `.dev/project.md` 重新產生儲存庫本機轉接器。
+
+| 狀態 | `.dev/project.md` | `gal render-adapters` | 結束碼 |
+| --- | --- | --- | --- |
+| 已初始化 | 存在 | 重新算繪 `AGENTS.md`、`CLAUDE.md`、條件層，並刪除退役的根目錄。每個路徑輸出一列 | 0 |
+| 未初始化 | 不存在 | 錯誤。`gal render-adapters: .dev/project.md not found. Run gal init first.` | 1 |
+
+從不讀取或提及 `.dev/state.md`。
+
+### 轉接器維護與 `gal refresh` 移轉
+
+維護已初始化的儲存庫或從早期產生五個轉接器根目錄的 GAL 版本升級時，執行 `gal render-adapters` 會協調儲存庫本機轉接器並套用刪除移轉 (prune-migration)：
+
+- **刪除已退役的根目錄：** 三個舊版橋接根目錄（`GEMINI.md`、`.github/copilot-instructions.md` 與 `.agents/rules/gal.md`）已退役。在產生或重新整理轉接器時，GAL 會檢查這些已退役的路徑。若退役檔案的第一行帶有完全相符的 GAL 產生標記，GAL 會刪除該檔案並回報為 `pruned (GAL-owned)`。若移除檔案後使 `.agents/rules/` 或 `.github/` 變為空白，空白的父目錄也會一併刪除。
+- **保留手動擁有的檔案：** 在退役根路徑上的任何檔案若缺乏 GAL 產生標記，將視為使用者手動編寫。GAL 會完整保留該檔案並回報為 `kept (hand-owned)`。
+- **條件層：** 若在 `.dev/project.md` 中啟用了 Rust 慣例，條件層（`.claude/rules/gal-rust.md` 與 `.github/instructions/gal-rust.instructions.md`）會與兩個轉接器根目錄一同更新。若停用，任何過時的 GAL 擁有條件層皆會被移除。
+
+### 您的專案的 `.dev/project.md`
+
+`.dev/project.md` 檔案是專為轉接器算繪所精簡的專案摘要。檔案中**嚴格規定必須且只能出現一次**以下八個 H2 區段：`What This Is`、`Tech Stack`、`Architecture`、`Constraints`、`Response Style`、`Freshness`、`Project Language`、`Protected Paths`。
+
+此檢查機制採 fail-closed（預設阻擋）運作。由於 `gal init` 會直接以範本寫出這個檔案，這道檢查實際針對的是手動編輯過的 `.dev/project.md`。若有區段缺失或重複，`gal render-adapters` 會拒絕整個算繪作業、指出有問題的標題，並停止寫入轉接器檔案。錯誤訊息每次執行僅會回報單一缺失標題，若缺失多個區段需反覆修正。請手動補上系統提示的區段（格式參考 `plugins/gal-core/templates/project.md`），重新執行指令，再依序補齊後續區段。
+
+`.dev/project.md` 檔案強制執行嚴格的容量上限。若因大小超標遭拒，必須精簡內容而非重試。算繪程序絕對不會為了規避大小限制，而寫入不完整的轉接器集合。
+
+在 `Tech Stack` 表格下方，`.dev/project.md` 會放置 `<!-- gal:authoritative-check -->` 標記，其後緊接一段 `json` 程式碼圍籬，用來定義 `{"command": [...]}` 的結構。`command` 陣列中的每個元素會依空白字元切分，並原樣執行，不做任何 shell 內插。由於系統不會為衍生出的指令設定工作目錄，每個指令會繼承呼叫 `gal finalize-check` 之程序的工作目錄，而不會自動重設為儲存庫根目錄。若是沒有程式碼指令可執行的純文件儲存庫，復原做法是把這個陣列設為 `["true"]`。`gal finalize-check` 閘門會在管道的最終驗證階段使用這段 authoritative check 圍籬。
+
+### `gal doctor`
+
+`gal doctor` 指令用於檢查本機環境的健康狀態，範圍涵蓋二進位檔、標準根目錄、執行環境介面與設定。建議在初次安裝、版本升級後，或當代理程式無法辨識 GAL 指令時執行此檢查。
+
+`gal doctor` 會檢查以下項目：
+
+- **OpenCode 投影漂移** — 偵測 `~/.config/opencode/` 的指令與代理程式檔案是否不再符合標準根目錄的算繪結果。過期內容會回報警告，缺失檔案則回報錯誤。執行 `gal refresh` 即可修復。
+- **Claude 技能介面** — `~/.claude/skills/gal` 缺失時回報警告（而非錯誤），並提供手動建立指示。`gal refresh` 不會自動建立此介面。
+
+若在已初始化的儲存庫內執行，該指令會額外印出一份唯讀的容量建議表，列出兩個轉接器根目錄（`AGENTS.md` 與 `CLAUDE.md`）的檔案大小。若轉接器檔案過大，系統僅會提示 `[WARNING]` 警告而非錯誤，藉此避免導致單次執行失敗。
+
+若需針對無頭編碼代理程式進行選擇性的自我測試，請參閱 [執行器自我測試](#執行器自我測試-gal-doctor---executor-smoke) 說明。
+
+### 依執行環境觸發 GAL 指令
+
+GAL 指令透過各執行環境 (runtime) 特有的機制初始化，因而產生不同的觸發方式：
+
+| 執行環境 | 觸發方式 | 說明 |
+| --- | --- | --- |
+| Claude Code | `/gal status` | 原生外掛程式指令 |
+| Codex | `$gal-status` | 作為技能公開（`$` 字首，或 `/skills`） |
+| Copilot | `/gal-status` | 作為技能公開（透過 `/skills list` 瀏覽） |
+| Antigravity | `/gal-status` | 作為技能公開（Antigravity 缺乏原生 `commands/` 資料夾，指令為代理程式技能） |
+| OpenCode | `/gal-status` | 原生 Markdown 指令 |
+
+注意語法差異。非 Claude 執行環境使用 `gal-status`（連字號）而非 `gal status`（空白）。
+
+### 指令變更何時生效
+
+指令更新可見度取決於執行環境的載入機制：
+
+- **Claude Code** 透過主要 skills-directory 接合點以 `gal@skills-dir` 就地載入且不使用快取，因此指令與技能更新會立即在新的回合中生效。（使用次要市集複製模式時，請重新啟動 Claude Code 以重新載入更新的外掛程式）。
+- **Antigravity** 於啟動時註冊指令。**重新啟動 agy** 以載入變更。
+- **Copilot / OpenCode** 在每個新工作階段直接讀取指令與技能檔案。
+- **Codex** 在使用中執行緒內依據記錄的主要行為自動偵測技能變更。若變更未出現，**重新啟動 Codex 或初始化新執行緒**作為備用方案。
+
+> **支援邊界：** GAL 不再向 Gemini CLI 投影指令或技能。使用已退役 Gemini CLI 表面的使用者必須遷移至 Antigravity，其指令表面為 `~/.gemini/antigravity-cli/skills/<name>/SKILL.md`。
+
+關鍵 Codex 行為包含：
+
+- **因脈絡預算而被省略並非失敗。** Codex 限制初始技能清單。超出此限制會導致描述縮短，隨後將技能從清單中省略。遭省略的技能仍可透過 `$skill-name` 直接呼叫。
+- **同名雙重列出。** 多個投影相同名稱技能的工具會繞過 Codex 合併功能。兩筆項目皆可能出現在技能選擇器中。
+
+## 執行工作流程
+
+工作流程圖與階段概觀位於 [README](../../../README.md#how-gal-works)。本節特別詳細說明需要使用者做出的決策、手動輸入與工作流程中斷時的必要動作。
+
+### 規劃：使用者的決策
+
+- `/planning` 指令將請求轉換為位於 `.dev/plans/<type>-<slug>.md` 的來源計畫 (source plan)。規劃階段支援協作，允許使用者自由討論、合併或分割計畫，並同時諮詢 golem 代理程式。
+- **未決問題需由使用者解決。** `/deep-planning` 指令強制在執行 `/refining-plan` 前解決所有 `## Open Questions` 項目。問題遵循分級關卡。**H** 級問題需僅限人類權限，禁止代理程式關閉。**A** 級問題允許 architect 角色在附上記錄理由後關閉。**F** 表示虛假問題。模稜兩可的問題預設為 H 級分類，等待使用者輸入。
+- **核准需明確確認。** `/refining-plan` 收斂後，於計畫的 `## Approval` 區段依固定順序記錄四行核准欄位：`- Human approval: [pending|approved]`、`- Architect review: [pending|clear|blocked|not-required]`、`- Design review: [not-requested|clear|blocked]`、`- Business review: [not-requested|clear|blocked]`。`/plan-to-prompt` 指令要求該段落含有逐字的 `- Human approval: [approved]` 這一行，若缺乏此行則拒絕產生執行提示檔。
+- **多個使用中計畫需指定目標。** 同時有多個使用中計畫時，在叫用規劃指令期間需明確指定計畫檔案。GAL 嚴格避免自動選取。
+
+### 管道：啟動、停止、繼續
+
+- **啟動：** 執行 `/gal pipeline`。單一使用中計畫會觸發自動執行提示檔解析。多個使用中計畫需明確指定提示檔（`.dev/plans/<slug>.prompt.md`）。
+- **執行階段：** 管道依序自動反覆執行每項任務的實作、測試、稽核與提交程序。除非工作流程中斷，否則無須使用者介入。
+- **修正重試必須具備新的權威指示與實際實作變更。** 測試或稽核失敗後，管道會寫入唯一一個 OPEN retry handoff，並以 `--fix` 重新派送 implement。若 task goal、handoff、affected-file allowlist 或 agent contract 與前次嘗試相同，系統會在 executor spawn 前拒絕重試。若 executor 完成後未變更任何 affected implementation file，該回合會以非零的 `fix-round-no-change` 結束；prompt、receipt、replay sidecar 與 executor log 的寫入都不算實作變更。
+- **中斷條件：** 管道僅因人類決策阻礙、任務達到重試上限（三次驗證失敗），或設定的工作時間硬性停止而暫停。中斷時，執行提示檔會記錄中斷階段註記，詳述停止點與待辦需求。
+- **繼續協定需要重新執行。** 解決阻礙或根本原因後，重新執行相同的 `/gal pipeline` 指令。若遭到 replay refusal，重新開始前必須讓已記錄的 OPEN handoff 描述實質不同的問題或下一步；僅變更時間戳記或其他顯示 metadata 無法解除拒絕。執行會從記錄的游標處繼續。已完成的任務會略過重新執行。
+
+### Test-first 管道操作
+
+標記為 `Pipeline Contract: test-first-v1` 的任務使用確定性、以收據為依據的生命週期。標記由規劃轉換產生，不由 executor 產生。沒有標記的提示檔屬於 `legacy`；有標記的任務則為 `Test-first: required` 或 `Test-first: not-applicable`。不可依測試是否存在，或依代理程式的意見推斷適用性。
+
+#### 適用性、runner 語法與安全路徑
+
+- **Required：** CODER 只能建立不含行為的 scaffold；TESTER 執行凍結的 probe 並記錄 `Expected failures` 紅色結果；CODER 不提交而完成實作；ORCHESTRATOR 以完全相同的命令重跑取得 green；AUDITOR 審查 dirty tree；最後由 ORCHESTRATOR 執行 implementation commit。
+- **Not-applicable：** CODER 不執行紅色 probe 而完成實作；ORCHESTRATOR 執行 correctness gate；TESTER 執行鎖定的非紅色 probe；AUDITOR 審查 dirty tree；最後才建立 implementation commit。
+- **Legacy：** 維持既有的 implement → correctness gate → commit → test → audit 順序。legacy 任務不會靜默升級為 test-first。
+
+Probe runner 語法為 `gal test-first-probe run <plan> <task> <generation> <contract_digest> <phase> <expectation> <id> <selector> <argv_b64> <timeout_ms> [--env KEY=VALUE] [--expected-failure TEXT]`。十個位置參數皆為必填且順序固定，`argv_b64` 是以 base64url 編碼的 canonical child argv，不是原始的尾端參數列表，語法中沒有 `--` argv 終止符。要從一般參數列表產生 `argv_b64`，唯一獲得認可的方式是 `gal test-first-probe encode-argv <arg>...`，呼叫端不得依 `probe_evidence.rs` 的編碼格式手工組出二進位框架。runner 負責環境、逾時、stdout/stderr 擷取、結束狀態及收據，並自行由 `<plan>`/`<task>` 推導出 plan-scoped receipt path。不可用 shell pipeline 或手寫收據替代。`SKILL.template.md` 的 §2d（Case 1 紅色、Case 2 非紅色通過）與 §2f（green 重跑）已逐項寫明 `gal test-first-probe run` 的確切叫用方式與各參數的來源，具標記的任務只要照著這些已載明的步驟走，就能到達 `pipeline-converge-check: pass`。
+
+Production path 與 test path 是兩份具名清單，而不是兩份互斥的清單：當受測的 seam 為私有時，`Test-first: required` 任務可以在兩份清單中列出同一個檔案（私有的 `fn` 只在自己所屬的檔案內可見，因此它的單元測試必須寫在同一個檔案的 `mod tests` 區塊裡）。這樣形成的凍結是以內容為範圍，而非以檔案為範圍：即使某個檔案同時也是 production path，CODER 仍然不得在鎖定的 seam 上新增、刪除或修改測試項目，而 TESTER 對 production 內容的鏡像凍結也依相同方式運作。每個路徑都必須在儲存庫根目錄下解析並驗證為 `ValidatedRepoPath`；絕對路徑、`..` 穿越、symlink、junction、reparse point 與非 regular file 都會 fail closed。validator 不是一般性的檔案系統沙盒：無關的特權程序仍可能競速替換路徑元件，因此 consuming proof 會在使用前立即重新檢查 identity。
+
+#### Canonical-root 信任錨點與 observable-checkpoint 威脅模型
+
+Canonical source root（來源檢出中的 `plugins/gal-core/`，或 GAL 選定的封裝 canonical root）是合約的信任錨點。提供者可見的投影、executor prompt、收據與日誌都只是衍生證據，不會成為新的權威。排名較高但已損壞的 root 會停止派送，絕不退回較低層級。
+
+只有 observable checkpoints 才能接受證據：啟動前收據準備、子程序 termination、收據發布、transition 寫入、boundary evaluation、audit 及 commit 驗證。逾時、wait I/O 錯誤、部分輸出、缺少 terminal record 或未確認的 termination 都只表示不確定，不能推論成功。process lease 只會序列化同一 receipt identity 的 GAL 派送，不能阻止無關的特權 racer。
+
+Hard link 與 racer substitution 不在信任保證範圍內。既有 link/reparse 元件、hard-link 歧義、linked receipt target 與非 UTF-8 target 都會被拒絕。Unix 與 Windows identity 檢查都使用平台可取得的完整 128-bit identity（Unix 的 device/inode；Windows 的 volume/file identity），不使用截短值或僅依路徑比較。
+
+Consuming operation 只有在再次通過 identity 與 regular-file 檢查後才會重新開啟或消費檔案；任何 path transition 都會使先前的 proof 失效。這個重查是 consuming proof 的一部分，不是可省略的最佳化。
+
+#### Transitions、generations 與 evidence
+
+Prompt/status 的變更是由 transition writer 產生的 consuming path transitions。每次 transition 記錄 prior digest、next digest、generation、producer 與 outcome。具標記的 transition 產生端會在鎖定後且寫入任何 journal 或 prompt 前比較新舊 contract-region digest，僅允許在 `contract-change` 下進行變更。Transition journal 為 Git 可追蹤；僅有執行中計畫本身的 `.dev/pipeline/journal/<slug>/transition.journal.tsv` 在所有邊界種類（`state-recording`、`post-test`、`post-audit`、`implementation-commit`）都豁免於 `gal boundary-check` 的 allowlist。Lock、backup、receipt、snapshot 以及其他計畫的 journal 在任何邊界種類都不享有豁免。基線還原或 dispute recovery 會增加 generation；implementation defect 則在同一 generation 重試。Executor 不得為了製造證據，而在鎖定的 seam 上新增、刪除或修改凍結的測試項目，也不得編輯 prompt marker、journal 或 receipt。這道凍結只作用在 seam 上的內容，而非整個檔案，因此同檔案的任務仍然可以編輯該檔案內的 production 內容。
+
+Evaluator 會把 red 與 green evidence 綁定至相同 canonical argv、task、phase、generation 與 identity。Expected failure 表示 required red probe 以規定方式失敗；`NotRun`、spawn failure、timeout、缺少 evidence、foreign evidence 或非 canonical path 絕不算 pass。只有 `started` 而沒有確認 terminal record 的標記屬於未終止嘗試，必須 fail closed。
+
+#### Disputes、recovery、cleanup 與 commits
+
+只有 **ORCHESTRATOR** 可以將爭議分類為 `probe-defect`、`implementation-defect` 或 `contract-ambiguous`。Probe defect 與 contract ambiguity 會還原已驗證的 production baseline、增加 generation，並要求新的 red evidence；implementation defect 在同一 generation 重試。未知或未解決的 dispute 會停在 plan/refining 邊界；不可修改測試以強行取得 green。
+
+AUDITOR 審查確切的未提交 task diff。Implementation commit 必須延後到 correctness、test 與 audit receipts 全部通過。Executor 絕不執行 `git commit` 或 `git push`。
+
+這個邊界有一道確定性的 commit gate。它會驗證 staging 前的 clean index、精確 dirty-set、cached paths/hashes、base 與 parent commits、range diff、receipt digests 以及提交後整潔度。**但它目前還沒接線：** 沒有任何契約叫用 `gal test-first-commit run`。orchestrator 現在用的是普通 `git commit`，上述檢查都不會執行。上一段請當成 pipeline 確實執行的延後規則來讀，不要當成閘門已經驗證過的宣稱。
+
+無標記提示檔（markerless prompt）維持具有明確無綁定語義的 legacy 行為。Legacy 順序維持 `implement → correctness gate → implementation commit → test → audit`，無 scaffold、紅色階段或推導的 test-first 合約。無標記提示檔不執行 transition-journal 綁定且不建立 journal。`legacy-bootstrap` CLI 產生端與寫入端已移除；transition 讀取端保留對既有 `legacy-bootstrap` 資料列的歷史記錄相容性，但可寫入 transition 會拒絕建立新的 bootstrap 記錄。無標記提示檔為未綁定且不建立 journal。
+
+`test-first-cleanup` 為計畫範圍、全有或全無（all-or-nothing）且具崩潰安全性的操作。在任何刪除前，它會依據閉合的 cleanup 所有權預先驗證兩個選填根目錄（`.dev/pipeline/receipts/<slug>` 與 `.dev/pipeline/snapshots/<slug>`）及每個條目。缺少的選填根目錄作為已記錄的 no-op 通過。Tracked 檔案、非 cleanup 所有權條目、連結或 reparse 歧義，或任何預先驗證失敗都會以零變更拒絕並發布失敗收據。安全的 cleanup 會在刪除前 quarantine 根目錄、驗證 same-parent 搬移與子項 identity，並寫入確定性的 pass 或 fail 收據。絕不可刪除整個 `.dev/pipeline/receipts/.locks/` 目錄；確認沒有子程序或 SSH helper 後，只能檢查並移除指定的 stale lease。
+
+### Finalize 落地收尾：保留與刪除的內容
+
+`/gal finalize` 指令負責協調已完成計畫的結案流程。前置條件要求所有任務都已完成且通過驗證，並以零信任的機器收據（`gal finalize-check`）作為證明。`gal finalize-check` 提供唯讀工作表面保證：絕不對所檢查的儲存庫工作表面（轉接器、原始碼檔案、文件、`.dev/project.md`、`.dev/state.md`、計畫檔案、執行提示檔）進行任何修改。唯一允許的檔案系統寫入是呼叫端所指定路徑上的明確收據檔案。
+
+- **會落地的內容：** 在 doc-sync 之前，會由 finalize 自己的執行環境對整個分支執行一次由上而下、逐項需求的審查。針對每一項需求，這道審查會評估四個層次，即 L1 Truths、L2 Files、L3 Wiring 與 L4 Trust boundaries，並把結果寫在 `## Review Results` 之下，形成一張每項需求各佔一列的 `### Finalize Review <date>` 表格，另外附上一份 findings 清單。接著由 STEWARD 代理程式將計畫的持久知識擷取至 `README.md` 與 `docs/`。隨後進行合併至 main 的作業，若適用則包含工作樹拆除。
+- **一種衝突類型會自動解決。** 當合併至 main 發生衝突且未合併的路徑集合恰好為 `{.dev/state.md}` 時，finalize 會執行內部 `gal state-merge` 解析器，依序逐列合併以計畫為鍵值的表格並暫存結果。Exit 0 將繼續執行落地。`STATE_MERGE: unresolved` 會在證明儲存庫與嘗試前完全相同（位元組層級）後停止，`STATE_MERGE: rollback-unconfirmed` 則會停止並標記 `.dev/state.md` 可能已被修改而需要檢查。所有其他衝突類型均維持無條件停止。機制與被拒絕的替代方案請參閱：`docs/architecture.md`。
+- **會刪除的內容：** 僅在文件成功提交且寫入後的專案整潔度檢查（hygiene check）通過後，才會移除 `.dev/plans/` 內的計畫檔案。此程序保證在檔案抹除前，已將知識安全轉移至持久層。
+- **會保留的內容：** 在 `.dev/state.md` 中寫入包含日期、計畫與落地提交的結案列。`### Finalize Review <date>` 表格中記錄的每一項非阻斷性 finding，都會以 upsert 的方式寫進 `.dev/state.md` 的 `## Follow-ups` 區段，最新的排在最前面，並裁切成最新的五列，讓這些 finding 在計畫檔案刪除後仍能保留下來。最後在落地提交上標記 `gal-last-good` 標籤。
+
+### Finalize 閘門失敗後的復原
+
+執行 `gal finalize-check` 後，先讀取每一個 row，再決定處置方式。完整模式的檢查列依序為 `authoritative-command`、`naming-gate`、`sync-idempotency`、`finalize-mode`、`project-source-doc-existence`、`state-bound`、`contract-roster-parity`、`doc-link-resolution`，以及最終的 `working-tree-clean`，每一列都必須是 `pass`。在根目錄帶有 `plugins/gal-core/` 的儲存庫中共有九列，沒有該目錄時則為七列，因為 `contract-roster-parity` 與 `doc-link-resolution` 只在該目錄存在時才適用。同一列不會依任務重複出現。`sync-idempotency` 檢查項驗證兩次 candidate render 間的唯讀確定性（read-only candidate-render determinism），而非將轉接器套用至磁碟；candidate 與磁碟間的差異僅作為報告用途的磁碟漂移（report-only disk drift，包含 `in-sync`、`drifted`、`absent-on-disk`、`extra-marker-owned`、`filter-personalized`），不會使閘門判定失敗。只有 `authoritative-command` 這一列帶有結束狀態或啟動錯誤、有界限的 `stdout`/`stderr`、原始位元組數與截斷旗標。終端的 `working-tree-clean` 列帶的是結束狀態、dirty entry 數與狀態輸出大小。其餘各列只帶摘要文字，因此 `naming-gate` 列沒有指令欄位屬於正常，不是缺陷。僅衛生模式收據列（`project-source-doc-existence`、`state-bound`、`durable-layer-commit`、`finalize-review-shape`、`contract-roster-parity`、`doc-link-resolution` 與最終的 `working-tree-clean`）會在計畫檔案刪除前，驗證寫入後的整潔狀態，並一併驗證 `### Finalize Review <date>` 表格的機械性結構。`NotRun` 或缺少證據都算失敗，不算通過。
+
+依失敗類別選擇復原路徑：
+
+- 權威命令或工具失敗，或工作樹不乾淨：需要另外建立 remediation plan，不得在 finalize 內修復。
+- `### Finalize Review <date>` 表格中出現空白或無效的儲存格，會導致僅衛生模式收據的 `finalize-review-shape` 失敗。請重跑序列 1 產生結構有效的表格，再重做僅衛生模式的檢查。
+- 非 `DONE` 工作流程仍有未勾選任務：回到普通 `/gal pipeline`。`DONE` 加上未勾選或互相矛盾的狀態屬於 terminal corruption，應停止並建立必要的人工作業交接。
+
+Finalize 閘門失敗後，不得自動修復、提交或改寫證據。
+
+進行 terminal recovery 時，只有在提交後的狀態乾淨時才依序執行：
+
+```powershell
+gal.exe pipeline-preflight --terminal-reverify <execution-prompt-path>
+# terminal-reverify 收據通過後，由 orchestrator 在程序內執行 goal-backward verification。
+gal.exe pipeline-handback-check <execution-prompt-path>
+gal.exe finalize-check <execution-prompt-path>
+```
+
+`terminal-reverify` 僅接受 prompt 且為唯讀模式。它要求 `Workflow: DONE`、所有任務已勾選、current-task cursor 已清除、沒有開啟的 retry、interruption 或 human handoff，且工作樹乾淨。它會重用具標記的 transition-journal digest equality 並記錄綁定的具標記 terminal receipt 鏈。診斷性的 `terminal-binding` 會明確評估具標記的 transition-journal digest equality 與 terminal receipt SHA-256 綁定，而無標記提示檔則宣告明確的 legacy/no-binding 語義（無 journal、無 digest 綁定）。它不得派送實作、測試、稽核、security 工作或 remediation；不得修改 prompt；不得修復證據；不得削弱閘門；亦不得建立提交。只有新的 handback 收據授權 finalize 時才能繼續，之後重新執行完整的 finalize check。
+
+### 代理程式合約解析
+
+在派送以提示檔或來源計畫建構的管道階段之前，`gal` 會先定位權威的代理程式合約（`agents/golem-{implementer|tester|auditor}.agent.md`），並將其確切內容嵌入送給執行器的任務規格中。無論是本機派送，還是透過 SSH 通道派送，任何被派送的執行器都不會被要求開啟僅控制節點可見的合約路徑，任務規格本身即為自足內容。
+
+**解析順序（第一個命中的來源根目錄勝出）：**
+
+| 層級 | `contract_source` | 根目錄 |
+| --- | --- | --- |
+| 1 | `workdir` | 經過正規化的 `--workdir` 本身，或其直屬的 `plugins/gal-core` |
+| 2 | `ancestor` | workdir 最近的祖先目錄中，可被辨識為 GAL 來源根目錄者 |
+| 3 | `exe-side` | 正在執行的 `gal` 二進位檔旁的目錄 |
+| 4 | `embedded` | 具體化於 `~/.gal/embedded-src` |
+
+`workdir` 的優先權高於 `ancestor`、`exe-side` 與 `embedded`。即使 PATH 上同時存在另一個版本的封裝版 `gal` 二進位檔，這個順序仍能確保受信任的本機 GAL 檢出版本保有權威地位。換句話說，只要儲存庫內建版本控管了 `plugins/gal-core/`，其合約解析結果一律以自身版本為準，不受已安裝二進位檔版本的影響。若您維護的是內建版本，`Dispatch:` 標記上的 `contract_source`（參見〔檢查派送〕(#檢查派送)）就是檢查版本落差的地方。
+
+**復原方式依失敗型態而異：**
+
+- **命中的根目錄本身已損壞** — 找到了排名最高的根目錄，但其對應階段的合約檔案缺失、非 UTF-8 編碼，或無法讀取。派送會在啟動執行器前停止，並回報錯誤，指出該層級與根目錄。此情況絕不會繼續退回下一層級解析，因此請直接修復所指名根目錄下的檔案，而非期待較低層級能夠代為補上。
+- **全部未命中** — 沒有任何層級能提供可用的根目錄。派送會停止（結束碼 1），並列出每個層級的結果，同時附上兩條復原路徑：透過套件發佈通道重新安裝 `gal`，或改由 GAL 原始碼檢出版本執行該指令。
+
+**原始 / 直接派送的例外情形。** 原始的 `gal dispatch` 與原始任務規格式 `gal pipeline` 輸入，從不解析或憑空產生這項來源資訊。它們的標記與執行器日誌標頭，在位元組層級上與導入來源資訊之前的格式保持相容，也就是說這些路徑上不會出現 `contract=` / `contract_source=` 欄位。
+
+### 收工 (Wrap-up) 與落地 (Finalize) 比較
+
+`/gal wrap-up` 指令作為**暫停**而非落地功能。它將工作階段交接筆記壓縮至執行提示檔中，更新 `.dev/state.md` 內的工作階段連續性，並執行提交。這使得任何執行環境都能準確在中斷點繼續。該指令不會關閉任何項目。在計畫中途停止時執行此指令。`/gal finalize` 嚴格保留給已完成的計畫使用。
+
+## 設定 (`~/.gal/config/config.json`)
+
+本機數值儲存於 `~/.gal/config/config.json`。保留的機器路徑對應至 `galSkills`，工作時間對應至 `workingHours`。其他鍵值包含 `planLanguage`、`memoryHarvest` 與 `executorRouting`（詳見 [無頭執行器](#無頭執行器)）。嚴格禁止將本機數值寫入受追蹤的文件、指令範本或原始碼檔案中。
+
+| 預留位置 | 意義 | 常見用途 |
+| --- | --- | --- |
+| `<WORKING_HOURS_ENABLED>` | 是否啟用工作時間強制執行 | 選擇性加入的收工與硬性停止強制執行 |
+| `<WORKDAY_START>` / `<WORKDAY_END>` | 偏好工作日，格式為 `HH:MM` | 工作時間排程 / 下班後邊界 |
+| `<WRAP_UP_TIME>` / `<HARD_STOP_TIME>` | 收工與硬性停止時間，格式為 `HH:MM` | 關機視窗 / 停止工作行為 |
+| `<GAL_SKILLS>` | 機器本機 GAL 技能目錄的絕對路徑 | git 篩選器與機器本機技能投影 |
+
+### 安全憑證與 MCP 覆寫
+
+受版控的 `plugins/gal-core/mcp.json` 是 GAL 自有 MCP server 的唯一來源。`gal refresh` 會把它逐字複製成 canonical `.mcp.json`，並併入 `~/.gal/local/mcp.json` 內的個人 server。系統不支援使用獨立的覆寫檔案。
+
+GAL 不做任何預留位置替換。清單內寫的 `${ENV_VAR}` 會原封不動被帶過去，若要解析，是由載入該檔案的 MCP host 自行處理，通常來自行程環境變數。請把這類變數設在環境中，不要放進 `config.json`。
+
+針對 Playwright MCP，請在受版控的設定中保持保守且與機器無關的設定值。若需設定僅限本機的瀏覽器參數（包含有頭模式、視窗與裝置模擬、儲存狀態路徑、輸出目錄、持久設定檔，以及擴充功能與 CDP 佈線），請在受版控的清單內使用 `${ENV_VAR}` 預留位置。這些變數會直接由 `config.json` 解析替換：
+
+```json
+{
+  "servers": {
+    "playwright": {
+      "args": ["-y", "@playwright/mcp@latest", "--isolated", "--headless",
+        "--storage-state", "${PLAYWRIGHT_MCP_STORAGE_STATE}",
+        "--output-dir", "${PLAYWRIGHT_MCP_OUTPUT_DIR}"]
+    }
+  }
+}
+```
+
+單一機器上雙 Postgres 資料庫的設定語法：
+
+```json
+{
+  "servers": {
+    "postgres-app": {
+      "type": "stdio", "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": { "DATABASE_URI": "${POSTGRES_MCP_APP_URI}" }
+    },
+    "postgres-analytics": {
+      "type": "stdio", "command": "uvx",
+      "args": ["postgres-mcp", "--access-mode=restricted"],
+      "env": { "DATABASE_URI": "${POSTGRES_MCP_ANALYTICS_URI}" }
+    }
+  }
+}
+```
+
+請在編碼代理程式執行時所處的環境中匯出對應的值。MCP 設定內的 `${ENV_VAR}` 預留位置由 host 在載入時解析，不是由 GAL 解析。已安裝的執行環境 MCP 設定檔保留使用者擁有權，GAL 永遠不會寫入它們。請嚴格避免將儲存狀態（storage-state）檔案、持久設定檔、瀏覽器暫存檔以及含有敏感資訊的本機檔案提交至版本控制。
+
+### 工作時間
+
+工作時間限制預設為停用。在 `~/.gal/config/config.json` 的 `workingHours` 區塊下可設定工作日時間邊界，將 `enabled` 設為 `false` 即可保持停用。`workdayStart` 與 `workdayEnd` 用於定義可作業的時段。`wrapUpTime` 負責啟動提醒與收工程序。`hardStopTime` 則觸發代理程式的絕對拒絕執行狀態。這些設定屬於機器本機偏好，而非受追蹤的儲存庫政策。
+
+### 計畫語言
+
+- `config.json` 內的 `planLanguage` 是機器本機的選用設定。在無明確指示時，由此設定決定 `.dev/plans/*.md` 與 `.dev/research/*.md` 的預設輸出語言。解析順序依次為：明確指示、`planLanguage`、提示語言自動偵測，最後退回 `en` 作為備用。
+- 受版本控制追蹤的 `PROJECT_LANGUAGE` 專案中繼資料（metadata），用於決定主要文件的標準語言。
+- 所有符合 `.dev/plans/*.prompt.md` 的檔案嚴格限定為英文，以確保跨模型的執行穩定性。
+
+若 `planLanguage` 不設為英文，系統會產生三層架構的計畫檔案：第一層為英文語意草稿（`.dev/plans/<slug>.en.md`），作為技術意義的權威基準。第二層為在地化的來源計畫檔（`.dev/plans/<slug>.md`），供閱讀與手動編輯。其中的標題、路徑、任務 ID 與執行判定（verdicts）皆保持英文，僅敘述段落採用在地化語言。第三層為英文的執行提示檔。
+
+**系統完全支援手動編輯在地化計畫檔**。後續的規劃指令會自動偵測手動修改，並暫停於唯讀的協調步驟，將手動變更合併回英文草稿後才繼續執行，以防止系統靜默覆寫使用者的變更。執行 `/plan-to-prompt` 後會自動刪除英文草稿，使每個計畫僅保留兩個受追蹤的檔案。若 `planLanguage` 設為英文，則會直接略過此三層機制。
+
+### 供應商記憶擷取 (Provider-Memory Harvest)
+
+此選擇性機制可將編碼代理程式 (coding agent) 在目前對話中所發掘的實用經驗，轉移至受 GAL 追蹤的檔案中，避免在工作階段終止時遺失。
+
+- **預設停用，僅限本機。** 將 `config.json#memoryHarvest.enabled` 設為 `true` 即可啟用。遺漏或 `false` 的值皆維持停用狀態。
+- **範圍受限。** GAL 避免為了識別候選項目，而去開啟、列出或搜尋編碼代理程式的對話紀錄或工作階段檔案。
+- **限於儲存庫範圍且經過刪減。** 候選項目必須具備指向儲存庫檔案的直接連結。項目在公開可見之前會經過改寫與刪減。原始引述、安全憑證、機器路徑與個人筆記皆被嚴格排除。
+- **強制核准。** 候選項目的核准流程專屬於 `/gal wrap-up` 期間進行。遭拒絕或未回覆的候選項目將不會被寫入。經核准的項目會作為臨時性、建議性質的任務記憶，進入作用中計畫（active plan）的交接筆記。
+- **核准限制。** 獲得核准並不保證獲得提升（promotion）。`/gal finalize` 指令必須在獨立驗證符合所有提升經驗的標準後，才會將核准的候選項目提升至 `docs/`。
+
+## 個人化 (`~/.gal/local/`)
+
+本機個人內容位於 `~/.gal/local/` 下，並透過標準根目錄算繪投影至所有代理程式。`gal` 二進位檔讀取 `local/skills/`、`local/mcp.json` 與 `local/conventions/`，但**嚴格避免寫入或刪除這些使用者建立的路徑**。跨機器同步不屬於 `gal` 功能範圍。
+
+### 個人技能 / MCP / 慣例
+
+**佈局：**
+
+```text
+~/.gal/local/
+  skills/
+    <skill-name>/
+      SKILL.md          ← hand-placed personal skill (gal read-only)
+  mcp.json              ← personal MCP servers (same format as plugins/gal-core/mcp.json, gal read-only)
+  conventions/
+    <lang>.md           ← personal coding-style convention file (gal read-only, see below)
+```
+
+**啟用：** 啟動取決於存在與否而非設定旗標。將檔案置於個人根目錄構成選擇加入動作。缺少的目錄或檔案維持算繪輸出與純 Core 算繪位元組完全相同。
+
+**投影規則：**
+
+- 個人技能在核心內容後合併。名稱與核心技能衝突的個人技能會在核心優先政策下被靜默略過。
+- 個人 MCP server 合併至標準 `.mcp.json` 檔案。名稱與核心 server 衝突的個人 server 會在核心優先政策下被略過。
+- `gal doctor` 指令回報個人技能、個人慣例檔案，與核心衝突略過次數。
+
+### 程式碼風格慣例
+
+GAL Core 排除擁有者個人的程式碼風格慣例。內部風格透過三種不同來源傳播至下游儲存庫：
+
+**來源 1 — 個人慣例檔案（常駐，每個儲存庫）。** 將隨附的範例從 `plugins/gal-core/templates/csharp-convention.example.md` 複製至 `~/.gal/local/conventions/csharp.md`，並修改內容以反映目標風格。個人慣例檔案只有在其字尾名稱為 `csharp`、`typescript`、`javascript` 或 `go` 其中之一時才會被選用，其他字尾名稱一律排除，而且不存在跨語言的通用字尾名稱。原本仰賴舊有「一律納入」行為的擁有者，可以把慣例檔案的字尾名稱改成上述其中一個別名來恢復運作。在 `.dev/project.md` 中有相符 `Language` 列的任何目標儲存庫內執行 `gal render-adapters`。系統會把檔案注入儲存庫轉接器，處理方式比照 gal-core 的慣例。
+
+**來源 2 — 安裝的代理程式外掛程式偵測（唯讀，零設定）。** 在編碼代理程式內安裝的現有官方語言外掛程式僅需在目標儲存庫執行 `gal render-adapters`。GAL 將外掛程式技能名稱與來源關聯至儲存庫 `Language` 列，並算繪一個包含名稱與常駐載入指示的 **Detected Language Skills** 參考區塊。GAL 嚴格避免複製技能內容並禁止安裝、更新或移除外掛程式。新安裝的外掛程式需要後續執行 `gal render-adapters` 進行偵測。
+
+**來源 3 — 個人技能（隨需）。** 在 `~/.gal/local/skills/<name>/` 下編寫包含明確描述的 `SKILL.md` 檔案。重新啟動 Claude Code 初始化偵測，而其他代理程式在下一次讀取週期偵測檔案。代理程式僅在被指名時載入此來源，這與來源 1 與 2 的常駐注入形成對比。
+
+**來源選取策略：** 若已有官方外掛程式安裝，優先選擇來源 2 達成零設定。來源 1 提供具最大控制權的常駐個人風格。來源 3 滿足隨需代理程式諮詢需求。
+
+**缺失合約：** 缺乏相符來源的儲存庫 `Language` 列將產生不含特定語言慣例或參考區塊的轉接器。此行為構成靜默的設計跳過而非錯誤條件。
+
+在儲存庫的 `.dev/project.md` Tech Stack 表格中插入 `| Personal Conventions | off |` 列以停用來源 1 與 2。建議在公開儲存庫採用此實踐，防止受追蹤轉接器嵌入擁有者機器內容。來源 3 不受影響。
+
+### 指令技能本機覆疊 (`SKILL.local.md`)
+
+若要為指令技能實作本機客製化，產生檔案 `plugins/gal-core/commands/<command>/SKILL.local.md`：
+
+- 此檔案受 gitignore 保護，且作為使用者擁有的本機輸入運作。
+- 烘焙程序將 `SKILL.local.md` 附加至產生的 `SKILL.md` 中。
+- 避免直接編輯 `plugins/gal-core/commands/<command>/SKILL.md`。其為受取代影響的產生檔案。
+- 將 `SKILL.local.md` 限制於補充指示內容。排除次要 frontmatter 區塊。
+
+### 本機筆記路由
+
+外部筆記為本機且選用的元件。GAL 隔離儲存庫擁有的狀態與使用者擁有的筆記。核心行為獨立於私人筆記存放區運作。可攜綁定合約位於 [`optional-capabilities.md`](../../../plugins/gal-core/conventions/optional-capabilities.md)。它與應用程式無關，預設為關閉，並僅在本機後端就緒時執行。
+
+不存在、無法連線或未初始化的後端會觸發降級至標準的儲存庫本機工作流程，不會產生失敗警報。只有已選擇加入且可連線的後端，才允許在工作流程明確授權之處進行讀取、搜尋或寫入。這些狀態一律非強制性。缺乏筆記後端的儲存庫運作方式與完全連線的執行個體相同，僅在缺乏選用脈絡來源上有所不同。
+
+記載的後端範例包含 Obsidian（`coddingtonbear/obsidian-local-rest-api`）、Logseq（`ergut/mcp-logseq`）、Joplin（`joplin-mcp`）、通用 markdown 金庫（`vault-mcp`），以及 CJK 優先檢索（`SeekLink`）。此清單不保證功能對等。
+
+儲存庫擁有的研究預設為 `.dev/research/` 目錄。
+
+## 無頭執行器
+
+GAL 支援將管道階段轉移至次要的無頭編碼代理程式 CLI，避開對話迴圈執行。在 `~/.gal/config/config.json` 內的 `executorRouting` 下實作此設定。
+
+### 無頭執行器路由
+
+`config.json#executorRouting` 鍵依消費者將角色分類為兩個不同的物件。`pipeline` 物件處理實作、測試與稽核階段的無頭派送。`planning` 物件管理規劃階段審查角色的 Codex 原生子代理程式模型選擇，並嚴格避免無頭派送。共用的 `executors` 預設模型區塊伴隨這些物件：
+
+```json
+{
+  "executorRouting": {
+    "executors": {
+      "claude":   "claude-haiku-4-5-20251001",
+      "codex":    "gpt-5.4-mini",
+      "opencode": { "model": "opencode/minimax-m3-free", "effort": "medium" },
+      "copilot":  "claude-haiku-4-5-20251001",
+      "agy":      "gemini-2.5-flash"
+    },
+    "combinations": {
+      "opencode-r1": {
+        "executor": "opencode",
+        "model": "openrouter/openai/gpt-5.6-luna",
+        "effort": "medium",
+        "timeoutSecs": 1200
+      }
+    },
+    "pipeline": {
+      "CODER":   { "executor": "opencode-r1" },
+      "TESTER":  { "executor": "opencode" },
+      "AUDITOR": { "executor": "claude", "model": "claude-sonnet-4-6" }
+    },
+    "planning": {
+      "ARCHITECT": { "executor": "codex", "model": "gpt-5.4", "effort": "high" },
+      "ANALYST":   { "executor": "codex", "model": "gpt-5.4-mini" }
+    }
+  }
+}
+```
+
+這三個群組皆強制執行封閉式角色允許清單。`pipeline` 清單包含 `{CODER, TESTER, AUDITOR}`。`planning` 清單包含 `{ARCHITECT, ANALYST, DESIGNER, RELEASER}`。`research` 清單只接受編號鍵 `"1"` 與 `"2"`，兩者皆為選填，群組本身也是選填。指派至錯誤群組的角色或鍵，以及無法識別的項目，都會觸發略過並產生指定正確群組的警告。過去直接在 `executorRouting` 下使用角色鍵的扁平化結構已退役，會產生可見的警告且無退回機制。
+
+**executors 區塊：** 定義每項工具的預設模型。缺乏模型指定的角色項目繼承自 `executors[executor]` 的預設值。角色上的明確模型宣告取代預設值。
+
+### `executorRouting.combinations`
+
+`combinations` 是可重複使用執行器設定的具名登錄表。每個項目都有字面工具名稱 `executor`、選用的 `model`，以及選用的 `effort`、`timeoutSecs`、`sshTarget` 與 `remoteWorkdir` 欄位。角色將名稱放入 `executor` 以參照組合：
+
+```json
+{
+  "executorRouting": {
+    "combinations": {
+      "opencode-r1": {
+        "executor": "opencode",
+        "model": "openrouter/openai/gpt-5.6-luna",
+        "effort": "medium",
+        "timeoutSecs": 1200
+      }
+    },
+    "pipeline": {
+      "CODER": { "executor": "opencode-r1" }
+    }
+  }
+}
+```
+
+角色會先以 `executor` 在 `combinations` 中查找。若找到，組合會提供基礎執行器設定；若找不到，`executor` 字串會退回視為字面工具名稱。角色內嵌的 `model`、`effort`、`timeoutSecs` 與 SSH 欄位，會逐欄位優先於相符組合。組合名稱不得與字面工具名稱衝突，組合自身的 `executor` 也必須是字面工具名稱；無效或衝突的項目會連同警告拒絕。
+
+`executors.<tool>` 項目支援舊有的模型字串，也支援包含選用 `model`、`effort` 與 `timeoutSecs` 預設值的物件。每個解析欄位的固定優先順序是 `role inline → combination → executors[final.executor] → None`。明確的角色層級 `timeoutSecs: 0` 會解析為 `None`，不會繼續套用後備值。這讓工具預設值的特異性低於具名組合，同時保留裸字串簡寫。
+
+**每個角色 effort 鍵：** 提供選用的推論強度指示器，在啟動 (spawn) 前對應至各個執行器的原生推論旗標：
+
+| 執行器 | `effort` → 原生旗標 |
+| --- | --- |
+| claude | `--effort <value>` |
+| codex | `-c model_reasoning_effort="<value>"` |
+| copilot | `--reasoning-effort <value>` |
+| opencode | `--variant <value>` |
+| agy | `--effort <value>` |
+
+各執行器接受的 `effort` 數值為：
+
+| 執行器 | 接受的 `effort` 數值 |
+| --- | --- |
+| claude | `low`, `medium`, `high`, `xhigh`, `max` |
+| codex | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` |
+| copilot | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` |
+| opencode | provider-specific |
+| agy | `low`, `medium`, `high` |
+
+GAL 僅驗證 argv 安全性，且在派送前從不驗證特定執行器的語彙。
+
+Antigravity (`agy`) 對推論 effort 強制執行互斥 (exclusive-or) 規則：對於支援 effort 層級的模型，推論強度必須恰好指定一次——可以作為帶有 effort 後綴的模型 slug（例如 `gemini-3.7-flash-medium`），或是透過帶有基礎 slug 的 `--effort <value>`（例如 `gemini-3.7-flash`），但絕不能兩者皆有，也絕不能兩者皆無。指定基礎 slug 但未設定 effort 會導致 agy 錯誤 (`requires --effort`)，而傳遞 `--effort` 同時使用帶有 effort 後綴的 slug 則會產生 agy 的衝突錯誤 (`conflicts with --effort`)。不帶 effort 層級的模型會在所有形式下拒絕 `--effort`。
+
+由於未具備自身 `model` 的角色會繼承 `executors.agy`，因此這項互斥規則適用於所有 agy 路由。有效的設定必須在所有 agy 路由中採用以下兩種合法形式之一：
+
+1. **House shape (推薦)：** 每個 agy 角色皆帶有明確的 `effort`，而 `executors.agy` 保持為基礎 slug（例如 `gemini-3.7-flash`），符合 medium 優先的預設值。
+2. **合法替代方案：** `executors.agy` 帶有 effort 後綴的 slug（例如 `gemini-3.7-flash-medium`），且沒有任何 agy 角色設定 `effort`。
+
+混合兩種形式（在角色上設定明確的 `effort`，同時 `executors.agy` 使用帶有 effort 後綴的 slug）會產生 agy 的衝突錯誤 (`conflicts with --effort`)。
+
+此機制採 fail-closed（預設阻擋）運作。無法遵守推論提示或遭遇格式錯誤值的執行器，會在啟動前降級派送，而非靜默忽略該提示。`effort` 鍵僅作為提示運作，從不作為模型選擇器，亦不暗示付費或命名模型。
+
+**每個角色 `timeoutSecs` 鍵：** 可選填的正整數，會覆寫該角色的派送逾時，本地與 SSH（遠端）路徑一律適用同一套覆寫值：
+
+```json
+"pipeline": {
+  "CODER": { "executor": "codex", "timeoutSecs": 900 }
+}
+```
+
+角色未設定 `timeoutSecs` 時，仍會維持原本不變的 300 秒 CLI 預設值。角色若將此鍵設為 `0`，載入時會被拒絕並記錄警告，行為等同於完全沒有設定這個鍵——因為數值為零從來就不是有意義的逾時。設定 `timeoutSecs` 不會改變任何 `dispatch-script` 命令列語法，只會改變 routing 解析完成後，binary 實際套用的逾時數值。
+
+**轉接器行為注意事項：**
+
+- **OpenCode** 使用 `--agent build` 進行派送以啟用具備寫入能力的代理程式，避開靜默阻擋寫入的唯讀預設值。它也利用 `--auto` 作為權限略過旗標。
+- **Copilot** 附加 `--no-custom-instructions` 與 `--disable-builtin-mcps`，避免無頭 prompt 模式超出脈絡限制。Copilot Free 嚴格以**僅限自動**運作，維持 `model: auto` 與僅限本機執行。
+
+**角色表：**
+
+| 角色 | 群組 | 用途 |
+| --- | --- | --- |
+| `CODER` | pipeline | 依照計畫編寫實作程式碼。可行時建議與 `TESTER` 不同 |
+| `TESTER` | pipeline | 僅從計畫規格與公開 API 編寫測試。可行時建議與 `CODER` 不同 |
+| `AUDITOR` | pipeline | 稽核深度效能與安全性。可行時建議與 `CODER` 不同，層級 >= `CODER` |
+| `ARCHITECT` | planning | 涵蓋取捨、過度設計與錯誤的對抗式計畫審查 |
+| `ANALYST` | planning | 涵蓋投資報酬率、領域正確性與使用者影響的商業邏輯審查 |
+| `DESIGNER` | planning | UX、UI 與 DevEx 審查 |
+| `RELEASER` | planning | 釋出流程設計（唯讀） |
+| `RESEARCHER` | research | 以三個互不知情的平行工作者之一（`RESEARCHER#0`/`#1`/`#2`）調查研究問題 |
+
+**選填的 `research` 群組。** `/gal research` 與 `/gal deep-research` 各會啟動三個平行的 `RESEARCHER` 工作者，編號為 `#0`、`#1` 與 `#2`。`executorRouting` 下的 `research` 物件只接受編號鍵 `"1"` 與 `"2"`，絕不接受 `"0"`。兩個鍵都是選填，整個 `research` 群組也是選填。無論三個工作者最後解析到哪裡，比對三份簡報、裁定主張與撰寫最終文件都仍由 ORCHESTRATOR 擁有並就地執行，路由只影響每個工作者本身的研究在哪裡執行。
+
+- **`#0` 是固定的。** `RESEARCHER#0` 一律是原生子代理程式。它沒有設定鍵，也永遠不會在 `executorRouting` 裡被尋找，不存在 `research."0"` 這個項目可以設定。
+- **`#1` 與 `#2` 各自獨立解析，依同一條三分支規則，優先順序如下：**
+  1. 若存在明確的 `research."1"`（或 `research."2"`）項目，以該項目為準。
+  2. 否則套用 `executors.agy` 偏好：該工作者路由至 `agy`，以 `executors.agy` 作為模型，路由上不設定 `effort`。
+  3. 否則該工作者退回原生子代理程式，與 `#0` 相同。
+- **與 agy 互斥規則（[見上文](#無頭執行器路由)）的互動：** 當分支 2 把某個工作者解析至 `agy` 時，該路由刻意不帶 `effort` 鍵。互斥規則對它仍然適用，因此 `executors.agy` 本身必須提供推論強度，也就是使用帶 effort 字尾的模型代號（例如 `gemini-3.7-flash-medium`）。若 `executors.agy` 是沒有字尾的基礎代號，agy 路由會以標準的 `requires --effort` 錯誤失敗，因為這條分支上不允許任何東西明確設定 `--effort`。
+
+**零設定的結果：** 完全沒有設定 `research` 群組時，三個工作者 `#0`、`#1` 與 `#2` 全部解析為原生子代理程式。儲存庫不需要動 `executorRouting`，就能使用 `/gal research` 或 `/gal deep-research`。
+
+> ⚠️ **SECURITY WARNING — bypass-permission.** 無頭執行器轉接器使用 `--dangerously-skip-permissions`（Claude Code、Antigravity/agy）、`--auto`（OpenCode）、`--allow-all`（Copilot）或 `-s workspace-write`（Codex）觸發次要 CLI。此舉授予對本機檔案系統與終端機的**完全信任**，並使沙盒保護失效。嚴格在受信任的機器與環境中啟動執行器路由。當儲存庫或代理程式合約源自未受信任的來源時，禁止啟動。規格禁止次要 CLI 執行 `git commit` 或 `git push`，這代表指示而非技術性強制執行。
+
+### 遠端執行 (SSH 派送通道)
+
+跨機器執行作為已解析路由的屬性運作，而非獨立指令。無論 `CODER`、`TESTER` 或 `AUDITOR` 解析為本機或遠端叫用，`/gal pipeline` 指令維持相同行為。將 `sshTarget` 與 `remoteWorkdir` 附加至管道角色項目中，以透過 SSH 執行該階段：
+
+```json
+"pipeline": {
+  "TESTER": {
+    "executor": "claude",
+    "model": "claude-sonnet-4-6",
+    "sshTarget": "user@build-box",
+    "remoteWorkdir": "/home/user/gal-remote"
+  }
+}
+```
+
+這兩個欄位必須同時存在。只設定其中一個的項目在載入時會發出警告，並於派送期間明確報錯失敗。
+
+**先決條件** — 直接在遠端機器上設定這些項目，GAL 不提供任何佈建：
+
+- 對目標的無密碼 SSH 存取（`BatchMode=yes`）。互動式密碼或密碼短語提示屬無法連線狀態並防止重試。
+- 被路由的代理程式 CLI（`claude`、`codex`、`agy`、`opencode`）需在遠端機器安裝與驗證。遠端目標不需要 `gal` 二進位檔。
+- `remoteWorkdir` 中的 `git` 儲存庫必須符合控制節點簽出提交，並在每次派送前具有乾淨的工作樹。
+
+**預期結果：** 派送在維持的 SSH 工作階段上同步執行，符合本機派送生命週期。成功的變更實作階段後，GAL 擷取未提交的遠端差異並套用至控制節點。GAL 嚴格在成功的本機套用後重置遠端簽出（`git reset --hard && git clean -fd`）至乾淨狀態，禁止逆向執行順序。本機套用失敗使遠端簽出維持未修改狀態以供檢查。
+
+`remoteWorkdir` 必須專作**GAL 專用簽出**。避免針對互動式使用的簽出，因後置套用清理程序在設計上為破壞性運作。
+
+**已知限制 (v1)：** copilot 代理程式無法遠端路由，因為它指定 CLI 旗標的方式無法跨 SSH 指令列轉發。此類路由會明確報錯失敗，而非靜默降級。Windows 遠端目標仍不支援，因為組成的指令需要 POSIX 登入 shell。此通道缺乏斷線存活功能，SSH 工作階段一旦中斷，派送即失敗，無法重新連線或續行。遠端通道以單次派送加手動重新同步的模式運作。控制節點 HEAD 會在任務提交後前進，而遠端簽出停在最後的同步點。同一次執行中的後續遠端派送會觸發防護，直到手動完成簽出同步為止。
+
+不必動用實際的管道任務，可改用下述 [遠端 (SSH) 自我測試](#遠端-ssh-自我測試---transport-ssh) 確認就緒狀態。隨附的狀態表記錄僅限遠端的失敗條件與復原程序。
+
+### 檢查派送
+
+每次派送產生**兩個**持久追蹤。為任務選取合適的追蹤：
+
+**第一層 — GAL 執行器記錄檔（稽核追蹤，跨所有工具一致）。** 每次執行記錄於 `.dev/executor-logs/<plan-slug>/` 或未定範圍的 `.dev/executor-logs/`，供直接派送使用。檔案遵循 `<timestamp>-<attempt>-<task>-<phase>-<executor>.log` 命名慣例。標頭記錄終端狀態、結束碼、實際模型、git 分支與 HEAD，以及提供者的 `session_id`。`---STDOUT---` 區塊擷取完整提供者事件流，涵蓋代理程式訊息、指令執行、檔案修改與權杖消耗指標。讀取此記錄檔稽核執行器動作。格式在所有五種工具中維持相同。提供者本機對話記錄提供諮詢用途，而此記錄檔構成官方儲存庫擁有的紀錄。
+
+**終端狀態詞彙。** 記錄檔標頭會把派送的結束情形歸類成以下終端狀態：
+
+| 終端狀態 | 意義 |
+| --- | --- |
+| `completed` | 行程以 0 結束，收據確認送達，工作目錄也出現預期的變更。 |
+| `no-receipt` | 行程以 0 結束，但預期的收據檔案遺失、空白，或無法確認。 |
+| `workdir-escape` | 僅為保留歷史記錄檔詞彙與比對完整性而存在，生產派送路徑不會產生這個狀態。 |
+| `no-writeback` | 行程以 0 結束並送出收據，但在 porcelain 加內容比對之下，指派的 git worktree 內沒有任何修改。 |
+| `timeout` | 行程因為設定的逾時時間已到而被終止。 |
+| `disconnected-partial` | 行程以非零狀態碼結束。 |
+| `unavailable` | 在 PATH 上找不到路由指定的執行器 CLI 二進位檔。 |
+
+`no-writeback` 這個狀態有幾個關鍵的操作邊界：
+
+- **階段範圍：** `no-writeback` 只適用於 `scaffold` 與 `implement` 階段，不含 `audit` 與 `test`。後兩者把契約產出全部寫進收據檔案（`.dev/pipeline/receipts/`），而 git 會忽略那些路徑，所以 worktree 快照看不到。
+- **同旗標邊界：** 有些檔案在派送前後，`git status --porcelain` 旗標完全沒變，例如本來就已經 dirty 的檔案。這時系統改用 SHA-256 摘要比對內容，真正有交付就不會誤判成 `no-writeback`。
+- **忽略路徑寫入邊界：** 某個階段若只寫進 git 忽略的路徑，即使執行器確實做了事，仍然回報 `no-writeback`。工作目錄快照只追蹤儲存庫變更，不看忽略路徑。
+- **交付契約耦合：** 這個分類器寫死了目前的交付契約：`scaffold` 與 `implement` 用受追蹤的儲存庫檔案交付，`audit` 與 `test` 用收據交付。日後若要改變任一階段的交付方式，必須一併重新檢視這個分類器。
+
+**讀取 `contract` / `contract_source` 欄位。** 針對提示檔或來源計畫輸入所建立的管道派送，會在 `Dispatch:` 標記列，以及執行器記錄檔的啟動與終端標頭上，附加 `contract=<control-node-abs-path> contract_source=workdir|ancestor|exe-side|embedded`，這三處的數值彼此耦合一致，因此任一處都能告訴你執行器實際依循的代理程式合約內容，以及來自哪個層級。`contract_source=workdir` 或 `ancestor` 代表由本機 GAL 檢出版本提供合約（行為顯得過時時應檢查該檢出版本）。`exe-side` 代表封裝版二進位檔自帶的內建副本。`embedded` 代表退回使用 `~/.gal/embedded-src` 具體化的備援副本。原始的 `gal dispatch` 與原始任務規格式 `gal pipeline` 執行會完全省略這些欄位，其缺席屬預期行為，並非缺陷。
+
+**讀取受來源佐證閘控的 `effort` 欄位。** 僅限管道所建立的派送（存在來源佐證時），該次執行中每個成功／降級標記都會攜帶一個經過淨化的 ` effort=<value|(default)>` 欄位，緊接在 `contract`/`contract_source` 後綴之前，此欄位於路由解析完成後只計算一次，並在該次執行剩餘期間原封不動地重複使用。原始 / 直接派送，以及 `no-routing` 降級情形（未解析出路由，因此沒有來源佐證）從不攜帶 `effort` 欄位，其標記維持與加入 effort 前的格式逐位元組相同。當路由產生 `OFFLOAD` 區塊時，`gal dispatch-script` 也會預先算好一個 `REPORT_LINE` 欄位（`Dispatched: <phase[ (fix)]> <T-NN> - <ROLE> as <executor>, model <model>, effort <effort>`），協調器會在每個派送時機一字不差地公告恰好一次。
+
+**第二層 — 提供者原生工作階段繼續（用於繼續/分支）。** 記錄檔標頭記錄可繼續的 `session_id`。使用此識別碼在原生的提供者 UI 內延續對話。指令**缺乏**一致性：
+
+| 執行器 | 原生檢視 / 繼續指令 | 無頭工作階段的預設可見度 |
+| --- | --- | --- |
+| **claude** | `claude --resume <session_id>` | 列出 |
+| **codex** | `codex resume <uuid>`（UUID 略過篩選器） | **隱藏** — 使用 `codex resume --include-non-interactive`（加上 `--all` 停用 cwd 篩選）在選取器中查看 |
+| **opencode** | `opencode run -s <session_id>`（繼續） · `opencode export <session_id>`（傾印 JSON） · `opencode session list`（瀏覽） | 列出 |
+| **copilot** | `copilot --resume=<session_id>` | 儲存於 `~/.copilot/session-store.db`，透過 ID 繼續（無公用列出指令） |
+| **agy** | `agy --conversation <uuid>` | 儲存於 `~/.gemini/antigravity-cli/brain/<uuid>/`，無列出子指令 — 透過 ID 瀏覽 |
+
+**一般準則：** 透過讀取第一層執行器記錄檔稽核派送。使用對應的第二層指令在原生工具內進行繼續作業。基於固有行為而非 GAL 設定，codex 工具預設特別隱藏無頭工作階段。
+
+### 執行器自我測試 (`gal doctor --executor-smoke`)
+
+標準 `gal doctor` 指令避免呼叫無頭編碼代理程式 CLI。`gal doctor --executor-smoke` 變體構成選擇性、可重複的自我測試，跨越五個支援的 CLI 執行即時管道任務所用的相同無頭派送路徑：`codex`、`claude`、`copilot`、`agy`、`opencode`。
+
+```sh
+# Self-test all five agents (default --transport local)
+gal doctor --executor-smoke
+
+# Filter to specific agents (repeatable)
+gal doctor --executor-smoke --executor codex --executor claude
+
+# CI/scheduler use: machine-readable JSON, non-zero exit on any non-pass row
+gal doctor --executor-smoke --json --strict
+
+# Bound the per-agent timeout (seconds, default 300)
+gal doctor --executor-smoke --timeout 60
+```
+
+此指令會觸發真實的派送程式碼路徑，並使用一份與線上 `config.json#executorRouting` 設定互相獨立的合成路由檔案。它執行的是一個只負責寫入單行收據的最小任務。執行結果儲存於被 gitignore 忽略、具時間戳記的目錄中，預設為 `.dev/executor-smoke/runs/<utc-run-id>/local/`。輸出包含 JSON 報告、人類可讀的表格、各代理程式的記錄檔與收據。`.dev/executor-smoke/latest.json` 檔案持續指向最近期的執行。
+
+**狀態定義：**
+
+| 狀態 | 意義 |
+| --- | --- |
+| `PASS` | 實際派送已完成且收據經過驗證。 |
+| `NOT_INSTALLED` | PATH 上無此 CLI。請安裝。 |
+| `NOT_AUTHENTICATED` | 確認未經驗證。執行該工具的登入指令。 |
+| `AUTH_UNKNOWN` | 無法確認就緒狀態。嘗試進行有界呼叫並回報實際結果。 |
+| `UNSUPPORTED` | 五個支援代理程式以外的 `--executor` 名稱。永不派送。 |
+| `CONFIG_ERROR` | 派送前的問題（通常是不安全的 `--report-dir`）。在任何寫入前捕捉。 |
+| `CALL_FAILED` | 執行器以非零結束。檢查執行器記錄檔。 |
+| `NO_RECEIPT` | 執行器以 0 結束但從未寫入收據。僅以 0 結束絕不構成成功。 |
+| `TIMEOUT` | 超出有界逾時時間。若工具緩慢請放寬 `--timeout`，或調查卡住的互動式提示。 |
+
+省略 `--strict` 旗標會強制執行完成時以 0 結束。報告才是絕對的事實來源，而非結束碼。此工具作為可重複執行的 CLI 指令運作，而非背景服務。可手動執行、整合進 CI 流程，或透過作業系統排程器觸發。
+
+#### 遠端 (SSH) 自我測試 (`--transport ssh`)
+
+此自我測試透過 SSH 驗證遠端機器上的編碼代理程式就緒狀態。在改變傳輸機制的同時，維持相同的報告結構描述與狀態。安裝與驗證探測**在遠端機器上執行**，不可由控制節點推斷。
+
+```sh
+gal doctor --executor-smoke --transport ssh --ssh-target <ssh-target> --remote-workdir <dedicated-checkout>
+
+# CI/scheduler use
+gal doctor --executor-smoke --transport ssh --ssh-target <ssh-target> --remote-workdir <dedicated-checkout> --strict --json
+```
+
+`--ssh-target` 變數定義支援非互動式、金鑰存取的 SSH 主機（`BatchMode=yes`）。`--remote-workdir` 變數為**必要**，且指定與控制節點 git HEAD 相符並具備乾淨狀態的專屬 GAL 簽出。產生的報告輸出至 `.dev/executor-smoke/runs/<utc-run-id>/ssh/`。
+
+**遠端專屬狀態：**
+
+| 狀態 | 意義 | 修正方式 |
+| --- | --- | --- |
+| `SSH_UNREACHABLE` | 無法開啟非互動式 SSH 工作階段（在任何執行器探測前檢查）。 | 檢查目標、網路與金鑰驗證。 |
+| `REMOTE_GUARD_FAILED` | 遠端工作目錄遺失、不安全、不乾淨，或不在控制節點 HEAD。 | 重新同步專屬遠端簽出至控制節點 HEAD，並確保乾淨狀態。 |
+| `REMOTE_FETCH_FAILED` | 遠端行程可能已執行，但擷取其收據失敗。 | 檢查執行器記錄檔與遠端收據路徑。 |
+
+為符合遠端限制，遠端 copilot 報告產生 `UNSUPPORTED` 狀態。此狀態既不計為通過，也不會被省略。`PASS` 狀態嚴格要求執行終結完成**並**成功擷取到非空白的收據。
+
+#### 復原收據租約失敗
+
+收據租約可用於防止兩個 GAL 派送互相驗證彼此的決定性收據路徑。請將 `reason=receipt-preparation-failed` 或 `reason=remote-receipt-freshness-failed` 視為可能存在使用中或過期的租約，而非廣泛刪除收據的許可。請讀取 stderr 以取得正確的本機 `.dev/pipeline/receipts/.locks/<hash>.lock`；遠端新鮮度 stderr 會包含 `lock=.dev/pipeline/receipts/.locks/<hash>.lockdir`，其內部的 `owner` 檔案即為清理權限依據。在移除之前，請獨立確認沒有相符的 GAL/SSH 執行器仍處於作用中狀態 — 特別是在逾時或等待 I/O 錯誤之後，因為這些結果本身並不構成終止 (`termination`) 的證明。接著僅移除該指定的鎖定檔案，或指定的遠端 `owner` 檔案及其隨後變為空白的鎖定目錄。切勿清除整個 `.locks/` 目錄。
+
+`remote-receipt-fetch-failed` 代表執行後來源遺失、空白、為連結檔、非一般檔案，或無法被擷取；`remote-receipt-fetch-timeout` 代表有界擷取已逾時；`remote-receipt-fetch-read-failed` 代表管道讀取錯誤導致 stdout 不完整，GAL 拒絕進行驗證；`remote-receipt-fetch-too-large` 代表輔助工具已排空來源但拒絕留存超過其 1 MiB stdout 上限。Stderr 亦具備相同的留存上限。`remote-receipt-fetch-*-unconfirmed` 或 `remote-receipt-lease-cleanup-*-unconfirmed` 原因代表本機輔助 SSH 行程未提供確認的結束證明，因此其有界管道排空未被結合。`receipt-lease-cleanup-failed` 代表已檢查的本機/控制端鎖定移除程序在正常或早期返回路徑上失敗；請使用正確的 stderr 路徑並保持結果降級。當清理程序隨同主要防護/記錄檔失敗發生時，標記會以 `+` 結合原因權杖，或傳回的錯誤文字同時提及兩者；請對兩者進行調查。`remote-receipt-lease-cleanup-failed` 與 `remote-receipt-lease-cleanup-timeout` 代表 owner-token 清理未獲得確認，因此即使執行器先前已失敗，該鎖定仍刻意保持失敗關閉 (fail-closed) 狀態。執行器本身的結束碼 73 仍維持結束碼 73，且除非存在包裝器專用的新鮮度哨兵 (sentinel)，否則不屬於新鮮度失敗。
+
+#### 復原階段寫回失敗
+
+對於在範圍內的派送（任何提示檔上的 `audit`，以及無標記提示檔上的 `test`），執行器回報的終端狀態 `completed`（結束碼 0）代表收據已送達 `<task>-<phase>.receipt.md`，並不代表該階段已完成，也不代表內容已放入提示檔。提示檔的放置由 `gal` 控制節點擁有，並在派送結束後執行一道 fail-closed（預設阻擋）的語意寫回閘門。
+
+**可觀察到的失敗徵狀：** 當內容驗證或渲染失敗時，`gal` 會將 `phase-writeback semantic failure for task <T-NN>` 印到 stderr，在 pipeline 迴圈記錄檔附加一筆結構化錯誤記錄，以非零狀態結束，並讓磁碟上的執行提示檔 (execution prompt) 保持位元組完全不變，此即**提示檔不變保證**。
+
+**範圍與例外：**
+
+- 本機與 SSH 兩種執行路徑，都用同一道控制節點語意閘門檢查收據內容，並產生完全相同的決定性提示檔放置結果。
+- `PipelineInput::RawSpec` 與直接呼叫 `gal dispatch` 會略過語意寫回閘門，只保留收據，因為這兩種模式下並不存在具權威性的執行提示檔。
+
+**常見成因與復原程序：**
+
+- **投影出的代理契約過期：** 執行器有時會產出格式錯誤的收據，例如多出沒有包在程式碼區塊裡的標題，或是缺少判定標記，也可能嘗試直接編輯提示檔。遇到這些情況，請執行 `gal refresh`。這個指令會更新 repo 本地的代理契約，也會更新投影出去的那一份，讓兩邊都對齊目前的規則。
+- **收據內容格式錯誤：** 檢查收據檔案（`.dev/pipeline/receipts/...`）或 pipeline 迴圈記錄檔，找出具體的驗證錯誤，例如缺少 `### [T-NN] YYYY-MM-DD` 標頭、多出 H2/H3 標題，或任務代號不相符。
+- **修復並重跑：** 若契約已過期就先執行 `gal refresh`，解決收據或派送本身的問題，然後重跑 `/gal pipeline`。操作者絕對不應該手動搬移或複製貼上 Markdown 小節到執行提示檔裡，交由程式放置才能確保內容穩定落在正確的 H2（`## Test Results` 或 `## Review Results`）之下。
+
+### 派送工作者邊界與專案指示隔離
+
+當 `/gal pipeline` 將任務階段派送至無頭執行器時，次要編碼代理程式是以工作者角色而非協調器角色執行。為防止被派送的工作者將儲存庫層級指示（例如工作流程遵從規則或協調器關卡要求）解讀為執行管道控制指令的命令，GAL 透過兩種互補機制建立角色隔離：任務規格邊界以及轉接器層級的專案指示抑制。
+
+#### 派送工作者邊界
+
+每個呈現的任務規格均嵌入一個 `## Dispatched Worker Boundary` 區塊（原為 `## IMPORTANT: Orchestrator Gate Boundary`），顯著置於中繼資料分隔線之後與 `## Task Goal` 之前。本節：
+- 將工作者識別為單一有界範圍的階段執行器，而非協調器。
+- 明確禁止叫用任何 `gal` 子指令（包括 `gal pipeline-preflight`、`gal pipeline-handback-check`、`gal boundary-check`、`gal pipeline-converge-check` 或 `gal pipeline`），因為所有必要的管道關卡均由協調器擁有並滿足。
+- 明確禁止載入或執行任何工作流程 `SKILL.md` 檔案。
+- 覆寫任何引導代理程式執行協調器工作流程的儲存庫層級指示或技能指示。被派送的工作者必須僅遵循有界範圍的任務目標、檔案許可清單以及嵌入的 `## Agent Contract`。
+
+#### 專案指示隔離矩陣
+
+視執行器 CLI 而定，儲存庫層級指示檔案（`AGENTS.md` 或 `CLAUDE.md`）可能會在啟動時自動載入至模型的指示脈絡中。在支援的情況下，GAL 派送轉接器會傳遞旗標以抑制專案層級指示的注入，讓自我包含的任務規格在不受干擾的情況下掌管執行：
+
+| 執行器 | 暴露狀態 | 抑制機制 | 驗證版本 | 隔離行為 |
+| --- | --- | --- | --- | --- |
+| **codex** | 已暴露 (`AGENTS.md`) | `-c project_doc_max_bytes=0` | codex-cli 0.149.1 | 無條件傳遞 `-c project_doc_max_bytes=0` 以抑制儲存庫層級的 `AGENTS.md`。全域 `~/.codex/AGENTS.md` 層維持有效。 |
+| **copilot** | 已暴露 | `--no-custom-instructions`, `--disable-builtin-mcps` | Copilot CLI | 附加旗標以停用自訂指示與內建 MCP，確保提示模式的自我包含性。 |
+| **claude** | 已暴露 (`CLAUDE.md`) | `--setting-sources user` | Claude Code 2.1.251 | 無條件傳遞 `--setting-sources user` 以抑制儲存庫層級的 `CLAUDE.md` 與專案設定，同時保留使用者設定。 |
+| **opencode** | `NotRun` | 無 | opencode 1.18.25 | 暴露探測在測試期間遭遇提供者端逾時；未套用轉接器抑制。視為無結論而非未暴露。 |
+| **agy** | 依設計暴露 | 無（任務規格邊界優先） | agy 1.1.23 | 刻意傳遞 `--add-dir` 以限制工作區存取並提供儲存庫脈絡；任務規格 `## Dispatched Worker Boundary` 在模型指示脈絡中具優先權。 |
+
+## Git 輔助工具
+
+### `gal commit-msg`
+
+`gal commit-msg` 指令作為決定性提交輔助工具運作，支援 `git-commits` 技能與 `git-commit-msg` 指令。類型與範圍分類**僅**源自變更的檔案路徑與 git 狀態。它忽略差異與內文關鍵字，防止訊息內容劫持分類。存在三種模式：
+
+- **`gal commit-msg --context`** 輸出精簡的已暫存變更脈絡，包含檔案、決定性類型與範圍基準標頭、已暫存的計畫與提示檔摘要，以及專供起草訊息的代理程式使用的 hunk 標頭。此模式以更低的權杖成本，提供比原始差異更高的訊號品質。
+- **`gal commit-msg --print`** 僅輸出決定性類型與範圍主旨標頭。
+- **`gal commit-msg <file>`** 作為 git commit-msg 掛鉤運作。它根據已暫存變更填入空白訊息，並嚴格避免覆寫作者編寫的內容。
+
+`git-commit-msg` 指令僅產生訊息字詞，避免執行 git commit。`git-commits` 技能產生訊息**並**在偵測到明確提交意圖時執行提交。
+
+### Git 篩選器 (`gal clean` / `gal smudge`)
+
+選用的 `gal-config` git 篩選器消除了受追蹤檔案中的本機設定值。為每個儲存庫套用註冊：
+
+```bash
+git config filter.gal-config.clean 'gal clean'
+git config filter.gal-config.smudge 'gal smudge'
+```
+
+git 執行檔於內部叫用此篩選器。`gal` 二進位檔需存在於有效的 git `PATH` 上，以防因篩選器錯誤造成 `git commit` 失敗。
+
+## 撰寫輔助工具
+
+### `text-flowcharts`
+
+[`text-flowcharts`](../../../plugins/gal-core/skills/text-flowcharts/SKILL.md) 技能會把分支邏輯、管線與多步驟流程繪製成等寬純文字的決策樹圖。在 Claude Code 裡以 `/text-flowcharts` 呼叫，在 Codex 裡以 `$text-flowcharts` 呼叫。當你的說明在追蹤單筆記錄的控制流程，或是你要求繪製 flowchart、流程圖、邏輯圖時，它也會自動啟用。
+
+每張圖都從頂端的入口開始，跟著單一筆記錄一路往下穿過它所遇到的條件，最後落在一個分級的終端結果，讓讀者可以丟入一筆資料就看清它會停在哪裡。這套詞彙刻意保持精簡：方框代表步驟，大括號代表判斷，而每個葉節點都帶著一個結尾標記。
+
+| 元素 | 符號 |
+| --- | --- |
+| 流向線與轉角 | `│ ─ ┌ ┐ └ ┘` |
+| 接點（分岔、匯流、交叉） | `├ ┤ ┬ ┴ ┼` |
+| 箭頭（下、上、右、左） | `▼ ▲ ▶ ◀` |
+| 終端成功 | `√` |
+| 刻意跳過 | `>>\|` |
+| 死路或遭拒 | `×` |
+
+這些符號在預設等寬字型裡即可顯示，不需另裝字型，對非 CJK 讀者而言各佔一格，並且能在 UTF-8 環境下的 pull request 留言、程式碼註解與終端機中原樣保留。輸出不含 emoji，因此在較舊的機器上也能維持易讀。只有當流程確實會分支時才使用這個技能，若是一連串沒有判斷的直線步驟，改用編號清單會更好讀。
+
+## Golem 代理程式
+
+GAL 專家代理程式作為 golem 運作。本節從**使用者面向**提供關於功能、差異與應用的觀點。具權威性的名冊與分類位於 [`plugins/gal-core/agents/agents.md`](../../../plugins/gal-core/agents/agents.md)。工作流程語意位於 [`plugins/gal-core/workflows/coding.md`](../../../plugins/gal-core/workflows/coding.md)。
+
+### 能力表
+
+| Golem | 功能 | 使用時機 |
+| --- | --- | --- |
+| `golem-architect` | 對抗式計畫審查，涵蓋取捨、過度設計、潛在錯誤面，與相依性/API 風險 | 建置前使用 `/deep-planning` 或 `/gal architect` 進行設計壓力測試 |
+| `golem-analyst` | 商業邏輯審查，涵蓋投資報酬率、領域正確性，與使用者影響 | 當變更影響定價、權限、資格或客戶可見規則時使用 |
+| `golem-designer` | UI/UX 體驗設計、DevEx、設計系統、無障礙性，與即時 UI 稽核 | 用於面向客戶的排版、狀態、元件工作，或面向開發者的 DevEx |
+| `golem-researcher` | 本機優先 (local-first) 調查、跨來源合成，與可供參考的調查結果 | 使用 `/gal research` 或 `/gal deep-research` 尋找以證據為基礎的答案 |
+| `golem-implementer` | 透過原子提交為已核准任務編寫實作程式碼 | 代表 `/gal pipeline` 中的 CODER 階段 |
+| `golem-tester` | 僅由計畫規格與公開 API 衍生的規格導向測試與真實瀏覽器 QA | 代表以不同模型推動獨立驗證的 TESTER 階段 |
+| `golem-auditor` | 執行單一任務與整個分支的深度效能與安全性稽核 | 代表 `/gal pipeline`（任務稽核）或 `/gal finalize`（分支稽核）中的 AUDITOR 階段。此角色僅限協調器驅動，不可裸呼叫 `/gal auditor` |
+| `golem-debugger` | 進行採用凍結紀律與根源確認的科學方法錯誤調查 | 當錯誤需要在修復前先做有紀律的調查時使用 |
+| `golem-steward` | 管理文件結構、程式碼與文件的偏移、知識擷取，與圖表同步 | 使用 `/gal steward`，或於計畫開啟、細化結束或管道結案時自動觸發 |
+| `golem-releaser` | 透過 API 與 CICD 研究設計規劃階段的釋出流程，並提出設計建議 | 在 `/planning release-<slug>` 之前使用 `/gal releaser`（隔離）或 `/gal discuss releaser`（脈絡內） |
+
+**檢查角色三角：** 品質保證職責形成三方結構。**ORCHESTRATOR**（管道）掌管個別任務的正確性關卡、執行結束時的目標回推驗證，以及計畫生命週期的關閉。**AUDITOR** 管理單一任務深度效能與安全性。**STEWARD** 控制文件結構。
+
+### 角色叫用矩陣
+
+| 角色 | 可直接呼叫？ | 模式 |
+| --- | --- | --- |
+| **architect** | 是 | `/gal architect`（隔離）或 `/gal discuss architect`（脈絡內） |
+| **analyst** | 是 | `/gal analyst`（隔離）或 `/gal discuss analyst`（脈絡內） |
+| **designer** | 是 | `/gal designer`（隔離）或 `/gal discuss designer`（脈絡內） |
+| **releaser** | 是 | `/gal releaser`（隔離）或 `/gal discuss releaser`（脈絡內），規劃設計師，不執行 |
+| **debugger** | 是 | `/gal debugger` |
+| **steward** | 是 | `/gal steward` |
+| **implementer** | **僅限協調器驅動** | 僅限透過 `/gal pipeline`（管道階段脈絡） |
+| **tester** | **僅限協調器驅動** | 僅限透過 `/gal pipeline`（管道階段脈絡） |
+| **auditor** | **僅限協調器驅動** | 透過 `/gal pipeline`（管道階段）。auditor 沒有整個分支的模式。`--finalize-branch-audit` 這個詞元仍然會被辨識，但仍然只會回傳非派送的 `COMMAND: error` 區塊：`/gal finalize` 會在同一個執行環境裡執行自己的由上而下審查，標記 `Review Independence: DEGRADED_SAME_RUNTIME`，並寫出需求對 L1-L4 的表格。 |
+| **researcher** | **僅限協調器驅動** | 僅限透過 `/gal research` 或 `/gal deep-research` |
+
+若缺乏相符的協調脈絡就執行 `/gal <role>`，這四種僅限協調器驅動的角色都會產生 `COMMAND: error`。
+
+### 諮詢雙模式 (`/gal discuss <role>`)
+
+architect、analyst、designer 與 releaser 角色僅支援兩種叫用模式。其餘角色不支援討論格式。
+
+| 模式 | 觸發方式 | 行為 | 回應標籤 |
+| --- | --- | --- | --- |
+| **隔離** (預設) | `/gal <role>` | 原生子代理程式隔離執行該角色。僅將裁決與摘要傳回主脈絡 | `[<role> · isolated]` |
+| **脈絡內** | `/gal discuss <role>` | 角色啟動核心載入至目前對話。助理從先前的隔離裁決熱加入，並進行多輪對話直至主題變更 | `[<role> · in-context]` |
+
+**熱加入：** 對話記錄中已包含隔離模式的裁決，因此脈絡內模式能原生接續進度，不必重新執行整個角色。
+
+Codex 執行環境將 `/gal discuss <role>` 對應為 `$discuss-<role>`。Claude 執行環境則直接以斜線指令實作 `/gal discuss <role>`。
+
+整合的 [`adversarial-review`](../../../plugins/gal-core/skills/adversarial-review/SKILL.md) 技能提供這些審查角色所使用的、不分目標的審查方法。它強制要求強化論證 (steel-man)、預設反駁邏輯、證據紀律，以及明確的 APPROVE、REVISE 或 REJECT 裁決。
+
+### Steward 生命週期分割
+
+steward 於規劃與落地階段執行，進行不同操作。這些階段維持嚴格不可互換：
+
+- **規劃階段 (`/deep-planning`)：專注於計畫文件結構。** steward 評估計畫檔案屬性，包含路徑、代稱、強制區段、語言一致性與圖表同步。禁止在此階段寫入 `docs/`。規劃階段的文件缺乏實作與持久知識。寫入 `docs/` 有使未建置的推測性內容汙染讀者可見層的風險。
+- **落地階段 (`/gal finalize`)：持久知識落地。** 已完成計畫的持久知識嚴格要求落地於 `docs/` 中。steward 將已實作的計畫知識擷取至持久層（`README.md` 與 `docs/`）。隨後，索引同步至 `.dev/project.md`。此落地程序具強制性，而非建議性。刪除計畫檔案要求 steward 必須先產生持久層提交。
+
+此結構分割確認知識擷取需要建置好的知識，而這僅能在實作後取得。因此，將完成的計畫寫入正式文件維持為落地階段操作。規劃階段的 steward 嚴格專注於維持計畫文件格式。
+
+### 釋出計畫通道
+
+釋出構成不同的計畫類型（`release-<slug>`），並獨立於 `/gal pipeline` 階段與 `/gal finalize` 步驟運作。
+
+**流程：**
+
+1. `/gal releaser` 指令在解析來自唯讀來源（包含技能、API 與 CLI 設定檔）的本機可用部署能力前驗證部署目標。隨後設計釋出與 devops 流程。此操作嚴格為唯讀，避免寫入檔案、提交或執行。無法識別的能力會產生無法使用的報告，防止偽造。
+2. `/planning release-<slug>` 指令將產生的建議具現化為包含 `## Tasks` 區段的來源計畫。
+3. 標準 `/gal pipeline` 指令執行已完成的釋出計畫。
+4. `/gal finalize` 指令落地釋出計畫，與標準計畫相同。
+
+此程序支援 GAL 自身 CLI 二進位釋出，以及下游儲存庫部署（例如，網頁服務、後端服務、firebase 類、npm 套件、Docker 映像檔）。操作範圍止於設計建議。releaser 禁止作為部署協調器，並省略金絲雀釋出 (canary)、回退 (rollback) 與正式環境監控功能。
