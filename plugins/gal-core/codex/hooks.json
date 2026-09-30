@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+    {
+      "hooks": [
+        { "type": "command", "command": "gal pipeline-host-hook user-prompt-submit" }
+      ]
+    }
+    ],
+    "PreToolUse": [
+    {
+      "hooks": [
+        { "type": "command", "command": "gal pipeline-host-hook pre-tool-use" }
+      ]
+    }
+    ],
+    "Stop": [
+    {
+      "hooks": [
+        { "type": "command", "command": "gal pipeline-host-hook stop" }
+      ]
+    }
+    ]
+  }
+}

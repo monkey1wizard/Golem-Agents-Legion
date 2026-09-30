@@ -1,0 +1,25 @@
+[package]
+name = "gal-engine"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+name = "gal_engine"
+path = "src/lib.rs"
+
+[dependencies]
+gal-foundation = { path = "../gal-foundation" }
+projection = { path = "../projection" }
+serde = { version = "1.0", features = ["derive"] }
+include_dir = "0.7"
+serde_json = "1.0"
+toml = { version = "0.8", features = ["parse"] }
+thiserror = "2.0"
+uuid = { version = "1.0", features = ["v4"] }
+chrono = "0.4"
+regex = "1.0"
+sha2 = "0.10"
+hex = "0.4"
+
+[dev-dependencies]
+tempfile = "3.0"
