@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://golem-agents-legion.local/docs/structure/structure-map.schema.json",
+  "title": "GAL Structure Map Node",
+  "description": "Schema for a single NDJSON record in docs/structure/structure-map.ndjson.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "axis": {
+      "type": "string",
+      "enum": [
+        "code",
+        "doc"
+      ]
+    },
+    "kind": {
+      "type": "string"
+    },
+    "syncStatus": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "drift",
+        "missing"
+      ]
+    },
+    "lastSynced": {
+      "type": "string",
+      "format": "date"
+    },
+    "lastSyncedRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "layer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "docs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "headingLevel": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "codeRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "id",
+    "axis",
+    "kind",
+    "syncStatus",
+    "lastSynced",
+    "lastSyncedRef"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "axis": {
+            "const": "code"
+          }
+        },
+        "required": [
+          "axis"
+        ]
+      },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^[^#]+$"
+          },
+          "kind": {
+            "enum": [
+              "dir",
+              "module",
+              "file"
+            ]
+          },
+          "path": {
+            "pattern": "^[^#]+$"
+          },
+          "docs": {
+            "default": []
+          }
+        },
+        "required": [
+          "path",
+          "layer",
+          "docs"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "axis": {
+            "const": "doc"
+          }
+        },
+        "required": [
+          "axis"
+        ]
+      },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^.+#.+$"
+          },
+          "kind": {
+            "const": "doc-section"
+          },
+          "codeRefs": {
+            "default": []
+          }
+        },
+        "required": [
+          "headingLevel",
+          "title",
+          "codeRefs"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+.venv/
+
+# Local GAL workflow state.
+# Track durable, repo-visible execution memory (file-memory contract); ignore the rest.
+.dev/*
+!.dev/project.md
+!.dev/state.md
+!.dev/plans/
+!.dev/research/
+# Private maintainer release runbook — tracked (so it survives + is versioned)
+# but NEVER included in the public repository: publish-public.sh strips .dev/ from
+# snapshots, so these files stay in the private source repository.
+!.dev/release.md
+!.dev/release.zh-Hant.md
+# Machine-local pipeline runtime state (dispatch write-back verification, logs,
+# fix-mode replay, prompt snapshots): one directory per plan/research scope
+# under .dev/pipeline/<scope>/ (task evidence under <scope>/<task>/), plus a
+# UTC date root .dev/pipeline/<yyyymmdd>/ for ad-hoc and self-test dispatches.
+# Covered by .dev/* but anchored for intent.
+.dev/pipeline/
+
+# Private notes (never commit — local-only)
+*.private.md
+
+# Secrets (never commit these)
+*.key
+*.pem
+openclaw.json
+
+# Local overrides (fork and customize)
+# Keep machine-specific config out of source control.
+# config.json (machine settings + secrets, incl. executorRouting sshTarget/remoteWorkdir)
+# is the canonical machine-local source; never tracked.
+config.json
+commands/*/SKILL.local.md
+
+# Baked command skills — derived from SKILL.template.md by `gal refresh`.
+# Regenerable per-machine; do not track. Authored skills under skills/*/SKILL.md stay tracked.
+commands/*/SKILL.md
+plugins/gal-core/commands/*/SKILL.md
+
+# Local temporary outputs, caches, and sandboxes
+.tmp/
+
+# graphify knowledge-graph outputs (tool default root dir)
+graphify-out/
+
+# Generated provider plugin artifacts
+dist/
+
+# Rust build output
+/target/
+**/target/
+
+# Release scratch
+/release-scratch/
+
+# RTK-generated per-agent rule files (machine-local tooling, not project content)
+.agents/rules/*-rtk-rules.md
