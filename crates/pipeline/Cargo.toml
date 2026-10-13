@@ -1,0 +1,23 @@
+[package]
+name = "pipeline"
+version = "0.1.1"
+edition = "2021"
+description = "GAL pipeline orchestration scaffold — transport abstraction plus local dispatch composition."
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[lib]
+name = "pipeline"
+path = "src/lib.rs"
+
+[dependencies]
+dispatch = { path = "../dispatch" }
+thiserror = "2.0"
+sha2 = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+unicode-normalization = "0.1"
+
+[dev-dependencies]
+tempfile = "3.0"

@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "../rules/terminology.mjs": {
+      "locale": "zh-TW",
+      "channel": "hard"
+    },
+    "../rules/./terminology.mjs": {
+      "locale": "zh-TW",
+      "channel": "advisory",
+      "severity": "warning"
+    }
+  },
+  "filters": {
+    "../prose.mjs": true
+  }
+}

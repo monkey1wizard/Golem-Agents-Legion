@@ -1,0 +1,608 @@
+# GAL Release Workflow
+#
+# Trigger: push of a version tag (v*).
+# Produces: cross-platform gal binaries + fallback archives, checksums.txt,
+#   artifact-manifest.json, and a cosign keyless signature over checksums.txt.
+#
+# Cosign trust setup:
+#   - Signing uses sigstore/cosign keyless (GitHub Actions OIDC, no long-term key).
+#   - The workflow identity is pinned to this repo via `repository` and
+#     `repository_owner` claims so the Rekor entry can be verified offline.
+#   - `id-token: write` is the minimum OIDC permission required; it is scoped
+#     to the `sign` job only. The build matrix jobs have no OIDC access.
+#   - Verification: `cosign verify-blob checksums.txt
+#       --certificate-identity-regexp 'https://github.com/monkey1wizard/Golem-Agents-Legion/\.github/workflows/release\.yml@.*'
+#       --certificate-oidc-issuer https://token.actions.githubusercontent.com`
+#
+# Security note: this workflow is the cosign CI trust surface. Review this file
+# before the first package-manager publication per the security review gate.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+# Set workflow permissions explicitly; grant only the access needed for release publication.
+permissions:
+  contents: write   # grants repository content write access, including release creation and asset uploads
+  id-token: none    # elevated to 'write' in the sign job only
+
+jobs:
+  # ── Build matrix ─────────────────────────────────────────────────────────
+  build:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            platform: windows
+            arch: x64
+            binary_ext: .exe
+            archive_ext: .zip
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            platform: windows
+            arch: arm64
+            binary_ext: .exe
+            archive_ext: .zip
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            platform: darwin
+            arch: x64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            platform: darwin
+            arch: arm64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            platform: linux
+            arch: x64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            binary_ext: ""
+            archive_ext: .tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (musl targets)
+        if: contains(matrix.target, 'musl')
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build binary (native)
+        if: "!contains(matrix.target, 'musl')"
+        # Windows: link the CRT statically so the binary has no VCRUNTIME140.dll /
+        # api-ms-win-crt-*.dll imports. winget validation runs on a clean sandbox
+        # with no VC++ Redistributable and bare-executes the exe — a dynamic CRT
+        # dies with 0xC0000135 STATUS_DLL_NOT_FOUND (seen in a prior 0.1.0 release).
+        # Both windows-msvc arches share this step, so this covers both. Darwin
+        # must NOT receive the flag (musl targets are static-CRT by default).
+        env:
+          RUSTFLAGS: ${{ matrix.platform == 'windows' && '-C target-feature=+crt-static' || '' }}
+        run: cargo build --release --target ${{ matrix.target }} -p gal-cli
+
+      - name: Build binary (cross/musl)
+        if: contains(matrix.target, 'musl')
+        run: cross build --release --target ${{ matrix.target }} -p gal-cli
+
+      - name: Prepare canonical asset name
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="$REF_NAME"
+          BINARY_NAME="gal-${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.binary_ext }}"
+          ARCHIVE_NAME="gal-${VERSION}-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Copy and rename binary
+        shell: bash
+        run: |
+          SRC="target/${{ matrix.target }}/release/gal${{ matrix.binary_ext }}"
+          cp "${SRC}" "${BINARY_NAME}"
+
+      - name: Assert static CRT — no dynamic CRT imports (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          # Regression fence for the 0xC0000135 STATUS_DLL_NOT_FOUND precedent. Assert on the PE
+          # IMPORT TABLE via dumpbin, NOT a raw byte scan: the embedded gal-core
+          # payload baked into the binary means a byte scan could false-positive
+          # if any embedded text (e.g. install-gal's winget guidance) mentions
+          # VCRUNTIME140 / api-ms-win-crt. The import table only lists real DLL
+          # dependencies.
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Host*\*\dumpbin.exe" | Select-Object -First 1
+          if (-not $dumpbin) { Write-Error "dumpbin not found"; exit 1 }
+          $imports = & $dumpbin.FullName /imports "$env:BINARY_NAME"
+          $bad = $imports | Select-String -Pattern 'VCRUNTIME140|api-ms-win-crt'
+          if ($bad) {
+            Write-Error "Dynamic CRT import found in $env:BINARY_NAME — winget validation will fail with 0xC0000135. crt-static did not take effect."
+            $bad
+            exit 1
+          }
+          Write-Host "Static CRT OK: no VCRUNTIME140 / api-ms-win-crt imports in $env:BINARY_NAME"
+
+      # The end-user install archive must bundle the binary together with the
+      # GAL source (flat layout: `gal` + skills/agents/commands/… side by side)
+      # so the `gal` binary resolves the packaged source root from its own dir
+      # ("打包 source"). Without it, render/refresh fails with
+      # "Source root not found". The standalone binary asset stays binary-only.
+      - name: Stage end-user package (binary + flat source)
+        shell: bash
+        run: |
+          rm -rf pkg && mkdir -p pkg
+          cp "${BINARY_NAME}" "pkg/gal${{ matrix.binary_ext }}"
+          cp LICENSE pkg/
+          cp -r plugins/gal-core/. pkg/
+
+      - name: Create package archive (zip — Windows)
+        if: matrix.archive_ext == '.zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "pkg/*" -DestinationPath $env:ARCHIVE_NAME
+
+      - name: Create package archive (tar.gz — Unix)
+        if: matrix.archive_ext == '.tar.gz'
+        shell: bash
+        run: |
+          tar -czf "${ARCHIVE_NAME}" -C pkg .
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ env.BINARY_NAME }}
+          if-no-files-found: error
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ env.ARCHIVE_NAME }}
+          if-no-files-found: error
+
+  # ── Assemble + sign ───────────────────────────────────────────────────────
+  sign:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Assemble, sign, and publish
+    needs: build
+    runs-on: ubuntu-latest
+    # OIDC permission scoped to this job only (cosign trust surface).
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight — release tag matches crate version
+        # Fail fast BEFORE building/publishing: a tag/crate-version mismatch would
+        # otherwise only surface post-publish (brew test asserts the bare version,
+        # winget DisplayVersion derives from it).
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          TAG="$REF_NAME"
+          BARE="${TAG#v}"
+          # Strip any prerelease suffix (e.g. -rc4) — the crate version is the
+          # release core, so a v0.1.0-rc4 rehearsal still matches crate 0.1.0.
+          CORE="${BARE%%-*}"
+          CRATE_VERSION="$(grep -m1 '^version' crates/cli/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ "${CORE}" != "${CRATE_VERSION}" ]; then
+            echo "::error::release tag ${TAG} (core ${CORE}) does not match gal-cli Cargo.toml version ${CRATE_VERSION} — bump the crate version to match before tagging" >&2
+            exit 1
+          fi
+          echo "preflight OK: tag ${TAG} (core ${CORE}) matches gal-cli version ${CRATE_VERSION}"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: assets/
+
+      - name: Flatten asset directory
+        shell: bash
+        run: |
+          find assets/ -type f \( -name "*.exe" -o -name "*.zip" -o -name "*.tar.gz" -o ! -name "*.*" \) \
+            -exec mv {} ./  \;
+
+      - name: Install Rust toolchain (for gal release)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build gal release tool
+        run: cargo build --release -p gal-cli
+
+      - name: Generate checksums.txt, artifact-manifest.json, and package-manager manifests
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="$REF_NAME"
+          # Collect all canonical assets; --asset accepts a bare path and derives
+          # platform/arch/kind from the canonical filename convention.
+          ASSET_ARGS=()
+          for f in gal-${VERSION}-*; do
+            ASSET_ARGS+=(--asset "${f}")
+          done
+          ./target/release/gal release \
+            --version "${VERSION}" \
+            --output-dir release-out \
+            --winget \
+            --homebrew \
+            "${ASSET_ARGS[@]}"
+          cp release-out/checksums.txt ./checksums.txt
+          cp release-out/artifact-manifest.json ./artifact-manifest.json
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign checksums.txt (cosign keyless — GitHub Actions OIDC)
+        # Produces checksums.txt.sig + checksums.txt.pem (certificate) in Rekor.
+        # Verification command (offline):
+        #   cosign verify-blob checksums.txt \
+        #     --signature checksums.txt.sig \
+        #     --certificate checksums.txt.pem \
+        #     --certificate-identity-regexp 'https://github.com/monkey1wizard/Golem-Agents-Legion/\.github/workflows/release\.yml@.*' \
+        #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+        run: |
+          cosign sign-blob checksums.txt \
+            --yes \
+            --output-signature checksums.txt.sig \
+            --output-certificate checksums.txt.pem
+
+      - name: Persist package-manager manifests (audit + manual fallback)
+        # release-out/ holds the generated winget manifests + homebrew formula.
+        # Upload it as a workflow artifact so it is the single audit record and
+        # the manual-fallback source if auto-submit fails — never re-run the
+        # generator locally (that risks a divergent second copy).
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-manager-manifests
+          path: release-out/
+          if-no-files-found: error
+
+      - name: Create GitHub Release (stable — verified changelog body)
+        # Stable tags only. body_path is release-out/release-body.md, produced by
+        # the "Generate checksums.txt..." step above via `gal release` — the same
+        # gate that already rejects an uncurated or missing CHANGELOG.md section
+        # before this step can run. generate_release_notes MUST stay false here:
+        # falling back to GitHub's inferred notes is exactly the v0.1.2 incident
+        # this gate exists to make structurally impossible.
+        if: ${{ !contains(github.ref_name, '-') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GAL ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body_path: release-out/release-body.md
+          files: |
+            gal-*
+            checksums.txt
+            checksums.txt.sig
+            checksums.txt.pem
+            artifact-manifest.json
+            packaging/install.sh
+            packaging/install.ps1
+
+      - name: Create GitHub Release (prerelease — rehearsal notes)
+        # Prereleases keep rehearsal semantics: no stable CHANGELOG.md section is
+        # required, so there is no release-body.md to reference here.
+        if: ${{ contains(github.ref_name, '-') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: GAL ${{ github.ref_name }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            gal-*
+            checksums.txt
+            checksums.txt.sig
+            checksums.txt.pem
+            artifact-manifest.json
+            packaging/install.sh
+            packaging/install.ps1
+
+  # ── Post-release: Homebrew formula publish (audited before push) ───────────
+  publish-homebrew:
+    name: Publish Homebrew formula (audited)
+    needs: sign
+    # Stable tags only (no '-' prerelease); no secret referenced in this
+    # job-level `if`, so job-level gating is safe here (see the `secrets`-in-`if`
+    # note on the tap-push step below for why the token itself is gated later).
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' && !contains(github.ref_name, '-') }}
+    runs-on: macos-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Download package-manager manifests
+        uses: actions/download-artifact@v4
+        with:
+          name: package-manager-manifests
+          path: release-out/
+
+      - name: Homebrew tap push gate status
+        # Explicit, always-run log of why the tap push will or will not run —
+        # a skipped step alone does not say whether the secret blocked it.
+        shell: bash
+        run: |
+          if [ -z "${HOMEBREW_TAP_TOKEN}" ]; then
+            echo "Homebrew tap push SKIPPED: HOMEBREW_TAP_TOKEN secret not set"
+          else
+            echo "Homebrew tap push WILL RUN, pending the audit gate below"
+          fi
+
+      - name: brew audit --strict (local formula, pre-push)
+        # Regression fence for the v0.2.1 incident: a formula that only fails
+        # `brew audit --strict` after it reaches the real tap is caught too
+        # late — the tap is already public. Build a throwaway local tap from
+        # the just-generated formula and audit THAT, before any network write
+        # to homebrew-tap. `brew tap` requires a git remote, so the local dir
+        # is a real (if disposable) git repo, not a bare file copy.
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="$REF_NAME"
+          mkdir -p /tmp/local-tap/Formula
+          cp "release-out/gal-${VERSION}.rb" /tmp/local-tap/Formula/gal.rb
+          git -C /tmp/local-tap init -q
+          git -C /tmp/local-tap -c user.email=ci@local -c user.name=ci add -A
+          git -C /tmp/local-tap -c user.email=ci@local -c user.name=ci commit -q -m preflight
+          brew tap monkey1wizard/local-preflight "file:///tmp/local-tap"
+          brew audit --strict monkey1wizard/local-preflight/gal
+
+      - name: Push Homebrew formula to tap
+        # Requires a repo-scoped HOMEBREW_TAP_TOKEN with write access to the
+        # homebrew-tap repository (minimum: contents:write), added as a repository
+        # secret named HOMEBREW_TAP_TOKEN. Gate on the job-level env var: the
+        # `secrets` context is not valid inside a step `if:` expression.
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
+        shell: bash
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="$REF_NAME"
+          git clone --depth 1 \
+            "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/monkey1wizard/homebrew-tap.git" \
+            homebrew-tap
+          mkdir -p homebrew-tap/Formula
+          cp "release-out/gal-${VERSION}.rb" homebrew-tap/Formula/gal.rb
+          cd homebrew-tap
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Formula/gal.rb
+          git diff --cached --quiet && exit 0  # nothing changed
+          git commit -m "chore(formula): update gal to ${VERSION}"
+          git push
+
+  # ── Post-release smoke: Homebrew (stable only) ────────────────────────────
+  smoke-homebrew:
+    name: Smoke — Homebrew (macOS)
+    needs: publish-homebrew
+    # Stable tags only (no '-' prerelease). github.ref_name is available in a
+    # job-level if; no secret is referenced here, so job-level gating is safe.
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' && !contains(github.ref_name, '-') }}
+    runs-on: macos-latest
+    steps:
+      - name: brew tap
+        run: brew tap monkey1wizard/tap
+      - name: brew audit (strict)
+        # Redundant with publish-homebrew's pre-push audit by design: this one
+        # runs against the real, now-live tap, catching anything the local
+        # throwaway tap couldn't see (e.g. a stale/divergent tap clone).
+        run: brew audit --strict monkey1wizard/tap/gal
+      - name: brew install
+        run: brew install monkey1wizard/tap/gal
+      - name: brew test
+        run: brew test gal
+      - name: gal refresh
+        run: gal refresh
+      - name: gal init (temp repo)
+        run: |
+          TMP="$(mktemp -d)"
+          cd "${TMP}"
+          gal init
+          test -f AGENTS.md
+          test ! -f CLAUDE.md
+
+  # ── Post-release: WinGet validate + submit (stable only) ───────────────────
+  submit-winget:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: WinGet validate + submit (Windows)
+    needs: sign
+    runs-on: windows-latest
+    # `secrets` is not usable in a step `if:` — surface it as a job-level env so
+    # the submit step can gate on `env.*` (see the sign job for the same pattern).
+    env:
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+    steps:
+      - name: Download package-manager manifests
+        uses: actions/download-artifact@v4
+        with:
+          name: package-manager-manifests
+          path: release-out/
+
+      - name: Resolve manifest directory
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $bare = "$env:REF_NAME".TrimStart('v')
+          $dir = "release-out/manifests/m/Monkey1Wizard/GAL/$bare"
+          if (-not (Test-Path $dir)) { Write-Error "manifest dir not found: $dir"; exit 1 }
+          echo "MANIFEST_DIR=$dir" >> $env:GITHUB_ENV
+
+      - name: winget preflight (ensure winget available)
+        shell: pwsh
+        run: |
+          # winget presence on the runner image is time-variable; bootstrap if absent.
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Host "winget not found — attempting Repair-WinGetPackageManager bootstrap"
+            try { Repair-WinGetPackageManager -ErrorAction Stop } catch {
+              Write-Error "winget unavailable on this runner and bootstrap failed: $_"; exit 1
+            }
+          }
+          winget --version
+
+      - name: winget validate (blocks bad manifests in CI)
+        shell: pwsh
+        run: |
+          winget validate --manifest "$env:MANIFEST_DIR" --disable-interactivity
+
+      - name: WinGet submit gate status
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if (-not $env:WINGET_CREATE_GITHUB_TOKEN) {
+            Write-Host "WinGet submit SKIPPED: WINGET_CREATE_GITHUB_TOKEN secret not set"
+          } elseif ("$env:REF_NAME" -like "*-*") {
+            Write-Host "WinGet submit SKIPPED: $env:REF_NAME is a prerelease (tag contains '-')"
+          } else {
+            Write-Host "WinGet submit WILL RUN for $env:REF_NAME"
+          }
+
+      - name: wingetcreate submit
+        # Stable tags only + secret present. Gate on the job-level env var — the
+        # `secrets` context is not valid inside an `if:` expression. Token is a
+        # classic PAT with public_repo scope (fine-grained is unsupported by
+        # wingetcreate).
+        if: ${{ env.WINGET_CREATE_GITHUB_TOKEN != '' && !contains(github.ref_name, '-') }}
+        shell: pwsh
+        run: |
+          # Install wingetcreate, then open a winget-pkgs PR from the generated manifests.
+          winget install --id Microsoft.WingetCreate --silent --accept-source-agreements --accept-package-agreements
+          wingetcreate submit --token "$env:WINGET_CREATE_GITHUB_TOKEN" "$env:MANIFEST_DIR"
+
+  # ── Post-release smoke: artifacts checksum + cosign ───────────────────────
+  smoke-artifacts:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Smoke — artifacts (checksum + cosign)
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: gh release download "$REF_NAME" --repo "${{ github.repository }}" --pattern "gal-*" --pattern "checksums.txt*"
+      - name: Verify SHA-256
+        run: sha256sum -c checksums.txt
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: cosign verify-blob
+        run: |
+          cosign verify-blob checksums.txt \
+            --signature checksums.txt.sig \
+            --certificate checksums.txt.pem \
+            --certificate-identity-regexp 'https://github.com/monkey1wizard/Golem-Agents-Legion/\.github/workflows/release\.yml@.*' \
+            --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+
+  # ── Post-release smoke: Cargo self-sufficiency ─────────────────────────────
+  smoke-cargo:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Smoke — Cargo (${{ matrix.os }})
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: cargo install from public repo (fresh CARGO_HOME)
+        shell: bash
+        env:
+          CARGO_HOME: ${{ runner.temp }}/cargohome
+        run: |
+          cargo install --git "https://github.com/${{ github.repository }}" gal-cli --locked
+          echo "${CARGO_HOME}/bin" >> "$GITHUB_PATH"
+      - name: Verify self-sufficiency (gal refresh, not just --version)
+        shell: bash
+        run: |
+          gal --version
+          gal refresh
+
+  # ── Post-release smoke: installer scripts ─────────────────────────────────
+  smoke-installer:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Smoke — installer (${{ matrix.os }})
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Run install.sh against the fresh release
+        shell: bash
+        env:
+          GAL_VERSION: ${{ github.ref_name }}
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/$GAL_VERSION/packaging/install.sh" | bash
+          echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
+      - name: Verify installer self-sufficiency
+        shell: bash
+        run: |
+          gal --version
+          gal refresh
+
+  smoke-installer-windows:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    name: Smoke — installer (windows)
+    needs: sign
+    runs-on: windows-latest
+    steps:
+      - name: Run install.ps1 against the fresh release
+        shell: pwsh
+        env:
+          GAL_VERSION: ${{ github.ref_name }}
+        run: |
+          irm "https://raw.githubusercontent.com/${{ github.repository }}/$env:GAL_VERSION/packaging/install.ps1" | iex
+          echo "$env:LOCALAPPDATA\Programs\gal" >> $env:GITHUB_PATH
+      - name: Verify installer self-sufficiency
+        shell: pwsh
+        # Call gal.exe explicitly: in PowerShell the bare name `gal` resolves to
+        # the built-in Get-Alias alias, which shadows the installed binary on
+        # PATH ("an alias with the name '--version' does not exist"). The .exe
+        # suffix bypasses the alias. (End-user ergonomics of the name collision
+        # are a separate docs concern; this only proves the install works.)
+        run: |
+          gal.exe --version
+          gal.exe refresh

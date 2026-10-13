@@ -1,0 +1,131 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [
+    "AGENTS.md"
+  ],
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      "graphify-out/**"
+    ]
+  },
+  "command": {
+    "git-commit-msg": {
+      "description": "Generate a commit message from staged changes",
+      "template": "Use the baseline below for the type(scope) prefix (it is a no-hijack path/status classifier that never reads the diff body), then read the staged diff and write a subject describing what actually changed. Do not ship the generic baseline subject verbatim. Keep the type(scope) prefix unless the diff clearly contradicts it. Add up to three body bullets only for broader changes. Do not add explanations, markdown fences, reasoning tags, JSON, or any extra prose. If the baseline reports No changes staged for commit. or Not a git repository., return that text exactly. Apply extra instructions if provided: $ARGUMENTS\n\n!`gal commit-msg --print`"
+    }
+  },
+  "permission": {
+    "read": "allow",
+    "edit": "ask",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "skill": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "question": "allow",
+    "bash": {
+      "*": "ask",
+      "Get-Content *": "allow",
+      "gc *": "allow",
+      "cat *": "allow",
+      "type *": "allow",
+      "Get-Item *": "allow",
+      "gi *": "allow",
+      "Get-ChildItem *": "allow",
+      "ls *": "allow",
+      "dir *": "allow",
+      "Resolve-Path *": "allow",
+      "Test-Path": "allow",
+      "Test-Path *": "allow",
+      "Get-Location": "allow",
+      "pwd": "allow",
+      "Get-Command *": "allow",
+      "Get-Help *": "allow",
+      "help *": "allow",
+      "Get-Member *": "allow",
+      "gm *": "allow",
+      "Select-String *": "allow",
+      "sls *": "allow",
+      "findstr *": "allow",
+      "rg *": "allow",
+      "Select-Object *": "allow",
+      "Format-List *": "allow",
+      "fl *": "allow",
+      "Format-Table *": "allow",
+      "ft *": "allow",
+      "Out-String *": "allow",
+      "git *": "allow",
+      "git log*": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git show *": "allow",
+      "git rev-parse*": "allow",
+      "git branch*": "allow",
+      "git ls-files*": "allow",
+      "git commit *": "ask",
+      "git push *": "deny",
+      "npm *": "allow",
+      "rm *": "deny",
+      "grep *": "allow"
+    },
+    "external_directory": {
+      "~/**": "allow"
+    }
+  },
+  "agent": {
+    "build": {
+      "permission": {
+        "bash": {
+          "*": "ask",
+          "Get-Content *": "allow",
+          "gc *": "allow",
+          "cat *": "allow",
+          "type *": "allow",
+          "Get-Item *": "allow",
+          "gi *": "allow",
+          "Get-ChildItem *": "allow",
+          "ls *": "allow",
+          "dir *": "allow",
+          "Resolve-Path *": "allow",
+          "Test-Path": "allow",
+          "Test-Path *": "allow",
+          "Get-Location": "allow",
+          "pwd": "allow",
+          "Get-Command *": "allow",
+          "Get-Help *": "allow",
+          "help *": "allow",
+          "Get-Member *": "allow",
+          "gm *": "allow",
+          "Select-String *": "allow",
+          "sls *": "allow",
+          "findstr *": "allow",
+          "rg *": "allow",
+          "Select-Object *": "allow",
+          "Format-List *": "allow",
+          "fl *": "allow",
+          "Format-Table *": "allow",
+          "ft *": "allow",
+          "Out-String *": "allow",
+          "git *": "allow",
+          "git log*": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git show *": "allow",
+          "git rev-parse*": "allow",
+          "git branch*": "allow",
+          "git ls-files*": "allow",
+          "git commit *": "ask",
+          "git push *": "deny",
+          "npm *": "allow",
+          "grep *": "allow"
+        }
+      }
+    },
+    "plan": {},
+    "general": {},
+    "explore": {}
+  }
+}

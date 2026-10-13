@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "../rules/terminology.mjs": {
+      "locale": "en-US",
+      "channel": "hard"
+    },
+    "../rules/./terminology.mjs": {
+      "locale": "en-US",
+      "channel": "advisory",
+      "severity": "warning"
+    },
+    "write-good": {
+      "passive": true,
+      "tooWordy": true,
+      "weasel": false,
+      "adverb": false,
+      "cliches": false,
+      "thereIs": false,
+      "spelledNumbers": false,
+      "illusion": false,
+      "severity": "warning"
+    }
+  },
+  "filters": {
+    "../prose.mjs": true
+  }
+}
