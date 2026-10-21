@@ -1,0 +1,50 @@
+name: Publish marketplace snapshot
+
+# Renders the public GAL plugin tree (core-only, no projection, no personal
+# layer, no bundled binary) and force-publishes it to a dedicated snapshot
+# branch. Claude / Codex add the marketplace from that branch. Independent of
+# the binary release: run it manually any time, or let the release workflow call
+# it — it never needs a release tag.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-snapshot:
+    if: ${{ github.repository == 'monkey1wizard/Golem-Agents-Legion' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build gal
+        run: cargo build --release -p gal-cli
+
+      - name: Render marketplace snapshot (core-only)
+        run: |
+          ./target/release/gal marketplace-snapshot \
+            --source ./plugins/gal-core \
+            --out ./snapshot
+
+      - name: Publish snapshot to dedicated branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPSHOT_BRANCH: marketplace-snapshot
+        run: |
+          cd ./snapshot
+          git init -q
+          git checkout -q -b "$SNAPSHOT_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "marketplace snapshot from ${GITHUB_SHA}"
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:${SNAPSHOT_BRANCH}"

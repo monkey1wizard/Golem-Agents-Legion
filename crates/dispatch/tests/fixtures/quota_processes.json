@@ -1,0 +1,93 @@
+{
+  "schema": "quota_processes",
+  "version": 1,
+  "note": "Each case names a fake executor that prints `emit` lines, then holds for `hold_secs`. Expected quota is checked against the DispatchResult returned by each terminal path. `acquisitions` lists the acquisition kind of every observation in order.",
+  "cases": [
+    {
+      "name": "claude_clean_exit_without_passive_event_is_a_gap",
+      "executor": "claude",
+      "emit": [
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"session_id\":\"s-1\",\"result\":\"done\"}"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 30,
+      "expect": {
+        "terminal_state": "completed",
+        "quota": "collected",
+        "acquisitions": ["unsupported"],
+        "utilization": null
+      }
+    },
+    {
+      "name": "claude_passive_rate_limit_event_keeps_its_fraction",
+      "executor": "claude",
+      "emit": [
+        "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"rateLimitType\":\"five_hour\",\"utilization\":0.42}}",
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"session_id\":\"s-2\",\"result\":\"done\"}"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 30,
+      "expect": {
+        "terminal_state": "completed",
+        "quota": "collected",
+        "acquisitions": ["passive"],
+        "utilization": "0.42"
+      }
+    },
+    {
+      "name": "codex_failed_control_query_keeps_outcome",
+      "executor": "codex",
+      "emit": [
+        "not a protocol frame"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 30,
+      "expect": {
+        "terminal_state": "completed",
+        "quota": "collected",
+        "acquisitions": ["unsupported", "failed"],
+        "utilization": null
+      }
+    },
+    {
+      "name": "claude_timeout_still_attaches_quota",
+      "executor": "claude",
+      "emit": [
+        "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"rateLimitType\":\"seven_day\",\"utilization\":0.1}}"
+      ],
+      "hold_secs": 30,
+      "timeout_secs": 2,
+      "expect": {
+        "terminal_state": "timeout-midrun",
+        "quota": "collected",
+        "acquisitions": ["passive"],
+        "utilization": "0.1"
+      }
+    },
+    {
+      "name": "ssh_transport_return_has_unknown_scope",
+      "executor": "ssh",
+      "emit": [
+        "remote output"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 30,
+      "expect": {
+        "terminal_state": "completed",
+        "quota": "unknown-scope"
+      }
+    },
+    {
+      "name": "unlaunched_attempt_reads_no_account",
+      "executor": "gal-quota-missing-executor",
+      "fake": false,
+      "emit": [],
+      "hold_secs": 0,
+      "timeout_secs": 30,
+      "expect": {
+        "terminal_state": "unavailable",
+        "quota": "not-attempted"
+      }
+    }
+  ]
+}

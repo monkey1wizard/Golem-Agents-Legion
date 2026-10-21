@@ -1,0 +1,69 @@
+{
+  "schema": "quota_sources.v1",
+  "provenance": "Schema-derived fixtures. Field names come from the cited native documentation at the versions in each runtime entry. These are not live recordings. No provider inference or quota-changing action ran to produce them.",
+  "codex": {
+    "runtime": "codex",
+    "cli_version": "0.163.0",
+    "control_transcript": {
+      "frames": [
+        { "method": "initialize", "id": 0 },
+        { "method": "initialized", "id": null },
+        { "method": "account/rateLimits/read", "id": 1 }
+      ],
+      "shutdown": "stdin closed, then the contained child is terminated and reaped"
+    },
+    "rate_limits_weekly_only": {
+      "ordinaryUsageAllowed": true,
+      "rateLimits": {
+        "limitId": "codex",
+        "primary": { "usedPercent": 37, "windowDurationMins": 10080, "resetsAt": 1790000000 },
+        "secondary": null,
+        "credits": { "hasCredits": false, "unlimited": false, "balance": "0" },
+        "planType": "prolite",
+        "rateLimitReachedType": null
+      },
+      "rateLimitsByLimitId": {
+        "codex": {
+          "limitId": "codex",
+          "primary": { "usedPercent": 37, "windowDurationMins": 10080, "resetsAt": 1790000000 },
+          "secondary": null,
+          "planType": "prolite"
+        }
+      },
+      "accountId": "<redacted-account-id>"
+    },
+    "rate_limits_without_window": {
+      "rateLimitsByLimitId": {
+        "codex": { "limitId": "codex", "primary": null, "secondary": null }
+      }
+    }
+  },
+  "claude": {
+    "runtime": "claude",
+    "cli_version": "2.1.301",
+    "passive_stdout": "{\"type\":\"system\",\"subtype\":\"init\"}\n{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"allowed_warning\",\"rateLimitType\":\"five_hour\",\"utilization\":0.42}}\n{\"type\":\"result\",\"subtype\":\"success\",\"usage\":{\"input_tokens\":5}}\n",
+    "passive_stdout_without_event": "{\"type\":\"result\",\"subtype\":\"success\",\"usage\":{\"input_tokens\":5}}\n"
+  },
+  "copilot": {
+    "runtime": "copilot",
+    "cli_version": "1.0.98",
+    "passive_stdout": "{\"result\":{\"sessionId\":\"s-1\"},\"usage\":{\"schema\":\"copilot.usage\",\"version\":1}}\n",
+    "expected_gap": "account.getQuota transport is unverified"
+  },
+  "antigravity": {
+    "runtime": "antigravity",
+    "cli_version": "1.4.0",
+    "statusline": {
+      "quota": {
+        "gemini-weekly": { "remaining_fraction": 0.9378, "reset_time": "2026-07-06T07:50:32Z", "reset_in_seconds": 560580 }
+      },
+      "plan_tier": "Pro"
+    }
+  },
+  "opencode": {
+    "runtime": "opencode",
+    "cli_version": "not installed on the audited PATH",
+    "passive_stdout": "{\"type\":\"step_finish\",\"tokens\":{\"input\":3}}\n",
+    "expected_gap": "no provider-independent quota source"
+  }
+}

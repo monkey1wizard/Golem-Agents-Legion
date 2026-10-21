@@ -1,0 +1,9 @@
+--- GAL DISPATCH ---
+ACTION: Dispatch three research workers (WORKER_0/WORKER_1/WORKER_2) in parallel for structured investigation, then have ORCHESTRATOR compare, adjudicate, check, and document their findings.
+COMMAND: research
+ON_COMPLETE: Synthesize findings and surface RESEARCH_COMPLETE to the user.
+ORCHESTRATOR: Compare, adjudicate, check, and document the findings from all three workers.
+WORKER_0: Spawn an isolated native subagent (worker 0) under plugins/gal-core/agents/golem-researcher.agent.md to research independently.
+WORKER_1: Spawn an isolated native subagent (worker 1) under plugins/gal-core/agents/golem-researcher.agent.md to research independently.
+WORKER_2: Spawn an isolated native subagent (worker 2) under plugins/gal-core/agents/golem-researcher.agent.md to research independently.
+--- END DISPATCH ---

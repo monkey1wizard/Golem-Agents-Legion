@@ -1,0 +1,41 @@
+{
+  "rules": {
+    "../rules/terminology.mjs": {
+      "locale": "ja-JP",
+      "channel": "hard"
+    },
+    "../rules/./terminology.mjs": {
+      "locale": "ja-JP",
+      "channel": "advisory",
+      "severity": "warning"
+    },
+    "preset-ja-technical-writing": {
+      "sentence-length": { "max": 100, "severity": "warning" },
+      "no-double-negative-ja": { "severity": "warning" },
+      "max-comma": false,
+      "max-ten": false,
+      "max-kanji-continuous-len": false,
+      "arabic-kanji-numbers": false,
+      "no-mix-dearu-desumasu": false,
+      "ja-no-mixed-period": false,
+      "no-doubled-conjunction": false,
+      "no-doubled-conjunctive-particle-ga": false,
+      "no-doubled-joshi": false,
+      "no-dropping-the-ra": false,
+      "no-nfd": false,
+      "no-exclamation-question-mark": false,
+      "no-hankaku-kana": false,
+      "no-invalid-control-character": false,
+      "ja-no-weak-phrase": false,
+      "ja-no-successive-word": false,
+      "ja-no-abusage": false,
+      "ja-no-redundant-expression": false,
+      "ja-unnatural-alphabet": false,
+      "no-unmatched-pair": false,
+      "no-zero-width-spaces": false
+    }
+  },
+  "filters": {
+    "../prose.mjs": true
+  }
+}

@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Source (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check source tree
+        shell: bash
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          os=linux
+          [[ "$RUNNER_OS" == Windows ]] && os=windows
+          skips=()
+          if [[ -f .github/ci-deferred-tests.txt ]]; then
+            while read -r test_os test_name; do
+              test_os=${test_os%$'\r'}
+              test_name=${test_name%$'\r'}
+              [[ -z "$test_os" || "$test_os" == \#* ]] && continue
+              [[ "$test_os" == "$os" ]] && skips+=(--skip "$test_name")
+            done < .github/ci-deferred-tests.txt
+          fi
+          echo "deferred skips for $os: $(( ${#skips[@]} / 2 ))"
+          cargo test --workspace --locked --no-fail-fast -- --exact "${skips[@]}"
+          cargo clippy --workspace --locked
+          cargo fmt --check
+
+  snapshot:
+    name: Snapshot (${{ matrix.os }})
+    if: github.repository == 'monkey1wizard/Golem-Agents-Legion-private'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          check-latest: false
+
+      - name: Check public snapshot
+        shell: bash
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git remote add github https://github.com/monkey1wizard/Golem-Agents-Legion.git
+          bash packaging/publish-public.sh --keep-snapshot "$RUNNER_TEMP/snapshot"
+          cd "$RUNNER_TEMP/snapshot"
+          npm ci --prefix tools/writing
+          node tools/writing/check.mjs --required
+          os=linux
+          [[ "$RUNNER_OS" == Windows ]] && os=windows
+          skips=()
+          if [[ -f .github/ci-deferred-tests.txt ]]; then
+            while read -r test_os test_name; do
+              test_os=${test_os%$'\r'}
+              test_name=${test_name%$'\r'}
+              [[ -z "$test_os" || "$test_os" == \#* ]] && continue
+              [[ "$test_os" == "$os" ]] && skips+=(--skip "$test_name")
+            done < .github/ci-deferred-tests.txt
+          fi
+          echo "deferred skips for $os: $(( ${#skips[@]} / 2 ))"
+          cargo test --workspace --locked --no-fail-fast -- --exact "${skips[@]}"
+          cargo clippy --workspace --locked
+          cargo fmt --check

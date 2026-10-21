@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Secrets
+*.key
+*.pem
+openclaw.json
+
+# Build and release output
+/target/
+**/target/
+
+# Temporary files
+.tmp/
+
+# GAL workflow state: track durable files only.
+.dev/*
+!.dev/project.md
+!.dev/state.md
+!.dev/plans/
+!.dev/research/
+# Private release runbook. publish-public.sh strips .dev/ from public snapshots.
+!.dev/release.md
+!.dev/release.zh-Hant.md
+
+# Private notes
+*.private.md
+
+# Tool outputs
+graphify-out/
+.agents/rules/*-rtk-rules.md
+/.playwright-mcp/

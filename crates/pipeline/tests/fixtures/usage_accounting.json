@@ -1,0 +1,518 @@
+{
+  "cases": [
+    {
+      "name": "retry_attempts_all_count",
+      "run_id": "run-retry",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-attempt-1",
+          "observation": {
+            "schema_version": 1,
+            "identity": {
+              "plan_id": "plan-a",
+              "task_id": "alpha-task",
+              "attempt_id": "attempt-1",
+              "executor": "codex",
+              "session_id": "session-1"
+            },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 100 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            },
+            "cost": {
+              "value": { "state": "unavailable", "reason": "provider reported no cost" }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-attempt-2",
+          "observation": {
+            "schema_version": 1,
+            "identity": {
+              "plan_id": "plan-a",
+              "task_id": "alpha-task",
+              "attempt_id": "attempt-2",
+              "executor": "codex",
+              "session_id": "session-2"
+            },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 60 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 3000, "end_unix_ms": 4000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            },
+            "cost": {
+              "value": {
+                "state": "reported",
+                "value": {
+                  "amount": "0.50",
+                  "unit": { "currency": "USD" },
+                  "kind": "provider_reported"
+                }
+              },
+              "semantics": "delta",
+              "descendants": "own",
+              "window": { "start_unix_ms": 3000, "end_unix_ms": 4000 }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "cumulative_series_counts_once",
+      "run_id": "run-cumulative",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-cumulative-1",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "beta-task", "session_id": "session-3" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 100 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 1500 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-cumulative-2",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "beta-task", "session_id": "session-3" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 160 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1500, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-turn-1",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "beta-task", "session_id": "session-3" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 40 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 1500 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-turn-2",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "beta-task", "session_id": "session-3" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 20 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1500, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "inclusive_parent_counts_child_once",
+      "run_id": "run-inclusive",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-parent",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "gamma-task", "session_id": "parent-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 200 },
+                  "semantics": "delta",
+                  "descendants": "includes_descendants",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-child",
+          "observation": {
+            "schema_version": 1,
+            "identity": {
+              "plan_id": "plan-a",
+              "task_id": "gamma-task",
+              "session_id": "child-session",
+              "parent_session_id": "parent-session"
+            },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 60 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1200, "end_unix_ms": 1800 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "exclusive_parent_adds_child",
+      "run_id": "run-exclusive",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-parent",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "gamma-task", "session_id": "parent-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 200 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-child",
+          "observation": {
+            "schema_version": 1,
+            "identity": {
+              "plan_id": "plan-a",
+              "task_id": "gamma-task",
+              "session_id": "child-session",
+              "parent_session_id": "parent-session"
+            },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 60 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1200, "end_unix_ms": 1800 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "parallel_intervals",
+      "run_id": "run-parallel",
+      "cutoff_unix_ms": 10000000,
+      "observations": [],
+      "intervals": [
+        {
+          "attempt_id": "attempt-1",
+          "start_unix_ms": 0,
+          "end_unix_ms": 10000,
+          "clock": { "kind": "controller" }
+        },
+        {
+          "attempt_id": "attempt-2",
+          "start_unix_ms": 0,
+          "end_unix_ms": 10000,
+          "clock": { "kind": "controller" }
+        }
+      ]
+    },
+    {
+      "name": "all_costs_unknown",
+      "run_id": "run-unknown-cost",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-attempt-1",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "alpha-task", "session_id": "session-1" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 100 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            },
+            "cost": {
+              "value": { "state": "unavailable", "reason": "provider reported no cost" }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-attempt-2",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "alpha-task", "session_id": "session-2" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 60 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 3000, "end_unix_ms": 4000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            },
+            "cost": {
+              "value": { "state": "malformed", "reason": "cost field is not a number" }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "reset_and_missing_baseline",
+      "run_id": "run-reset",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-reset-1",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "delta-task", "session_id": "reset-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 100 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 1100 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-reset-2",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "delta-task", "session_id": "reset-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 50 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1100, "end_unix_ms": 1200 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-reset-3",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "delta-task", "session_id": "reset-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 70 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1200, "end_unix_ms": 1300 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-lone",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "delta-task", "session_id": "lone-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 500 },
+                  "semantics": "cumulative_snapshot",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 1100 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    },
+    {
+      "name": "shared_session_unallocated",
+      "run_id": "run-shared",
+      "cutoff_unix_ms": 10000000,
+      "observations": [
+        {
+          "observation_id": "obs-shared-a",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-a", "task_id": "alpha-task", "session_id": "shared-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 30 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 1000, "end_unix_ms": 2000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        },
+        {
+          "observation_id": "obs-shared-b",
+          "observation": {
+            "schema_version": 1,
+            "identity": { "plan_id": "plan-b", "task_id": "beta-task", "session_id": "shared-session" },
+            "tokens": {
+              "output": {
+                "count": {
+                  "value": { "state": "reported", "value": 30 },
+                  "semantics": "delta",
+                  "descendants": "own",
+                  "window": { "start_unix_ms": 2000, "end_unix_ms": 3000 }
+                },
+                "relation": { "kind": "exclusive" }
+              }
+            }
+          }
+        }
+      ],
+      "intervals": []
+    }
+  ],
+  "assessment_cases": [
+    {
+      "name": "inclusive_residual_is_proven",
+      "reconciliation_case": "inclusive_parent_counts_child_once",
+      "judgment": {
+        "schema_version": 1,
+        "assessment_id": "assess-inclusive-1",
+        "run_id": "run-inclusive",
+        "snapshot_id": "snap-inclusive",
+        "snapshot_digest": "",
+        "useful_work_rule": "accepted when the run kept the change, support when it informed the kept change",
+        "author": "orchestrator",
+        "session_id": "review-session-1",
+        "model": "claude-haiku-5-5",
+        "recorded_at_unix_ms": 20000000,
+        "supersedes": null,
+        "assignments": [
+          {
+            "contribution_id": "obs-child/output",
+            "outcome": "accepted",
+            "reason": "the child attempt produced the kept change",
+            "evidence": ["child-session-diff"]
+          }
+        ],
+        "residuals": [
+          {
+            "parent_contribution_id": "obs-parent/output",
+            "covered_contribution_ids": ["obs-child/output"],
+            "outcome": "support",
+            "reason": "the parent's own turns explored the change",
+            "evidence": ["parent-session-log"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "shared_child_residual_is_unproven",
+      "reconciliation_case": "exclusive_parent_adds_child",
+      "judgment": {
+        "schema_version": 1,
+        "assessment_id": "assess-exclusive-1",
+        "run_id": "run-exclusive",
+        "snapshot_id": "snap-exclusive",
+        "snapshot_digest": "",
+        "useful_work_rule": "accepted when the run kept the change, support when it informed the kept change",
+        "author": "orchestrator",
+        "session_id": "review-session-2",
+        "model": "claude-haiku-5-5",
+        "recorded_at_unix_ms": 20000000,
+        "supersedes": null,
+        "assignments": [
+          {
+            "contribution_id": "obs-child/output",
+            "outcome": "accepted",
+            "reason": "the child attempt produced the kept change",
+            "evidence": ["child-session-diff"]
+          }
+        ],
+        "residuals": [
+          {
+            "parent_contribution_id": "obs-parent/output",
+            "covered_contribution_ids": ["obs-child/output"],
+            "outcome": "support",
+            "reason": "the parent's own turns explored the change",
+            "evidence": ["parent-session-log"]
+          }
+        ]
+      }
+    }
+  ]
+}
