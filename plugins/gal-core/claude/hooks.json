@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+    {
+      "hooks": [
+        { "type": "command", "command": "gal quickfix-hook --host claude stop" }
+      ]
+    }
+    ]
+  }
+}

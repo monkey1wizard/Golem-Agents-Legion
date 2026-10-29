@@ -1,0 +1,5 @@
+--- GAL DISPATCH ---
+ACTION: Load and follow the /gal-pipeline procedure (this selects the procedure, NOT immediate phase execution): pass the Entry-Latch preflight, then dispatch each phase with `gal dispatch-script … '#file:<prompt>'` (single-quote the token in PowerShell) to chain implement → test → audit using config.json#executorRouting for multi-vendor AI assignment.
+COMMAND: pipeline
+ON_COMPLETE: Report combined verdict: implement/test/audit status and whether the plan is READY TO FINALIZE (then /gal finalize).
+--- END DISPATCH ---
