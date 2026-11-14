@@ -1,0 +1,74 @@
+{
+  "rate_sets": {
+    "base": {
+      "schema_version": 1,
+      "rate_set_id": "rates-2026-10-01",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.5", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "output", "unit": "per_million_tokens", "price": "10", "money_unit": { "currency": "USD" } }
+      ]
+    },
+    "changed_input": {
+      "schema_version": 1,
+      "rate_set_id": "rates-2026-10-15",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "3", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "output", "unit": "per_million_tokens", "price": "10", "money_unit": { "currency": "USD" } }
+      ]
+    },
+    "missing_output": {
+      "schema_version": 1,
+      "rate_set_id": "rates-missing-output",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.5", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } }
+      ]
+    },
+    "duplicate_input": {
+      "schema_version": 1,
+      "rate_set_id": "rates-duplicate-input",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.5", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.7", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "output", "unit": "per_million_tokens", "price": "10", "money_unit": { "currency": "USD" } }
+      ]
+    },
+    "mixed_units": {
+      "schema_version": 1,
+      "rate_set_id": "rates-mixed-units",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.5", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "output", "unit": "per_million_tokens", "price": "10", "money_unit": { "currency": "EUR" } }
+      ]
+    },
+    "per_request_output": {
+      "schema_version": 1,
+      "rate_set_id": "rates-per-request-output",
+      "rates": [
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "input", "unit": "per_million_tokens", "price": "2.5", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "cached_input", "unit": "per_million_tokens", "price": "0.25", "money_unit": { "currency": "USD" } },
+        { "provider": "codex", "model": "gpt-x", "billing_mode": "standard", "category": "output", "unit": "per_request", "price": "0.01", "money_unit": { "currency": "USD" } }
+      ]
+    }
+  },
+  "observations": {
+    "cache_subset": {
+      "schema_version": 1,
+      "identity": { "plan_id": "plan-a", "task_id": "task-a", "attempt_id": "attempt-1", "executor": "codex", "session_id": "session-1" },
+      "models": { "observed": "gpt-x" },
+      "tokens": {
+        "input": { "count": { "value": { "state": "reported", "value": 1000 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+        "output": { "count": { "value": { "state": "reported", "value": 200 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+        "cached_input": { "count": { "value": { "state": "reported", "value": 400 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "subset_of", "category": "input" } },
+        "cache_write": { "count": { "value": { "state": "reported", "value": 0 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+        "reasoning": { "count": { "value": { "state": "reported", "value": 0 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+        "other": { "count": { "value": { "state": "reported", "value": 0 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } }
+      },
+      "cost": { "value": { "state": "unavailable", "reason": "provider reported no cost" } }
+    }
+  }
+}

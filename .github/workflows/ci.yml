@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Source (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check source tree
+        shell: bash
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          os=linux
+          [[ "$RUNNER_OS" == Windows ]] && os=windows
+          skips=()
+          if [[ -f .github/ci-deferred-tests.txt ]]; then
+            while read -r test_os test_name; do
+              test_os=${test_os%$'\r'}
+              test_name=${test_name%$'\r'}
+              [[ -z "$test_os" || "$test_os" == \#* ]] && continue
+              [[ "$test_os" == "$os" ]] && skips+=(--skip "$test_name")
+            done < .github/ci-deferred-tests.txt
+          fi
+          echo "deferred skips for $os: $(( ${#skips[@]} / 2 ))"
+          cargo test --workspace --locked --no-fail-fast -- --exact "${skips[@]}"
+          cargo clippy --workspace --locked
+          cargo fmt --check

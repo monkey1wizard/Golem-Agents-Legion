@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git tag *)",
+      "Bash(git worktree *)",
+      "Bash(git merge *)",
+      "Bash(git commit *)",
+      "Bash(git add *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git rev-parse *)",
+      "Bash(git update-ref *)",
+      "Bash(rtk git *)",
+      "Bash(gal *)",
+      "Bash(gal.exe *)",
+      "Bash(rtk gal *)",
+      "PowerShell(gal *)",
+      "PowerShell(gal.exe *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "Bash(rtk git push *)",
+      "Bash(git rebase *)",
+      "Bash(rtk git rebase *)",
+      "Bash(git merge --squash *)",
+      "Bash(git merge --ff-only *)",
+      "Bash(git merge --no-ff *)"
+    ]
+  }
+}

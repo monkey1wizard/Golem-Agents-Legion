@@ -1,0 +1,11 @@
+--- GAL DISPATCH ---
+ACTION: Invoke golem-tester for pipeline phase 'test'.
+CONTEXT_CARRY: true
+DISPATCH_KIND: pipeline-phase
+MODE: bound
+ON_COMPLETE: Report result to user.
+PIPELINE_CONTEXT_MODE: delta
+PIPELINE_PHASE: test
+ROLE: golem-tester
+TASK_SCOPE: T-NN
+--- END DISPATCH ---

@@ -1,0 +1,85 @@
+{
+  "schema": "usage_processes",
+  "version": 1,
+  "note": "Each case names a fake executor that prints `emit` lines, then holds for `hold_secs`. Expected values are checked against DispatchResult and the executor log.",
+  "cases": [
+    {
+      "name": "agy_timeout_keeps_emitted_usage",
+      "executor": "agy",
+      "emit": [
+        "{\"conversation_id\":\"176f1141-b606-47aa-a47b-76f2a6147623\",\"status\":\"SUCCESS\",\"usage\":{\"input_tokens\":120,\"output_tokens\":30,\"thinking_tokens\":5,\"cache_read_tokens\":40,\"total_tokens\":150}}"
+      ],
+      "hold_secs": 30,
+      "timeout_secs": 2,
+      "expect": {
+        "terminal_state": "timeout-midrun",
+        "exit_code": null,
+        "capability": "mapped",
+        "collection": "partial",
+        "input_tokens": 120,
+        "output_tokens": 30,
+        "cached_input_tokens": 40,
+        "reasoning_tokens": 5,
+        "log_has_usage_extension": true
+      }
+    },
+    {
+      "name": "agy_timeout_without_usage_block_is_unsupported",
+      "executor": "agy",
+      "emit": [
+        "partial output with no terminal usage"
+      ],
+      "hold_secs": 30,
+      "timeout_secs": 2,
+      "expect": {
+        "terminal_state": "timeout-midrun",
+        "exit_code": null,
+        "capability": "unsupported",
+        "collection": "partial",
+        "log_has_usage_extension": false
+      }
+    },
+    {
+      "name": "copilot_clean_exit_keeps_complete_usage",
+      "executor": "copilot",
+      "emit": [
+        "{\"result\":{\"sessionId\":\"3f2c9d1e-5a7b-4c8d-9e0f-1a2b3c4d5e6f\"},\"usage\":{\"schema\":\"copilot.usage\",\"version\":1,\"tokens\":{\"input\":10,\"output\":4,\"cache_read\":2,\"reasoning\":1},\"credits\":0.5}}"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 10,
+      "expect": {
+        "terminal_state": "completed",
+        "exit_code": 0,
+        "capability": "mapped",
+        "collection": "complete",
+        "input_tokens": 10,
+        "output_tokens": 4,
+        "cached_input_tokens": 2,
+        "reasoning_tokens": 1,
+        "log_has_usage_extension": true
+      }
+    },
+    {
+      "name": "copilot_ssh_replay_counts_one_copy",
+      "executor": "copilot",
+      "emit": [
+        "{\"result\":{\"sessionId\":\"3f2c9d1e-5a7b-4c8d-9e0f-1a2b3c4d5e6f\"},\"usage\":{\"schema\":\"copilot.usage\",\"version\":1,\"tokens\":{\"input\":10,\"output\":4,\"cache_read\":2,\"reasoning\":1},\"credits\":0.5}}"
+      ],
+      "hold_secs": 0,
+      "timeout_secs": 10,
+      "replay": true,
+      "expect": {
+        "terminal_state": "completed",
+        "exit_code": 0,
+        "capability": "mapped",
+        "collection": "complete",
+        "input_tokens": 10,
+        "output_tokens": 4,
+        "cached_input_tokens": 2,
+        "reasoning_tokens": 1,
+        "log_has_usage_extension": true,
+        "copies_counted": 1
+      }
+    }
+  ]
+}

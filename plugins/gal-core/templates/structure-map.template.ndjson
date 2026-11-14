@@ -1,0 +1,2 @@
+{"axis":"code","docs":["README.md#commands"],"id":"path/to/file.md","kind":"file","lastSynced":"2026-06-01","lastSyncedRef":null,"layer":"source-contracts","path":"path/to/file.md","syncStatus":"missing"}
+{"axis":"doc","codeRefs":["path/to/file.md"],"headingLevel":2,"id":"README.md#commands","kind":"doc-section","lastSynced":"2026-06-01","lastSyncedRef":null,"syncStatus":"drift","title":"Commands"}

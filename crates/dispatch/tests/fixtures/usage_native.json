@@ -1,0 +1,344 @@
+{
+  "schema": "usage_native.fixtures",
+  "version": 1,
+  "provenance": "Hand-written native outputs. Each case uses the field names that its executor adapter reads. No case is a live CLI capture.",
+  "cases": [
+    {
+      "name": "codex_completed_turns_sum_to_run_deltas",
+      "executor": "codex",
+      "schema": "codex.exec.turn_usage",
+      "version": 1,
+      "provenance": "Codex exec --json turn.completed events, one per turn, each reporting its own usage.",
+      "stdout_lines": [
+        "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":40,\"output_tokens\":20,\"reasoning_output_tokens\":5}}",
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":50,\"cached_input_tokens\":0,\"output_tokens\":10,\"reasoning_output_tokens\":0}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "identity": { "executor": "codex" },
+          "source": { "source_version": "codex.exec.turn_usage.v1" },
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 150 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 40 } }, "relation": { "kind": "subset_of", "category": "input" } },
+            "output": { "count": { "value": { "state": "reported", "value": 30 } }, "relation": { "kind": "exclusive" } },
+            "reasoning": { "count": { "value": { "state": "reported", "value": 5 } }, "relation": { "kind": "subset_of", "category": "output" } }
+          },
+          "cost": { "value": { "state": "unsupported" } }
+        }
+      ]
+    },
+    {
+      "name": "codex_failed_final_turn_keeps_completed_sum_partial",
+      "executor": "codex",
+      "schema": "codex.exec.turn_usage",
+      "version": 1,
+      "provenance": "Codex exec --json with a turn.failed event after one completed turn.",
+      "stdout_lines": [
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":0,\"output_tokens\":20,\"reasoning_output_tokens\":0}}",
+        "{\"type\":\"turn.failed\",\"error\":{\"message\":\"stream closed\"}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "partial", "value": 100 } } },
+            "output": { "count": { "value": { "state": "partial", "value": 20 } } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "codex_malformed_counter_keeps_known_fields",
+      "executor": "codex",
+      "schema": "codex.exec.turn_usage",
+      "version": 1,
+      "provenance": "Codex exec --json whose input_tokens arrives as a string. Other counters stay readable.",
+      "stdout_lines": [
+        "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":\"12\",\"output_tokens\":9}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "malformed" } } },
+            "output": { "count": { "value": { "state": "reported", "value": 9 } } },
+            "cached_input": { "count": { "value": { "state": "unavailable" } } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "codex_turn_failed_without_usage_stays_unavailable",
+      "executor": "codex",
+      "schema": "codex.exec.turn_usage",
+      "version": 1,
+      "provenance": "Codex exec --json with a single turn.failed event and no usage report.",
+      "stdout_lines": [
+        "{\"type\":\"turn.failed\",\"error\":{\"message\":\"rate limited\"}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "unavailable" } } },
+            "output": { "count": { "value": { "state": "unavailable" } } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claude_result_separates_run_and_child_scopes",
+      "executor": "claude",
+      "schema": "claude.result.usage",
+      "version": 1,
+      "provenance": "Claude -p --output-format json result record: top-level usage, per-model modelUsage, and total_cost_usd.",
+      "stdout_lines": [
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"session_id\":\"s-1\",\"total_cost_usd\":0.0421,\"usage\":{\"input_tokens\":30,\"output_tokens\":12,\"cache_read_input_tokens\":500,\"cache_creation_input_tokens\":60},\"modelUsage\":{\"model-a\":{\"inputTokens\":50,\"outputTokens\":20,\"cacheReadInputTokens\":700,\"cacheCreationInputTokens\":40,\"costUSD\":0.03},\"model-b\":{\"inputTokens\":30,\"outputTokens\":5,\"cacheReadInputTokens\":200,\"cacheCreationInputTokens\":30,\"costUSD\":0.0121}}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "source": { "source_version": "claude.result.usage.v1" },
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 30 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 500 } } },
+            "cache_write": { "count": { "value": { "state": "reported", "value": 60 } } }
+          },
+          "cost": { "value": { "state": "unsupported" } }
+        },
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 80 }, "semantics": "unknown", "descendants": "includes_descendants" }, "relation": { "kind": "exclusive" } },
+            "output": { "count": { "value": { "state": "reported", "value": 25 } } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 900 } } },
+            "cache_write": { "count": { "value": { "state": "reported", "value": 70 } } }
+          },
+          "cost": {
+            "value": {
+              "state": "reported",
+              "value": { "amount": "0.0421", "unit": { "currency": "USD" }, "kind": "provider_reported" }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claude_error_result_keeps_counts_partial",
+      "executor": "claude",
+      "schema": "claude.result.usage",
+      "version": 1,
+      "provenance": "Claude -p result record that reports is_error with a subtype and no modelUsage.",
+      "stdout_lines": [
+        "{\"type\":\"result\",\"subtype\":\"error_max_turns\",\"is_error\":true,\"usage\":{\"input_tokens\":30,\"output_tokens\":12}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "partial", "value": 30 } } },
+            "cache_write": { "count": { "value": { "state": "unavailable" } } }
+          }
+        },
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "unavailable" } } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claude_result_without_model_usage_keeps_run_scope_unavailable",
+      "executor": "claude",
+      "schema": "claude.result.usage",
+      "version": 1,
+      "provenance": "Claude -p result record with only the top-level usage block.",
+      "stdout_lines": [
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":30,\"output_tokens\":12}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": { "input": { "count": { "value": { "state": "reported", "value": 30 } } } }
+        },
+        {
+          "tokens": { "input": { "count": { "value": { "state": "unavailable" } } } },
+          "cost": { "value": { "state": "unavailable" } }
+        }
+      ]
+    },
+    {
+      "name": "agy_headless_usage_maps_real_counters",
+      "executor": "agy",
+      "schema": "agy.headless.usage",
+      "version": 1,
+      "provenance": "Antigravity headless terminal object. The usage object and its key layout come from a real agy test log. The response text is neutral. Input plus output equals total_tokens, so both are additive.",
+      "stdout_lines": [
+        "{\"conversation_id\":\"176f1141-b606-47aa-a47b-76f2a6147623\",\"status\":\"SUCCESS\",\"response\":\"ok\",\"usage\":{\"input_tokens\":112281,\"output_tokens\":14350,\"thinking_tokens\":9131,\"cache_read_tokens\":2082177,\"total_tokens\":126631}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "source": { "source_version": "agy.headless.usage.v1" },
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 112281 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+            "output": { "count": { "value": { "state": "reported", "value": 14350 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 2082177 }, "semantics": "unknown" }, "relation": { "kind": "unknown" } },
+            "reasoning": { "count": { "value": { "state": "reported", "value": 9131 }, "semantics": "unknown" }, "relation": { "kind": "unknown" } }
+          },
+          "cost": { "value": { "state": "unsupported" } }
+        }
+      ]
+    },
+    {
+      "name": "agy_mismatched_total_marks_input_and_output_unknown",
+      "executor": "agy",
+      "schema": "agy.headless.usage",
+      "version": 1,
+      "provenance": "Antigravity headless terminal object whose input plus output differs from total_tokens. The split is not proven additive.",
+      "stdout_lines": [
+        "{\"conversation_id\":\"176f1141-b606-47aa-a47b-76f2a6147623\",\"status\":\"SUCCESS\",\"usage\":{\"input_tokens\":40,\"output_tokens\":8,\"thinking_tokens\":3,\"cache_read_tokens\":16,\"total_tokens\":50}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 40 }, "semantics": "unknown" }, "relation": { "kind": "exclusive" } },
+            "output": { "count": { "value": { "state": "reported", "value": 8 }, "semantics": "unknown" }, "relation": { "kind": "exclusive" } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 16 } }, "relation": { "kind": "unknown" } }
+          }
+        }
+      ]
+    },
+    {
+      "name": "agy_failed_terminal_keeps_counts_partial",
+      "executor": "agy",
+      "schema": "agy.headless.usage",
+      "version": 1,
+      "provenance": "Antigravity headless terminal object with a FAILURE status and only input_tokens. Without total_tokens, the split is not proven additive.",
+      "stdout_lines": [
+        "{\"conversation_id\":\"176f1141-b606-47aa-a47b-76f2a6147623\",\"status\":\"FAILURE\",\"usage\":{\"input_tokens\":40}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": { "input": { "count": { "value": { "state": "partial", "value": 40 }, "semantics": "unknown" } } }
+        }
+      ]
+    },
+    {
+      "name": "agy_terminal_without_usage_block_is_unsupported",
+      "executor": "agy",
+      "schema": "agy.headless.usage",
+      "version": 1,
+      "provenance": "Antigravity terminal object with a SUCCESS status and no usage block. The adapter must not guess counters.",
+      "stdout_lines": [
+        "{\"conversation_id\":\"176f1141-b606-47aa-a47b-76f2a6147623\",\"status\":\"SUCCESS\",\"response\":\"ok\"}"
+      ],
+      "capability": "unsupported",
+      "expect": []
+    },
+    {
+      "name": "copilot_tokens_credits_and_premium_requests_stay_on_separate_units",
+      "executor": "copilot",
+      "schema": "copilot.usage",
+      "version": 1,
+      "provenance": "Copilot JSON output with a declared usage block holding tokens, credits, and legacy premium requests.",
+      "stdout_lines": [
+        "{\"type\":\"result\",\"result\":{\"sessionId\":\"c-1\"}}",
+        "{\"usage\":{\"schema\":\"copilot.usage\",\"version\":1,\"tokens\":{\"input\":500,\"output\":90,\"cache_read\":300,\"reasoning\":10},\"credits\":1.25,\"premium_requests\":3}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "source": { "source_version": "copilot.usage.v1" },
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 500 }, "semantics": "delta", "descendants": "own" } },
+            "reasoning": { "count": { "value": { "state": "reported", "value": 10 } }, "relation": { "kind": "subset_of", "category": "output" } }
+          },
+          "cost": {
+            "value": {
+              "state": "reported",
+              "value": { "amount": "1.25", "unit": { "credit": "copilot-credit" }, "kind": "provider_reported" }
+            }
+          }
+        },
+        {
+          "tokens": { "input": { "count": { "value": { "state": "unsupported" } } } },
+          "cost": {
+            "value": {
+              "state": "reported",
+              "value": { "amount": "3", "unit": { "credit": "copilot-premium-request" }, "kind": "provider_reported" }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "copilot_incomplete_token_block_is_malformed",
+      "executor": "copilot",
+      "schema": "copilot.usage",
+      "version": 1,
+      "provenance": "Copilot JSON output whose token block lacks output. The block is rejected as a whole.",
+      "stdout_lines": [
+        "{\"usage\":{\"schema\":\"copilot.usage\",\"version\":1,\"tokens\":{\"input\":500}}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "malformed" } } },
+            "output": { "count": { "value": { "state": "malformed" } } }
+          },
+          "cost": { "value": { "state": "unavailable" } }
+        }
+      ]
+    },
+    {
+      "name": "opencode_step_finish_events_sum_per_step",
+      "executor": "opencode",
+      "schema": "opencode.run.step_finish",
+      "version": 1,
+      "provenance": "OpenCode run --format json stream with two step_finish events, each carrying its own token record.",
+      "stdout_lines": [
+        "{\"type\":\"step_start\",\"sessionID\":\"o-1\"}",
+        "{\"type\":\"step_finish\",\"sessionID\":\"o-1\",\"part\":{\"tokens\":{\"input\":1000,\"output\":200,\"reasoning\":20,\"cache\":{\"read\":800,\"write\":50}},\"cost\":0.01}}",
+        "{\"type\":\"step_finish\",\"sessionID\":\"o-1\",\"part\":{\"tokens\":{\"input\":300,\"output\":40,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0}}}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "source": { "source_version": "opencode.run.step_finish.v1" },
+          "tokens": {
+            "input": { "count": { "value": { "state": "reported", "value": 1300 }, "semantics": "delta", "descendants": "own" }, "relation": { "kind": "exclusive" } },
+            "output": { "count": { "value": { "state": "reported", "value": 240 } } },
+            "cached_input": { "count": { "value": { "state": "reported", "value": 800 } } },
+            "cache_write": { "count": { "value": { "state": "reported", "value": 50 } } }
+          },
+          "cost": { "value": { "state": "unsupported" } }
+        }
+      ]
+    },
+    {
+      "name": "opencode_trailing_error_keeps_completed_steps_partial",
+      "executor": "opencode",
+      "schema": "opencode.run.step_finish",
+      "version": 1,
+      "provenance": "OpenCode run --format json stream whose last event is an error after one completed step.",
+      "stdout_lines": [
+        "{\"type\":\"step_finish\",\"sessionID\":\"o-2\",\"part\":{\"tokens\":{\"input\":1000,\"output\":200,\"reasoning\":0,\"cache\":{\"read\":0,\"write\":0}}}}",
+        "{\"type\":\"error\",\"sessionID\":\"o-2\",\"error\":{\"name\":\"APIError\"}}"
+      ],
+      "capability": "mapped",
+      "expect": [
+        {
+          "tokens": {
+            "input": { "count": { "value": { "state": "partial", "value": 1000 } } },
+            "output": { "count": { "value": { "state": "partial", "value": 200 } } }
+          }
+        }
+      ]
+    }
+  ]
+}

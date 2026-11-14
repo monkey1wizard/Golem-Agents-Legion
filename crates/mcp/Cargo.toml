@@ -1,0 +1,19 @@
+[package]
+name = "mcp"
+version = "0.1.1"
+edition = "2021"
+description = "HealthCheck for GAL's own canonical MCP manifest. Reads nothing another tool owns."
+license = "MIT"
+repository = "https://github.com/monkey1wizard/golem-agents-legion"
+
+[lib]
+name = "mcp"
+path = "src/lib.rs"
+
+[dependencies]
+gal-foundation = { path = "../gal-foundation" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+tempfile = "3.0"
